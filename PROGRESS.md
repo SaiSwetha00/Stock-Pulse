@@ -42,6 +42,8 @@ Measured by gzipping built chunks from `.next/build-manifest.json`
 | 1.2 AI assistant | 169.3 KB | 998.7 KB | -8.3 KB vs before; chunk reshuffle |
 | Voice input | 169.3 KB | 1000.1 KB | |
 | 1.3 + 1.4 | 169.3 KB | 1001.4 KB | |
+| Invite UI | 169.3 KB | 1001.8 KB | |
+| Staff tokens + S1 | 169.3 KB | 1001.8 KB | styling only |
 
 Shared has not moved from 169.3 KB across all of Phase 1. That is 85% of the
 budget consumed before any route adds anything — polyfills are 38.7 KB of it.
@@ -69,14 +71,41 @@ Audit scheduled before Phase 6.
 - **Phase 1.5 — dropped** by agreement, after the ~8x render claim was
   disproved.
 
+- **Invite management UI.** `resendInvite` / `revokeInvite`, owner-gated and
+  restricted to pending invites; `InviteActions` per row.
+- **Phase 2 (part) — staff rota tokens.** S3 closed; last 6 raw palette
+  classes in `components/staff` removed.
+- **Phase 3 (part) — manager badge.** S1 closed; `ROLE_STYLES` was missing
+  `manager`, now typed `Record<Role, string>` so the next role breaks the
+  build rather than the badge.
+
+## Hardcoded colour audit (for Phase 4)
+
+Counted per file, matching palette classes
+(`bg|text|border|ring|from|to|via|fill|stroke|shadow|outline|accent|decoration|divide`
+× the full Tailwind palette incl. white/black):
+
+| Area | Palette classes |
+|---|---|
+| App + shared components (24 files) | **116** |
+| `components/marketing` (landing) | **116** |
+| Hex literals in `.ts`/`.tsx` | **262** |
+
+Worst offenders: `components/auth/AuthUI.tsx` 30, `MonitoringClient.tsx` 20,
+`app/not-found.tsx` 9, `lib/notifications.ts` 8.
+
+`lib/notifications.ts` matters more than its count suggests — colour decided in
+a lib file rather than a component means the token system cannot reach it from
+the markup.
+
 ## In flight
 
-- **Invite management UI** — pending invites, resend, revoke.
+- Nothing. Stopped for the batched blockers below.
 
 ## Left
 
-- Phase 2 — Staff module
-- Phase 3 — roles / audit (needs SMTP configured to test end to end)
+- Phase 2 — rest of the Staff module
+- Phase 3 — rest of roles / audit (needs SMTP configured to test end to end)
 - Phase 4 — typography and colour; semantic tokens, light + dark, WCAG AA
 - Phase 5 — landing rhythm and honest copy
 - Phase 6 — 3D scenes (shared-bundle audit first)
