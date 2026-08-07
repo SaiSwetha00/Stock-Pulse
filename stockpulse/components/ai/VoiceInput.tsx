@@ -6,20 +6,26 @@ import { Mic, Square, Loader2 } from 'lucide-react'
 /**
  * Voice input for the assistant's composer.
  *
- * Deliberately independent of the speaker/mute control. Muting is about what
- * the assistant says out loud; this is about what the user says to it. Someone
- * who does not want the app talking back on a shop floor still needs to be able
- * to talk to it with their hands full, so the two never share state.
+ * One button. Tap to speak, words appear in the input as you talk, tap again to
+ * stop, then edit before sending. There is no language picker — that was scope
+ * nobody asked for, and a dropdown wedged beside a text field is clutter in the
+ * one place the interface should be calm.
+ *
+ * Deliberately independent of the speaker/mute control. Muting governs what the
+ * assistant says out loud; this governs what the user says to it. Someone who
+ * does not want the app talking back on a shop floor still needs to talk to it
+ * with their hands full.
  */
 
 /**
  * Local structural types for the Web Speech API.
  *
- * The bundled DOM lib has a partial `SpeechRecognition` that is missing both
- * `abort()` and `SpeechRecognitionEvent.resultIndex`, and augmenting it would
- * mean declaring properties on a type that already exists. Describing only what
- * this component touches is smaller, and it fails at compile time if a property
- * is misspelled — which a cast to `any` would not.
+ * `types/speech.d.ts` in this repo hand-declares a global `SpeechRecognition`
+ * that omits `abort()`, `maxAlternatives`, `onstart` and
+ * `SpeechRecognitionEvent.resultIndex`. That is a repo file, not the bundled
+ * DOM lib — an earlier commit message of mine blamed the lib, wrongly.
+ * Declaring only what this file touches keeps the two from fighting and still
+ * fails at compile time on a typo, which a cast to `any` would not.
  */
 interface SpeechAlternative {
   transcript: string
@@ -44,9 +50,11 @@ interface SpeechRecognizer {
   lang: string
   continuous: boolean
   interimResults: boolean
+  maxAlternatives: number
   onresult: ((event: SpeechResultEvent) => void) | null
   onerror: ((event: SpeechErrorEvent) => void) | null
   onend: (() => void) | null
+  onstart: (() => void) | null
   start(): void
   stop(): void
   abort(): void
@@ -65,124 +73,41 @@ function getRecognizerCtor(): RecognizerCtor | null {
 }
 
 /**
- * Languages offered in the picker.
- *
- * Labels are written in the language itself, not in English: someone looking
- * for Telugu scans for "తెలుగు", and making them recognise the English word
- * "Telugu" first is a small tax paid by exactly the people this list is for.
+ * Fixed, not chosen. en-IN reads Indian-accented English and copes with the
+ * English loanwords that pepper Hindi and Telugu speech in a shop, which is the
+ * realistic case here.
  */
-const LANGUAGES = [
-  { code: 'en-IN', label: 'English (India)' },
-  { code: 'te-IN', label: 'తెలుగు' },
-  { code: 'hi-IN', label: 'हिन्दी' },
-] as const
-
-/** Where detection lands when the browser asks for something not on the list. */
-const DEFAULT_LANGUAGE = 'en-IN'
-
-const STORAGE_KEY = 'stockpulse.voice.lang'
+const LANGUAGE = 'en-IN'
 
 /**
- * Neither support nor the stored language ever changes while the page is open,
- * so there is nothing to subscribe to. useSyncExternalStore is still the right
- * tool: it is the one way to read a browser-only value with an explicit server
- * snapshot, so the server renders "unsupported" and the client corrects it
- * during hydration instead of the two disagreeing.
+ * Nothing to subscribe to — support does not change while the page is open.
+ * useSyncExternalStore is still right: it is the one way to read a browser-only
+ * value with an explicit server snapshot, so the server renders "unsupported"
+ * and the client corrects it during hydration rather than the two disagreeing.
  */
 function subscribeNever(): () => void {
   return () => {}
 }
 
 /**
- * Picks a starting language from what the browser reports.
- *
- * Every entry in navigator.languages is tried in order for an exact match
- * first, then for the base language. A browser listing ["en-US","en-IN","te"]
- * gets en-IN — en-US is not offered, so the next entry wins; one listing ["te"]
- * gets te-IN rather than falling back to English merely because the region tag
- * was missing. Anything unrecognised lands on en-IN.
+ * What the browser reports, mapped to something a shopkeeper can act on.
+ * `aborted` is absent on purpose: it fires when we stop the microphone
+ * ourselves and is not an error.
  */
-function detectLanguage(): string {
-  const candidates =
-    typeof navigator !== 'undefined' && navigator.languages?.length
-      ? Array.from(navigator.languages)
-      : [typeof navigator !== 'undefined' ? navigator.language : DEFAULT_LANGUAGE]
-
-  for (const candidate of candidates) {
-    if (!candidate) continue
-    const exact = LANGUAGES.find((l) => l.code.toLowerCase() === candidate.toLowerCase())
-    if (exact) return exact.code
-  }
-  for (const candidate of candidates) {
-    if (!candidate) continue
-    const base = candidate.split('-')[0]?.toLowerCase()
-    const partial = LANGUAGES.find((l) => l.code.split('-')[0].toLowerCase() === base)
-    if (partial) return partial.code
-  }
-  return DEFAULT_LANGUAGE
+const ERROR_MESSAGES: Record<string, string> = {
+  'audio-capture': 'No microphone found. Check one is connected and not in use by another app.',
+  network: 'Voice input needs an internet connection. Reconnect and try again.',
+  'no-speech': 'Didn’t catch that — try again, a little closer to the microphone.',
+  'language-not-supported': 'This browser cannot recognise speech here.',
+  'service-not-allowed': 'Speech recognition is turned off in this browser’s settings.',
 }
 
-/** A previously chosen language wins over detection; anything stale or removed
- *  from the list falls back to detection rather than selecting nothing. */
-function readStoredLanguage(): string {
-  let stored: string | null = null
-  try {
-    stored = window.localStorage.getItem(STORAGE_KEY)
-  } catch {
-    // Private browsing can throw on localStorage access; detection still works.
-  }
-  return stored && LANGUAGES.some((l) => l.code === stored) ? stored : detectLanguage()
+function blockedMessage(): string {
+  const host = typeof window === 'undefined' ? 'this site' : window.location.host
+  return `Microphone access is blocked for ${host}. Permission is per-site, so allowing it elsewhere does not count — open the icon at the left of the address bar, set Microphone to Allow, then reload.`
 }
 
 type VoiceState = 'idle' | 'listening' | 'processing'
-
-/**
- * What the browser reports when recognition fails, mapped to something a
- * shopkeeper can act on. `aborted` is absent on purpose — it is what fires when
- * we stop the microphone ourselves, and is not an error to report.
- */
-const ERROR_MESSAGES: Record<string, string> = {
-  'audio-capture':
-    'No microphone found. Check that one is connected and not in use by another app.',
-  network: 'Voice input needs an internet connection. Reconnect and try again.',
-  'no-speech': 'Didn’t catch anything — try speaking a little closer to the microphone.',
-  'language-not-supported':
-    'This browser cannot recognise that language. Try another one from the list.',
-}
-
-type MicPermission = 'granted' | 'denied' | 'prompt' | 'unknown'
-
-/**
- * Names the origin in the blocked message.
- *
- * Microphone permission is granted per origin, and the two addresses this app
- * runs at — the deployed site and localhost during development — are different
- * origins. Allowing the microphone on one grants nothing on the other, and the
- * resulting "I definitely allowed this" is the single most common way to end up
- * stuck. Saying which site is blocked turns that into a two-second check.
- */
-function blockedMessage(): string {
-  const host = typeof window === 'undefined' ? 'this site' : window.location.host
-  return `Microphone access is blocked for ${host}. Permission is per-site, so allowing it somewhere else does not count — open the icon at the left of the address bar on ${host}, set Microphone to Allow, then reload.`
-}
-
-/**
- * Reads the live permission where the browser exposes it.
- *
- * Firefox has no `microphone` descriptor and throws on the query, so a failure
- * is reported as 'unknown' and the caller carries on and lets the recognition
- * attempt decide. Absence of the API is not evidence of a denial.
- */
-async function queryMicPermission(): Promise<MicPermission> {
-  try {
-    const status = await navigator.permissions.query({
-      name: 'microphone' as PermissionName,
-    })
-    return status.state as MicPermission
-  } catch {
-    return 'unknown'
-  }
-}
 
 export default function VoiceInput({
   value,
@@ -195,136 +120,88 @@ export default function VoiceInput({
 }) {
   const [state, setState] = useState<VoiceState>('idle')
   const [error, setError] = useState<string | null>(null)
-  // null until the user picks one, so detection stays in charge until then.
-  const [chosenLanguage, setChosenLanguage] = useState<string | null>(null)
-  const permissionRef = useRef<MicPermission>('unknown')
+
+  const recognitionRef = useRef<SpeechRecognizer | null>(null)
+  /** Text already in the composer when the mic started; speech appends to it. */
+  const baseRef = useRef('')
+  const finalRef = useRef('')
+
+  // Callbacks are bound once at start() and would otherwise close over stale
+  // values, which is why these are refs rather than state.
+  const onChangeRef = useRef(onChange)
+  const valueRef = useRef(value)
+  useEffect(() => {
+    onChangeRef.current = onChange
+    valueRef.current = value
+  }, [onChange, value])
 
   const supported = useSyncExternalStore(
     subscribeNever,
     () => getRecognizerCtor() !== null,
     () => false,
   )
-  const detected = useSyncExternalStore(subscribeNever, readStoredLanguage, () => DEFAULT_LANGUAGE)
-  const language = chosenLanguage ?? detected
-
-  const recognitionRef = useRef<SpeechRecognizer | null>(null)
-  // What was already in the composer when the microphone started. Speech is
-  // appended to it rather than replacing it, so a half-typed question survives.
-  const baseRef = useRef('')
-  // Held in refs as well: the recognition callbacks are bound once at start()
-  // and would otherwise close over stale values.
-  const finalRef = useRef('')
-  const onChangeRef = useRef(onChange)
-  useEffect(() => {
-    onChangeRef.current = onChange
-  }, [onChange])
-
-  /**
-   * Track the permission for as long as the panel is open.
-   *
-   * The `change` event is what fixes the stuck-message case properly: flipping
-   * the setting to Allow in site settings fires it immediately, so a stale
-   * block message clears itself without the user having to guess that another
-   * click is needed. Polling on click alone would leave the message sitting
-   * there, contradicted by the browser's own UI, until they tried again.
-   */
-  useEffect(() => {
-    if (typeof navigator === 'undefined' || !navigator.permissions?.query) return
-
-    let status: PermissionStatus | null = null
-    let onChange: (() => void) | null = null
-    let cancelled = false
-
-    navigator.permissions
-      .query({ name: 'microphone' as PermissionName })
-      .then((result) => {
-        if (cancelled) return
-        status = result
-        onChange = () => {
-          permissionRef.current = result.state as MicPermission
-          // A grant makes any block message we are showing untrue. Clear it
-          // rather than leave the user arguing with a stale sentence.
-          if (result.state === 'granted') setError(null)
-        }
-        onChange()
-        result.addEventListener('change', onChange)
-      })
-      .catch(() => {
-        // No microphone descriptor in this browser. 'unknown' is correct.
-      })
-
-    return () => {
-      cancelled = true
-      if (status && onChange) status.removeEventListener('change', onChange)
-    }
-  }, [])
 
   // Stop the microphone if the component goes away. Closing the assistant
-  // unmounts this subtree, and a session left running would keep the browser's
-  // recording indicator lit with no visible control anywhere to stop it.
+  // unmounts this subtree, and a session left running keeps the browser's
+  // recording indicator lit with no visible control to stop it.
   useEffect(() => {
     return () => {
-      recognitionRef.current?.abort()
+      const r = recognitionRef.current
       recognitionRef.current = null
+      r?.abort()
     }
   }, [])
 
   const stop = useCallback(() => {
-    if (!recognitionRef.current) return
-    // stop() lets the service return what it has heard already; abort() would
-    // throw away the last few words the user just said.
+    const r = recognitionRef.current
+    if (!r) return
     setState('processing')
-    recognitionRef.current.stop()
+    // stop() lets the service return what it has already heard; abort() would
+    // throw away the last few words.
+    r.stop()
   }, [])
 
   const start = useCallback(() => {
     const Ctor = getRecognizerCtor()
     if (!Ctor) return
 
-    // Every attempt starts from a clean slate, so nothing from a previous try
-    // can survive into this one.
     setError(null)
 
-    /**
-     * An insecure origin is refused by the browser and reported as
-     * `not-allowed` — indistinguishable from a denial, and unfixable from site
-     * settings. Worth naming separately, because someone who opened the dev
-     * server over a LAN address will otherwise keep granting a permission that
-     * was never the problem.
-     */
+    // An insecure origin is refused and reported as `not-allowed`, which is
+    // indistinguishable from a denial and unfixable from site settings. Worth
+    // naming separately, or someone on a LAN address keeps granting a
+    // permission that was never the problem.
     if (!window.isSecureContext) {
       setError(
-        `Voice input needs a secure connection. ${window.location.host} is served over plain http — use https, or open the app on localhost instead.`,
+        `Voice input needs a secure connection. ${window.location.host} is plain http — use https, or open the app on localhost.`,
       )
       return
     }
 
-    if (permissionRef.current === 'denied') {
-      setError(blockedMessage())
-      // Re-read rather than trust the cached value: if the setting was changed
-      // somewhere the change event did not reach us, the next attempt is right.
-      void queryMicPermission().then((state) => {
-        permissionRef.current = state
-        if (state === 'granted') setError(null)
-      })
-      return
-    }
-
     const recognition = new Ctor()
-    recognition.lang = language
-    // Continuous so a pause for breath does not end the session mid-sentence;
-    // interim so words appear as they are spoken rather than in one lump at
-    // the end.
-    recognition.continuous = true
+    recognition.lang = LANGUAGE
+    /**
+     * Single-utterance, not continuous.
+     *
+     * Continuous is the fragile mode: Chrome ends the session itself after a
+     * pause and, with no user gesture left to restart it, the button silently
+     * flips back to idle having captured nothing — which is exactly the "it
+     * does not work" failure. One question per tap matches how this is
+     * actually used, and `onend` keeps whatever was transcribed.
+     */
+    recognition.continuous = false
     recognition.interimResults = true
+    recognition.maxAlternatives = 1
 
-    baseRef.current = value.trim()
+    baseRef.current = valueRef.current.trim()
     finalRef.current = ''
+
+    recognition.onstart = () => setState('listening')
 
     recognition.onresult = (event: SpeechResultEvent) => {
       let interim = ''
-      // From resultIndex, not 0: in continuous mode the event carries only what
-      // is new, and re-reading from the start would duplicate earlier phrases.
+      // From resultIndex: the event carries only what is new, and re-reading
+      // from zero would duplicate earlier phrases.
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i]
         const text = result[0]?.transcript ?? ''
@@ -337,40 +214,37 @@ export default function VoiceInput({
 
     recognition.onerror = (event: SpeechErrorEvent) => {
       if (event.error === 'aborted') return
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+      if (event.error === 'not-allowed') {
         setError(blockedMessage())
-        // Resync from the browser rather than assuming this means denied:
-        // Chrome also reports not-allowed when its speech service is
-        // unreachable, in which case the permission is still granted and the
-        // cached value must not be poisoned.
-        void queryMicPermission().then((state) => {
-          permissionRef.current = state
-        })
         return
       }
-      setError(ERROR_MESSAGES[event.error] ?? 'Voice input stopped unexpectedly. Try again.')
+      // The raw code is included for anything unmapped. A message naming the
+      // failure can be acted on; "something went wrong" cannot.
+      setError(ERROR_MESSAGES[event.error] ?? `Voice input stopped (${event.error}). Try again.`)
     }
 
     recognition.onend = () => {
-      setState('idle')
       recognitionRef.current = null
+      setState('idle')
     }
 
     try {
       recognition.start()
       recognitionRef.current = recognition
+      // Optimistic: onstart is authoritative but can lag behind the permission
+      // prompt, and a button that looks dead for a second reads as broken.
       setState('listening')
     } catch {
       // start() throws if a session is somehow already running. Reset rather
       // than leave the button stuck in a state the user cannot clear.
+      recognitionRef.current = null
       setState('idle')
       setError('Voice input could not start. Try again.')
     }
-  }, [language, value])
+  }, [])
 
-  // Nothing is known yet on the first client render, and Firefox and most
-  // non-Chromium browsers have no SpeechRecognition at all. Rendering a button
-  // that can only fail is worse than rendering none.
+  // Nothing is known on the first client render, and Firefox has no
+  // SpeechRecognition at all. A button that can only fail is worse than none.
   if (!supported) return null
 
   const listening = state === 'listening'
@@ -378,44 +252,21 @@ export default function VoiceInput({
 
   return (
     <>
-      <select
-        value={language}
-        onChange={(e) => {
-          setChosenLanguage(e.target.value)
-          try {
-            window.localStorage.setItem(STORAGE_KEY, e.target.value)
-          } catch {
-            // The preference simply will not persist. Not worth interrupting anyone over.
-          }
-        }}
-        // Changing language mid-session would mean tearing down and rebuilding
-        // the recognition object; locking it while live is simpler and matches
-        // what anyone expects of a control that is currently in use.
-        disabled={listening || processing}
-        aria-label="Voice input language"
-        className="control-h-sm shrink-0 rounded-lg bg-transparent px-1 text-xs text-muted focus:outline-none disabled:opacity-40"
-      >
-        {LANGUAGES.map((l) => (
-          <option key={l.code} value={l.code}>
-            {l.label}
-          </option>
-        ))}
-      </select>
-
       <button
         type="button"
         onClick={listening ? stop : start}
         disabled={disabled || processing}
-        aria-label={listening ? 'Stop recording' : 'Start voice input'}
+        aria-label={listening ? 'Stop recording' : 'Ask by voice'}
         aria-pressed={listening}
         className={`tap-target relative shrink-0 rounded-full transition-colors disabled:opacity-40 ${
-          listening ? 'bg-danger text-surface' : 'text-muted hover:bg-surface-muted'
+          listening
+            ? 'bg-danger text-surface'
+            : 'text-muted hover:bg-surface-muted hover:text-foreground'
         }`}
       >
-        {/* The expanding ring is the "this is recording" signal. It is
-            motion-safe: anyone who has asked for reduced motion still gets the
-            solid red fill and the swapped icon, which carry the same meaning
-            without anything moving. */}
+        {/* The expanding ring is the "recording" signal. motion-safe, so anyone
+            who asked for reduced motion still gets the solid fill and the
+            swapped icon, which carry the same meaning without movement. */}
         {listening && (
           <span
             aria-hidden="true"
@@ -433,9 +284,9 @@ export default function VoiceInput({
         </span>
       </button>
 
-      {/* Announced rather than shown: the red button and the ring already say
-          "recording" visually, and a second visible label would shove the
-          composer around every time the microphone is used. */}
+      {/* Announced rather than shown: the red button and ring already say
+          "recording", and a visible label would shove the composer around every
+          time the microphone is used. */}
       <span className="sr-only" role="status">
         {listening ? 'Recording. Speak now.' : processing ? 'Finishing transcription.' : ''}
       </span>
