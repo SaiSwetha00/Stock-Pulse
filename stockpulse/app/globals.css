@@ -93,6 +93,60 @@
 }
 
 /* ---------------------------------------------------------------
+   The landing and auth surfaces are permanently dark.
+
+   They are not "the dark theme" — they are black regardless of what
+   the rest of the app is set to, which is the identity the brief
+   asked to keep. Before this they got there with raw palette classes
+   (`text-white`, `border-white/10`, `text-emerald-400`), which meant
+   ~156 values the token system could not reach.
+
+   Redefining the semantic tokens here lets those components use the
+   same names as the dashboard — `text-foreground`, `border-border`,
+   `text-success` — and always resolve dark. Custom properties inherit
+   from the nearest ancestor that sets them, so this beats `html.dark`
+   for its own subtree no matter which theme is active, and no matter
+   what order the rules appear in.
+
+   Values carry their alpha baked in rather than relying on `/opacity`
+   modifiers, which these tokens do not support — see DECISIONS.md D9.
+   `--border` is the old `white/10` on black, resolved to a flat value.
+
+   All measured against #000: foreground 19.03:1, muted-strong 12.32:1,
+   muted 6.86:1, accent 8.68:1, success 12.05:1, danger 12.37:1.
+   --------------------------------------------------------------- */
+.sp-landing {
+  --background: #000000;
+  --surface: #0a0d0f;
+  --surface-muted: #14181b;
+  --foreground: #f2f4f5;
+  /* Warm neutrals, matching the landing's existing #d1c5b0 body copy
+     rather than the dashboard's cooler greys. */
+  --muted-strong: #d1c5b0;
+  --muted: #9c9284;
+  --border: #1c1f22;
+  --border-strong: #2b2f33;
+
+  /* The landing keeps its own restrained gold — see DECISIONS.md D11.
+     accent-ink is near-black here because it sits ON a gold fill,
+     which is what `text-black` was doing on the buttons. */
+  --accent: #c9a227;
+  --accent-hover: #edc155;
+  --accent-soft: #1e1a0d;
+  --accent-ink: #000000;
+
+  --success: #4ade80;
+  --success-bg: #10231a;
+  --success-ink: #86efac;
+  --danger: #ffb4ab;
+  --danger-bg: #2c1614;
+  --warning: #e0912f;
+  --warning-bg: #2a1e0f;
+  --info: #6ea0f0;
+  --info-bg: #131e31;
+}
+
+/* ---------------------------------------------------------------
    Focus visibility — WCAG 2.4.7.
 
    Fifty controls across the app carry `focus:outline-none` with no

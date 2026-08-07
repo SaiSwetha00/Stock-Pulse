@@ -47,7 +47,7 @@ export default function FAQSection() {
   ]
 
   return (
-    <section id="faq" className="relative py-32 bg-black overflow-hidden perspective-1500">
+    <section id="faq" className="relative py-32 bg-background overflow-hidden perspective-1500">
       <div className="max-w-4xl mx-auto px-6 md:px-12 relative z-10">
         {/* Header */}
         <motion.div
@@ -57,7 +57,7 @@ export default function FAQSection() {
           transition={{ duration: 0.8 }}
           className="text-center mb-20"
         >
-          <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-white/10">
+          <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-border">
             <HelpCircle className="w-3.5 h-3.5" /> FREQUENTLY ASKED QUESTIONS
           </div>
           <h2 className="font-sans font-medium text-3xl sm:text-4xl text-[#e0e2ed] tracking-normal mb-7">
@@ -78,7 +78,7 @@ export default function FAQSection() {
                 transition={{ duration: 0.5, delay: idx * 0.1 }}
                 whileHover={{ translateZ: 10 }}
                 className={`glass-card rounded-2xl border transition-all duration-300 overflow-hidden preserve-3d ${
-                  isOpen ? 'border-[var(--sp-gold)]/60 bg-[var(--sp-surface-card)]/90 shadow-[0_10px_30px_rgba(201,162,39,0.15)]' : 'border-white/10 bg-[var(--sp-surface-alt)]/60'
+                  isOpen ? 'border-[var(--sp-gold)]/60 bg-[var(--sp-surface-card)]/90 shadow-[0_10px_30px_rgba(201,162,39,0.15)]' : 'border-border bg-[var(--sp-surface-alt)]/60'
                 }`}
               >
                 <button
@@ -87,8 +87,8 @@ export default function FAQSection() {
                 >
                   <span className="font-sans font-medium text-base sm:text-lg text-[#e0e2ed]">{faq.question}</span>
                   <div
-                    className={`w-8 h-8 rounded-full bg-black border border-[var(--sp-gold)]/30 flex items-center justify-center text-[var(--sp-gold)] shrink-0 transition-transform duration-300 ${
-                      isOpen ? 'rotate-180 bg-[var(--sp-gold)] text-black' : ''
+                    className={`w-8 h-8 rounded-full bg-background border border-[var(--sp-gold)]/30 flex items-center justify-center text-[var(--sp-gold)] shrink-0 transition-transform duration-300 ${
+                      isOpen ? 'rotate-180 bg-[var(--sp-gold)] text-accent-ink' : ''
                     }`}
                   >
                     <ChevronDown className="w-5 h-5" />
@@ -102,7 +102,7 @@ export default function FAQSection() {
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="px-7 pb-7 text-[#d1c5b0] text-sm leading-relaxed border-t border-white/5 pt-5"
+                      className="px-7 pb-7 text-[#d1c5b0] text-sm leading-relaxed border-t border-border pt-5"
                     >
                       {faq.answer}
                     </motion.div>

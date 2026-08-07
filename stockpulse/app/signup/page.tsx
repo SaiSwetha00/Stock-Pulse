@@ -92,7 +92,7 @@ export default function SignupPage() {
             <span>{Math.round((progress / 3) * 100)}%</span>
           </div>
           <div
-            className="h-1.5 w-full overflow-hidden rounded-full bg-white/10"
+            className="h-1.5 w-full overflow-hidden rounded-full bg-surface/10"
             role="progressbar"
             aria-valuenow={progress}
             aria-valuemin={1}

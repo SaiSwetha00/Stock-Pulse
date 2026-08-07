@@ -55,9 +55,9 @@ export default function ForgotPasswordPage() {
         {sent ? (
           <motion.div
             variants={fadeUp}
-            className="mt-8 flex flex-col items-center gap-4 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-6 py-8 text-center"
+            className="mt-8 flex flex-col items-center gap-4 rounded-xl border border-success bg-success/10 px-6 py-8 text-center"
           >
-            <CheckCircle2 className="h-10 w-10 text-emerald-400" />
+            <CheckCircle2 className="h-10 w-10 text-success" />
             <p className="text-sm text-[#d1c5b0]">
               If an account exists for <span className="font-semibold text-[#e0e2ed]">{email}</span>,
               you&apos;ll receive an email with instructions shortly.

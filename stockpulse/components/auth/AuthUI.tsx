@@ -49,7 +49,7 @@ export function AuthShell({ hero, children }: { hero?: ReactNode; children: Reac
 
   return (
     <div
-      className={`sp-landing ${FONT_VARIABLES} relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-black px-5 py-16 font-sans`}
+      className={`sp-landing ${FONT_VARIABLES} relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-background px-5 py-16 font-sans`}
     >
       {/* Quiet backdrop: a faint dot-grid for structure and one soft gold
           bloom behind the card — replacing the earlier gold-silk SVG paths
@@ -75,7 +75,7 @@ export function AuthShell({ hero, children }: { hero?: ReactNode; children: Reac
       {/* Back to the landing hero. */}
       <Link
         href="/"
-        className="absolute left-5 top-6 z-20 inline-flex h-10 items-center gap-2 rounded-full border border-white/12 bg-white/5 px-4 text-sm text-zinc-300 backdrop-blur-xl transition-colors hover:border-white/25 hover:text-white sm:left-8"
+        className="absolute left-5 top-6 z-20 inline-flex h-10 items-center gap-2 rounded-full border border-border bg-surface/5 px-4 text-sm text-muted-strong backdrop-blur-xl transition-colors hover:border-border-strong hover:text-foreground sm:left-8"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back
@@ -204,7 +204,7 @@ export function AuthField({
       <div className="mb-2 flex items-center justify-between">
         <label
           htmlFor={id}
-          className="font-mono text-xs font-semibold uppercase tracking-wide text-zinc-400 transition-colors duration-300 group-focus-within:text-[#d8cba8]"
+          className="font-mono text-xs font-semibold uppercase tracking-wide text-muted transition-colors duration-300 group-focus-within:text-[#d8cba8]"
         >
           {label}
         </label>
@@ -212,7 +212,7 @@ export function AuthField({
       </div>
 
       <div className="relative">
-        <Icon className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-zinc-500 transition-colors duration-300 group-focus-within:text-[var(--sp-gold)]" />
+        <Icon className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted transition-colors duration-300 group-focus-within:text-[var(--sp-gold)]" />
         <input
           id={id}
           type={isPassword && show ? 'text' : type}
@@ -223,7 +223,7 @@ export function AuthField({
           required={required}
           autoFocus={autoFocus}
           aria-invalid={invalid || undefined}
-          className={`w-full rounded-xl border border-white/10 bg-white/[0.04] py-3.5 pl-10 text-sm text-white outline-none transition-all duration-300 placeholder:text-zinc-600 focus:border-[var(--sp-gold)]/55 focus:bg-white/[0.07] focus:ring-4 focus:ring-[var(--sp-gold)]/12 aria-[invalid=true]:border-red-500/70 aria-[invalid=true]:ring-4 aria-[invalid=true]:ring-red-500/10 ${
+          className={`w-full rounded-xl border border-border bg-surface/[0.04] py-3.5 pl-10 text-sm text-foreground outline-none transition-all duration-300 placeholder:text-muted focus:border-[var(--sp-gold)]/55 focus:bg-surface/[0.07] focus:ring-4 focus:ring-[var(--sp-gold)]/12 aria-[invalid=true]:border-danger aria-[invalid=true]:ring-4 aria-[invalid=true]:ring-danger ${
             isPassword ? 'pr-12' : 'pr-4'
           }`}
         />
@@ -232,14 +232,14 @@ export function AuthField({
             type="button"
             onClick={() => setShow((v) => !v)}
             aria-label={show ? 'Hide password' : 'Show password'}
-            className="tap-target absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded-md text-zinc-500 transition-colors hover:text-white"
+            className="tap-target absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded-md text-muted transition-colors hover:text-foreground"
           >
             {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         )}
       </div>
 
-      {hint && <p className="mt-1.5 text-xs text-zinc-500">{hint}</p>}
+      {hint && <p className="mt-1.5 text-xs text-muted">{hint}</p>}
     </motion.div>
   )
 }
@@ -277,8 +277,8 @@ export function SubmitButton({
       aria-busy={loading || undefined}
       className={`group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl py-4 text-sm font-semibold transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-70 ${
         isPrimary
-          ? 'text-black shadow-[0_10px_28px_-10px_rgba(201,162,39,0.55)] hover:shadow-[0_14px_36px_-10px_rgba(201,162,39,0.75)]'
-          : 'border border-white/12 bg-white/[0.04] text-zinc-200 hover:border-white/20 hover:bg-white/[0.08]'
+          ? 'text-accent-ink shadow-[0_10px_28px_-10px_rgba(201,162,39,0.55)] hover:shadow-[0_14px_36px_-10px_rgba(201,162,39,0.75)]'
+          : 'border border-border bg-surface/[0.04] text-muted-strong hover:border-border-strong hover:bg-surface/[0.08]'
       } ${className}`}
       style={
         isPrimary
@@ -295,7 +295,7 @@ export function SubmitButton({
           <span
             aria-hidden
             className={`h-4 w-4 animate-spin rounded-full border-2 ${
-              isPrimary ? 'border-black/25 border-t-black/70' : 'border-white/30 border-t-white'
+              isPrimary ? 'border-border border-t-black/70' : 'border-border-strong border-t-white'
             }`}
           />
           {loadingLabel}
@@ -318,7 +318,7 @@ export function AuthError({ message }: { message: string }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: EASE }}
       role="alert"
-      className="rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-2.5 text-sm text-red-300"
+      className="rounded-xl border border-danger bg-danger-bg px-4 py-2.5 text-sm text-danger"
     >
       {message}
     </motion.div>

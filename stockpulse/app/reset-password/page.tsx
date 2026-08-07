@@ -121,14 +121,14 @@ export default function ResetPasswordPage() {
 
           {status === 'success' ? (
             <>
-              <CheckCircle2 className="mx-auto mt-4 h-8 w-8 text-emerald-400" aria-hidden="true" />
+              <CheckCircle2 className="mx-auto mt-4 h-8 w-8 text-success" aria-hidden="true" />
               <h2 className="font-display mt-2 text-2xl font-bold text-[#e0e2ed]">Password updated</h2>
               <p className="mt-1 text-sm text-[#d1c5b0]">
                 Taking you to the login page so you can sign in with your new password…
               </p>
               <Link
                 href="/login"
-                className="mt-6 flex w-full items-center justify-center rounded-xl py-4 text-sm font-semibold text-black transition-transform hover:-translate-y-px"
+                className="mt-6 flex w-full items-center justify-center rounded-xl py-4 text-sm font-semibold text-accent-ink transition-transform hover:-translate-y-px"
                 style={{ background: 'linear-gradient(135deg, var(--sp-gold), var(--sp-gold-deep))' }}
               >
                 Go to login now
@@ -136,7 +136,7 @@ export default function ResetPasswordPage() {
             </>
           ) : status === 'invalid' ? (
             <>
-              <AlertTriangle className="mx-auto mt-4 h-8 w-8 text-red-400" aria-hidden="true" />
+              <AlertTriangle className="mx-auto mt-4 h-8 w-8 text-danger" aria-hidden="true" />
               <h2 className="font-display mt-2 text-2xl font-bold text-[#e0e2ed]">This link has expired</h2>
               <p className="mt-1 text-sm text-[#d1c5b0]">
                 {linkError ||
@@ -144,7 +144,7 @@ export default function ResetPasswordPage() {
               </p>
               <Link
                 href="/forgot-password"
-                className="mt-6 flex w-full items-center justify-center rounded-xl py-4 text-sm font-semibold text-black transition-transform hover:-translate-y-px"
+                className="mt-6 flex w-full items-center justify-center rounded-xl py-4 text-sm font-semibold text-accent-ink transition-transform hover:-translate-y-px"
                 style={{ background: 'linear-gradient(135deg, var(--sp-gold), var(--sp-gold-deep))' }}
               >
                 Request a new link

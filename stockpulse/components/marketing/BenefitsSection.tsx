@@ -33,7 +33,7 @@ export default function BenefitsSection() {
   ]
 
   return (
-    <section id="benefits" className="relative py-32 sp-band-card border-t border-white/8 overflow-hidden perspective-1500">
+    <section id="benefits" className="relative py-32 sp-band-card border-t border-border overflow-hidden perspective-1500">
       <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
         {/* Header */}
         <motion.div
@@ -43,7 +43,7 @@ export default function BenefitsSection() {
           transition={{ duration: 0.8 }}
           className="text-center max-w-3xl mx-auto mb-24"
         >
-          <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-white/10">
+          <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-border">
             MANUAL WORK VS. STOCK PULSE
           </div>
           <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#e0e2ed] tracking-tight mb-7">
@@ -60,19 +60,19 @@ export default function BenefitsSection() {
           whileInView={{ opacity: 1, y: 0, rotateX: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="glass-panel rounded-2xl border border-white/10 overflow-hidden mb-24 shadow-2xl preserve-3d"
+          className="glass-panel rounded-2xl border border-border overflow-hidden mb-24 shadow-2xl preserve-3d"
         >
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[var(--sp-surface-alt)] font-mono text-xs uppercase tracking-wider border-b border-white/10">
+                <tr className="bg-[var(--sp-surface-alt)] font-mono text-xs uppercase tracking-wider border-b border-border">
                   <th className="py-6 px-7 text-[#d1c5b0]/60">Operational Dimension</th>
                   <th className="py-6 px-7 text-[#ffb4ab]">Legacy Grocery ERP</th>
                   <th className="py-6 px-7 text-[var(--sp-gold)]">Stock Pulse Platform</th>
                   <th className="py-6 px-7 text-[#e0e2ed] text-right">The Difference</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 font-sans text-sm">
+              <tbody className="divide-y divide-border font-sans text-sm">
                 {benefits.map((b, idx) => (
                   <tr key={idx} className="hover:bg-[var(--sp-surface-card)]/60 transition-colors">
                     <td className="py-6 px-7 font-display font-bold text-[#e0e2ed]">{b.feature}</td>
@@ -114,14 +114,14 @@ export default function BenefitsSection() {
               </p>
             </div>
 
-            <div className="lg:col-span-5 flex flex-col items-center justify-center p-10 rounded-xl bg-black/90 border border-[var(--sp-gold)]/30 text-center">
+            <div className="lg:col-span-5 flex flex-col items-center justify-center p-10 rounded-xl bg-background/90 border border-[var(--sp-gold)]/30 text-center">
               <div className="font-mono text-xs uppercase tracking-widest text-[#d1c5b0]/70 mb-2">
                 PRICING TODAY
               </div>
               <div className="font-display font-black text-5xl sm:text-6xl text-gold-gradient mb-3">
                 Free
               </div>
-              <div className="font-mono text-xs text-emerald-400 flex items-center justify-center gap-1.5">
+              <div className="font-mono text-xs text-success flex items-center justify-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4" /> No card required, while in beta
               </div>
             </div>

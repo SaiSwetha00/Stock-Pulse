@@ -80,7 +80,7 @@ export default function LandingNav() {
         {/* Mobile Menu Toggle */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="lg:hidden p-2 rounded-lg text-[#f2efe6] hover:text-[var(--sp-gold)] bg-white/[0.03] border border-white/10"
+          className="lg:hidden p-2 rounded-lg text-[#f2efe6] hover:text-[var(--sp-gold)] bg-surface/[0.03] border border-border"
           aria-label="Toggle Menu"
         >
           {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -89,12 +89,12 @@ export default function LandingNav() {
 
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-x-0 top-[64px] bg-black/95 backdrop-blur-2xl border-b border-white/10 p-6 flex flex-col gap-1 font-sans text-[15px] text-[#f2efe6]">
+        <div className="lg:hidden fixed inset-x-0 top-[64px] bg-background/95 backdrop-blur-2xl border-b border-border p-6 flex flex-col gap-1 font-sans text-[15px] text-[#f2efe6]">
           {LINKS.map((link) => (
             <button
               key={link.id}
               onClick={() => scrollToSection(link.id)}
-              className="text-left py-3 hover:text-[var(--sp-gold)] border-b border-white/5"
+              className="text-left py-3 hover:text-[var(--sp-gold)] border-b border-border"
             >
               {link.label}
             </button>
@@ -104,7 +104,7 @@ export default function LandingNav() {
             <Link
               href="/login"
               onClick={() => setMobileMenuOpen(false)}
-              className="w-full py-3 rounded-lg border border-white/15 text-center text-[#f2efe6]"
+              className="w-full py-3 rounded-lg border border-border text-center text-[#f2efe6]"
             >
               Sign in
             </Link>

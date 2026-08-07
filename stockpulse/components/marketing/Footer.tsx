@@ -42,8 +42,8 @@ export default function Footer() {
 
             <div className="lg:col-span-5">
               {subscribed ? (
-                <div className="p-4 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 flex items-center gap-3 font-mono text-xs">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                <div className="p-4 rounded-xl bg-success-bg border border-success text-success flex items-center gap-3 font-mono text-xs">
+                  <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
                   <span>Subscribed! Check your inbox for our latest Inventory Briefing.</span>
                 </div>
               ) : (
@@ -54,11 +54,11 @@ export default function Footer() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter store owner email..."
                     required
-                    className="flex-1 px-5 py-3.5 rounded-lg bg-black border border-[#4e4636] focus:border-[#edc155] text-sm text-[#e0e2ed] placeholder-[#d1c5b0]/40 outline-none transition-colors"
+                    className="flex-1 px-5 py-3.5 rounded-lg bg-background border border-[#4e4636] focus:border-[#edc155] text-sm text-[#e0e2ed] placeholder-[#d1c5b0]/40 outline-none transition-colors"
                   />
                   <button
                     type="submit"
-                    className="px-7 py-3.5 rounded-lg bg-gradient-to-r from-[var(--sp-gold)] to-[var(--sp-gold-deep)] text-black font-mono text-xs uppercase tracking-widest font-bold flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(237,193,85,0.4)] transition-all cursor-pointer shrink-0"
+                    className="px-7 py-3.5 rounded-lg bg-gradient-to-r from-[var(--sp-gold)] to-[var(--sp-gold-deep)] text-accent-ink font-mono text-xs uppercase tracking-widest font-bold flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(237,193,85,0.4)] transition-all cursor-pointer shrink-0"
                   >
                     Subscribe <ArrowRight className="w-4 h-4" />
                   </button>
@@ -81,7 +81,7 @@ export default function Footer() {
 
             <div className="flex items-center gap-4 text-xs font-mono text-[#a39c8a]">
               <span className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" /> Row-Level Security
+                <ShieldCheck className="w-4 h-4 text-success" /> Row-Level Security
               </span>
               <span className="flex items-center gap-1.5">
                 <Lock className="w-4 h-4" style={{ color: 'var(--sp-gold)' }} /> Role-Based Access
@@ -182,7 +182,7 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar with Status and Copyright */}
-        <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4 font-mono text-xs text-[#d1c5b0]/60">
+        <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4 font-mono text-xs text-[#d1c5b0]/60">
           {/* Removed: a pulsing green "US-East Cloud Active" dot wired to
               nothing, and "Version 4.8.2-Release", a version this software has
               never had. A status light that cannot go red is not a status

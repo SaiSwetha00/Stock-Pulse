@@ -45,7 +45,7 @@ export default function HowItWorksSection() {
   ]
 
   return (
-    <section id="how-it-works" className="relative py-32 bg-black overflow-hidden perspective-1500">
+    <section id="how-it-works" className="relative py-32 bg-background overflow-hidden perspective-1500">
       <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
         {/* Header */}
         <motion.div
@@ -55,7 +55,7 @@ export default function HowItWorksSection() {
           transition={{ duration: 0.8 }}
           className="text-center max-w-3xl mx-auto mb-24"
         >
-          <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-white/10">
+          <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-border">
             WORKFLOW SIMPLICITY
           </div>
           <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#e0e2ed] tracking-tight mb-7">
@@ -76,7 +76,7 @@ export default function HowItWorksSection() {
               viewport={{ once: true }}
               transition={{ duration: 0.7, delay: idx * 0.12 }}
               whileHover={{ scale: 1.03, translateZ: 30, rotateX: -4 }}
-              className="glass-card p-10 rounded-2xl border border-white/10 hover:border-[var(--sp-gold)]/35 transition-all duration-500 relative group flex flex-col justify-between preserve-3d"
+              className="glass-card p-10 rounded-2xl border border-border hover:border-[var(--sp-gold)]/35 transition-all duration-500 relative group flex flex-col justify-between preserve-3d"
             >
               <div>
                 {/* Step Counter Tag */}
@@ -104,7 +104,7 @@ export default function HowItWorksSection() {
               </div>
 
               {/* Bullet points */}
-              <div className="pt-5 border-t border-white/5 space-y-2.5">
+              <div className="pt-5 border-t border-border space-y-2.5">
                 {step.detailPoints.map((pt, i) => (
                   <div key={i} className="flex items-center gap-2 font-mono text-[11px] text-[#d1c5b0]/80">
                     <CheckCircle2 className="w-3.5 h-3.5 text-[var(--sp-gold)] shrink-0" />

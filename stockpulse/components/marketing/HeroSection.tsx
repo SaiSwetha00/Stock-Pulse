@@ -49,14 +49,14 @@ export default function HeroSection() {
             </Link>
             <a
               href="#how-it-works"
-              className="font-sans text-[15px] font-medium text-[#f2efe6] border-b border-white/15 pb-0.5 hover:border-white/40 transition-colors"
+              className="font-sans text-[15px] font-medium text-[#f2efe6] border-b border-border pb-0.5 hover:border-border-strong transition-colors"
             >
               See how it works
             </a>
           </div>
 
           {/* Hero Feature Badges */}
-          <div className="grid grid-cols-3 gap-6 pt-8 border-t border-white/8 max-w-md">
+          <div className="grid grid-cols-3 gap-6 pt-8 border-t border-border max-w-md">
             <div>
               <div className="font-display font-semibold text-2xl text-[#f2efe6] tracking-tight">6</div>
               <div className="font-mono text-[11px] uppercase text-[#6e6858] tracking-wider mt-1">
@@ -81,7 +81,7 @@ export default function HeroSection() {
         {/* Right Column Interactive 3D Canvas Visual */}
         <div className="lg:col-span-5 relative flex items-center justify-center min-h-[460px]">
           {/* Glass halo ring backdrop */}
-          <div className="absolute w-[360px] h-[360px] md:w-[480px] md:h-[480px] rounded-full border border-white/8 bg-gradient-to-b from-white/[0.03] to-transparent blur-sm" />
+          <div className="absolute w-[360px] h-[360px] md:w-[480px] md:h-[480px] rounded-full border border-border bg-gradient-to-b from-white/[0.03] to-transparent blur-sm" />
 
           {/* Floating interactive 3D visual */}
           <div className="relative w-full h-[450px] md:h-[540px] z-10">
@@ -89,22 +89,22 @@ export default function HeroSection() {
           </div>
 
           {/* Floating Telemetry Glass Card Overlay — quieter border, no colored glow */}
-          <div className="absolute -bottom-4 -left-4 md:bottom-6 md:left-0 z-20 p-5 rounded-xl glass-card border border-white/10 shadow-2xl max-w-xs">
+          <div className="absolute -bottom-4 -left-4 md:bottom-6 md:left-0 z-20 p-5 rounded-xl glass-card border border-border shadow-2xl max-w-xs">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/10 flex items-center justify-center text-[#a39c8a]">
+              <div className="w-8 h-8 rounded-lg bg-surface/[0.04] border border-border flex items-center justify-center text-[#a39c8a]">
                 <Activity className="w-4 h-4" />
               </div>
               <div>
                 <div className="font-sans text-[13px] text-[#f2efe6] font-medium">Low-Stock Alert</div>
-                <div className="font-mono text-[10px] text-emerald-400">Avocados • 6 units left</div>
+                <div className="font-mono text-[10px] text-success">Avocados • 6 units left</div>
               </div>
             </div>
-            <div className="w-full bg-black h-1.5 rounded-full overflow-hidden border border-white/10">
+            <div className="w-full bg-background h-1.5 rounded-full overflow-hidden border border-border">
               <div className="h-full w-[88%]" style={{ background: 'linear-gradient(to right, #10b981, var(--sp-gold))' }} />
             </div>
           </div>
 
-          <div className="absolute -top-4 -right-4 md:top-6 md:right-0 z-20 p-5 rounded-xl glass-card border border-white/10 shadow-2xl max-w-xs">
+          <div className="absolute -top-4 -right-4 md:top-6 md:right-0 z-20 p-5 rounded-xl glass-card border border-border shadow-2xl max-w-xs">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-[var(--sp-gold)]/15 border border-[var(--sp-gold)]/30 flex items-center justify-center" style={{ color: 'var(--sp-gold)' }}>
                 <Sparkles className="w-4 h-4" />
