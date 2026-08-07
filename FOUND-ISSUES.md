@@ -89,6 +89,46 @@ diverge across devices — the DB value is effectively decorative.
 
 Scope: Phase 1.4 (Settings) — decide which one wins.
 
+## S1 — Staff invitations cannot actually be delivered (blocks Phase 3)
+
+`stockpulse/app/auth/actions.ts:87` — `inviteStaff`
+
+The invite system itself is complete and correct: owner-only guard, `store_id` checked
+against the requester's own, role re-validated server-side because the insert uses the
+admin client and bypasses RLS, correct `redirectTo` handling for the implicit-flow
+fragment, profile insert with `invited: true`, audit entry. `AddStaffModal` already offers
+manager and staff.
+
+What fails is delivery. The project uses Supabase's built-in SMTP, which permits only a
+few messages an hour and which Supabase documents as testing-only. Invitations are sent
+and then throttled, so the owner sees an opaque 429 and reasonably concludes the feature
+is broken.
+
+This is a configuration gap, not a code gap — worth stating plainly, because the obvious
+reading is "the invite system doesn't work" and the obvious fix is to rebuild something
+that is already right.
+
+Resolution: configure custom SMTP (Resend recommended; free tier covers this volume) under
+Project Settings → Authentication → SMTP Settings, and add every invite return origin under
+Authentication → URL Configuration. Documented in `stockpulse/.env.example`. `inviteStaff`
+now detects the rate-limited case and names the layer that failed.
+
+Scope: Phase 3 prerequisite. Code side done; the dashboard setup is the store owner's.
+
+## S3 — `user_preferences.notify_*` columns are unused
+
+`stockpulse/supabase/migrations/0007_ai_threads.sql`
+
+0007 created `notify_critical_stock`, `notify_daily_digest` and `notify_supplier_updates`
+ahead of Phase 1.4. Phase 1.4 deliberately did not use them: the Settings toggles write to
+`stores.critical_stock_alerts` and friends, which are store-level policy, and repointing
+them at a per-user table would silently change what they mean.
+
+The columns are the right home for per-person *delivery* preferences once that UI exists.
+Until then they are dead schema, and someone will eventually wire the wrong one.
+
+Scope: whichever phase adds per-user notification delivery. Drop them if it never does.
+
 ## Note — three modules are outside the master prompt's list of eleven
 
 `/monitoring` (Live Operations Center), `/reports`, and `/audit` are built, routed, and in

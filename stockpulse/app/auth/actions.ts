@@ -127,7 +127,21 @@ export async function inviteStaff(formData: {
     { redirectTo: `${origin}/reset-password` }
   )
 
-  if (inviteError) return { error: inviteError.message }
+  if (inviteError) {
+    // Supabase's built-in SMTP allows only a handful of messages per hour, and
+    // its own docs call it testing-only. The raw error is a bare 429, which
+    // reads as an app bug and sends the next person debugging this function —
+    // where nothing is wrong. Name the layer that actually failed.
+    const rateLimited =
+      inviteError.status === 429 || /rate limit|too many/i.test(inviteError.message)
+    if (rateLimited) {
+      return {
+        error:
+          'Email sending is rate-limited. This project is still using Supabase’s built-in SMTP, which only allows a few messages an hour. Configure custom SMTP under Project Settings → Authentication → SMTP Settings to send invitations reliably.',
+      }
+    }
+    return { error: inviteError.message }
+  }
   if (!invited.user) return { error: 'Could not create staff account.' }
 
   const { error: profileError } = await admin.from('profiles').insert({
