@@ -1,23 +1,10 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
-import { ShieldCheck, ArrowRight, CheckCircle2, Lock, Sparkles } from 'lucide-react'
+import { ShieldCheck, ArrowRight, Lock, Sparkles } from 'lucide-react'
 import StockPulseLogo from './StockPulseLogo'
 
 export default function Footer() {
-  const [email, setEmail] = useState('')
-  const [subscribed, setSubscribed] = useState(false)
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (email) {
-      setSubscribed(true)
-      setEmail('')
-      setTimeout(() => setSubscribed(false), 4000)
-    }
-  }
-
   return (
     <footer className="relative bg-[var(--sp-surface)] text-[#e0e2ed] border-t border-[#edc155]/20 pt-28 pb-16 overflow-hidden">
       {/* Background glow flares */}
@@ -25,46 +12,39 @@ export default function Footer() {
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#93000a]/10 rounded-full blur-[140px] pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
-        {/* Top Newsletter Grid */}
+        {/*
+          The newsletter block that sat here has been removed outright.
+
+          It took an email address, said "Subscribed! Check your inbox for our
+          latest Inventory Briefing", and did nothing with it — no request, no
+          storage, no list. The handler set a flag and cleared the field. There
+          is no bi-weekly research report and never was.
+
+          Collecting someone's address under a promise you cannot keep is worse
+          than not asking. If a mailing list is wanted later it needs a real
+          destination first; the CTA below sends people somewhere that works.
+        */}
         <div className="glass-card p-10 md:p-14 rounded-2xl mb-20 border border-[#edc155]/25 bg-gradient-to-br from-[var(--sp-surface-card)]/80 to-black/90">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-            <div className="lg:col-span-7">
+          <div className="flex flex-col items-start gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div>
               <div className="flex items-center gap-2 font-mono text-xs uppercase text-[#edc155] tracking-[0.2em] mb-3">
-                <Sparkles className="w-4 h-4" /> Stock Pulse Intelligence Digest
+                <Sparkles className="w-4 h-4" /> Free to use
               </div>
               <h3 className="font-display text-2xl md:text-3xl font-bold text-[#e0e2ed] mb-3">
-                Stay Ahead of Grocery Spoilage & Margin Leakage
+                Run your shop from one dashboard
               </h3>
               <p className="text-[#d1c5b0] text-sm leading-relaxed max-w-xl">
-                Get bi-weekly research reports on fresh supply chain telemetry, AI cold-chain tracking, and automated inventory optimization strategies.
+                Stock, sales, suppliers and staff in one place. No hardware, no card, no tiers —
+                set up your stock and start.
               </p>
             </div>
 
-            <div className="lg:col-span-5">
-              {subscribed ? (
-                <div className="p-4 rounded-xl bg-success-bg border border-success text-success flex items-center gap-3 font-mono text-xs">
-                  <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
-                  <span>Subscribed! Check your inbox for our latest Inventory Briefing.</span>
-                </div>
-              ) : (
-                <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-3">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter store owner email..."
-                    required
-                    className="flex-1 px-5 py-3.5 rounded-lg bg-background border border-[#4e4636] focus:border-[#edc155] text-sm text-[#e0e2ed] placeholder-[#d1c5b0]/40 outline-none transition-colors"
-                  />
-                  <button
-                    type="submit"
-                    className="px-7 py-3.5 rounded-lg bg-gradient-to-r from-[var(--sp-gold)] to-[var(--sp-gold-deep)] text-accent-ink font-mono text-xs uppercase tracking-widest font-bold flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(237,193,85,0.4)] transition-all cursor-pointer shrink-0"
-                  >
-                    Subscribe <ArrowRight className="w-4 h-4" />
-                  </button>
-                </form>
-              )}
-            </div>
+            <Link
+              href="/signup"
+              className="px-7 py-3.5 rounded-lg bg-gradient-to-r from-[var(--sp-gold)] to-[var(--sp-gold-deep)] text-accent-ink font-mono text-xs uppercase tracking-widest font-bold inline-flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(237,193,85,0.4)] transition-all shrink-0"
+            >
+              Create your store <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
 
@@ -93,30 +73,34 @@ export default function Footer() {
           <div>
             <h4 className="font-mono text-xs uppercase tracking-[0.2em] text-[#edc155] mb-4">Platform</h4>
             <ul className="space-y-3 font-sans text-sm text-[#d1c5b0]">
+              {/* Named after modules that exist. "Shelf Telemetry", "AI
+                  Spoilage Predictor", "Cold-Chain Hardware" and "Multi-Store
+                  Sync" were none of them built — verified by grep across lib,
+                  app and components. */}
               <li>
                 <a href="#features" className="hover:text-[#edc155] transition-colors cursor-pointer">
-                  Shelf Telemetry
+                  Inventory &amp; Low Stock
                 </a>
               </li>
               <li>
                 <a href="#features" className="hover:text-[#edc155] transition-colors cursor-pointer">
-                  AI Spoilage Predictor
+                  Sales &amp; Daily Takings
                 </a>
               </li>
               <li>
-                <Link href="/dashboard" className="hover:text-[#edc155] transition-colors cursor-pointer flex items-center gap-1.5">
-                  Stock Ledger Demo <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#93000a]/40 text-[#ffb4ab]">LIVE</span>
+                <a href="#features" className="hover:text-[#edc155] transition-colors cursor-pointer">
+                  Suppliers &amp; Deliveries
+                </a>
+              </li>
+              <li>
+                <a href="#features" className="hover:text-[#edc155] transition-colors cursor-pointer">
+                  Staff &amp; Shifts
+                </a>
+              </li>
+              <li>
+                <Link href="/login" className="hover:text-[#edc155] transition-colors cursor-pointer">
+                  Sign in
                 </Link>
-              </li>
-              <li>
-                <a href="#features" className="hover:text-[#edc155] transition-colors cursor-pointer">
-                  Cold-Chain Hardware
-                </a>
-              </li>
-              <li>
-                <a href="#features" className="hover:text-[#edc155] transition-colors cursor-pointer">
-                  Multi-Store Sync
-                </a>
               </li>
             </ul>
           </div>
@@ -140,14 +124,18 @@ export default function Footer() {
                   Client Success
                 </a>
               </li>
+              {/* "Enterprise Plans" and "Partner Portal" both went, for the
+                  same reason: there are no tiers — the product is free — and
+                  there is no partner portal, that link pointed at the ordinary
+                  sign-in page. */}
               <li>
                 <a href="#pricing" className="hover:text-[#edc155] transition-colors">
-                  Enterprise Plans
+                  Pricing
                 </a>
               </li>
               <li>
                 <Link href="/login" className="hover:text-[#edc155] transition-colors cursor-pointer">
-                  Partner Portal
+                  Sign in
                 </Link>
               </li>
             </ul>
@@ -177,6 +165,16 @@ export default function Footer() {
                   Contact Support
                 </Link>
               </li>
+              <li>
+                <Link href="/privacy" className="hover:text-[#edc155] transition-colors">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link href="/terms" className="hover:text-[#edc155] transition-colors">
+                  Terms of Service
+                </Link>
+              </li>
             </ul>
           </div>
         </div>
@@ -194,7 +192,7 @@ export default function Footer() {
             </Link>
           </div>
 
-          <div>© 2026 Stock Pulse Technologies Inc. All rights reserved.</div>
+          <div>© 2026 Stock Pulse. All rights reserved.</div>
 
           {/* Privacy / Terms / Contact HQ were all href="#". They are removed
               rather than left dangling. Privacy and Terms genuinely need
@@ -202,6 +200,12 @@ export default function Footer() {
               in FOUND-ISSUES.md, because it is a legal question rather than a
               markup one. */}
           <div className="flex items-center gap-6 text-sm">
+            <Link href="/privacy" className="hover:text-[#edc155] transition-colors">
+              Privacy
+            </Link>
+            <Link href="/terms" className="hover:text-[#edc155] transition-colors">
+              Terms
+            </Link>
             <Link href="/help" className="hover:text-[#edc155] transition-colors">
               Contact
             </Link>

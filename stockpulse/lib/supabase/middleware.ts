@@ -33,7 +33,12 @@ export async function updateSession(request: NextRequest) {
   // creates the session from an email link. Redirecting it to /login would
   // discard the recovery code and strand the user on the sign-in page.
   const isAuthCallback = path.startsWith('/auth')
-  const isPublicRoute = path === '/' || isAuthRoute || isAuthCallback
+  // The legal pages have to be readable without an account. Someone deciding
+  // whether to sign up reads the privacy policy first — redirecting them to
+  // /login to find out what happens to their data is precisely backwards, and
+  // it would have made the new footer links look broken to every visitor.
+  const isLegalRoute = path.startsWith('/privacy') || path.startsWith('/terms')
+  const isPublicRoute = path === '/' || isAuthRoute || isAuthCallback || isLegalRoute
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()

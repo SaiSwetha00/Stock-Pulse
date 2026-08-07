@@ -8,25 +8,25 @@ export default function HowItWorksSection() {
   const steps: HowItWorksStep[] = [
     {
       stepNumber: '01',
-      title: 'Smart Optical & RFID Tagging',
-      subtitle: 'Seamless Onboarding',
+      title: 'Get Your Stock In',
+      subtitle: 'One Evening’s Work',
       description:
-        'Attach smart optical tags or ambient RFID shelf strips to produce crates, meat displays, and pantry shelves in under 30 minutes.',
+        'Add your lines by hand or bring them in from a spreadsheet — name, SKU, category, price, what you hold and the level you want warning at.',
       iconName: 'QrCode',
-      detailPoints: ['Zero hardware replacement needed', 'Supports legacy barcode scanners', 'Instant cloud pairing'],
+      detailPoints: ['CSV import for bulk setup', 'Works with the barcodes you have', 'No new hardware to buy'],
     },
     {
       stepNumber: '02',
-      title: 'Continuous AI Telemetry',
-      subtitle: 'Real-Time Monitoring',
+      title: 'Log Sales As They Happen',
+      subtitle: 'Daily Takings',
       description:
-        'Sub-second telemetry tracks ambient freezer temperature, weight depletion rates, and fruit ripeness curves 24/7.',
+        'Record each sale with its line items and payment method. Your dashboard totals the day, the week and the month as you go.',
       iconName: 'Cpu',
-      detailPoints: ['Ethylene gas ripeness tracking', 'SMS freezer door alert triggers', 'Continuous ledger sync'],
+      detailPoints: ['Line-item sales history', 'Cash and card breakdown', 'Stock adjusts as you sell'],
     },
     {
       stepNumber: '03',
-      title: 'Autonomous Farm Reordering',
+      title: 'Keep On Top Of Suppliers',
       subtitle: 'Supplier Tracking',
       description:
         'Keep every supplier, purchase order and delivery in one place, and move each shipment through its stages so you always know what is arriving and when.',
@@ -59,10 +59,11 @@ export default function HowItWorksSection() {
             WORKFLOW SIMPLICITY
           </div>
           <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#e0e2ed] tracking-tight mb-7">
-            From Freight Delivery to Fresh Shelf in Four Steps
+            Off the Clipboard in Four Steps
           </h2>
           <p className="text-[#d1c5b0] text-base sm:text-lg leading-relaxed">
-            Eliminate tedious manual clipboards. Stock Pulse automates the entire lifecycle of fresh grocery management.
+            No sensors, no new tills, nothing to install on the shop floor. Stock Pulse is the record
+            you already keep, somewhere it can actually be read.
           </p>
         </motion.div>
 

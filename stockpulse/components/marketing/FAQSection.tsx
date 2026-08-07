@@ -11,23 +11,23 @@ export default function FAQSection() {
   const faqs: FAQItem[] = [
     {
       id: 'faq-1',
-      question: 'How long does physical hardware deployment take in a retail store?',
+      question: 'What hardware do we need to install?',
       answer:
-        'Most boutique markets deploy Stock Pulse within 45 minutes. Our optical tags and ambient cold-chain probes connect directly over standard encrypted Wi-Fi or cellular IoT. No structural wiring or store downtime is required.',
+        'None. There are no tags, sensors or probes to fit — Stock Pulse runs in a web browser on whatever you already have, whether that is the office computer or a phone behind the counter. Setting up means entering your stock, which you can do by hand or by importing a spreadsheet.',
       category: 'Hardware & Scanning',
     },
     {
       id: 'faq-2',
-      question: 'Can Stock Pulse integrate with our existing POS and ERP software?',
+      question: 'Does it connect to our existing till or accounting software?',
       answer:
-        'Yes. Stock Pulse features bi-directional API connectors for Toast, Square Retail, Lightspeed, SAP, Oracle NetSuite, and NCR Emerald. Transaction data syncs in real-time.',
+        'Not yet. There are no POS or accounting integrations today, and we would rather tell you that up front than have you find out after signing up. Sales are entered in Stock Pulse itself, and you can export any list to CSV to take into a spreadsheet or send to your accountant.',
       category: 'General',
     },
     {
       id: 'faq-3',
-      question: 'What happens if our store internet connection drops?',
+      question: 'What happens if our internet connection drops?',
       answer:
-        'Stock Pulse edge nodes maintain an offline encrypted SQLite buffer. All shelf telemetry, temperature probes, and scanning events continue logging seamlessly and auto-reconcile with the cloud once connectivity resumes.',
+        'Stock Pulse needs a connection to work — there is no offline mode. If the line goes down you will not be able to record sales or check stock until it is back, so if your connection is unreliable, keep a paper fallback for the till and enter the day when you are back online.',
       category: 'Security',
     },
     {
@@ -39,9 +39,9 @@ export default function FAQSection() {
     },
     {
       id: 'faq-5',
-      question: 'Is there a free trial period for new store locations?',
+      question: 'What does it cost?',
       answer:
-        'Yes. We offer a 14-day risk-free pilot program including pre-configured starter hardware for up to 500 SKUs. If you don’t measure a reduction in spoilage, return the hardware with zero obligation.',
+        'Nothing. Stock Pulse is free to use — there is no trial to run out, no card to enter and no tier to upgrade to. There is also no hardware to send back, because there is none to begin with.',
       category: 'Pricing',
     },
   ]
