@@ -98,9 +98,23 @@ Worst offenders: `components/auth/AuthUI.tsx` 30, `MonitoringClient.tsx` 20,
 a lib file rather than a component means the token system cannot reach it from
 the markup.
 
+- **Phase 4 foundation — gold accent, both themes.** Seven token values in
+  `:root` and `.dark`, all eleven pairings measured against WCAG AA. Light gold
+  is `#8b6508`, not the requested `#B8860B` — that value is 3.25:1 on white and
+  fails AA. Charts moved to the gold family. Verified present in the built CSS,
+  old green verified absent.
+
 ## In flight
 
-- Nothing. Stopped for the batched blockers below.
+- **Phase 4 sweep.** The token layer is correct now; what remains is replacing
+  the values that bypass it — 116 palette classes in app + shared, 116 in
+  marketing, 262 hex literals. Start with `AuthUI.tsx` (30) and
+  `MonitoringClient.tsx` (20); `lib/notifications.ts` (8) needs restructuring
+  rather than substitution, because colour chosen in a lib file cannot be
+  reached by tokens from the markup.
+
+  **Read DECISIONS.md D9 before writing token classes** — `/opacity` modifiers
+  on these tokens compile, build, and emit nothing.
 
 ## Left
 
