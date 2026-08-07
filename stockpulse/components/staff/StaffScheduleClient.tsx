@@ -46,15 +46,35 @@ function addDays(iso: string, n: number): string {
   return toLocalISODate(d)
 }
 
+/**
+ * Semantic tokens only — no raw palette classes.
+ *
+ * These blocks previously used `bg-red-50` / `bg-emerald-800` and friends,
+ * which are fixed values: they do not follow dark mode, and they would have
+ * been the only thing on this page still wearing the old palette after Phase 4.
+ * An unassigned shift is a genuine alert state, so it uses the same danger
+ * tokens as every other alert in the app rather than a red of its own.
+ *
+ * No `/opacity` modifiers here, deliberately. These tokens do not support them
+ * — `text-danger/80` and friends compile, build and then emit no rule at all,
+ * so the text simply loses its colour. Verified by grepping the built CSS; see
+ * DECISIONS.md D9.
+ */
 function shiftStyle(shift: Shift, isCurrentUser: boolean) {
   if (!shift.staff_id) {
-    return { block: 'bg-red-50 border border-red-200', text: 'text-red-700', sub: 'text-red-600' }
+    return {
+      block: 'bg-danger-bg border border-danger',
+      text: 'text-danger',
+      sub: 'text-danger',
+    }
   }
   if (isCurrentUser || shift.role_label.toLowerCase() === 'manager') {
     return { block: 'bg-foreground', text: 'text-surface', sub: 'text-muted' }
   }
   if (shift.role_label.toLowerCase() === 'produce') {
-    return { block: 'bg-emerald-800', text: 'text-surface', sub: 'text-emerald-200' }
+    // accent-ink exists precisely as the readable ink on an accent fill, so
+    // this stays legible whatever Phase 4 makes the accent.
+    return { block: 'bg-accent', text: 'text-accent-ink', sub: 'text-accent-ink' }
   }
   return { block: 'bg-surface-muted border border-border', text: 'text-foreground', sub: 'text-muted' }
 }

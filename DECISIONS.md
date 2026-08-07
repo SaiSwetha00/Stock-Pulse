@@ -94,3 +94,28 @@ library, so switching providers later touches no application code.
 Deliberately *not* built: a custom transactional-email service. `inviteStaff`
 was already complete and correct — the failure was delivery. Building a second
 invite path would have been a rewrite of working code.
+
+## D9 — The semantic colour tokens do NOT support `/opacity` modifiers
+
+**This one will bite Phase 4 repeatedly, so read it before writing token
+classes.**
+
+`text-danger/80`, `border-danger/30`, `text-accent-ink/80`, `text-surface/70`
+all pass `tsc`, pass `eslint`, and build successfully — and then emit **no CSS
+rule whatsoever**. The element silently loses that property. There is no
+warning at any stage.
+
+Verified by grepping all three production CSS chunks after a build:
+`bg-danger-bg` and `text-accent-ink` are present; every `/opacity` variant of
+them returns zero matches. Not a single `.token\/nn` rule exists in the output.
+
+Rule going forward: **plain tokens only.** If a softer variant is genuinely
+needed, add a real token (`--color-danger-soft`) rather than reaching for an
+opacity modifier that will vanish.
+
+Checking this is cheap and the failure is invisible, so it is worth doing after
+any change that introduces new token classes:
+
+```
+find .next/static -name "*.css" -exec grep -oE "\.the-class-name" {} \;
+```
