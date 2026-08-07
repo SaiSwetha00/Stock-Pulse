@@ -129,6 +129,31 @@ Until then they are dead schema, and someone will eventually wire the wrong one.
 
 Scope: whichever phase adds per-user notification delivery. Drop them if it never does.
 
+## S2 — No Privacy Policy or Terms of Service exist
+
+`stockpulse/components/marketing/Footer.tsx`
+
+The footer linked to both with `href="#"`. The dead links are gone, but the
+underlying gap is real: this app stores customer names, emails, phone numbers
+and purchase history, and it is being prepared for paying customers. Shipping
+without a privacy policy is a legal exposure, not a missing page.
+
+Deliberately not written by an agent — this needs a human who knows the
+jurisdiction and what the business actually does with the data.
+
+Scope: before the first paying customer.
+
+## S3 — Footer asserts a corporate entity that may not exist
+
+`stockpulse/components/marketing/Footer.tsx` — "© 2026 Stock Pulse Technologies
+Inc. All rights reserved."
+
+Left as-is: whether to incorporate, and under what name, is the owner's
+decision, not a copy fix. Flagged because claiming "Inc." while unincorporated
+is a misrepresentation in some jurisdictions.
+
+Scope: owner decision.
+
 ## Note — three modules are outside the master prompt's list of eleven
 
 `/monitoring` (Live Operations Center), `/reports`, and `/audit` are built, routed, and in

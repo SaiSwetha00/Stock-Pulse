@@ -157,30 +157,25 @@ export default function Footer() {
           <div>
             <h4 className="font-mono text-xs uppercase tracking-[0.2em] text-[#edc155] mb-4">Resources & Legal</h4>
             <ul className="space-y-3 font-sans text-sm text-[#d1c5b0]">
+              {/* Every entry here goes somewhere real. Four of these were
+                  href="#" — API Documentation, Privacy Policy, Terms of
+                  Service, Hardware Compatibility — for pages that do not
+                  exist. A link that goes nowhere is worse than an absent one:
+                  it reads as broken rather than as not-yet-written. */}
               <li>
                 <a href="#faq" className="hover:text-[#edc155] transition-colors">
-                  Knowledge Base & FAQ
+                  Frequently Asked Questions
                 </a>
               </li>
               <li>
-                <a href="#" className="hover:text-[#edc155] transition-colors">
-                  API Documentation
-                </a>
+                <Link href="/help" className="hover:text-[#edc155] transition-colors">
+                  Help Centre
+                </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-[#edc155] transition-colors">
-                  Privacy Policy
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-[#edc155] transition-colors">
-                  Terms of Service
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-[#edc155] transition-colors">
-                  Hardware Compatibility
-                </a>
+                <Link href="/help" className="hover:text-[#edc155] transition-colors">
+                  Contact Support
+                </Link>
               </li>
             </ul>
           </div>
@@ -188,27 +183,28 @@ export default function Footer() {
 
         {/* Bottom Bar with Status and Copyright */}
         <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-4 font-mono text-xs text-[#d1c5b0]/60">
+          {/* Removed: a pulsing green "US-East Cloud Active" dot wired to
+              nothing, and "Version 4.8.2-Release", a version this software has
+              never had. A status light that cannot go red is not a status
+              light — it is decoration that will be believed during an outage,
+              which is the one moment it matters. */}
           <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              US-East Cloud Active
-            </span>
-            <span>•</span>
-            <span>Version 4.8.2-Release</span>
+            <Link href="/help" className="hover:text-[#edc155] transition-colors">
+              Help &amp; support
+            </Link>
           </div>
 
           <div>© 2026 Stock Pulse Technologies Inc. All rights reserved.</div>
 
+          {/* Privacy / Terms / Contact HQ were all href="#". They are removed
+              rather than left dangling. Privacy and Terms genuinely need
+              writing before this ships to a paying customer — that is logged
+              in FOUND-ISSUES.md, because it is a legal question rather than a
+              markup one. */}
           <div className="flex items-center gap-6 text-sm">
-            <a href="#" className="hover:text-[#edc155] transition-colors cursor-pointer">
-              Privacy
-            </a>
-            <a href="#" className="hover:text-[#edc155] transition-colors cursor-pointer">
-              Terms
-            </a>
-            <a href="#" className="hover:text-[#edc155] transition-colors cursor-pointer">
-              Contact HQ
-            </a>
+            <Link href="/help" className="hover:text-[#edc155] transition-colors">
+              Contact
+            </Link>
           </div>
         </div>
       </div>
