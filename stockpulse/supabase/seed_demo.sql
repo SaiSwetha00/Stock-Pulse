@@ -5,12 +5,24 @@
 -- Safe to re-run. Each section fills a table only when that table is empty for
 -- the target store; nothing here updates or deletes pre-existing rows.
 --
--- Targets the oldest store by default. To seed a different one, replace the
--- `select id into target_store ...` line with:
---     target_store := '<your-store-uuid>';
+-- TARGET IS PINNED TO ONE STORE ON PURPOSE.
+--
+-- This previously seeded whichever store was oldest, which on a real project
+-- means the owner's actual shop. The target is now a hardcoded id, checked
+-- three ways before a single row is written: it must not be one of the known
+-- protected stores, it must exist, and its name must still match. Any mismatch
+-- aborts the whole script — a DO block is one transaction, so an abort leaves
+-- nothing behind.
+--
+-- To retarget, change `expected_store` AND `expected_name` together. Changing
+-- only the id trips the name check, which is the point.
 
 do $$
 declare
+  -- The only store this script may write to.
+  expected_store constant uuid := 'e47fe6eb-8825-4612-965f-cb61b9be3864';
+  expected_name  constant text := 'sandal local store';
+  actual_name    text;
   target_store uuid;
   seller       uuid;
   new_sale     uuid;
@@ -23,9 +35,37 @@ declare
   staff_rec    record;
   week_monday  date;
 begin
-  select id into target_store from stores order by created_at asc limit 1;
-  if target_store is null then
-    raise exception 'No store found. Create an account in the app first, then re-run this script.';
+  target_store := expected_store;
+
+  -- Guard 1: the three real stores, named explicitly. Belt and braces next to
+  -- the name check below, but it states the intent in a way nobody editing
+  -- this file later can misread.
+  if target_store in (
+    'd046df4c-45b2-420b-90ef-ed02f21d1b68',  -- Neighborhood Market
+    'e46a2aaa-6c92-4cba-9649-2ddda35f42fe',  -- corner grocer
+    'aa595aa9-b89a-4101-a67d-166ea94a42d0'   -- sital
+  ) then
+    raise exception
+      'Refusing to seed: % is a protected store. This script may only touch the test store (%).',
+      target_store, expected_store;
+  end if;
+
+  -- Guard 2: the store has to be there at all.
+  select name into actual_name from stores where id = target_store;
+
+  if actual_name is null then
+    raise exception
+      'Refusing to seed: no store with id % exists. Check the id, or create the test store first.',
+      target_store;
+  end if;
+
+  -- Guard 3: and it has to still be the store this id was verified against.
+  -- Catches an id edited to point somewhere else, and a test store that was
+  -- deleted and replaced by a different shop.
+  if actual_name is distinct from expected_name then
+    raise exception
+      'Refusing to seed: store % is named "%", but this script expects "%". Aborting rather than writing to the wrong shop.',
+      target_store, actual_name, expected_name;
   end if;
 
   -- Prefer the owner as the recorded seller; fall back to any member.
