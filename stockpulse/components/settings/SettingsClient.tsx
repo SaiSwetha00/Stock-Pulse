@@ -5,7 +5,7 @@ import Button from '@/components/ui/Button'
 import { useRouter } from 'next/navigation'
 import { Store, SlidersHorizontal, UserSquare2, Palette, UserPlus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { Profile, Store as StoreType } from '@/types'
+import type { Profile, Role, Store as StoreType } from '@/types'
 import Toggle from '@/components/ui/Toggle'
 import { ROLE_LABELS } from '@/lib/permissions'
 import { useToast } from '@/components/ui/Toast'
@@ -13,8 +13,19 @@ import { LocalDate } from '@/components/ui/LocalTime'
 import AddStaffModal from './AddStaffModal'
 import InviteActions from './InviteActions'
 
-const ROLE_STYLES: Record<string, string> = {
-  owner: 'bg-emerald-100 text-emerald-700',
+/**
+ * One entry per role. `manager` was missing, so `ROLE_STYLES[s.role]` returned
+ * undefined for every manager and React rendered the literal string
+ * "undefined" into the badge's class list — the pill lost its styling
+ * entirely. Migration 0002 added the role; this lookup was never updated.
+ *
+ * Typed as the full Role union rather than Record<string, string> so the next
+ * role added to the system fails the build here instead of silently producing
+ * the same bug again.
+ */
+const ROLE_STYLES: Record<Role, string> = {
+  owner: 'bg-accent-soft text-foreground',
+  manager: 'bg-info-bg text-info',
   staff: 'bg-surface-muted text-muted-strong',
 }
 
