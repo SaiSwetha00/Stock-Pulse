@@ -7,3 +7,7 @@ coverage/
 *.stackdump
 .env*
 !.env.example
+
+*apikey*
+*api_key*
+*.key
