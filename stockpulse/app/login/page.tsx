@@ -64,11 +64,11 @@ export default function LoginPage() {
           <BrandMark />
           <motion.h2
             variants={fadeUp}
-            className="font-display mt-4 text-2xl font-bold tracking-tight text-[#e0e2ed]"
+            className="font-serif-brand mt-5 text-[22px] font-semibold tracking-[0.01em] text-foreground"
           >
             Welcome back
           </motion.h2>
-          <motion.p variants={fadeUp} className="mt-1 text-sm text-[#d1c5b0]">
+          <motion.p variants={fadeUp} className="mt-1 text-sm text-muted-strong">
             Sign in to your store dashboard.
           </motion.p>
         </div>
@@ -100,7 +100,7 @@ export default function LoginPage() {
             action={
               <Link
                 href="/forgot-password"
-                className="text-xs font-medium text-[#d1c5b0] transition-colors hover:text-[#e0e2ed]"
+                className="text-xs font-medium text-muted-strong transition-colors hover:text-[#e0e2ed]"
               >
                 Forgot password?
               </Link>
@@ -115,7 +115,7 @@ export default function LoginPage() {
           </div>
         </form>
 
-        <motion.p variants={fadeUp} className="mt-6 text-center text-sm text-[#d1c5b0]">
+        <motion.p variants={fadeUp} className="mt-6 text-center text-sm text-muted-strong">
           New store owner?{' '}
           <Link href="/signup" className="font-semibold text-[#e0e2ed] hover:underline">
             Set up your store

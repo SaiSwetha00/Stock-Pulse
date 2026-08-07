@@ -55,12 +55,41 @@ export function AuthShell({ hero, children }: { hero?: ReactNode; children: Reac
           bloom behind the card — replacing the earlier gold-silk SVG paths
           and stacked radial gradients, which read as decoration for its own
           sake rather than a considered ground for a form. */}
+      {/* Gold hairline along the top edge, the same device the landing footer
+          uses. It is the cheapest way to say "this is the same product" before
+          anything else has loaded. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-[0.15]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-px"
         style={{
-          backgroundImage: 'radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px)',
-          backgroundSize: '28px 28px',
+          background:
+            'linear-gradient(90deg, transparent, var(--sp-gold) 50%, transparent)',
+          opacity: 0.55,
+        }}
+      />
+
+      {/* Warm dot-grid. Was rgba(255,255,255,0.5) at 0.15 opacity — cold and
+          so faint it read as nothing, which is what left the card floating in
+          a void. Now tinted to the landing's warm neutral and slightly
+          stronger, so it is legible as ground without competing with the
+          form. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-[0.22]"
+        style={{
+          backgroundImage: 'radial-gradient(rgba(209,197,176,0.55) 1px, transparent 1px)',
+          backgroundSize: '26px 26px',
+        }}
+      />
+
+      {/* Vignette. Darkening the corners pushes the middle forward and gives
+          the card somewhere to sit, which one flat bloom on its own did not. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 90% 70% at 50% 45%, transparent 0%, rgba(0,0,0,0.55) 100%)',
         }}
       />
       <div
@@ -100,8 +129,12 @@ export function BrandMark() {
         animate={{ opacity: [0.35, 0.7, 0.35], scale: [1, 1.12, 1] }}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
       />
-      <div className="relative">
-        <StockPulseLogo size="lg" iconOnly showSubtitle={false} />
+      {/* The full wordmark, not `iconOnly`. These pages carried the mark's
+          icon and nothing else, so the one element that says which product
+          this is — and the one place the Cinzel character lives — was
+          missing entirely. */}
+      <div className="relative flex justify-center">
+        <StockPulseLogo size="md" showSubtitle={false} />
       </div>
     </motion.div>
   )

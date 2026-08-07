@@ -41,11 +41,11 @@ export default function ForgotPasswordPage() {
           <BrandMark />
           <motion.h2
             variants={fadeUp}
-            className="font-display mt-4 text-2xl font-bold tracking-tight text-[#e0e2ed]"
+            className="font-serif-brand mt-5 text-[22px] font-semibold tracking-[0.01em] text-foreground"
           >
             Reset Password
           </motion.h2>
-          <motion.p variants={fadeUp} className="mt-1 text-sm text-[#d1c5b0]">
+          <motion.p variants={fadeUp} className="mt-1 text-sm text-muted-strong">
             {sent
               ? 'Check your inbox for a reset link.'
               : "Enter your work email and we'll send you a reset link."}
@@ -58,7 +58,7 @@ export default function ForgotPasswordPage() {
             className="mt-8 flex flex-col items-center gap-4 rounded-xl border border-success bg-success/10 px-6 py-8 text-center"
           >
             <CheckCircle2 className="h-10 w-10 text-success" />
-            <p className="text-sm text-[#d1c5b0]">
+            <p className="text-sm text-muted-strong">
               If an account exists for <span className="font-semibold text-[#e0e2ed]">{email}</span>,
               you&apos;ll receive an email with instructions shortly.
             </p>
@@ -91,7 +91,7 @@ export default function ForgotPasswordPage() {
         <motion.div variants={fadeUp}>
           <Link
             href="/login"
-            className="mt-6 flex items-center justify-center gap-1.5 text-sm font-semibold text-[#d1c5b0] hover:text-[#e0e2ed]"
+            className="mt-6 flex items-center justify-center gap-1.5 text-sm font-semibold text-muted-strong hover:text-[#e0e2ed]"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to login

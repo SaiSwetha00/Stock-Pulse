@@ -122,8 +122,8 @@ export default function ResetPasswordPage() {
           {status === 'success' ? (
             <>
               <CheckCircle2 className="mx-auto mt-4 h-8 w-8 text-success" aria-hidden="true" />
-              <h2 className="font-display mt-2 text-2xl font-bold text-[#e0e2ed]">Password updated</h2>
-              <p className="mt-1 text-sm text-[#d1c5b0]">
+              <h2 className="font-serif-brand mt-3 text-[22px] font-semibold tracking-[0.01em] text-foreground">Password updated</h2>
+              <p className="mt-1 text-sm text-muted-strong">
                 Taking you to the login page so you can sign in with your new password…
               </p>
               <Link
@@ -137,8 +137,8 @@ export default function ResetPasswordPage() {
           ) : status === 'invalid' ? (
             <>
               <AlertTriangle className="mx-auto mt-4 h-8 w-8 text-danger" aria-hidden="true" />
-              <h2 className="font-display mt-2 text-2xl font-bold text-[#e0e2ed]">This link has expired</h2>
-              <p className="mt-1 text-sm text-[#d1c5b0]">
+              <h2 className="font-serif-brand mt-3 text-[22px] font-semibold tracking-[0.01em] text-foreground">This link has expired</h2>
+              <p className="mt-1 text-sm text-muted-strong">
                 {linkError ||
                   'Password reset links expire and can only be used once. Request a new one and it will work from any device.'}
               </p>
@@ -152,14 +152,14 @@ export default function ResetPasswordPage() {
             </>
           ) : (
             <motion.div variants={fadeUp}>
-              <h2 className="font-display mt-4 text-2xl font-bold text-[#e0e2ed]">Set New Password</h2>
-              <p className="mt-1 text-sm text-[#d1c5b0]">Choose a new password for your account.</p>
+              <h2 className="font-serif-brand mt-5 text-[22px] font-semibold tracking-[0.01em] text-foreground">Set New Password</h2>
+              <p className="mt-1 text-sm text-muted-strong">Choose a new password for your account.</p>
             </motion.div>
           )}
         </div>
 
         {status === 'checking' && (
-          <p className="mt-8 text-center text-sm text-[#d1c5b0]" role="status">
+          <p className="mt-8 text-center text-sm text-muted-strong" role="status">
             Verifying your link…
           </p>
         )}
