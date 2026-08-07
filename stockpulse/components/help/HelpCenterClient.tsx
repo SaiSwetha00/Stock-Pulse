@@ -1,240 +1,160 @@
 'use client'
 
-/*
-GateGuard facts:
-- Importer/caller: app/(dashboard)/help/page.tsx (imports and renders HelpCenterClient).
-- Affected API: new client component export HelpCenterClient(). No existing API changed.
-- Data schemas: none — TOPICS and FAQS are static in-file arrays; no database reads or writes.
-- User instruction (verbatim): "2. Help Center - Searchable help articles - Browse topics grid (Getting Started,
-  Inventory & Stock, Managing Staff, Payments & Sales, Hardware & POS, Security & Monitoring) - FAQ accordion section -
-  Live Chat / Email Support contact card ... DESIGN REQUIREMENT: Match the two design screens from the zip file exactly
-  ... TESTING REQUIREMENT: Test everything yourself, live in-browser — station alerts display and override correctly,
-  Help Center search and FAQ expand/collapse work ... STOP CONDITION: Once built, matches the design, and the entire app
-  runs with zero errors — stop and report back."
-*/
-
-import { useMemo, useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { Search, X, FileQuestion } from 'lucide-react'
 import {
-  Search,
-  Rocket,
-  Archive,
-  Users,
-  Wallet,
-  Printer,
-  Video,
-  ChevronDown,
-  Mail,
-} from 'lucide-react'
+  HELP_ARTICLES,
+  HELP_CATEGORIES,
+  articleMatches,
+  articlesInCategory,
+} from '@/lib/help/articles'
+import Button from '@/components/ui/Button'
+import EmptyState from '@/components/ui/EmptyState'
 
-const TOPICS = [
-  {
-    key: 'getting-started',
-    title: 'Getting Started',
-    description: 'Initial setup, dashboard overview, and basic configuration.',
-    icon: Rocket,
-    tint: '',
-  },
-  {
-    key: 'inventory',
-    title: 'Inventory & Stock',
-    description: 'Managing products, stock counts, and setting low-stock alerts.',
-    icon: Archive,
-    tint: '',
-  },
-  {
-    key: 'staff',
-    title: 'Managing Staff',
-    description: 'Adding users, setting permissions, and tracking shifts.',
-    icon: Users,
-    tint: 'bg-gradient-to-br from-zinc-100 to-emerald-100',
-  },
-  {
-    key: 'payments',
-    title: 'Payments & Sales',
-    description: 'Processing transactions, refunds, and daily drawer closes.',
-    icon: Wallet,
-    tint: '',
-  },
-  {
-    key: 'hardware',
-    title: 'Hardware & POS',
-    description: 'Connecting scanners, scales, receipt printers, and terminals.',
-    icon: Printer,
-    tint: '',
-  },
-  {
-    key: 'security',
-    title: 'Security & Monitoring',
-    description: 'Camera feeds, access logs, and anomaly detection setups.',
-    icon: Video,
-    tint: 'bg-gradient-to-br from-zinc-100 to-emerald-100',
-  },
-]
-
-const FAQS = [
-  {
-    question: 'How to add a new supplier?',
-    answer:
-      'Open Suppliers from the sidebar, then click "Add Supplier". Enter the supplier name, primary contact, category, and status, then save. The supplier appears immediately in your supplier list and in the Recent Supplier Activity feed.',
-  },
-  {
-    question: 'Resetting staff passwords',
-    answer:
-      'Staff members can reset their own password from the Login screen using "Forgot password?". As the Owner, you can also re-send an invite from Settings → Staff Management, which lets the staff member set a new password on first login.',
-  },
-  {
-    question: 'Exporting monthly sales reports',
-    answer:
-      'Go to Sales and use the date search in Recent Transactions to filter the period you need. The Weekly Performance chart and Top Selling Items panel summarise the same range for quick reporting.',
-  },
-]
+/** Offered when a search finds nothing — each is a term that does match. */
+const SUGGESTED_SEARCHES = ['low stock', 'import CSV', 'shift', 'password', 'roles']
 
 export default function HelpCenterClient() {
   const [search, setSearch] = useState('')
-  const [openFaq, setOpenFaq] = useState<number | null>(null)
 
-  const filteredTopics = useMemo(() => {
-    if (!search.trim()) return TOPICS
-    const q = search.toLowerCase()
-    return TOPICS.filter(
-      (t) => t.title.toLowerCase().includes(q) || t.description.toLowerCase().includes(q)
-    )
-  }, [search])
+  /**
+   * Debounce, but without a timer.
+   *
+   * `useDeferredValue` lets the input update at full speed while the list
+   * re-filters at a lower priority, and React abandons a stale filter pass when
+   * another keystroke arrives. A setTimeout debounce would instead make the
+   * field itself feel laggy on the first character and still do the work every
+   * 300ms whether or not it was still wanted.
+   */
+  const deferredSearch = useDeferredValue(search)
+  const isSearching = deferredSearch.trim().length > 0
 
-  const filteredFaqs = useMemo(() => {
-    if (!search.trim()) return FAQS
-    const q = search.toLowerCase()
-    return FAQS.filter(
-      (f) => f.question.toLowerCase().includes(q) || f.answer.toLowerCase().includes(q)
-    )
-  }, [search])
-
-  const hasResults = filteredTopics.length > 0 || filteredFaqs.length > 0
+  const results = useMemo(
+    () => (isSearching ? HELP_ARTICLES.filter((a) => articleMatches(a, deferredSearch)) : []),
+    [deferredSearch, isSearching],
+  )
 
   return (
-    <div className="mx-auto max-w-[1200px] px-6 py-12 lg:px-8">
+    <div className="mx-auto max-w-[1100px] px-6 py-10 lg:px-8">
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-foreground">How can we help you today?</h1>
-        <p className="mx-auto mt-3 max-w-xl text-muted">
-          Search our knowledge base or browse categories below to find quick answers to common
-          issues.
+        <p className="text-label font-semibold uppercase tracking-[0.14em] text-muted">
+          Help Centre
+        </p>
+        <h1 className="mt-2 text-xl font-bold leading-tight text-foreground lg:text-2xl">
+          How can we help?
+        </h1>
+        <p className="mx-auto mt-3 max-w-[55ch] text-body leading-relaxed text-muted">
+          Search the guides, or browse by topic below. Every article describes what StockPulse
+          actually does today.
         </p>
       </div>
 
-      <div className="mx-auto mt-8 flex max-w-2xl items-center gap-2 rounded-xl bg-surface-muted p-2 pl-4">
-        <Search className="h-5 w-5 shrink-0 text-muted" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search for help articles..."
-          className="control-h flex-1 bg-transparent text-sm text-foreground placeholder:text-muted focus:outline-none"
-        />
-        {/* Results filter as you type, so a Search button had nothing to do.
-            Offer a way out of a search instead. */}
-        {search.trim() && (
-          <button
-            type="button"
-            onClick={() => setSearch('')}
-            className="control-h shrink-0 rounded-lg bg-foreground px-5 text-sm font-semibold text-surface hover:opacity-90"
-          >
-            Clear
-          </button>
-        )}
+      <div className="mx-auto mt-8 max-w-2xl">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+            aria-hidden="true"
+          />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            type="search"
+            aria-label="Search help articles"
+            placeholder="Search help articles…"
+            className="control-h w-full rounded-lg border border-border bg-surface pl-11 pr-12 text-sm text-foreground placeholder:text-muted focus:border-border-strong focus:outline-none"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              aria-label="Clear search"
+              className="tap-target absolute right-1 top-1/2 -translate-y-1/2 rounded-lg text-muted transition hover:text-foreground"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {search.trim() && !hasResults && (
-        <p className="mt-8 text-center text-sm text-muted">
-          No help articles match &ldquo;{search}&rdquo;.
-        </p>
-      )}
+      {isSearching ? (
+        <section className="mt-10" aria-live="polite">
+          <h2 className="text-sm font-semibold text-muted">
+            {results.length === 0
+              ? `No articles match “${deferredSearch.trim()}”`
+              : `${results.length} ${results.length === 1 ? 'article' : 'articles'} matching “${deferredSearch.trim()}”`}
+          </h2>
 
-      {filteredTopics.length > 0 && (
-        <>
-          <h2 className="mt-12 text-xl font-bold text-foreground">Browse Topics</h2>
+          {results.length === 0 ? (
+            <EmptyState
+              icon={FileQuestion}
+              title="Nothing found for that"
+              description="Try a broader word, or one of these:"
+              action={
+                <div className="flex flex-wrap justify-center gap-2">
+                  {SUGGESTED_SEARCHES.map((term) => (
+                    <Button key={term} variant="secondary" size="sm" onClick={() => setSearch(term)}>
+                      {term}
+                    </Button>
+                  ))}
+                </div>
+              }
+            />
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {results.map((a) => (
+                <li key={a.slug}>
+                  <Link
+                    href={`/help/${a.slug}`}
+                    className="block rounded-lg border border-border bg-surface p-4 transition hover:border-border-strong hover:bg-surface-muted"
+                  >
+                    <p className="font-semibold text-foreground">{a.title}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-muted">{a.summary}</p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : (
+        <section className="mt-10">
+          <h2 className="text-lg font-bold text-foreground">Browse topics</h2>
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredTopics.map((topic) => {
-              const Icon = topic.icon
+            {HELP_CATEGORIES.map((category) => {
+              const Icon = category.icon
+              const articles = articlesInCategory(category.key)
+              if (articles.length === 0) return null
+
               return (
-                <button
-                  key={topic.key}
-                  type="button"
-                  // These looked clickable but did nothing. Selecting a topic
-                  // now drives the same filter the search box uses.
-                  onClick={() => setSearch(topic.title)}
-                  className={`rounded-2xl p-5 text-left transition hover:shadow-md ${
-                    topic.tint || 'bg-surface-muted'
-                  }`}
-                >
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-surface shadow-sm">
-                    <Icon className="h-5 w-5 text-foreground" />
+                <div key={category.key} className="rounded-lg border border-border bg-surface p-5">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-muted">
+                    <Icon className="h-5 w-5 text-muted-strong" aria-hidden="true" />
                   </div>
-                  <h3 className="mt-4 font-bold text-foreground">{topic.title}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-muted">{topic.description}</p>
-                </button>
+                  <h3 className="mt-4 font-bold text-foreground">{category.title}</h3>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">{category.description}</p>
+
+                  {/* The card is not itself a link. Each article inside it is —
+                      a card wrapping several destinations has to pick one, and
+                      picking one makes the other titles look clickable while
+                      going somewhere else. */}
+                  <ul className="mt-4 space-y-1.5 border-t border-border pt-3">
+                    {articles.map((a) => (
+                      <li key={a.slug}>
+                        <Link
+                          href={`/help/${a.slug}`}
+                          className="block rounded-md py-1 text-sm font-medium text-muted-strong transition hover:text-foreground"
+                        >
+                          {a.title}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )
             })}
           </div>
-        </>
+        </section>
       )}
-
-      <div className="mt-14 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_360px]">
-        <div>
-          {filteredFaqs.length > 0 && (
-            <>
-              <h2 className="text-xl font-bold text-foreground">Frequently Asked Questions</h2>
-              <div className="mt-4 space-y-3">
-                {filteredFaqs.map((faq, i) => {
-                  const isOpen = openFaq === i
-                  return (
-                    <div key={faq.question} className="overflow-hidden rounded-xl bg-surface-muted">
-                      <button
-                        onClick={() => setOpenFaq(isOpen ? null : i)}
-                        aria-expanded={isOpen}
-                        className="flex w-full items-center justify-between gap-4 px-5 py-5 text-left"
-                      >
-                        <span className="font-bold text-foreground">{faq.question}</span>
-                        <ChevronDown
-                          className={`h-5 w-5 shrink-0 text-muted transition-transform ${
-                            isOpen ? 'rotate-180' : ''
-                          }`}
-                        />
-                      </button>
-                      {isOpen && (
-                        <p className="px-5 pb-5 text-sm leading-relaxed text-muted-strong">
-                          {faq.answer}
-                        </p>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="h-fit rounded-2xl bg-foreground p-6 shadow-sm">
-          <h3 className="text-lg font-bold text-surface">Need more help?</h3>
-          <p className="mt-2 text-sm leading-relaxed text-muted">
-            Our support team is available to assist you with any complex issues.
-          </p>
-
-          {/* A "Live Chat (Online)" button sat here with no handler — it
-              asserted a staffed channel that does not exist. Email is the one
-              contact route that can actually be honoured, so it is the only
-              one offered, as a real mailto link. */}
-          <a
-            href="mailto:support@stockpulse.app?subject=StockPulse%20support%20request"
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-surface py-3 text-sm font-bold text-foreground hover:bg-surface-muted"
-          >
-            <Mail className="h-4 w-4" aria-hidden="true" />
-            Email Support
-          </a>
-
-          <p className="mt-4 text-xs leading-relaxed text-muted">
-            Replies usually arrive within one business day.
-          </p>
-        </div>
-      </div>
     </div>
   )
 }
