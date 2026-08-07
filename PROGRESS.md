@@ -122,8 +122,22 @@ the markup.
 - Phase 3 — rest of roles / audit (needs SMTP configured to test end to end)
 - Phase 4 — typography and colour; semantic tokens, light + dark, WCAG AA
 - Phase 5 — landing rhythm and honest copy
-- Phase 6 — 3D scenes (shared-bundle audit first)
 - Phase 7 — polish
+
+## Deferred, not dropped
+
+- **Phase 6 — 3D scenes.** Deferred by the owner on 2026-08-07, in favour of
+  shipping a fast, consistent, polished app rather than one carrying eleven 3D
+  scenes. Nothing about it has been judged unworkable and no code has been
+  removed; `components/marketing/ThreeGroceryVisual.tsx` still exists and still
+  renders.
+
+  If it is picked up later, the constraints the owner set still stand: every
+  scene lazy-loaded, 0 KB added to the shared bundle, <= 150 KB gz each, DPR
+  capped at 1.5 on mobile, loop paused off-screen, lighting read from the
+  active theme tokens — and any scene costing more than 5 Lighthouse points
+  gets cut. The shared-bundle audit was a prerequisite for it and remains
+  worth doing on its own merits.
 
 ## Blocked on the owner
 
