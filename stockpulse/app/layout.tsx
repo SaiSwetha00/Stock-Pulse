@@ -1,11 +1,29 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Cinzel, Inter } from "next/font/google";
 import { siteUrl } from "@/lib/site";
 import "./globals.css";
 
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
+});
+
+/**
+ * Cinzel, the wordmark's family, for page titles inside the app.
+ *
+ * The shell loaded Inter and nothing else, while the landing and auth shells
+ * pulled Cinzel in themselves — which is precisely why the dashboard read as a
+ * different product from the page that sells it. Loading it here puts the same
+ * voice on both sides of the sign-in.
+ *
+ * Titles only. Body copy, tables and forms stay in Inter, which is built for
+ * exactly that and which Cinzel would make unreadable at 13px.
+ */
+const cinzel = Cinzel({
+  variable: "--font-cinzel-app",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -40,7 +58,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${cinzel.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         {/* Applies the saved theme before paint so there is no light/dark flash.
             Deliberately a raw <script> in <head>, NOT next/script with

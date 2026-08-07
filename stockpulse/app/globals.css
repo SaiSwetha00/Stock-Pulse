@@ -217,6 +217,7 @@ summary:focus-visible,
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
   --color-accent-ink: var(--accent-ink);
+  --font-display: var(--font-cinzel-app), Georgia, serif;
   --color-success: var(--success);
   --color-success-bg: var(--success-bg);
   --color-success-ink: var(--success-ink);
@@ -585,5 +586,131 @@ body {
   .sp-pulse,
   .sp-toast {
     animation: none;
+  }
+}
+
+/* ===============================================================
+   TYPE SCALE + SPACING RHYTHM  (app shell, not the landing)
+
+   Before this the app had neither. Page titles were `text-3xl
+   font-bold` on four modules and `text-2xl lg:text-3xl` on two;
+   page padding was `px-6 py-8 lg:px-8` on four and
+   `px-4 py-6 sm:px-6 lg:px-8 lg:py-8` on two. Nothing carried an
+   eyebrow label. Every module had quietly drifted.
+
+   These are classes rather than raw utilities so the values live
+   in one place and a module cannot invent its own.
+   =============================================================== */
+
+/* --- Type ------------------------------------------------------ */
+
+/* Page title. Cinzel, matching the wordmark and the landing hero,
+   so the app reads as the same product. Positive tracking: Cinzel
+   has generous sidebearings and tightening muddies its caps. */
+.sp-title {
+  font-family: var(--font-display);
+  font-size: 1.625rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--foreground);
+}
+
+@media (min-width: 1024px) {
+  .sp-title {
+    font-size: 1.875rem;
+  }
+}
+
+/* Section heading inside a page — Inter, because these sit close to
+   data and need to disappear rather than perform. */
+.sp-heading {
+  font-size: 1.0625rem;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: -0.011em;
+  color: var(--foreground);
+}
+
+.sp-subheading {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  font-weight: 600;
+  letter-spacing: -0.006em;
+  color: var(--foreground);
+}
+
+/* Eyebrow label. Small, spaced, uppercase — it says what kind of
+   page this is before the title says which one. */
+.sp-eyebrow {
+  font-size: 0.6875rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sp-body {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--muted-strong);
+}
+
+/* --- Spacing --------------------------------------------------- */
+
+/* One page wrapper for every module. Replaces the two competing
+   paddings that were in use. */
+.sp-page {
+  margin-inline: auto;
+  max-width: 1400px;
+  padding-inline: 1rem;
+  padding-block: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .sp-page {
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sp-page {
+    padding-inline: 2rem;
+    padding-block: 2rem;
+  }
+}
+
+/* Card interior. 20px on phones, 24px from sm — the same box on
+   every module, rather than p-5 here and p-6 there. */
+.sp-card-p {
+  padding: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .sp-card-p {
+    padding: 1.5rem;
+  }
+}
+
+/* Gap between cards in a grid, and between stacked blocks. */
+.sp-gap {
+  gap: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .sp-gap {
+    gap: 1.5rem;
+  }
+}
+
+/* Vertical rhythm between major blocks on a page. */
+.sp-stack > * + * {
+  margin-top: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .sp-stack > * + * {
+    margin-top: 2rem;
   }
 }
