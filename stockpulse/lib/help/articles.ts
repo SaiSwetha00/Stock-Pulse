@@ -537,6 +537,15 @@ export const HELP_ARTICLES: HelpArticle[] = [
           'No access to Suppliers, Customers, Analytics, Reports, Settings, or the audit log.',
         ],
       },
+      { kind: 'h', text: 'One thing nobody can see: AI assistant chats' },
+      {
+        kind: 'p',
+        text: 'Conversations with the AI assistant are private to the person who had them. Your owner cannot read your chat history, and neither can a manager — this is enforced by the database, not just hidden in the interface.',
+      },
+      {
+        kind: 'p',
+        text: 'That is deliberate. The assistant is where you ask the half-formed question you would rather not put in writing yet, and a tool that is read over your shoulder is a tool nobody uses honestly. Actions that change the store — editing stock, deleting a product, changing a role — are recorded in the audit log, which the owner does read. What you asked the assistant is not.',
+      },
       {
         kind: 'note',
         text: 'These rules are enforced by the database, not just hidden in the menu. A link typed directly into the address bar will still be refused.',

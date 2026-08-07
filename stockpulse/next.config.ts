@@ -1,4 +1,24 @@
 import type { NextConfig } from "next";
+import bundleAnalyzer from "@next/bundle-analyzer";
+
+/**
+ * Bundle analysis, off unless explicitly asked for.
+ *
+ * This cannot reach production output, for three independent reasons, and it is
+ * worth being precise because "a build tool that ships" is a real failure mode:
+ *
+ *  1. It is a devDependency, so it is not part of the runtime dependency graph.
+ *  2. `enabled` is false unless ANALYZE=true, and nothing sets that except the
+ *     `npm run analyze` script. Disabled, `withBundleAnalyzer` returns the
+ *     config object untouched.
+ *  3. Even enabled, it only *reads* the finished webpack stats and writes HTML
+ *     reports to .next/analyze/. It registers no loader and injects no module,
+ *     so there is no path by which it adds a byte to a client bundle.
+ */
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+  openAnalyzer: false,
+});
 
 /**
  * Vercel already sends HSTS. These are the ones it does not, and they matter
@@ -68,4 +88,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);
