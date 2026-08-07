@@ -11,6 +11,7 @@ import { ROLE_LABELS } from '@/lib/permissions'
 import { useToast } from '@/components/ui/Toast'
 import { LocalDate } from '@/components/ui/LocalTime'
 import AddStaffModal from './AddStaffModal'
+import InviteActions from './InviteActions'
 
 const ROLE_STYLES: Record<string, string> = {
   owner: 'bg-emerald-100 text-emerald-700',
@@ -369,7 +370,10 @@ export default function SettingsClient({
                 <th className="pb-3 pr-4">Employee</th>
                 <th className="pb-3 pr-4">Role</th>
                 <th className="pb-3 pr-4">Joined</th>
-                <th className="pb-3">Status</th>
+                <th className="pb-3 pr-4">Status</th>
+                <th className="pb-3">
+                  <span className="sr-only">Invitation actions</span>
+                </th>
               </tr>
             </thead>
             <tbody className="block lg:table-row-group">
@@ -405,7 +409,7 @@ export default function SettingsClient({
                     </span>
                     <LocalDate iso={s.created_at} withYear />
                   </td>
-                  <td className="mt-2 flex items-center justify-between gap-3 lg:mt-0 lg:table-cell">
+                  <td className="mt-2 flex items-center justify-between gap-3 lg:mt-0 lg:table-cell lg:pr-4">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
                       Status
                     </span>
@@ -420,6 +424,24 @@ export default function SettingsClient({
                       />
                       {s.role === 'owner' || !s.invited ? 'Active' : 'Invited'}
                     </span>
+                  </td>
+                  {/* Only pending invitations get controls. Somebody who has
+                      accepted is an active colleague, and "resend invitation"
+                      next to "delete this account" is not a pair of buttons
+                      that should sit beside their name. */}
+                  <td className="mt-2 flex items-center justify-between gap-3 lg:mt-0 lg:table-cell">
+                    {s.role !== 'owner' && s.invited && (
+                      <>
+                        <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
+                          Invitation
+                        </span>
+                        <InviteActions
+                          profileId={s.id}
+                          fullName={s.full_name}
+                          email={s.email}
+                        />
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}

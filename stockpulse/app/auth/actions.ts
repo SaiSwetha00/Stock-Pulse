@@ -84,6 +84,125 @@ export async function updatePassword(password: string) {
   return { success: true }
 }
 
+/**
+ * Shared gate for the invite management actions.
+ *
+ * `inviteStaff` keeps its own inline copy: it predates this and works, and
+ * rewriting a correct authorization check to save six lines is how a
+ * regression gets introduced somewhere nobody is looking.
+ *
+ * Returns the requester's store so callers can scope by it. Never trust a
+ * store id from the client — everything below is reached through the admin
+ * client, which bypasses RLS entirely.
+ */
+async function requireOwner(): Promise<
+  { error: string } | { userId: string; storeId: string }
+> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { data: requester } = await supabase
+    .from('profiles')
+    .select('role, store_id')
+    .eq('id', user.id)
+    .single()
+
+  if (!requester || requester.role !== 'owner') {
+    return { error: 'Only the store owner can manage invitations.' }
+  }
+  return { userId: user.id, storeId: requester.store_id as string }
+}
+
+/**
+ * Reads a pending invite and confirms it is one.
+ *
+ * The `invited` check is the important one. Both callers below are destructive
+ * or near-destructive, and neither should ever be able to reach a colleague who
+ * has already accepted and been working in the shop for a month — "resend an
+ * invitation" and "delete an active user account" must not be one button away
+ * from each other.
+ */
+async function loadPendingInvite(profileId: string, storeId: string) {
+  const admin = createAdminClient()
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('id, email, full_name, role, invited, store_id')
+    .eq('id', profileId)
+    .eq('store_id', storeId)
+    .single()
+
+  if (!profile) return { error: 'That team member is not in this store.' as const }
+  if (profile.role === 'owner') return { error: 'The store owner cannot be revoked.' as const }
+  if (!profile.invited) {
+    return { error: 'That person has already accepted — there is no pending invitation.' as const }
+  }
+  return { profile }
+}
+
+/** Shared by invite and resend: both hit the same throttled sender. */
+function inviteErrorMessage(error: { status?: number; message: string }): string {
+  const rateLimited = error.status === 429 || /rate limit|too many/i.test(error.message)
+  if (rateLimited) {
+    return 'Email sending is rate-limited. This project is still using Supabase’s built-in SMTP, which only allows a few messages an hour. Configure custom SMTP under Project Settings → Authentication → SMTP Settings to send invitations reliably.'
+  }
+  return error.message
+}
+
+export async function resendInvite(profileId: string) {
+  const gate = await requireOwner()
+  if ('error' in gate) return { error: gate.error }
+
+  const found = await loadPendingInvite(profileId, gate.storeId)
+  if ('error' in found) return { error: found.error }
+
+  const admin = createAdminClient()
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+
+  // Same call as the original invitation. Supabase reissues the link for an
+  // existing unconfirmed user rather than erroring, so there is no separate
+  // "resend" endpoint to reach for.
+  const { error } = await admin.auth.admin.inviteUserByEmail(found.profile.email, {
+    redirectTo: `${origin}/reset-password`,
+  })
+
+  if (error) return { error: inviteErrorMessage(error) }
+  return { success: true }
+}
+
+export async function revokeInvite(profileId: string) {
+  const gate = await requireOwner()
+  if ('error' in gate) return { error: gate.error }
+
+  const found = await loadPendingInvite(profileId, gate.storeId)
+  if ('error' in found) return { error: found.error }
+
+  const admin = createAdminClient()
+
+  // Auth user first. If this succeeds and the profile delete then fails, the
+  // leftover row is visible and fixable; the reverse order would leave an
+  // account that can still sign in with no profile behind it, which fails in
+  // ways that are much harder to trace.
+  const { error: authError } = await admin.auth.admin.deleteUser(profileId)
+  if (authError) return { error: authError.message }
+
+  const { error: profileError } = await admin.from('profiles').delete().eq('id', profileId)
+  if (profileError) return { error: profileError.message }
+
+  await notify({
+    title: 'Invitation revoked',
+    body: `The invitation for ${found.profile.full_name} was cancelled.`,
+    audience: 'managers',
+    kind: 'staff',
+    entity: 'profiles',
+    entityId: profileId,
+  })
+
+  return { success: true }
+}
+
 export async function inviteStaff(formData: {
   storeId: string
   fullName: string
@@ -127,21 +246,11 @@ export async function inviteStaff(formData: {
     { redirectTo: `${origin}/reset-password` }
   )
 
-  if (inviteError) {
-    // Supabase's built-in SMTP allows only a handful of messages per hour, and
-    // its own docs call it testing-only. The raw error is a bare 429, which
-    // reads as an app bug and sends the next person debugging this function —
-    // where nothing is wrong. Name the layer that actually failed.
-    const rateLimited =
-      inviteError.status === 429 || /rate limit|too many/i.test(inviteError.message)
-    if (rateLimited) {
-      return {
-        error:
-          'Email sending is rate-limited. This project is still using Supabase’s built-in SMTP, which only allows a few messages an hour. Configure custom SMTP under Project Settings → Authentication → SMTP Settings to send invitations reliably.',
-      }
-    }
-    return { error: inviteError.message }
-  }
+  // Supabase's built-in SMTP allows only a handful of messages per hour and its
+  // own docs call it testing-only. The raw error is a bare 429, which reads as
+  // an app bug and sends the next person debugging this function, where nothing
+  // is wrong — inviteErrorMessage names the layer that actually failed.
+  if (inviteError) return { error: inviteErrorMessage(inviteError) }
   if (!invited.user) return { error: 'Could not create staff account.' }
 
   const { error: profileError } = await admin.from('profiles').insert({
