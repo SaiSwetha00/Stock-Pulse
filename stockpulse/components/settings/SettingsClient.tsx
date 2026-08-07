@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Button from '@/components/ui/Button'
 import { useRouter } from 'next/navigation'
 import { Store, SlidersHorizontal, UserSquare2, Palette, UserPlus } from 'lucide-react'
@@ -57,6 +57,55 @@ export default function SettingsClient({
     }
   }
 
+  /**
+   * Compared against the props rather than tracked with a flag.
+   *
+   * A boolean set by every onChange goes stale the moment someone types a
+   * character and deletes it again — it would report unsaved changes for an
+   * edit that no longer exists. Deriving it means "dirty" is always exactly
+   * "differs from what is stored", and `router.refresh()` after a save brings
+   * new props in, which clears it without any extra bookkeeping.
+   */
+  const dirty =
+    name !== store.name ||
+    address !== (store.address ?? '') ||
+    phone !== (store.contact_phone ?? '') ||
+    threshold !== store.low_stock_threshold_units ||
+    perishableHours !== store.perishables_warning_hours ||
+    criticalAlerts !== store.critical_stock_alerts ||
+    dailyDigest !== store.daily_digest ||
+    supplierUpdates !== store.supplier_updates ||
+    theme !== store.theme
+
+  function discard() {
+    setName(store.name)
+    setAddress(store.address ?? '')
+    setPhone(store.contact_phone ?? '')
+    setThreshold(store.low_stock_threshold_units)
+    setPerishableHours(store.perishables_warning_hours)
+    setCriticalAlerts(store.critical_stock_alerts)
+    setDailyDigest(store.daily_digest)
+    setSupplierUpdates(store.supplier_updates)
+    // Theme is the one control that takes effect before saving, so undoing it
+    // has to undo the class and localStorage too, not just the state.
+    // stores.theme is a plain text column, so anything that is not 'dark'
+    // resolves to light rather than being passed through unchecked.
+    applyTheme(store.theme === 'dark' ? 'dark' : 'light')
+    setSaveError('')
+  }
+
+  // Closing the tab is the one exit this component cannot intercept, and the
+  // theme aside, nothing here is applied until Save. Without this the work is
+  // gone with no warning.
+  useEffect(() => {
+    if (!dirty) return
+    function warn(e: BeforeUnloadEvent) {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
+
   async function handleSave() {
     setSaving(true)
     setSaved(false)
@@ -99,13 +148,31 @@ export default function SettingsClient({
             Manage configuration, personnel, and operational parameters for {store.name}.
           </p>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="control-h rounded-lg bg-foreground px-5 text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-60"
-        >
-          {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save Changes'}
-        </button>
+        <div className="flex items-center gap-3">
+          {dirty && (
+            <span role="status" className="text-xs font-medium text-muted">
+              Unsaved changes
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={discard}
+            disabled={!dirty || saving}
+            className="control-h rounded-lg border border-border px-4 text-sm font-semibold text-muted-strong hover:bg-surface-muted disabled:pointer-events-none disabled:opacity-40"
+          >
+            Discard
+          </button>
+          {/* Disabled when nothing has changed: a Save that is always
+              available invites clicking it to check whether anything was
+              missed, and every one of those is a pointless write. */}
+          <button
+            onClick={handleSave}
+            disabled={saving || !dirty}
+            className="control-h rounded-lg bg-foreground px-5 text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-60"
+          >
+            {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save Changes'}
+          </button>
+        </div>
       </div>
 
       {saveError && (
@@ -171,7 +238,7 @@ export default function SettingsClient({
                   type="button"
                   onClick={() => applyTheme('light')}
                   aria-pressed={theme === 'light'}
-                  className={`control-h rounded-md px-3 text-sm font-semibold${
+                  className={`control-h rounded-md px-3 text-sm font-semibold ${
                     theme === 'light' ? 'bg-surface shadow-sm' : 'text-muted'
                   }`}
                 >
@@ -181,7 +248,7 @@ export default function SettingsClient({
                   type="button"
                   onClick={() => applyTheme('dark')}
                   aria-pressed={theme === 'dark'}
-                  className={`control-h rounded-md px-3 text-sm font-semibold${
+                  className={`control-h rounded-md px-3 text-sm font-semibold ${
                     theme === 'dark' ? 'bg-surface shadow-sm' : 'text-muted'
                   }`}
                 >

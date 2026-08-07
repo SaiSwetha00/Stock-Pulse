@@ -73,15 +73,12 @@ function getRecognizerCtor(): RecognizerCtor | null {
  */
 const LANGUAGES = [
   { code: 'en-IN', label: 'English (India)' },
-  { code: 'en-US', label: 'English (US)' },
-  { code: 'en-GB', label: 'English (UK)' },
-  { code: 'hi-IN', label: 'हिन्दी' },
   { code: 'te-IN', label: 'తెలుగు' },
-  { code: 'ta-IN', label: 'தமிழ்' },
-  { code: 'kn-IN', label: 'ಕನ್ನಡ' },
-  { code: 'mr-IN', label: 'मराठी' },
-  { code: 'bn-IN', label: 'বাংলা' },
+  { code: 'hi-IN', label: 'हिन्दी' },
 ] as const
+
+/** Where detection lands when the browser asks for something not on the list. */
+const DEFAULT_LANGUAGE = 'en-IN'
 
 const STORAGE_KEY = 'stockpulse.voice.lang'
 
@@ -101,14 +98,15 @@ function subscribeNever(): () => void {
  *
  * Every entry in navigator.languages is tried in order for an exact match
  * first, then for the base language. A browser listing ["en-US","en-IN","te"]
- * gets en-US; one listing ["te"] gets te-IN rather than falling back to English
- * merely because the region tag was missing.
+ * gets en-IN — en-US is not offered, so the next entry wins; one listing ["te"]
+ * gets te-IN rather than falling back to English merely because the region tag
+ * was missing. Anything unrecognised lands on en-IN.
  */
 function detectLanguage(): string {
   const candidates =
     typeof navigator !== 'undefined' && navigator.languages?.length
       ? Array.from(navigator.languages)
-      : [typeof navigator !== 'undefined' ? navigator.language : 'en-IN']
+      : [typeof navigator !== 'undefined' ? navigator.language : DEFAULT_LANGUAGE]
 
   for (const candidate of candidates) {
     if (!candidate) continue
@@ -121,7 +119,7 @@ function detectLanguage(): string {
     const partial = LANGUAGES.find((l) => l.code.split('-')[0].toLowerCase() === base)
     if (partial) return partial.code
   }
-  return 'en-IN'
+  return DEFAULT_LANGUAGE
 }
 
 /** A previously chosen language wins over detection; anything stale or removed
@@ -206,7 +204,7 @@ export default function VoiceInput({
     () => getRecognizerCtor() !== null,
     () => false,
   )
-  const detected = useSyncExternalStore(subscribeNever, readStoredLanguage, () => 'en-IN')
+  const detected = useSyncExternalStore(subscribeNever, readStoredLanguage, () => DEFAULT_LANGUAGE)
   const language = chosenLanguage ?? detected
 
   const recognitionRef = useRef<SpeechRecognizer | null>(null)
