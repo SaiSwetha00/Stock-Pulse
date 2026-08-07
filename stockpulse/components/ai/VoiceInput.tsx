@@ -144,16 +144,46 @@ type VoiceState = 'idle' | 'listening' | 'processing'
  * we stop the microphone ourselves, and is not an error to report.
  */
 const ERROR_MESSAGES: Record<string, string> = {
-  'not-allowed':
-    'Microphone access is blocked. Allow it from the icon in your browser’s address bar, then try again.',
-  'service-not-allowed':
-    'Microphone access is blocked. Allow it from the icon in your browser’s address bar, then try again.',
   'audio-capture':
     'No microphone found. Check that one is connected and not in use by another app.',
   network: 'Voice input needs an internet connection. Reconnect and try again.',
   'no-speech': 'Didn’t catch anything — try speaking a little closer to the microphone.',
   'language-not-supported':
     'This browser cannot recognise that language. Try another one from the list.',
+}
+
+type MicPermission = 'granted' | 'denied' | 'prompt' | 'unknown'
+
+/**
+ * Names the origin in the blocked message.
+ *
+ * Microphone permission is granted per origin, and the two addresses this app
+ * runs at — the deployed site and localhost during development — are different
+ * origins. Allowing the microphone on one grants nothing on the other, and the
+ * resulting "I definitely allowed this" is the single most common way to end up
+ * stuck. Saying which site is blocked turns that into a two-second check.
+ */
+function blockedMessage(): string {
+  const host = typeof window === 'undefined' ? 'this site' : window.location.host
+  return `Microphone access is blocked for ${host}. Permission is per-site, so allowing it somewhere else does not count — open the icon at the left of the address bar on ${host}, set Microphone to Allow, then reload.`
+}
+
+/**
+ * Reads the live permission where the browser exposes it.
+ *
+ * Firefox has no `microphone` descriptor and throws on the query, so a failure
+ * is reported as 'unknown' and the caller carries on and lets the recognition
+ * attempt decide. Absence of the API is not evidence of a denial.
+ */
+async function queryMicPermission(): Promise<MicPermission> {
+  try {
+    const status = await navigator.permissions.query({
+      name: 'microphone' as PermissionName,
+    })
+    return status.state as MicPermission
+  } catch {
+    return 'unknown'
+  }
 }
 
 export default function VoiceInput({
@@ -169,6 +199,7 @@ export default function VoiceInput({
   const [error, setError] = useState<string | null>(null)
   // null until the user picks one, so detection stays in charge until then.
   const [chosenLanguage, setChosenLanguage] = useState<string | null>(null)
+  const permissionRef = useRef<MicPermission>('unknown')
 
   const supported = useSyncExternalStore(
     subscribeNever,
@@ -189,6 +220,46 @@ export default function VoiceInput({
   useEffect(() => {
     onChangeRef.current = onChange
   }, [onChange])
+
+  /**
+   * Track the permission for as long as the panel is open.
+   *
+   * The `change` event is what fixes the stuck-message case properly: flipping
+   * the setting to Allow in site settings fires it immediately, so a stale
+   * block message clears itself without the user having to guess that another
+   * click is needed. Polling on click alone would leave the message sitting
+   * there, contradicted by the browser's own UI, until they tried again.
+   */
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.permissions?.query) return
+
+    let status: PermissionStatus | null = null
+    let onChange: (() => void) | null = null
+    let cancelled = false
+
+    navigator.permissions
+      .query({ name: 'microphone' as PermissionName })
+      .then((result) => {
+        if (cancelled) return
+        status = result
+        onChange = () => {
+          permissionRef.current = result.state as MicPermission
+          // A grant makes any block message we are showing untrue. Clear it
+          // rather than leave the user arguing with a stale sentence.
+          if (result.state === 'granted') setError(null)
+        }
+        onChange()
+        result.addEventListener('change', onChange)
+      })
+      .catch(() => {
+        // No microphone descriptor in this browser. 'unknown' is correct.
+      })
+
+    return () => {
+      cancelled = true
+      if (status && onChange) status.removeEventListener('change', onChange)
+    }
+  }, [])
 
   // Stop the microphone if the component goes away. Closing the assistant
   // unmounts this subtree, and a session left running would keep the browser's
@@ -212,7 +283,35 @@ export default function VoiceInput({
     const Ctor = getRecognizerCtor()
     if (!Ctor) return
 
+    // Every attempt starts from a clean slate, so nothing from a previous try
+    // can survive into this one.
     setError(null)
+
+    /**
+     * An insecure origin is refused by the browser and reported as
+     * `not-allowed` — indistinguishable from a denial, and unfixable from site
+     * settings. Worth naming separately, because someone who opened the dev
+     * server over a LAN address will otherwise keep granting a permission that
+     * was never the problem.
+     */
+    if (!window.isSecureContext) {
+      setError(
+        `Voice input needs a secure connection. ${window.location.host} is served over plain http — use https, or open the app on localhost instead.`,
+      )
+      return
+    }
+
+    if (permissionRef.current === 'denied') {
+      setError(blockedMessage())
+      // Re-read rather than trust the cached value: if the setting was changed
+      // somewhere the change event did not reach us, the next attempt is right.
+      void queryMicPermission().then((state) => {
+        permissionRef.current = state
+        if (state === 'granted') setError(null)
+      })
+      return
+    }
+
     const recognition = new Ctor()
     recognition.lang = language
     // Continuous so a pause for breath does not end the session mid-sentence;
@@ -240,6 +339,17 @@ export default function VoiceInput({
 
     recognition.onerror = (event: SpeechErrorEvent) => {
       if (event.error === 'aborted') return
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        setError(blockedMessage())
+        // Resync from the browser rather than assuming this means denied:
+        // Chrome also reports not-allowed when its speech service is
+        // unreachable, in which case the permission is still granted and the
+        // cached value must not be poisoned.
+        void queryMicPermission().then((state) => {
+          permissionRef.current = state
+        })
+        return
+      }
       setError(ERROR_MESSAGES[event.error] ?? 'Voice input stopped unexpectedly. Try again.')
     }
 
