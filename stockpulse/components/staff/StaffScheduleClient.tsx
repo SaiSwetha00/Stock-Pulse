@@ -301,7 +301,7 @@ export default function StaffScheduleClient({
                               type="button"
                               onClick={() => setEditing(shift)}
                               aria-label={`Edit ${shift.role_label} shift on ${shift.shift_date}`}
-                              className="absolute inset-y-0 left-0 right-11 rounded-l-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
+                              className="absolute inset-y-0 left-0 right-11 rounded-l-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
                             />
                             {/* Was a 20px control revealed on hover, so it was
                                 both under the 44px floor and unreachable on a
@@ -314,7 +314,7 @@ export default function StaffScheduleClient({
                               type="button"
                               onClick={() => setDeletingShift(shift)}
                               aria-label={`Delete ${shift.role_label} shift on ${shift.shift_date}`}
-                              className={`tap-target absolute right-0 top-0 z-10 rounded-lg opacity-70 transition hover:bg-black/20 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 group-hover:opacity-100 ${style.text}`}
+                              className={`tap-target absolute right-0 top-0 z-10 rounded-lg opacity-70 transition hover:bg-black/20 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground group-hover:opacity-100 ${style.text}`}
                             >
                               <Trash2 className="h-4 w-4" aria-hidden="true" />
                             </button>

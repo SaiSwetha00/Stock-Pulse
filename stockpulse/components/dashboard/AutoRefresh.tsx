@@ -87,8 +87,8 @@ export default function AutoRefresh({ intervalMs = DEFAULT_INTERVAL_MS }: { inte
   }, [refresh])
 
   return (
-    <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-      <span className="sp-pulse h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+    <span className="flex items-center gap-1.5 rounded-full bg-success-bg px-3 py-1.5 text-xs font-semibold text-success">
+      <span className="sp-pulse h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
       {now > 0 ? (
         <>
           Updated <span className="tabular-nums">{agoLabel(baseline, now)}</span>

@@ -117,8 +117,15 @@ Checking this is cheap and the failure is invisible, so it is worth doing after
 any change that introduces new token classes:
 
 ```
-find .next/static -name "*.css" -exec grep -oE "\.the-class-name" {} \;
+find .next/static -name "*.css" -exec grep -oF "the-class-name" {} \;
 ```
+
+Use `grep -oF` with **no leading `.`**. Anchoring on a dot only finds bare
+utilities and misses anything behind a variant, because Tailwind emits those as
+`.focus-visible\:outline-foreground:focus-visible{…}`. Anchoring cost me a false
+alarm on `outline-foreground`, which was present and correct all along. If a
+class looks missing, grep the raw substring and read the surrounding rule before
+concluding anything.
 
 ## D10 — The leaked Resend key
 
