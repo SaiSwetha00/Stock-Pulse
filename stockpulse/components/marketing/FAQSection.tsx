@@ -47,7 +47,7 @@ export default function FAQSection() {
   ]
 
   return (
-    <section id="faq" className="relative py-32 bg-background overflow-hidden perspective-1500">
+    <section id="faq" className="relative py-32 sp-band-cream overflow-hidden perspective-1500">
       <div className="max-w-4xl mx-auto px-6 md:px-12 relative z-10">
         {/* Header */}
         <motion.div
@@ -60,7 +60,7 @@ export default function FAQSection() {
           <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-border">
             <HelpCircle className="w-3.5 h-3.5" /> FREQUENTLY ASKED QUESTIONS
           </div>
-          <h2 className="font-sans font-medium text-3xl sm:text-4xl text-[#e0e2ed] tracking-normal mb-7">
+          <h2 className="font-sans font-medium text-3xl sm:text-4xl text-foreground tracking-normal mb-7">
             Everything You Need to Know About Stock Pulse
           </h2>
         </motion.div>
@@ -85,7 +85,7 @@ export default function FAQSection() {
                   onClick={() => setOpenId(isOpen ? '' : faq.id)}
                   className="w-full p-7 text-left flex items-center justify-between gap-4 cursor-pointer"
                 >
-                  <span className="font-sans font-medium text-base sm:text-lg text-[#e0e2ed]">{faq.question}</span>
+                  <span className="font-sans font-medium text-base sm:text-lg text-foreground">{faq.question}</span>
                   <div
                     className={`w-8 h-8 rounded-full bg-background border border-[var(--sp-gold)]/30 flex items-center justify-center text-[var(--sp-gold)] shrink-0 transition-transform duration-300 ${
                       isOpen ? 'rotate-180 bg-[var(--sp-gold)] text-accent-ink' : ''
@@ -102,7 +102,7 @@ export default function FAQSection() {
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="px-7 pb-7 text-[#d1c5b0] text-sm leading-relaxed border-t border-border pt-5"
+                      className="px-7 pb-7 text-muted-strong text-sm leading-relaxed border-t border-border pt-5"
                     >
                       {faq.answer}
                     </motion.div>

@@ -49,7 +49,7 @@ export default function TestimonialsSection() {
   const current = scenarios[activeIndex]
 
   return (
-    <section id="testimonials" className="relative py-32 sp-band-warm overflow-hidden perspective-1500">
+    <section id="testimonials" className="relative py-32 sp-band-cream overflow-hidden perspective-1500">
       {/* Background flare */}
       <div className="absolute top-1/2 right-10 w-96 h-96 bg-[var(--sp-gold)]/10 rounded-full blur-[160px] pointer-events-none" />
 
@@ -65,10 +65,10 @@ export default function TestimonialsSection() {
           <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-background/30 border border-border">
             ILLUSTRATIVE EXAMPLES
           </div>
-          <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#e0e2ed] tracking-tight mb-4">
+          <h2 className="font-display font-semibold text-3xl sm:text-4xl text-foreground tracking-tight mb-4">
             How Store Owners Use Stock Pulse
           </h2>
-          <p className="text-[#d1c5b0] text-sm">
+          <p className="text-muted-strong text-sm">
             Hypothetical scenarios built from real features — not actual customer quotes.
           </p>
         </motion.div>
@@ -100,8 +100,8 @@ export default function TestimonialsSection() {
                   <Store className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="font-display font-medium text-base text-[#e0e2ed]">Independent grocer</div>
-                  <div className="font-mono text-xs text-[#d1c5b0]/70">
+                  <div className="font-display font-medium text-base text-foreground">Independent grocer</div>
+                  <div className="font-mono text-xs text-muted">
                     Feature shown: <span className="text-[var(--sp-gold)]">{current.feature}</span>
                   </div>
                 </div>
@@ -127,14 +127,14 @@ export default function TestimonialsSection() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handlePrev}
-                className="w-10 h-10 rounded-xl bg-[var(--sp-surface-card)] border border-border hover:border-[var(--sp-gold)]/50 text-[#e0e2ed] hover:text-[var(--sp-gold)] flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                className="w-10 h-10 rounded-xl bg-[var(--sp-surface-card)] border border-border hover:border-[var(--sp-gold)]/50 text-foreground hover:text-[var(--sp-gold)] flex items-center justify-center transition-all cursor-pointer shadow-sm"
                 aria-label="Previous example"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button
                 onClick={handleNext}
-                className="w-10 h-10 rounded-xl bg-[var(--sp-surface-card)] border border-border hover:border-[var(--sp-gold)]/50 text-[#e0e2ed] hover:text-[var(--sp-gold)] flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                className="w-10 h-10 rounded-xl bg-[var(--sp-surface-card)] border border-border hover:border-[var(--sp-gold)]/50 text-foreground hover:text-[var(--sp-gold)] flex items-center justify-center transition-all cursor-pointer shadow-sm"
                 aria-label="Next example"
               >
                 <ChevronRight className="w-5 h-5" />

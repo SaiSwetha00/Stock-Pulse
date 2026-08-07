@@ -81,7 +81,7 @@ export default function FeaturesSection() {
   ]
 
   return (
-    <section id="features" className="relative py-32 bg-background overflow-hidden perspective-1500">
+    <section id="features" className="relative py-32 sp-band-cream overflow-hidden perspective-1500">
       {/* Background Section Ambient Glow */}
       <div className="absolute top-1/2 left-0 w-96 h-96 bg-[var(--sp-gold)]/8 rounded-full blur-[150px] pointer-events-none" />
 
@@ -97,10 +97,10 @@ export default function FeaturesSection() {
           <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-border shadow-lg">
             <Cpu className="w-3.5 h-3.5" /> ARCHITECTURE SUPERPOWERS
           </div>
-          <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#e0e2ed] tracking-tight mb-7">
+          <h2 className="font-display font-semibold text-3xl sm:text-4xl text-foreground tracking-tight mb-7">
             Engineered for Precision Freshness & Zero-Waste Profit
           </h2>
-          <p className="text-[#d1c5b0] text-base sm:text-lg leading-relaxed">
+          <p className="text-muted-strong text-base sm:text-lg leading-relaxed">
             Every module in Stock Pulse was designed alongside master grocers to transform volatile perishables into predictable, high-margin revenue.
           </p>
         </motion.div>
@@ -130,7 +130,7 @@ export default function FeaturesSection() {
                     <div
                       className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6 ${
                         item.highlightColor === 'crimson'
-                          ? 'bg-[#93000a]/30 border-[#ffb4ab]/40 text-[#ffb4ab]'
+                          ? 'bg-[#93000a]/30 border-[#ffb4ab]/40 text-danger'
                           : item.highlightColor === 'purple'
                           ? 'bg-[#A882C1]/20 border-[#A882C1]/40 text-[#A882C1]'
                           : 'bg-[var(--sp-gold)]/15 border-[var(--sp-gold)]/35 text-[var(--sp-gold)]'
@@ -144,20 +144,20 @@ export default function FeaturesSection() {
                       {item.id === 'customer-loyalty' && <Heart className="w-6 h-6" />}
                     </div>
 
-                    <span className="font-mono text-[10px] tracking-widest text-[#d1c5b0]/60 uppercase px-2.5 py-1 rounded bg-background border border-border">
+                    <span className="font-mono text-[10px] tracking-widest text-muted uppercase px-2.5 py-1 rounded bg-background border border-border">
                       {item.category}
                     </span>
                   </div>
 
-                  <h3 className="font-display font-medium text-2xl text-[#e0e2ed] group-hover:text-[var(--sp-gold)] transition-colors mb-4">
+                  <h3 className="font-display font-medium text-2xl text-foreground group-hover:text-[var(--sp-gold)] transition-colors mb-4">
                     {item.title}
                   </h3>
 
-                  <p className="text-[#d1c5b0] text-sm leading-relaxed mb-7">{item.description}</p>
+                  <p className="text-muted-strong text-sm leading-relaxed mb-7">{item.description}</p>
                 </div>
 
                 {/* Bottom Metric Footer */}
-                <div className="pt-5 border-t border-border flex items-center justify-between font-mono text-xs text-[#d1c5b0]/70">
+                <div className="pt-5 border-t border-border flex items-center justify-between font-mono text-xs text-muted">
                   <span className="flex items-center gap-1.5 text-xs text-[var(--sp-gold)]">
                     <CheckCircle2 className="w-3.5 h-3.5 text-[var(--sp-gold)]" />
                     {item.metrics}

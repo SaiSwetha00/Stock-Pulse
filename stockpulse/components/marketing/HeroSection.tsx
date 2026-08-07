@@ -19,8 +19,20 @@ export default function HeroSection() {
             </span>
           </div>
 
-          {/* Massive, tight-tracked headline — the dominant element on the page */}
-          <h1 className="font-display font-extrabold text-[13vw] sm:text-8xl lg:text-[6.5vw] xl:text-[104px] leading-[0.93] tracking-[-0.045em] text-[#f2efe6] mb-8 max-w-[15ch]">
+          {/*
+            Set in Cinzel — the same family as the STOCK PULSE wordmark, via
+            `font-serif-brand`. It was Outfit at 104px: a generic heavy sans,
+            shouting, and belonging to no other element on the page. The
+            wordmark has a Roman serif character and the headline should read
+            as its sibling.
+
+            Roughly half the previous size (56px against 104px at the top end),
+            because a serif this distinctive does the work by being itself
+            rather than by being enormous. Positive tracking, not the -0.045em
+            it had: Cinzel is drawn with generous sidebearings, and tightening
+            it closes the counters and muddies the caps.
+          */}
+          <h1 className="font-serif-brand font-semibold text-[8vw] sm:text-4xl lg:text-5xl xl:text-[56px] leading-[1.12] tracking-[0.01em] text-[#f2efe6] mb-8 max-w-[18ch]">
             Run the store,
             <br />
             not the{' '}

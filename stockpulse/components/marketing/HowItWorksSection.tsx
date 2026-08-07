@@ -45,7 +45,7 @@ export default function HowItWorksSection() {
   ]
 
   return (
-    <section id="how-it-works" className="relative py-32 bg-background overflow-hidden perspective-1500">
+    <section id="how-it-works" className="relative py-32 sp-band-cream overflow-hidden perspective-1500">
       <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
         {/* Header */}
         <motion.div
@@ -58,10 +58,10 @@ export default function HowItWorksSection() {
           <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-border">
             WORKFLOW SIMPLICITY
           </div>
-          <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#e0e2ed] tracking-tight mb-7">
+          <h2 className="font-display font-semibold text-3xl sm:text-4xl text-foreground tracking-tight mb-7">
             Off the Clipboard in Four Steps
           </h2>
-          <p className="text-[#d1c5b0] text-base sm:text-lg leading-relaxed">
+          <p className="text-muted-strong text-base sm:text-lg leading-relaxed">
             No sensors, no new tills, nothing to install on the shop floor. Stock Pulse is the record
             you already keep, somewhere it can actually be read.
           </p>
@@ -93,21 +93,21 @@ export default function HowItWorksSection() {
                   </div>
                 </div>
 
-                <div className="font-mono text-[10px] tracking-widest text-[#d1c5b0]/60 uppercase mb-2">
+                <div className="font-mono text-[10px] tracking-widest text-muted uppercase mb-2">
                   {step.subtitle}
                 </div>
 
-                <h3 className="font-display font-medium text-2xl text-[#e0e2ed] mb-4 group-hover:text-[var(--sp-gold)] transition-colors">
+                <h3 className="font-display font-medium text-2xl text-foreground mb-4 group-hover:text-[var(--sp-gold)] transition-colors">
                   {step.title}
                 </h3>
 
-                <p className="text-[#d1c5b0] text-xs leading-relaxed mb-7">{step.description}</p>
+                <p className="text-muted-strong text-xs leading-relaxed mb-7">{step.description}</p>
               </div>
 
               {/* Bullet points */}
               <div className="pt-5 border-t border-border space-y-2.5">
                 {step.detailPoints.map((pt, i) => (
-                  <div key={i} className="flex items-center gap-2 font-mono text-[11px] text-[#d1c5b0]/80">
+                  <div key={i} className="flex items-center gap-2 font-mono text-[11px] text-muted">
                     <CheckCircle2 className="w-3.5 h-3.5 text-[var(--sp-gold)] shrink-0" />
                     <span>{pt}</span>
                   </div>
