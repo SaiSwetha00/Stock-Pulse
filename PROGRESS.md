@@ -104,17 +104,25 @@ the markup.
   fails AA. Charts moved to the gold family. Verified present in the built CSS,
   old green verified absent.
 
-## In flight
-
-- **Phase 4 sweep.** The token layer is correct now; what remains is replacing
-  the values that bypass it — 116 palette classes in app + shared, 116 in
-  marketing, 262 hex literals. Start with `AuthUI.tsx` (30) and
-  `MonitoringClient.tsx` (20); `lib/notifications.ts` (8) needs restructuring
-  rather than substitution, because colour chosen in a lib file cannot be
-  reached by tokens from the markup.
+- **Phase 4 — COMPLETE for dashboard surfaces.** Palette classes on dashboard
+  and shared components went **116 -> 0** (the 2 remaining grep hits are a
+  comment describing what was removed). Added `--success` / `--success-bg` /
+  `--success-ink` because green had been the accent and was doubling as the
+  healthy-state colour; with a gold accent, in-stock items would have rendered
+  gold. Verified live in the browser that tokens flip between themes:
+  `accent #8b6508 <-> #e3b341`, `success #157a3a <-> #4ade80`.
 
   **Read DECISIONS.md D9 before writing token classes** — `/opacity` modifiers
-  on these tokens compile, build, and emit nothing.
+  on these tokens compile, build, and emit nothing. D9 also carries the correct
+  built-CSS verification recipe (`grep -oF`, no leading dot).
+
+## In flight
+
+- **Phase 5 — landing rhythm and honest copy.** The 116 palette classes in
+  `components/marketing` plus the auth pages are deliberately still there: they
+  are a permanently-dark surface and `.sp-landing` does NOT set `.dark`, so a
+  theme token resolves to its LIGHT value on black. They need explicit
+  dark-fixed handling, not substitution. See the D11 note on the landing gold.
 
 ## Left
 
