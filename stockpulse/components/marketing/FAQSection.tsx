@@ -32,9 +32,9 @@ export default function FAQSection() {
     },
     {
       id: 'faq-4',
-      question: 'How accurate is the AI produce spoilage prediction model?',
+      question: 'Does StockPulse predict when produce will spoil?',
       answer:
-        'Our computer vision and ethylene models achieve 94.2% predictive accuracy across fruits, vegetables, and floral perishables, giving store operators up to 72 hours of advanced warning before visible decay.',
+        'No — and we would rather say so than imply otherwise. There is no camera, no sensor and no prediction model. What StockPulse does is simpler and it works: you record an expiry date against a perishable line, you choose how much warning you want (12 hours up to a week), and those items surface on your dashboard while there is still time to move them. The judgement about the produce stays yours.',
       category: 'General',
     },
     {

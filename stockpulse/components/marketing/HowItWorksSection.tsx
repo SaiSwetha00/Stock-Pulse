@@ -27,20 +27,20 @@ export default function HowItWorksSection() {
     {
       stepNumber: '03',
       title: 'Autonomous Farm Reordering',
-      subtitle: 'Smart Logistics',
+      subtitle: 'Supplier Tracking',
       description:
-        'When safety stock crosses minimum threshold, Stock Pulse auto-generates and dispatches Purchase Orders to regional suppliers.',
+        'Keep every supplier, purchase order and delivery in one place, and move each shipment through its stages so you always know what is arriving and when.',
       iconName: 'ShoppingBag',
-      detailPoints: ['Local farm direct dispatch', 'Bulk tier volume discounts', 'Vendor SLA scoring'],
+      detailPoints: ['Supplier directory', 'Purchase orders and ETAs', 'Ordered to delivered stages'],
     },
     {
       stepNumber: '04',
-      title: 'Zero-Waste Margin Optimization',
-      subtitle: 'Maximum Profit',
+      title: 'Catch Perishables Before They Turn',
+      subtitle: 'Less Waste',
       description:
-        'Dynamic markdown suggestions automatically trigger special promotions for items nearing peak ripeness, eliminating spoilage.',
+        'Record an expiry date against perishable lines and choose how far ahead you want warning — anywhere from 12 hours to a week — so they surface while you can still sell them.',
       iconName: 'BarChart3',
-      detailPoints: ['84% spoilage reduction', 'Dynamic price markdown sync', 'Real-time profit ledger'],
+      detailPoints: ['Expiry dates per product', 'Warning window you choose', 'Low-stock thresholds'],
     },
   ]
 
