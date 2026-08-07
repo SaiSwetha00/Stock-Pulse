@@ -34,9 +34,9 @@ const TIER_FILTERS: { value: LoyaltyTier | 'all'; label: string }[] = [
 
 const TIER_STYLES: Record<LoyaltyTier, string> = {
   platinum: 'bg-foreground text-surface',
-  gold: 'bg-amber-100 text-amber-700',
+  gold: 'bg-warning-bg text-warning',
   silver: 'bg-surface-muted text-muted-strong',
-  bronze: 'bg-orange-100 text-orange-700',
+  bronze: 'bg-warning-bg text-warning',
 }
 
 type Activity = 'active' | 'dormant'

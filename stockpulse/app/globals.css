@@ -35,6 +35,14 @@
   --accent-soft: #f7efda;
   --accent-ink: #5c4206;
 
+  /* "Optimal" needed its own token once the accent went gold. Green used to
+     be the accent, so `emerald-*` doubled as the healthy-state colour across
+     the dashboard; with a gold accent, in-stock items would otherwise have
+     read as gold. 5.42:1 on surface, 4.84:1 on surface-muted. */
+  --success: #157a3a;
+  --success-bg: #e7f4ec;
+  --success-ink: #0d4f26;
+
   --danger: #b42318;
   --danger-bg: #fdecea;
   --warning: #b45309;
@@ -67,6 +75,10 @@
   --accent-hover: #f0c65c;
   --accent-soft: #2a2008;
   --accent-ink: #e8c46a;
+
+  --success: #4ade80;
+  --success-bg: #10231a;
+  --success-ink: #86efac;
 
   --danger: #f0736a;
   --danger-bg: #2c1614;
@@ -151,6 +163,9 @@ summary:focus-visible,
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
   --color-accent-ink: var(--accent-ink);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-ink: var(--success-ink);
   --color-danger: var(--danger);
   --color-danger-bg: var(--danger-bg);
   --color-warning: var(--warning);

@@ -185,7 +185,7 @@ export default function SalesClient({
                     <span className="font-semibold text-surface">{c.pct}%</span>
                   </div>
                   <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface/10">
-                    <div className="h-full rounded-full bg-emerald-400" style={{ width: `${c.pct}%` }} />
+                    <div className="h-full rounded-full bg-success" style={{ width: `${c.pct}%` }} />
                   </div>
                 </div>
               ))}
@@ -391,7 +391,7 @@ export default function SalesClient({
         {canSeeRevenue && (
           <div className="rounded-2xl bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2">
-              <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+              <Star className="h-4 w-4 fill-warning text-warning" />
               <h2 className="text-lg font-bold text-foreground">Top Selling Items</h2>
             </div>
             <div className="mt-4 space-y-4">

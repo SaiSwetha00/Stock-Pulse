@@ -119,3 +119,36 @@ any change that introduces new token classes:
 ```
 find .next/static -name "*.css" -exec grep -oE "\.the-class-name" {} \;
 ```
+
+## D10 — The leaked Resend key
+
+`git add -A` from the repo root swept an untracked
+`stockpulse/resend_apikey_for_stockpulse.txt` into commit `d6d55f4`. GitHub push
+protection rejected the push, so it never reached the remote; exposure was local
+only. The owner scrubbed it with `filter-branch`, rotated the key, and
+`*apikey*` / `*api_key*` / `*.key` are now ignored.
+
+Lesson, recorded because it will otherwise recur: **stage explicit paths.**
+`git add -A` from a repo root that also holds a developer's scratch files is not
+safe, and the cost of being wrong is a published credential.
+
+## D11 — The landing keeps its own gold; it was already the same family
+
+The requirement was one shared gold accent. The landing already had one —
+`--sp-gold: #c9a227` with light and deep variants in `landing.css`, used across
+ten marketing components — and `globals.css` now has `#8b6508` (light) and
+`#e3b341` (dark). All three are the same goldenrod family.
+
+Not unified to identical hex. `landing.css` carries an explicit note that the
+muted tone is deliberate: "restrained enough to read as an accent used once with
+intent, not a glow slapped on every border. Bright gold is now reserved for the
+headline gradient and primary-button hover only." Overwriting `#c9a227` with the
+brighter `#e3b341` would undo that across ten components to satisfy a
+consistency nobody would perceive — the two surfaces are never on screen
+together.
+
+Measured on the landing's black: `#c9a227` 8.68:1, `#e3b341` 10.79:1. Both pass
+comfortably, so this is not a contrast question.
+
+The effort went instead to the palette classes on dashboard surfaces, which
+genuinely bypass the token system and genuinely do not follow dark mode.

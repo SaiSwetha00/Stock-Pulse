@@ -50,11 +50,11 @@ export const KIND_LABELS: Record<NotificationKind, string> = {
  * step with the first.
  */
 export const KIND_STYLES: Record<NotificationKind, string> = {
-  general: 'bg-zinc-100 text-zinc-700',
+  general: 'bg-surface-muted text-muted-strong',
   low_stock: 'bg-danger-bg text-danger',
-  staff: 'bg-zinc-900 text-white',
-  supplier: 'bg-amber-100 text-amber-800',
-  sales: 'bg-emerald-100 text-emerald-800',
+  staff: 'bg-foreground text-surface',
+  supplier: 'bg-warning-bg text-warning',
+  sales: 'bg-success-bg text-success-ink',
 }
 
 /** Where clicking a notification should land, when it points at something. */

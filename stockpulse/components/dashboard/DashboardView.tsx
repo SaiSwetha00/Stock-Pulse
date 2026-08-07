@@ -61,7 +61,7 @@ const STAT_FOOT = 'mt-2 text-xs text-muted'
 const ALERT_STYLES = {
   stock: {
     border: 'border-l-4 border-danger',
-    iconWrap: 'rounded-lg bg-red-100',
+    iconWrap: 'rounded-lg bg-danger-bg',
     icon: 'text-danger',
     Icon: AlertTriangle,
     href: '/inventory',
@@ -75,7 +75,7 @@ const ALERT_STYLES = {
   },
   delivery: {
     border: '',
-    iconWrap: 'rounded-full bg-emerald-600',
+    iconWrap: 'rounded-full bg-success',
     icon: 'text-surface',
     Icon: Truck,
     href: '/suppliers',
@@ -340,7 +340,7 @@ export default function DashboardView({
             {recentSales.map((sale) => (
               <div
                 key={sale.id}
-                className="rounded-xl border-l-4 border-emerald-500 bg-surface-muted p-3.5"
+                className="rounded-xl border-l-4 border-success bg-surface-muted p-3.5"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-bold text-foreground">
@@ -352,7 +352,7 @@ export default function DashboardView({
                 </div>
                 <p className="mt-0.5 text-sm text-muted-strong">{sale.profiles?.full_name ?? 'Staff'}</p>
                 <div className="mt-1.5 flex items-center justify-between gap-2">
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                  <span className="rounded-full bg-success-bg px-2 py-0.5 text-xs font-semibold text-success">
                     Completed
                   </span>
                   <span className="text-xs text-muted">

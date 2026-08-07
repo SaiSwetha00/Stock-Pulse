@@ -50,7 +50,7 @@ const TRACKER_STAGES: ShipmentStatus[] = ['ordered', 'shipped', 'transit', 'dock
 // differ between the server HTML and the client.
 function shipmentBadge(shipment: Shipment, today: string | null) {
   if (today !== null && shipment.eta === today && shipment.status !== 'dock') {
-    return { label: 'Arriving Today', className: 'bg-emerald-100 text-emerald-700' }
+    return { label: 'Arriving Today', className: 'bg-success-bg text-success' }
   }
   if (shipment.status === 'transit') {
     return { label: 'In Transit', className: 'bg-surface-muted text-muted-strong' }
@@ -390,7 +390,7 @@ export default function SuppliersClient({
             <p className="text-sm font-semibold text-surface">Today&apos;s Inbound</p>
             <p className="mt-2 text-4xl font-bold text-surface">{totalPallets}</p>
             <p className="text-sm text-muted">Pallets Expected</p>
-            <div className="mt-4 flex gap-6 border-t border-white/10 pt-4 text-sm">
+            <div className="mt-4 flex gap-6 border-t border-border pt-4 text-sm">
               <div>
                 <p className="text-muted">Received</p>
                 <p className="font-semibold text-surface">{receivedPallets}</p>

@@ -45,20 +45,20 @@ const STATUS_META: Record<
 > = {
   assistance: {
     label: 'ASSISTANCE',
-    badge: 'bg-red-100 text-red-700',
-    bar: 'bg-red-600',
+    badge: 'bg-danger-bg text-danger',
+    bar: 'bg-danger',
     icon: AlertTriangle,
   },
   review: {
     label: 'REVIEW',
-    badge: 'bg-amber-100 text-amber-700',
-    bar: 'bg-amber-500',
+    badge: 'bg-warning-bg text-warning',
+    bar: 'bg-warning',
     icon: Eye,
   },
   in_use: {
     label: 'IN USE',
-    badge: 'bg-emerald-100 text-emerald-700',
-    bar: 'bg-emerald-500',
+    badge: 'bg-success-bg text-success',
+    bar: 'bg-success',
     icon: Zap,
   },
   available: {
@@ -285,21 +285,21 @@ export default function MonitoringClient({
       )}
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr_1.6fr]">
-        <div className="rounded-2xl bg-red-100 p-6 shadow-sm">
-          <p className="flex items-center gap-2 text-lg font-bold text-red-700">
+        <div className="rounded-2xl bg-danger-bg p-6 shadow-sm">
+          <p className="flex items-center gap-2 text-lg font-bold text-danger">
             <AlertTriangle className="h-5 w-5" />
             Active Alerts
           </p>
-          <p className="mt-3 text-4xl font-bold text-red-700">{activeAlerts}</p>
-          <p className="mt-1 text-sm text-red-600">Require Immediate Attention</p>
+          <p className="mt-3 text-4xl font-bold text-danger">{activeAlerts}</p>
+          <p className="mt-1 text-sm text-danger">Require Immediate Attention</p>
         </div>
 
-        <div className="rounded-2xl bg-gradient-to-br from-emerald-950 to-zinc-950 p-6 shadow-sm">
-          <p className="flex items-center gap-2 text-lg font-bold text-emerald-400">
+        <div className="rounded-2xl bg-gradient-to-br from-success-bg to-surface-muted p-6 shadow-sm">
+          <p className="flex items-center gap-2 text-lg font-bold text-success">
             <CheckCircle2 className="h-5 w-5" />
             Stations Active
           </p>
-          <p className="mt-3 text-4xl font-bold text-emerald-400">
+          <p className="mt-3 text-4xl font-bold text-success">
             {stationsActive}/{totalStations}
           </p>
           <p className="mt-1 text-sm text-muted">Optimal Utilization</p>
@@ -309,7 +309,7 @@ export default function MonitoringClient({
           <p className="text-lg font-bold text-foreground">Current Intervention Rate</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <p className="text-4xl font-bold text-foreground">{interventionRate.toFixed(1)}%</p>
-            <span className="flex items-center gap-1 text-sm font-semibold text-red-600">
+            <span className="flex items-center gap-1 text-sm font-semibold text-danger">
               <TrendingUp className="h-4 w-4" />
               {activeAlerts} flagged now
             </span>
@@ -357,7 +357,7 @@ export default function MonitoringClient({
                     <div className="flex h-24 items-center justify-center text-muted">
                       <ScanLine className="h-8 w-8" />
                     </div>
-                    <div className="flex items-start justify-between gap-2 bg-red-700 px-3 py-2 text-[11px] font-bold text-surface">
+                    <div className="flex items-start justify-between gap-2 bg-danger px-3 py-2 text-[11px] font-bold text-surface">
                       <span>
                         WEIGHT
                         <br />
@@ -377,7 +377,7 @@ export default function MonitoringClient({
                     <div className="flex h-24 items-center justify-center text-muted">
                       <ScanLine className="h-8 w-8" />
                     </div>
-                    <div className="flex items-start justify-between gap-2 bg-amber-600 px-3 py-2 text-[11px] font-bold text-surface">
+                    <div className="flex items-start justify-between gap-2 bg-warning px-3 py-2 text-[11px] font-bold text-surface">
                       <span>
                         AGE
                         <br />
