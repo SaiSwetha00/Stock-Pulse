@@ -118,7 +118,7 @@ export default function HelpCenterClient() {
         </section>
       ) : (
         <section className="mt-10">
-          <h2 className="text-lg font-bold text-foreground">Browse topics</h2>
+          <h2 className="sp-heading">Browse topics</h2>
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {HELP_CATEGORIES.map((category) => {
               const Icon = category.icon

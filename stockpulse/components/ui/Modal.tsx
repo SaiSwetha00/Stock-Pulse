@@ -156,7 +156,7 @@ export default function Modal({
             )}
           >
             <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
-              <h3 id={titleId} className="text-lg font-bold text-foreground">
+              <h3 id={titleId} className="sp-heading">
                 {title}
               </h3>
               <button

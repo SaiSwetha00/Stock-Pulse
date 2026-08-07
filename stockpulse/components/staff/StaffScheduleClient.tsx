@@ -178,7 +178,7 @@ export default function StaffScheduleClient({
               >
                 <ChevronLeft className="h-5 w-5" aria-hidden="true" />
               </button>
-              <h2 className="text-lg font-bold text-foreground">{rangeLabel}</h2>
+              <h2 className="sp-heading">{rangeLabel}</h2>
               <button
                 type="button"
                 onClick={() => goToWeek(7)}
@@ -334,7 +334,7 @@ export default function StaffScheduleClient({
         <div className="space-y-6">
           <div className="rounded-2xl bg-surface p-6 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">Staff Availability</h2>
+              <h2 className="sp-heading">Staff Availability</h2>
               <Users className="h-5 w-5 text-muted" />
             </div>
             <div className="mt-4 space-y-4">

@@ -170,7 +170,7 @@ export default function SalesClient({
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="rounded-2xl bg-surface p-6 shadow-sm lg:col-span-2">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">Weekly Performance</h2>
+              <h2 className="sp-heading">Weekly Performance</h2>
               <p className="text-sm text-muted">Revenue, last 7 days</p>
             </div>
             <SalesTrendChart data={trendData} />
@@ -206,7 +206,7 @@ export default function SalesClient({
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="rounded-2xl bg-surface p-6 shadow-sm lg:col-span-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-foreground">
+            <h2 className="sp-heading">
               {canSeeRevenue ? 'Recent Transactions' : 'Sales History'}
             </h2>
             <div className="relative w-48">
@@ -393,7 +393,7 @@ export default function SalesClient({
           <div className="rounded-2xl bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2">
               <Star className="h-4 w-4 fill-warning text-warning" />
-              <h2 className="text-lg font-bold text-foreground">Top Selling Items</h2>
+              <h2 className="sp-heading">Top Selling Items</h2>
             </div>
             <div className="mt-4 space-y-4">
               {topSelling.length === 0 && (

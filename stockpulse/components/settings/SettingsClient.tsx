@@ -199,7 +199,7 @@ export default function SettingsClient({
           <div className="rounded-2xl bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <Store className="h-4.5 w-4.5 text-muted-strong" />
-              <h2 className="text-lg font-bold text-foreground">Store Details</h2>
+              <h2 className="sp-heading">Store Details</h2>
             </div>
             <div className="mt-4 space-y-4">
               <div>
@@ -239,7 +239,7 @@ export default function SettingsClient({
           <div className="rounded-2xl bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <Palette className="h-4.5 w-4.5 text-muted-strong" />
-              <h2 className="text-lg font-bold text-foreground">Appearance</h2>
+              <h2 className="sp-heading">Appearance</h2>
             </div>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
@@ -275,7 +275,7 @@ export default function SettingsClient({
         <div className="rounded-2xl bg-surface p-6 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border pb-4">
             <SlidersHorizontal className="h-4.5 w-4.5 text-muted-strong" />
-            <h2 className="text-lg font-bold text-foreground">Operational Controls</h2>
+            <h2 className="sp-heading">Operational Controls</h2>
           </div>
 
           <div className="mt-4">
@@ -364,7 +364,7 @@ export default function SettingsClient({
         <div className="flex items-center justify-between border-b border-border pb-4">
           <div className="flex items-center gap-2">
             <UserSquare2 className="h-4.5 w-4.5 text-muted-strong" />
-            <h2 className="text-lg font-bold text-foreground">Staff Management</h2>
+            <h2 className="sp-heading">Staff Management</h2>
           </div>
           <Button onClick={() => setAddStaffOpen(true)}>
             <UserPlus className="h-4 w-4" aria-hidden="true" />

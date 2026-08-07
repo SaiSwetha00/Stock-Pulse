@@ -405,7 +405,7 @@ export default function SuppliersClient({
 
           <div className="rounded-2xl bg-surface p-6 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">Incoming Shipments</h2>
+              <h2 className="sp-heading">Incoming Shipments</h2>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -469,7 +469,7 @@ export default function SuppliersClient({
           </div>
 
           <div className="rounded-2xl bg-surface p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-foreground">Recent Supplier Activity</h2>
+            <h2 className="sp-heading">Recent Supplier Activity</h2>
             <div className="mt-4 space-y-4">
               {activity.length === 0 && (
                 <p className="text-sm text-muted">No recent activity.</p>

@@ -242,7 +242,7 @@ export default function ReportsClient({
           {/* Revenue by day */}
           <section className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-foreground">Revenue by day</h2>
+              <h2 className="sp-heading">Revenue by day</h2>
               <ExportCsvButton
                 columns={[
                   { header: 'Date', value: (d: (typeof daily)[number]) => d.iso },
@@ -282,7 +282,7 @@ export default function ReportsClient({
           {/* Top products */}
           <section className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-foreground">Top products</h2>
+              <h2 className="sp-heading">Top products</h2>
               <ExportCsvButton
                 columns={[
                   { header: 'Product', value: (p: (typeof products)[number]) => p.name },
@@ -327,7 +327,7 @@ export default function ReportsClient({
           {/* Category mix */}
           <section className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-foreground">Category mix</h2>
+              <h2 className="sp-heading">Category mix</h2>
               <ExportCsvButton
                 columns={[
                   { header: 'Category', value: (c: (typeof categories)[number]) => c.label },
@@ -362,7 +362,7 @@ export default function ReportsClient({
           {/* Payment methods */}
           <section className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-foreground">Payment methods</h2>
+              <h2 className="sp-heading">Payment methods</h2>
               <ExportCsvButton
                 columns={[
                   { header: 'Method', value: (p: (typeof payments)[number]) => p.label },

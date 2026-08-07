@@ -12,7 +12,12 @@ export type BadgeTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info'
  */
 const TONES: Record<BadgeTone, string> = {
   neutral: 'bg-surface-muted text-muted-strong',
-  success: 'bg-accent-soft text-accent-ink',
+  // Success is green, not the accent. This read `bg-accent-soft
+  // text-accent-ink`, which was correct only while the accent happened to BE
+  // green — the moment Phase 4 made it gold, every "In Stock" pill in the app
+  // turned gold and stopped meaning "healthy". Caught in the browser:
+  // #5c4206 on #f7efda, where it should have been green.
+  success: 'bg-success-bg text-success-ink',
   warning: 'bg-warning-bg text-warning',
   danger: 'bg-danger-bg text-danger',
   info: 'bg-info-bg text-info',

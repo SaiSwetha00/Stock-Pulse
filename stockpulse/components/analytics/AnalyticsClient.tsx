@@ -234,7 +234,7 @@ export default function AnalyticsClient({
       ) : (
         <>
           <section className="mt-6 rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold text-foreground">Revenue trend</h2>
+            <h2 className="sp-heading">Revenue trend</h2>
             <div className="mt-4">
               <SalesTrendChart data={trend.map((d) => ({ label: d.label, value: d.value }))} />
             </div>
@@ -242,7 +242,7 @@ export default function AnalyticsClient({
 
           <div className="mt-6 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
             <section className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
-              <h2 className="text-lg font-bold text-foreground">Category mix</h2>
+              <h2 className="sp-heading">Category mix</h2>
               <BarList
                 barClass="bg-accent"
                 rows={categories.map((c) => ({
@@ -254,7 +254,7 @@ export default function AnalyticsClient({
             </section>
 
             <section className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
-              <h2 className="text-lg font-bold text-foreground">Top products</h2>
+              <h2 className="sp-heading">Top products</h2>
               <BarList
                 barClass="bg-foreground"
                 rows={products.map((p) => ({
@@ -267,7 +267,7 @@ export default function AnalyticsClient({
             </section>
 
             <section className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
-              <h2 className="text-lg font-bold text-foreground">Payment methods</h2>
+              <h2 className="sp-heading">Payment methods</h2>
               <BarList
                 barClass="bg-info"
                 rows={payments.map((p) => ({

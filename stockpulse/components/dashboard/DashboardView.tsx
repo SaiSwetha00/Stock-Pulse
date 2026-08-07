@@ -282,7 +282,7 @@ export default function DashboardView({
       </div>
 
       {/* ---- Quick actions ---- */}
-      <h2 className="mt-7 text-lg font-bold text-foreground">Quick Actions</h2>
+      <h2 className="sp-heading mt-7">Quick Actions</h2>
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         {(isOwner ? [...QUICK_ACTIONS, ...OWNER_QUICK_ACTIONS] : QUICK_ACTIONS).map((action) => {
           const Icon = action.Icon
@@ -306,7 +306,7 @@ export default function DashboardView({
       {/* ---- Trend + recent sales ---- */}
       <div className="mt-7 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
         <div className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6 lg:col-span-2">
-          <h2 className="text-lg font-bold text-foreground">Daily Sales Trends</h2>
+          <h2 className="sp-heading">Daily Sales Trends</h2>
           <div className="mt-4">
             <SalesTrendChart data={trendData} />
           </div>
@@ -314,7 +314,7 @@ export default function DashboardView({
 
         <div className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-lg font-bold text-foreground">Recent Sales</h2>
+            <h2 className="sp-heading">Recent Sales</h2>
             {/* This list is capped by the query's limit(4) — labelling it
                 "Total" reported the cap, not the store's sale count. */}
             <span className="shrink-0 rounded-full bg-surface-muted px-2.5 py-1 text-xs font-semibold text-muted-strong">
@@ -374,7 +374,7 @@ export default function DashboardView({
 
       {/* ---- Recent alerts ---- */}
       <div className="mt-7 flex items-center justify-between gap-2">
-        <h2 className="text-lg font-bold text-foreground">Recent Alerts</h2>
+        <h2 className="sp-heading">Recent Alerts</h2>
         {alerts.length > 0 && (
           <span className="shrink-0 rounded-lg bg-danger px-2.5 py-1 text-sm font-semibold text-surface">
             {alerts.length} New
@@ -426,7 +426,7 @@ export default function DashboardView({
       <div className="mt-7 rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
         <div className="flex items-center gap-2">
           <Archive className="h-5 w-5 text-danger" />
-          <h2 className="text-lg font-bold text-foreground">Low Stock Alerts</h2>
+          <h2 className="sp-heading">Low Stock Alerts</h2>
         </div>
 
         {/* One table, two shapes: rows collapse into cards below `lg` instead

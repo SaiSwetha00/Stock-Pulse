@@ -102,7 +102,7 @@ export default function SupportRequestForm({
       noValidate
       className="rounded-xl border border-border bg-surface p-6"
     >
-      <h3 className="text-lg font-bold text-foreground">Need more help?</h3>
+      <h3 className="sp-heading">Need more help?</h3>
       <p className="mt-1.5 text-sm leading-relaxed text-muted">
         If none of the articles cover it, tell us what is happening and we will get back to you.
       </p>

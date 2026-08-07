@@ -372,7 +372,7 @@ export default function AIAssistantPanel({
                 <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-muted">
                   <Sparkles className="h-7 w-7 text-muted-strong" />
                 </div>
-                <h4 className="text-lg font-bold text-foreground">How can I help you today?</h4>
+                <h4 className="sp-heading">How can I help you today?</h4>
                 <p className="mt-2 max-w-xs text-sm text-muted">
                   I can check stock, analyze sales data, or help manage staff schedules.
                 </p>

@@ -307,7 +307,7 @@ export default function MonitoringClient({
         </div>
 
         <div className="rounded-2xl bg-surface-muted p-6 shadow-sm">
-          <p className="text-lg font-bold text-foreground">Current Intervention Rate</p>
+          <p className="sp-heading">Current Intervention Rate</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <p className="text-4xl font-bold text-foreground">{interventionRate.toFixed(1)}%</p>
             <span className="flex items-center gap-1 text-sm font-semibold text-danger">

@@ -91,7 +91,7 @@ export default function ProfileClient({
           <div className="rounded-2xl bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <User className="h-4.5 w-4.5 text-muted-strong" />
-              <h2 className="text-lg font-bold text-foreground">Personal Information</h2>
+              <h2 className="sp-heading">Personal Information</h2>
             </div>
             <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div>
@@ -122,7 +122,7 @@ export default function ProfileClient({
           <div className="rounded-2xl bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <ShieldCheck className="h-4.5 w-4.5 text-muted-strong" />
-              <h2 className="text-lg font-bold text-foreground">Account Security</h2>
+              <h2 className="sp-heading">Account Security</h2>
             </div>
             <div className="mt-4 flex items-center justify-between">
               <div>

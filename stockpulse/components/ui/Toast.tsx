@@ -36,8 +36,10 @@ const TONES: Record<
 > = {
   success: {
     Icon: CheckCircle2,
-    iconWrap: 'bg-accent-soft',
-    icon: 'text-accent',
+    // Green, not the accent — same reason as Badge. A gold tick on a
+    // "Settings saved" toast reads as a warning, not a confirmation.
+    iconWrap: 'bg-success-bg',
+    icon: 'text-success',
     role: 'status',
   },
   error: {
