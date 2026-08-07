@@ -54,8 +54,8 @@ export default function FeaturesSection() {
       title: 'Self-Checkout Monitoring',
       category: 'LIVE OPERATIONS',
       description:
-        'A live board of every self-checkout station — in use, awaiting assistance, or under review — with instant alerts on basket-weight mismatches and age-verification holds, right when they happen.',
-      metrics: 'Live station status • Instant mismatch alerts',
+        'A board showing every self-checkout station and where it stands — available, waiting on assistance, or out for maintenance — so whoever is on the floor can see at a glance which one needs somebody.',
+      metrics: 'Station status board • Assistance flags',
       highlightColor: 'purple',
     },
     {

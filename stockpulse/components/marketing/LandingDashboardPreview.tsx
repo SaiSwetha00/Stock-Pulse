@@ -123,7 +123,7 @@ export default function LandingDashboardPreview() {
               <Activity className="w-3.5 h-3.5" /> AUTOMATED AI 3D SHELF TELEMETRY
             </div>
             <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#e0e2ed]">
-              Automated AI 3D Telemetry & Inventory Center
+              The Inventory Table You&rsquo;ll Actually Use
             </h2>
           </div>
 
@@ -240,7 +240,6 @@ export default function LandingDashboardPreview() {
                   <th className="py-3.5 px-6">Category</th>
                   <th className="py-3.5 px-6">Stock Level</th>
                   <th className="py-3.5 px-6">Expiry Window</th>
-                  <th className="py-3.5 px-6">Probe Temp</th>
                   <th className="py-3.5 px-6">Status</th>
                   <th className="py-3.5 px-6 text-right">Unit Price</th>
                 </tr>
@@ -273,7 +272,6 @@ export default function LandingDashboardPreview() {
                           {p.expiringDays} Days Left
                         </span>
                       </td>
-                      <td className="py-4 px-6 font-mono text-[11px] text-success">{p.temperature}</td>
                       <td className="py-4 px-6">
                         <span
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-mono text-[10px] uppercase font-bold ${
@@ -299,8 +297,8 @@ export default function LandingDashboardPreview() {
 
           {/* Footer Bar */}
           <div className="p-5 bg-[var(--sp-surface-elevated)] border-t border-border flex items-center justify-between font-mono text-[11px] text-[#d1c5b0]/60">
-            <div>Click any product row to view deep telemetry inspection logs</div>
-            <div className="text-[var(--sp-gold)]">Synced with Cold-Chain Probe #7</div>
+            <div>Click any product row to edit it</div>
+            <div className="text-[var(--sp-gold)]">Illustrative example</div>
           </div>
         </motion.div>
       </div>

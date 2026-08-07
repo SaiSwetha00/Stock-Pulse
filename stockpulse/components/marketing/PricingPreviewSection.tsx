@@ -4,13 +4,23 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Check, ArrowRight } from 'lucide-react'
 
+/**
+ * What the product actually includes.
+ *
+ * The previous list described a capped tier of a different product: "Up to
+ * 2,500 Tracked SKUs" (there is no SKU limit anywhere in the code), "Real-Time
+ * Weight & Count Telemetry", "AI Spoilage & Expiry Warnings (48hr)" and
+ * "Cold-Chain Probe Sync (2 Probes)" — none of which exist. It also sat
+ * directly beneath a heading promising the product is 100% free, which a
+ * capped feature list quietly contradicts.
+ */
 const FEATURES = [
-  'Up to 2,500 Tracked SKUs',
-  'Real-Time Weight & Count Telemetry',
-  'AI Spoilage & Expiry Warnings (48hr)',
-  'Cold-Chain Probe Sync (2 Probes)',
-  'Standard Email & Community Support',
-  'Single Location Dashboard',
+  'Unlimited products — no SKU cap',
+  'Low-stock alerts with per-item thresholds',
+  'Expiry dates with a warning window you set',
+  'Suppliers, purchase orders and deliveries',
+  'Staff shifts, roles and an audit log',
+  'AI assistant and CSV export',
 ]
 
 export default function PricingPreviewSection() {
