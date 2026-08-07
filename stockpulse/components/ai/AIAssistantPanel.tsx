@@ -5,7 +5,6 @@ import {
   X,
   Sparkles,
   Send,
-  Mic,
   Archive,
   TrendingUp,
   AlertTriangle,
@@ -21,6 +20,7 @@ import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import RichText from './RichText'
 import ThreadList from './ThreadList'
+import VoiceInput from './VoiceInput'
 import {
   listThreads,
   createThread,
@@ -44,13 +44,6 @@ const SUGGESTIONS = [
   { icon: AlertTriangle, text: 'Identify low stock items' },
 ]
 
-declare global {
-  interface Window {
-    SpeechRecognition?: new () => SpeechRecognition
-    webkitSpeechRecognition?: new () => SpeechRecognition
-  }
-}
-
 export default function AIAssistantPanel({
   isOpen,
   onClose,
@@ -63,7 +56,6 @@ export default function AIAssistantPanel({
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
-  const [isListening, setIsListening] = useState(false)
 
   const [threads, setThreads] = useState<ThreadSummary[]>([])
   const [threadsLoading, setThreadsLoading] = useState(false)
@@ -80,7 +72,6 @@ export default function AIAssistantPanel({
   const [muted, setMuted] = useState(true)
 
   const scrollRef = useRef<HTMLDivElement>(null)
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const loadedRef = useRef(false)
 
@@ -274,31 +265,6 @@ export default function AIAssistantPanel({
     void refreshThreads()
   }, [threadId, refreshThreads])
 
-  function toggleMic() {
-    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SpeechRecognitionCtor) {
-      setNotice('Voice input is not supported in this browser.')
-      return
-    }
-
-    if (isListening) {
-      recognitionRef.current?.stop()
-      return
-    }
-
-    const recognition = new SpeechRecognitionCtor()
-    recognition.lang = 'en-US'
-    recognition.interimResults = false
-    recognition.onresult = (e: SpeechRecognitionEvent) => {
-      setInput(e.results[0][0].transcript)
-    }
-    recognition.onend = () => setIsListening(false)
-    recognition.onerror = () => setIsListening(false)
-    recognitionRef.current = recognition
-    recognition.start()
-    setIsListening(true)
-  }
-
   /**
    * Escape closes the panel — or the history drawer, if that is what is open.
    * Dismissing the whole assistant because someone glanced at their history and
@@ -485,25 +451,17 @@ export default function AIAssistantPanel({
               e.preventDefault()
               sendMessage(input)
             }}
-            className="flex items-center gap-2 rounded-xl border border-border bg-surface-muted px-2 py-2"
+            className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface-muted px-2 py-2"
           >
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask about inventory, sales, or staff"
-              className="control-h flex-1 bg-transparent px-2 text-sm text-foreground placeholder:text-muted focus:outline-none"
+              className="control-h min-w-0 flex-1 bg-transparent px-2 text-sm text-foreground placeholder:text-muted focus:outline-none"
             />
-            <button
-              type="button"
-              onClick={toggleMic}
-              aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
-              aria-pressed={isListening}
-              className={`tap-target shrink-0 rounded-full ${
-                isListening ? 'bg-danger text-surface' : 'text-muted hover:bg-surface-muted'
-              }`}
-            >
-              <Mic className="h-4 w-4" />
-            </button>
+            {/* Voice input is independent of the speaker control above: muting
+                what the assistant says must never stop the user talking to it. */}
+            <VoiceInput value={input} onChange={setInput} disabled={isStreaming} />
             <button
               type="submit"
               disabled={isStreaming || !input.trim()}
