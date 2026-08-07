@@ -72,9 +72,10 @@ function shiftStyle(shift: Shift, isCurrentUser: boolean) {
     return { block: 'bg-foreground', text: 'text-surface', sub: 'text-muted' }
   }
   if (shift.role_label.toLowerCase() === 'produce') {
-    // accent-ink exists precisely as the readable ink on an accent fill, so
-    // this stays legible whatever Phase 4 makes the accent.
-    return { block: 'bg-accent', text: 'text-accent-ink', sub: 'text-accent-ink' }
+    // accent-ink pairs with accent-soft, not with an accent fill — every other
+    // usage in the app does the same, and ink-on-fill measures 2.6:1. Together
+    // these are 8.19:1 in light and 9.58:1 in dark.
+    return { block: 'bg-accent-soft', text: 'text-accent-ink', sub: 'text-accent-ink' }
   }
   return { block: 'bg-surface-muted border border-border', text: 'text-foreground', sub: 'text-muted' }
 }

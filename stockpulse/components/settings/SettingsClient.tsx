@@ -24,7 +24,7 @@ import InviteActions from './InviteActions'
  * the same bug again.
  */
 const ROLE_STYLES: Record<Role, string> = {
-  owner: 'bg-accent-soft text-foreground',
+  owner: 'bg-accent-soft text-accent-ink',
   manager: 'bg-info-bg text-info',
   staff: 'bg-surface-muted text-muted-strong',
 }

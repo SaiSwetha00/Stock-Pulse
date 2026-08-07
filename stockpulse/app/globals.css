@@ -25,10 +25,15 @@
   --border: #e6e2db;
   --border-strong: #d4cfc6;
 
-  --accent: #1f6f4a;
-  --accent-hover: #195b3d;
-  --accent-soft: #e4f0e9;
-  --accent-ink: #145235;
+  /* Gold. The brief asked for #B8860B; it measures 3.25:1 on white and fails
+     AA for normal text, so this is the nearest value in the same family that
+     passes — 5.30:1 on surface, 5.08:1 on background, 4.74:1 on surface-muted.
+     `accent` is the text/icon value; `accent-ink` pairs with `accent-soft`,
+     never with an `accent` fill. White on an accent fill is 5.30:1. */
+  --accent: #8b6508;
+  --accent-hover: #6f5006;
+  --accent-soft: #f7efda;
+  --accent-ink: #5c4206;
 
   --danger: #b42318;
   --danger-bg: #fdecea;
@@ -37,9 +42,11 @@
   --info: #175cd3;
   --info-bg: #eaf0fc;
 
-  --chart-1: #1f6f4a;
-  --chart-2: #7ba890;
-  --chart-3: #c4d6cb;
+  /* Same family as the accent, stepping lighter. Charts that kept the old
+     green would have been the one place the previous palette survived. */
+  --chart-1: #8b6508;
+  --chart-2: #c2a253;
+  --chart-3: #e6d6a8;
 }
 
 .dark {
@@ -52,10 +59,14 @@
   --border: #2a3034;
   --border-strong: #3a4247;
 
-  --accent: #4fa97c;
-  --accent-hover: #63bc8f;
-  --accent-soft: #16281f;
-  --accent-ink: #9bd9b8;
+  /* The dark-theme gold from the brief, unchanged — it measures 8.90:1 on
+     surface and 9.74:1 on background, comfortably AA. Two values rather than
+     one because a single hue cannot hold contrast against both a white and a
+     near-black surface. */
+  --accent: #e3b341;
+  --accent-hover: #f0c65c;
+  --accent-soft: #2a2008;
+  --accent-ink: #e8c46a;
 
   --danger: #f0736a;
   --danger-bg: #2c1614;
@@ -64,9 +75,9 @@
   --info: #6ea0f0;
   --info-bg: #131e31;
 
-  --chart-1: #4fa97c;
-  --chart-2: #337054;
-  --chart-3: #244438;
+  --chart-1: #e3b341;
+  --chart-2: #a8822c;
+  --chart-3: #6b551c;
 }
 
 /* ---------------------------------------------------------------
