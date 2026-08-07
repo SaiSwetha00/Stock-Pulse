@@ -164,11 +164,12 @@ export default function ReportsClient({
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground lg:text-3xl">Reports</h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="sp-eyebrow">Reporting</p>
+          <h1 className="sp-title mt-2">Reports</h1>
+          <p className="sp-body mt-2">
             Sales performance for a date range you choose.
           </p>
         </div>

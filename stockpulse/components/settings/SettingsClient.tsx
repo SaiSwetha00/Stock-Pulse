@@ -152,11 +152,12 @@ export default function SettingsClient({
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Store Settings</h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="sp-eyebrow">Configuration</p>
+          <h1 className="sp-title mt-2">Store Settings</h1>
+          <p className="sp-body mt-2">
             Manage configuration, personnel, and operational parameters for {store.name}.
           </p>
         </div>
@@ -240,12 +241,12 @@ export default function SettingsClient({
               <Palette className="h-4.5 w-4.5 text-muted-strong" />
               <h2 className="text-lg font-bold text-foreground">Appearance</h2>
             </div>
-            <div className="mt-4 flex items-center justify-between">
-              <div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-foreground">Interface Theme</p>
                 <p className="text-xs text-muted">Toggle light/dark mode</p>
               </div>
-              <div className="flex rounded-lg bg-surface-muted p-1">
+              <div className="flex shrink-0 rounded-lg bg-surface-muted p-1">
                 <button
                   type="button"
                   onClick={() => applyTheme('light')}
@@ -325,8 +326,8 @@ export default function SettingsClient({
           <div className="mt-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">Notifications</p>
             <div className="mt-3 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">Critical Stock Alerts</p>
                   <p className="text-xs text-muted">SMS & Email when items hit 0</p>
                 </div>
@@ -336,15 +337,15 @@ export default function SettingsClient({
                   label="Critical Stock Alerts"
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">Daily Digest</p>
                   <p className="text-xs text-muted">End-of-day sales summary</p>
                 </div>
                 <Toggle checked={dailyDigest} onChange={setDailyDigest} label="Daily Digest" />
               </div>
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">Supplier Updates</p>
                   <p className="text-xs text-muted">Delivery ETA changes</p>
                 </div>

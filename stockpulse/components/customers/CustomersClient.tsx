@@ -146,11 +146,12 @@ export default function CustomersClient({
   const repeatCustomers = initialCustomers.filter((c) => c.visits > 1).length
 
   return (
-    <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Customers</h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="sp-eyebrow">Relationships</p>
+          <h1 className="sp-title mt-2">Customers</h1>
+          <p className="sp-body mt-2">
             Customer profiles, purchase history, and loyalty tiers.
           </p>
         </div>

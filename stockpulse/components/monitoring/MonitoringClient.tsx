@@ -262,10 +262,11 @@ export default function MonitoringClient({
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Live Operations Center</h1>
+          <p className="sp-eyebrow">Live operations</p>
+          <h1 className="sp-title mt-2">Live Operations Center</h1>
           <p className="mt-1 flex items-center gap-2 text-sm text-muted">
             {/* This dot marks "monitoring is on", not an alarm — alert state
                 is shown by the counters below, so it shouldn't read as red. */}
@@ -302,7 +303,7 @@ export default function MonitoringClient({
           <p className="mt-3 text-4xl font-bold text-success">
             {stationsActive}/{totalStations}
           </p>
-          <p className="mt-1 text-sm text-muted">Optimal Utilization</p>
+          <p className="sp-body mt-2">Optimal Utilization</p>
         </div>
 
         <div className="rounded-2xl bg-surface-muted p-6 shadow-sm">

@@ -212,11 +212,12 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
     'control-h rounded-lg border border-border bg-surface px-3 text-sm text-muted-strong focus:border-border-strong focus:outline-none'
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground lg:text-3xl">Activity &amp; Audit Log</h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="sp-eyebrow">Accountability</p>
+          <h1 className="sp-title mt-2">Activity &amp; Audit Log</h1>
+          <p className="sp-body mt-2">
             Every change to products, customers, suppliers and sales. Append-only — entries cannot
             be edited or removed, including by you.
           </p>

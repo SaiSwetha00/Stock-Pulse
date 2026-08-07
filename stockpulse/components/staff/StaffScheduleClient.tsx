@@ -138,11 +138,12 @@ export default function StaffScheduleClient({
   }))
 
   return (
-    <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Staff Scheduling</h1>
-          <p className="mt-1 text-sm text-muted">Manage team shifts and coverage.</p>
+          <p className="sp-eyebrow">Team</p>
+          <h1 className="sp-title mt-2">Staff Scheduling</h1>
+          <p className="sp-body mt-2">Manage team shifts and coverage.</p>
         </div>
         <div className="flex items-center gap-3">
           <button

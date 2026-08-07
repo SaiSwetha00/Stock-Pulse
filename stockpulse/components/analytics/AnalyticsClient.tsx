@@ -171,11 +171,12 @@ export default function AnalyticsClient({
   const isEmpty = current.sales.length === 0 && current.items.length === 0
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground lg:text-3xl">Analytics</h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="sp-eyebrow">Insights</p>
+          <h1 className="sp-title mt-2">Analytics</h1>
+          <p className="sp-body mt-2">
             {range.from} to {range.to}, compared with the {days} days before it.
           </p>
         </div>

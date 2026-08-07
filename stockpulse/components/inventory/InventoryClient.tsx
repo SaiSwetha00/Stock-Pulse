@@ -205,11 +205,12 @@ export default function InventoryClient({
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground lg:text-3xl">Inventory Management</h1>
-          <p className="mt-1 text-sm text-muted">Manage stock levels, categories, and pricing.</p>
+          <p className="sp-eyebrow">Stock</p>
+          <h1 className="sp-title mt-2">Inventory Management</h1>
+          <p className="sp-body mt-2">Manage stock levels, categories, and pricing.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ExportCsvButton

@@ -190,12 +190,13 @@ export default function DashboardView({
   alerts: DashboardAlert[]
 }) {
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground lg:text-3xl">Dashboard Overview</h1>
+          <p className="sp-eyebrow">Overview</p>
+          <h1 className="sp-title mt-2">Dashboard Overview</h1>
           {/* The server's calendar day is not necessarily the viewer's. */}
-          <p className="mt-1 text-sm text-muted">
+          <p className="sp-body mt-2">
             <LocalDate iso={nowIso} withYear />
           </p>
         </div>

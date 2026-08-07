@@ -39,7 +39,7 @@ export default function ProfileClient({
     profile.role === 'owner' ? 'Store Owner' : profile.job_title || ROLE_LABELS[profile.role]
 
   return (
-    <div className="mx-auto max-w-[1100px] px-6 py-8 lg:px-8">
+    <div className="sp-page">
       <div className="relative overflow-hidden rounded-2xl bg-surface p-8 shadow-sm">
         <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
           <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-surface-muted ring-4 ring-surface">

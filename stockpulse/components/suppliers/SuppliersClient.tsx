@@ -153,11 +153,12 @@ export default function SuppliersClient({
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Supplier Management</h1>
-          <p className="mt-1 text-sm text-muted">Manage vendor relationships and track inbound freight.</p>
+          <p className="sp-eyebrow">Supply chain</p>
+          <h1 className="sp-title mt-2">Supplier Management</h1>
+          <p className="sp-body mt-2">Manage vendor relationships and track inbound freight.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ExportCsvButton

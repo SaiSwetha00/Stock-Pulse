@@ -141,11 +141,12 @@ export default function SalesClient({
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Sales</h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="sp-eyebrow">Transactions</p>
+          <h1 className="sp-title mt-2">Sales</h1>
+          <p className="sp-body mt-2">
             {canSeeRevenue
               ? `This week: ${formatCurrency(weekTotal)} · Avg order ${formatCurrency(avgOrder)}`
               : 'Log new sales and browse recent transactions.'}
