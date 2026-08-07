@@ -1,0 +1,100 @@
+# StockPulse overhaul — progress
+
+Branch `feature/overhaul`. Rollback point is `37132d2` on `main`.
+Working doc for the phased overhaul driven by `stockpulse-master-prompt.md`.
+Decisions and their reasoning live in `DECISIONS.md`; unlisted bugs found along
+the way live in `FOUND-ISSUES.md`.
+
+**A fresh session should read this file, then `DECISIONS.md`, then
+`FOUND-ISSUES.md`, before touching anything.**
+
+---
+
+## Operating rules currently in force
+
+1. Commit after every item, message clear enough to bisect against.
+2. `tsc --noEmit`, `eslint`, `next build` must all pass before any commit.
+3. Never rewrite a file from scratch. Smallest change that works; log the
+   temptation in `DECISIONS.md` instead.
+4. Every commit leaves the branch deployable.
+5. Record budget numbers here after each phase.
+6. Interrupt the owner only for: a migration to run, a credential or dashboard
+   setting, or a design decision whose wrong guess costs a whole phase.
+   Batch those rather than asking repeatedly.
+
+## Performance budget
+
+| Metric | Budget |
+|---|---|
+| Shared client JS | < 200 KB gzipped |
+| Lighthouse Performance | >= 90, landing and dashboard |
+| LCP | < 2.5 s |
+| INP | < 200 ms |
+| CLS | < 0.05 |
+| Per 3D scene | <= 150 KB gz, lazy, 0 KB added to shared |
+
+Measured by gzipping built chunks from `.next/build-manifest.json`
+(`rootMainFiles` + `polyfillFiles` + `lowPriorityFiles`).
+
+| After phase | Shared JS | All chunks | Notes |
+|---|---|---|---|
+| 1.1 Help Centre | 169.3 KB | — | baseline established |
+| 1.2 AI assistant | 169.3 KB | 998.7 KB | -8.3 KB vs before; chunk reshuffle |
+| Voice input | 169.3 KB | 1000.1 KB | |
+| 1.3 + 1.4 | 169.3 KB | 1001.4 KB | |
+
+Shared has not moved from 169.3 KB across all of Phase 1. That is 85% of the
+budget consumed before any route adds anything — polyfills are 38.7 KB of it.
+Audit scheduled before Phase 6.
+
+---
+
+## Done
+
+- **Phase 0 — audit.** Established live deploy == committed code, which
+  reframed all of Phase 1. `FOUND-ISSUES.md` created with 8 unlisted issues.
+- **Phase 1.1 — Help Centre.** 10 categories, 12 articles, real search over
+  full article bodies, support request form + `0006` migration.
+- **Phase 1.2 — AI assistant.** `0007` schema (owner-blind by design),
+  thread history, New/Clear chat, mute preference, server-side turn
+  persistence.
+- **Voice input.** Rebuilt: live transcription, idle/listening/processing,
+  origin-aware permission errors, 3 languages (en-IN default).
+- **Phase 1.3 — Profile photos.** `0008` avatars bucket, per-user write
+  policies, upload/replace/remove control.
+- **Phase 1.4 — Settings.** Theme template-literal bug fixed (both branches),
+  derived dirty state, Discard, unload guard.
+- **Invite blocker documented.** `inviteStaff` was already correct; the
+  failure is SMTP. Logged S1, `.env.example` documents the fix.
+- **Phase 1.5 — dropped** by agreement, after the ~8x render claim was
+  disproved.
+
+## In flight
+
+- **Invite management UI** — pending invites, resend, revoke.
+
+## Left
+
+- Phase 2 — Staff module
+- Phase 3 — roles / audit (needs SMTP configured to test end to end)
+- Phase 4 — typography and colour; semantic tokens, light + dark, WCAG AA
+- Phase 5 — landing rhythm and honest copy
+- Phase 6 — 3D scenes (shared-bundle audit first)
+- Phase 7 — polish
+
+## Blocked on the owner
+
+| What | Why |
+|---|---|
+| Run `0008_avatars_bucket.sql` | Avatar upload fails until the bucket exists |
+| Resend -> Supabase custom SMTP | Invitations cannot be delivered; blocks Phase 3 |
+
+## Could not verify without the owner
+
+- Lighthouse on authenticated routes — needs a logged-in Chrome with
+  `--remote-debugging-port=9222`.
+- Per-route JS attribution — `@next/bundle-analyzer` is inert under Turbopack,
+  `next experimental-analyze` produced nothing, and Next 16 no longer emits
+  `app-build-manifest.json`. Three dead ends; plan is the browser network panel.
+- Anything requiring a real microphone, a real invite email, or a second user
+  account.
