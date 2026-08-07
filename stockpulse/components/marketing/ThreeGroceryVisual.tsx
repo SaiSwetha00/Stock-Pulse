@@ -436,7 +436,7 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
       sCtx.fillRect(0, 0, 256, 256)
       sCtx.fillStyle = '#10b981'
       sCtx.font = 'bold 36px monospace'
-      sCtx.fillText('PROBE #07', 20, 60)
+      sCtx.fillText('IN STOCK', 20, 60)
       sCtx.font = 'bold 72px monospace'
       sCtx.fillText('3.8°C', 20, 160)
       sCtx.fillStyle = '#edc155'

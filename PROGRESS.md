@@ -45,7 +45,8 @@ Measured by gzipping built chunks from `.next/build-manifest.json`
 | Invite UI | 169.3 KB | 1001.8 KB | |
 | Staff tokens + S1 | 169.3 KB | 1001.8 KB | styling only |
 | Phase 4 (tokens) | 169.3 KB | 1001.8 KB | |
-| Phase 5 + 7 (final) | **169.3 KB** | 1001.7 KB | CSS 19.6 KB gz |
+| Phase 5 (landing tokens + copy) | 169.3 KB | 1001.7 KB | |
+| Phase 7 (final) | **169.3 KB** | 1001.3 KB | CSS 18.7 KB gz |
 
 Shared JS never moved from 169.3 KB across the entire overhaul — 85% of the
 200 KB budget, of which **38.7 KB is polyfills** and 130.1 KB is
@@ -139,17 +140,31 @@ the markup.
   at `/help`; a fake pulsing "US-East Cloud Active" status light and a
   fabricated "Version 4.8.2-Release" removed.
 
+- **Phase 5 — COMPLETE.** Dark-fixed `.sp-landing` token scope; palette classes
+  across the whole app went **232 -> 14** (the 14 are alpha scrims and gradient
+  stops on built-in colours, which tokens cannot express — see D9). All
+  invented copy removed after grep-verifying each claim: RFID, optical tags,
+  cold-chain probes, freezer telemetry, ethylene tracking, POS/ERP connectors,
+  offline SQLite buffers, multi-store sync, the 14-day hardware pilot, the
+  spoilage predictor, and a capped 2,500-SKU pricing tier. The newsletter form
+  — which captured an address, claimed "Subscribed!", and did nothing — is gone.
+- **Phase 7 — COMPLETE.** Seven dead footer links, a fake "US-East Cloud Active"
+  status light, a fabricated version string, an invented pricing tier, and the
+  dashboard preview's fake probe-temperature column. `/privacy` and `/terms`
+  added as honest placeholders and made public in the proxy. "Stock Pulse
+  Technologies Inc." -> "Stock Pulse".
+
 ## In flight
 
-- Nothing.
+- Nothing. All requested phases are complete.
 
 ## Known remaining, deliberately not done
 
-- **Marketing palette classes (~116).** `components/marketing` and the auth
-  pages are a permanently-dark surface, and `.sp-landing` does NOT set `.dark`
-  — verified. A theme token there resolves to its LIGHT value on black, so
-  `text-success` would drop to about 3.5:1. These need explicit dark-fixed
-  tokens, not substitution. Not a find-and-replace job.
+- **14 palette classes remain, all intentional.** Alpha scrims (`bg-black/40`
+  on modals, drawers, the command palette) and gradient stops
+  (`via-black/95`, `from-white`). Both need `/opacity` on a built-in colour,
+  which our tokens cannot express (D9), and both read correctly on either
+  theme already. Converting them would make them worse.
 - **Two dead functions** in `ThreeGroceryVisual.tsx` (`createBottleLabel`,
   `createCartonTexture`) — the only remaining lint warnings. Left because the
   file belongs to deferred Phase 6 and a mis-sliced multi-line deletion in a

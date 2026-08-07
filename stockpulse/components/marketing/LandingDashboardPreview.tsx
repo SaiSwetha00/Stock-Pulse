@@ -120,7 +120,7 @@ export default function LandingDashboardPreview() {
         >
           <div>
             <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-border">
-              <Activity className="w-3.5 h-3.5" /> AUTOMATED AI 3D SHELF TELEMETRY
+              <Activity className="w-3.5 h-3.5" /> THE INVENTORY TABLE, FOR REAL
             </div>
             <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#e0e2ed]">
               The Inventory Table You&rsquo;ll Actually Use

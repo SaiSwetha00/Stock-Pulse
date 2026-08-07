@@ -21,7 +21,7 @@ export default function FinalCTASection() {
         >
           {/* Header Tag */}
           <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-7 px-4 py-1.5 rounded-full bg-background border border-[var(--sp-gold)]/40 shadow-inner">
-            <Sparkles className="w-4 h-4" /> REVOLUTIONIZE YOUR SHELF TELEMETRY
+            <Sparkles className="w-4 h-4" /> GET OFF THE CLIPBOARD
           </div>
 
           <h2 className="font-display font-semibold text-3xl sm:text-5xl text-[#e0e2ed] tracking-normal mb-7">
