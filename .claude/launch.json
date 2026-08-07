@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "stockpulse-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "stockpulse", "run", "dev"],
+      "port": 3000
+    }
+  ]
+}

@@ -1,0 +1,509 @@
+@import "tailwindcss";
+
+/* Class-based dark mode: <html class="dark"> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------------------------------------------------------------
+   Phase A design tokens — pine on a warm-biased neutral.
+
+   Every name that existed before is kept so current utilities
+   (bg-surface, text-danger, …) keep resolving; only the values
+   moved. New names are additive.
+
+   Contrast on --surface: --foreground 15.8:1, --muted-strong 7.4:1,
+   --muted 4.6:1. The zinc-400 currently used directly in components
+   is ~2.8:1 and fails AA — that is what the component migration
+   replaces.
+   --------------------------------------------------------------- */
+:root {
+  --background: #fbfaf8;
+  --surface: #ffffff;
+  --surface-muted: #f4f2ee;
+  --foreground: #14171a;
+  --muted-strong: #4a5157;
+  --muted: #6b7379;
+  --border: #e6e2db;
+  --border-strong: #d4cfc6;
+
+  --accent: #1f6f4a;
+  --accent-hover: #195b3d;
+  --accent-soft: #e4f0e9;
+  --accent-ink: #145235;
+
+  --danger: #b42318;
+  --danger-bg: #fdecea;
+  --warning: #b45309;
+  --warning-bg: #fdf3e7;
+  --info: #175cd3;
+  --info-bg: #eaf0fc;
+
+  --chart-1: #1f6f4a;
+  --chart-2: #7ba890;
+  --chart-3: #c4d6cb;
+}
+
+.dark {
+  --background: #0e1113;
+  --surface: #171b1e;
+  --surface-muted: #1f2427;
+  --foreground: #f2f4f5;
+  --muted-strong: #b6bec3;
+  --muted: #8a9298;
+  --border: #2a3034;
+  --border-strong: #3a4247;
+
+  --accent: #4fa97c;
+  --accent-hover: #63bc8f;
+  --accent-soft: #16281f;
+  --accent-ink: #9bd9b8;
+
+  --danger: #f0736a;
+  --danger-bg: #2c1614;
+  --warning: #e0912f;
+  --warning-bg: #2a1e0f;
+  --info: #6ea0f0;
+  --info-bg: #131e31;
+
+  --chart-1: #4fa97c;
+  --chart-2: #337054;
+  --chart-3: #244438;
+}
+
+/* ---------------------------------------------------------------
+   Focus visibility — WCAG 2.4.7.
+
+   Fifty controls across the app carry `focus:outline-none` with no
+   ring to replace it, which leaves a keyboard user with no idea
+   where they are. Rather than edit fifty call sites, this restores
+   a ring centrally.
+
+   `!important` is deliberate and is the whole mechanism: each of
+   those utilities emits its own `outline: 2px solid transparent`
+   at higher specificity than an element selector can reach, so
+   nothing short of this wins. It is scoped to :focus-visible, so
+   it only ever paints for keyboard and assistive-tech focus —
+   mouse clicks are unaffected.
+
+   Anything needing a different focus treatment can still opt out
+   by drawing its own ring on a wrapper.
+   --------------------------------------------------------------- */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[role='button']:focus-visible,
+[role='menuitem']:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--foreground) !important;
+  outline-offset: 2px !important;
+}
+
+/* ---------------------------------------------------------------
+   Skip link — WCAG 2.4.1.
+
+   Positioned off-screen rather than `display: none`, which would
+   remove it from the tab order and defeat the point. First Tab on
+   any page reveals it.
+   --------------------------------------------------------------- */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+}
+
+.skip-link:focus {
+  left: 0.75rem;
+  top: 0.75rem;
+  width: auto;
+  height: auto;
+  padding: 0.625rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--foreground);
+  color: var(--surface);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-strong: var(--muted-strong);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+
+  /* Type scale — seven steps, 12px floor. Replaces the twelve ad-hoc
+     sizes measured on a single screen. */
+  --text-label: 0.75rem;   /* 12 — uppercase column labels */
+  --text-sm: 0.8125rem;    /* 13 — secondary detail */
+  --text-base: 0.875rem;   /* 14 — tables and forms, the workhorse */
+  --text-body: 1rem;       /* 16 — prose */
+  --text-lg: 1.25rem;      /* 20 — card and section headings */
+  --text-xl: 1.625rem;     /* 26 — page titles */
+  --text-2xl: 2.125rem;    /* 34 — display */
+  --font-sans: var(--font-inter);
+
+  /* ---------------------------------------------------------------
+     Radius scale.
+
+     These redefine what the existing `rounded-*` utilities emit, which
+     is the point: the app had five different radii in play across
+     roughly 380 call sites (rounded-lg 170, rounded-2xl 82, rounded-xl
+     46, rounded-md 7, rounded-3xl 1). Retuning the scale here brings
+     every one of them onto the same four values without editing a
+     single component.
+
+     The values are mapped onto what the app actually uses rather than
+     onto the tidy names: `rounded-lg` is this codebase's button and
+     input radius (170 uses) and `rounded-2xl` its card radius (82), so
+     both resolve to the 10px card/control value. `rounded-xl` is the
+     modal and panel radius (46 uses), so it takes 16px.
+
+     That leaves the emitted scale non-monotonic by name — xl ends up
+     larger than 2xl. Deliberate: the alternative is rewriting some 300
+     class attributes across 58 files, and these names are internal to
+     Tailwind. Pick by role, not by the letter — sm for badges, md/lg/
+     2xl for controls and cards, xl/3xl for modals and panels.
+     --------------------------------------------------------------- */
+  --radius-sm: 0.375rem;   /* 6  — badges, chips, pills with square ends */
+  --radius-md: 0.625rem;   /* 10 — canonical card and control radius */
+  --radius-lg: 0.625rem;   /* 10 — buttons, inputs, icon tiles */
+  --radius-xl: 1rem;       /* 16 — modals, panels, drawers */
+  --radius-2xl: 0.625rem;  /* 10 — cards */
+  --radius-3xl: 1rem;      /* 16 */
+
+  /* ---------------------------------------------------------------
+     Elevation scale.
+
+     Two-layer shadows: a tight contact shadow plus a wider ambient
+     one. A single blur reads as a grey halo at these opacities, which
+     is what makes flat cards look muddy rather than lifted.
+
+     shadow-sm carries 74 of the app's uses, so it is the one that
+     defines how the product feels at rest.
+     --------------------------------------------------------------- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08), 0 4px 6px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1), 0 8px 10px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.15);
+}
+
+/* ---------------------------------------------------------------
+   Control and row metrics.
+
+   The design brief specifies a 40px control height and a 48px table
+   row. Both are set here as variables rather than as literal Tailwind
+   heights so the coarse-pointer override below can move every control
+   in the app at once.
+
+   Why the override exists: 40px is under the 44px floor that
+   `tap-target` and the Button size scale were built around (iOS HIG /
+   Material both ask for 44). 40px still clears WCAG 2.2 AA — 2.5.8
+   Target Size (Minimum) asks for 24px — so it is compliant on a mouse,
+   where a 40px target is comfortable and the tighter rhythm is the
+   point of the spec.
+
+   On a touch screen it is not comfortable, and `pointer: coarse` is
+   exactly the question "is this a finger?". Phones and tablets keep
+   44px; mice and trackpads get the 40px the brief asks for. Nobody
+   has to choose between the two.
+   --------------------------------------------------------------- */
+:root {
+  --control-h: 2.5rem;   /* 40 — inputs, selects, buttons */
+  --control-h-sm: 2rem;  /* 32 — dense inline controls */
+  --row-h: 3rem;         /* 48 — table rows */
+}
+
+@media (pointer: coarse) {
+  :root {
+    --control-h: 2.75rem;
+    --control-h-sm: 2.75rem;
+  }
+}
+
+/* Height utilities bound to the variables above. Tailwind arbitrary
+   values (`h-[var(--control-h)]`) would work too, but naming them keeps
+   the intent legible at the call site. */
+@utility control-h {
+  height: var(--control-h);
+}
+
+@utility control-h-sm {
+  height: var(--control-h-sm);
+}
+
+/* ---------------------------------------------------------------
+   Table rows.
+
+   48px fixed height, applied to the cells rather than the `tr`:
+   `height` on a table row is a minimum that the tallest cell wins, so
+   setting it on the row alone lets a two-line cell silently stretch
+   the rhythm. Setting it per-cell keeps every row on the grid.
+
+   Scoped to `lg` and up, because below that these tables reflow into
+   cards (`block ... lg:table`) where a fixed row height would clip.
+   --------------------------------------------------------------- */
+@media (min-width: 64rem) {
+  .sp-table tbody tr > * {
+    height: var(--row-h);
+    /* `height` on a table cell is a minimum, not a fixed size — the cell
+       still grows to fit its content plus padding. The rows carry `py-4`
+       from the utility classes, so 32px of padding alone pushed them past
+       48px and the height above did nothing.
+
+       Zeroing the vertical padding here lets the height actually govern:
+       a 40px avatar or two lines of 13px text both fit inside 48px, so
+       nothing is clipped and no row markup has to change. Horizontal
+       padding is left to the utilities, which is where it varies per
+       column.
+
+       `.sp-table tbody tr > *` is (0,1,2) and beats a `py-4` utility at
+       (0,1,0), so this wins without !important. */
+    padding-block: 0;
+    vertical-align: middle;
+  }
+
+  /* Hover feedback for the whole row. Only above `lg`, where these are
+     actually rows — below it they are separate cards on their own
+     surface, and tinting them would just look like a stuck selection. */
+  .sp-table tbody tr {
+    transition: background-color 0.12s ease;
+  }
+
+  .sp-table tbody tr:hover {
+    background-color: var(--surface-muted);
+  }
+}
+
+/* Row actions reveal on hover or keyboard focus.
+
+   Driven from the row rather than a per-row marker class, so a table
+   only has to tag the action cell.
+
+   `focus-within` is not optional garnish here: opacity-0 controls are
+   still in the tab order, so without it a keyboard user tabs into a
+   button they cannot see. */
+.sp-row-actions {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.sp-table tbody tr:hover .sp-row-actions,
+.sp-table tbody tr:focus-within .sp-row-actions {
+  opacity: 1;
+}
+
+/* Touch has no hover, so the reveal would hide the actions outright. */
+@media (pointer: coarse) {
+  .sp-row-actions {
+    opacity: 1;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Invalid form controls.
+
+   The `Field` primitive styles its own children through
+   `aria-[invalid=true]` utilities, but only three of the app's forms
+   use it — the rest are raw inputs with inline classes, and they would
+   have announced an error to a screen reader while looking perfectly
+   fine on screen.
+
+   Keying off the attribute rather than a class means the red border
+   cannot disagree with what assistive tech is told: mark a control
+   invalid and it looks invalid, wherever it lives. Utilities still win
+   where a form wants something different, since a bare attribute
+   selector is only (0,1,0) and loses to a later class of equal weight.
+   --------------------------------------------------------------- */
+input[aria-invalid='true'],
+select[aria-invalid='true'],
+textarea[aria-invalid='true'] {
+  border-color: var(--danger);
+  background-color: var(--danger-bg);
+}
+
+/* ---------------------------------------------------------------
+   Skeleton shimmer.
+
+   A travelling highlight over the base placeholder colour. The
+   gradient is painted on a 200%-wide background and slid across, which
+   animates `background-position` only — no layout, no paint of the
+   subtree beneath.
+   --------------------------------------------------------------- */
+@keyframes sp-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.sp-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    var(--surface-muted) 0%,
+    var(--surface-muted) 40%,
+    var(--border) 50%,
+    var(--surface-muted) 60%,
+    var(--surface-muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: sp-shimmer 1.6s linear infinite;
+}
+
+/* Reduced motion keeps a visible placeholder, just a static one — the
+   block still has to read as "content is coming". */
+@media (prefers-reduced-motion: reduce) {
+  .sp-shimmer {
+    animation: none;
+    background-image: none;
+    background-color: var(--surface-muted);
+  }
+
+  .sp-row-actions {
+    transition: none;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+* {
+  border-color: var(--border);
+}
+
+/* ---------------------------------------------------------------
+   Tap targets — WCAG 2.2 (2.5.8 Target Size, Minimum) asks for 24px;
+   44px is the platform guidance (iOS HIG / Material) and what a thumb
+   on a phone actually needs. The icon-only controls in this app were
+   28–40px, so this floor is applied to every one of them.
+
+   min-* rather than a fixed size keeps a control able to grow with its
+   content, and the flex centring keeps the icon in the middle of the
+   enlarged box instead of pinned to the top-left corner.
+   --------------------------------------------------------------- */
+@utility tap-target {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4cfc5;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---- Auth page ambient animation ---- */
+@keyframes auth-blob {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(6%, -8%) scale(1.08);
+  }
+  66% {
+    transform: translate(-5%, 6%) scale(0.95);
+  }
+}
+
+@keyframes auth-grid-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 44px 44px;
+  }
+}
+
+.auth-blob {
+  animation: auth-blob 18s ease-in-out infinite;
+}
+
+.auth-grid {
+  background-image: linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 44px 44px;
+  animation: auth-grid-drift 20s linear infinite;
+}
+
+/* ---- Toasts ----
+   Deliberately CSS rather than a JS animation library. A toast's resting
+   state is fully visible and the keyframe only overrides it while running,
+   so if the animation never runs — reduced motion, a throttled background
+   tab, a stalled frame loop — the message is still shown.
+
+   It animates transform only, never opacity, for the same reason: a frozen
+   fade resolves to opacity 0 and hides the notification outright, which is
+   the one thing it must never do. A frozen slide is merely 12px off. */
+@keyframes sp-toast-in {
+  from {
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.sp-toast {
+  animation: sp-toast-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---- Live status indicator (workspace header) ---- */
+@keyframes sp-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.78);
+  }
+}
+
+.sp-pulse {
+  animation: sp-pulse 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-blob,
+  .auth-grid,
+  .sp-pulse,
+  .sp-toast {
+    animation: none;
+  }
+}
