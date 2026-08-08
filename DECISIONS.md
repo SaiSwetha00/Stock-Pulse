@@ -159,3 +159,41 @@ comfortably, so this is not a contrast question.
 
 The effort went instead to the palette classes on dashboard surfaces, which
 genuinely bypass the token system and genuinely do not follow dark mode.
+
+## D12 — Semantic tone classes must not be defined in terms of the accent
+
+`Badge`'s `success` tone was `bg-accent-soft text-accent-ink`. That was correct
+only for as long as the accent *happened to be* green. The moment Phase 4 made
+it gold, every "In Stock" pill in the app turned gold and stopped meaning
+"healthy" — and `Toast` had the identical bug, so a success toast showed a gold
+tick, which reads as a warning.
+
+Caught in the browser at `#5c4206` on `#f7efda`, not by reading code. Nothing
+failed to compile, nothing linted, the build was green.
+
+Rule: a tone with its own meaning gets its own token. `success` uses
+`--success*`, `danger` uses `--danger*`. Never borrow the accent for a state,
+because the accent is the one token guaranteed to change.
+
+## D13 — Product image paths cannot use the product id
+
+The obvious storage path is `<store_id>/<product_id>`, one object per product
+overwritten in place, mirroring the avatars bucket. It does not work: an image
+can be chosen while *creating* a product, before any id exists.
+
+The path is `<store_id>/<random-uuid>` instead, and the client deletes the
+previous object after a successful replace — new object first, old one second,
+so a failed upload cannot destroy the only copy. The store id stays the first
+segment because that is what migration 0009's policies key on.
+
+## D14 — Derive, do not store, anything a render can compute
+
+`ImageAdjuster` originally stored the clamped pan and re-clamped it in an effect
+when zoom changed. That is two lint errors (`set-state-in-effect`) and a
+cascading render, and it let the image sit off-centre for a frame after zooming
+out.
+
+Storing raw pan and clamping during render fixed all of it at once. Same for the
+object URL: `useMemo` during render, with the effect used only to revoke. Where
+a value is a pure function of state, computing it is both simpler and more
+correct than synchronising it.

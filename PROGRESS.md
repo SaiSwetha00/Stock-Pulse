@@ -46,7 +46,13 @@ Measured by gzipping built chunks from `.next/build-manifest.json`
 | Staff tokens + S1 | 169.3 KB | 1001.8 KB | styling only |
 | Phase 4 (tokens) | 169.3 KB | 1001.8 KB | |
 | Phase 5 (landing tokens + copy) | 169.3 KB | 1001.7 KB | |
-| Phase 7 (final) | **169.3 KB** | 1001.3 KB | CSS 18.7 KB gz |
+| Phase 7 | 169.3 KB | 1001.3 KB | CSS 18.7 KB gz |
+| Greeting + images (final) | **169.3 KB** | 1006.5 KB | CSS 19.7 KB gz |
+
+Shared JS never moved from 169.3 KB across the entire overhaul, including the
+dashboard's animated mark — that ships in the dashboard route's own chunk. The
++5 KB in all-chunks is the crop component and the image upload paths, which
+only load on the routes that use them.
 
 Shared JS never moved from 169.3 KB across the entire overhaul — 85% of the
 200 KB budget, of which **38.7 KB is polyfills** and 130.1 KB is
@@ -176,11 +182,13 @@ the markup.
   (`via-black/95`, `from-white`). Both need `/opacity` on a built-in colour,
   which our tokens cannot express (D9), and both read correctly on either
   theme already. Converting them would make them worse.
-- **Two dead functions** in `ThreeGroceryVisual.tsx` (`createBottleLabel`,
-  `createCartonTexture`) — the only remaining lint warnings. Left because the
-  file belongs to deferred Phase 6 and a mis-sliced multi-line deletion in a
-  component that cannot be visually verified is a worse trade than two
-  warnings.
+- **Nothing else.** The two dead functions in `ThreeGroceryVisual.tsx` were
+  removed; eslint now reports zero lines across `app`, `components` and `lib`.
+- **Two product surfaces intentionally have no image**, both reasoned:
+  Sales "Top Selling Items" is an aggregate (`{ name, units }[]`) with no
+  product id, and it is a report rather than a picker; suppliers/purchase
+  orders never pick individual products, so there is no product row to put an
+  image on.
 
 ## Left
 
