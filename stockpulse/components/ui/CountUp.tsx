@@ -50,7 +50,7 @@ const FORMATTERS: Record<Format, (n: number) => string> = {
 export default function CountUp({
   value,
   format = 'integer',
-  duration = 900,
+  duration = 600,
   className,
 }: {
   value: number
@@ -59,20 +59,15 @@ export default function CountUp({
   className?: string
 }) {
   const ref = useRef<HTMLSpanElement>(null)
-  const render = FORMATTERS[format]
+  const finalText = FORMATTERS[format](value)
 
   useEffect(() => {
     const node = ref.current
     if (!node) return
 
-    // Asked for no motion, or a browser without IntersectionObserver: leave
-    // the rendered value exactly as it is. Never a zero, never a spinner.
-    if (
-      typeof IntersectionObserver === 'undefined' ||
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    ) {
-      return
-    }
+    // Asked for no motion: leave the rendered value exactly as it is. Never a
+    // zero, never a spinner.
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
     const write = FORMATTERS[format]
     let frame = 0
@@ -89,22 +84,14 @@ export default function CountUp({
       if (t < 1) frame = requestAnimationFrame(step)
     }
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries[0]?.isIntersecting) return
-        // Once only. Re-running on every scroll back would make the dashboard
-        // twitch each time someone scrolled up.
-        observer.disconnect()
-        node.textContent = write(0)
-        frame = requestAnimationFrame(step)
-      },
-      { threshold: 0.2 },
-    )
-
-    observer.observe(node)
+    // On mount, once per page load — not on scroll into view. The KPI row is
+    // the first thing above the fold, so an IntersectionObserver fired on the
+    // same frame anyway while adding a reason for the count to re-trigger
+    // later.
+    node.textContent = write(0)
+    frame = requestAnimationFrame(step)
 
     return () => {
-      observer.disconnect()
       cancelAnimationFrame(frame)
       // A value that changed mid-count (an auto-refresh landing) must not be
       // left showing a half-counted figure from the previous total.
@@ -113,8 +100,17 @@ export default function CountUp({
   }, [value, duration, format])
 
   return (
-    <span ref={ref} className={className}>
-      {render(value)}
+    <span
+      ref={ref}
+      // Reserves the final width up front, which is what keeps CLS at 0.
+      // Counting starts at "$0.00" and ends at "$12,480.50"; with no floor the
+      // text node grows as digits arrive and drags its siblings with it. `ch`
+      // is exact here because .sp-kpi sets tabular-nums, so every digit is
+      // one ch wide.
+      style={{ display: 'inline-block', minWidth: `${finalText.length}ch` }}
+      className={className}
+    >
+      {finalText}
     </span>
   )
 }

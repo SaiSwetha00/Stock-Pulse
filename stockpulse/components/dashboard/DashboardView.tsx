@@ -54,11 +54,15 @@ export interface DashboardAlert {
  * scale in globals.css; the border is what stops a white card dissolving into
  * a near-white page background.
  */
-const STAT_CARD = 'sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm lg:p-6'
+// Secondary tier. sp-lift so hover raises exactly one rung (e1 -> e2).
+const STAT_CARD = 'sp-rise sp-lift sp-e1 rounded-2xl p-4 lg:p-5'
+/** The hero. Wider (2 of 5 columns from xl) and more generously padded. */
+const STAT_CARD_HERO = 'sp-rise sp-lift sp-e1 sp-accent-edge rounded-2xl p-5 lg:p-6 col-span-2'
 const STAT_ICON = 'flex h-10 w-10 items-center justify-center rounded-lg'
 const STAT_LABEL = 'sp-kpi-label mt-4'
 const STAT_VALUE = 'sp-kpi mt-2'
-const STAT_FOOT = 'mt-2 text-xs text-muted'
+const STAT_VALUE_HERO = 'sp-kpi sp-kpi-hero mt-2'
+const STAT_FOOT = 'sp-kpi-caption mt-2'
 
 const ALERT_STYLES = {
   stock: {
@@ -200,7 +204,7 @@ export default function DashboardView({
         pendingCount={pendingCount}
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         {/* The server's calendar day is not necessarily the viewer's. */}
         <p className="sp-eyebrow">
           <LocalDate iso={nowIso} withYear />
@@ -209,7 +213,7 @@ export default function DashboardView({
       </div>
 
       {/* ---- Metrics ---- */}
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      <div className="mt-6 grid grid-cols-2 gap-4 xl:grid-cols-5">
         {/* One card shell for all four tiles.
 
             These were three different cards — white, solid black, and a pink
@@ -223,12 +227,12 @@ export default function DashboardView({
             app. Today's takings is the figure a shopkeeper opens this page
             for, so it is the one that earns the hairline. Putting it on all
             four would make it mean nothing. */}
-        <div className={`${STAT_CARD} sp-accent-edge sp-delay-1`}>
+        <div className={`${STAT_CARD_HERO} sp-delay-1`}>
           <div className={`${STAT_ICON} bg-surface-muted`}>
             <Wallet className="h-5 w-5 text-muted-strong" aria-hidden="true" />
           </div>
           <p className={STAT_LABEL}>{isOwner ? "Today's Sales" : "Today's Total"}</p>
-          <p className={STAT_VALUE}>
+          <p className={STAT_VALUE_HERO}>
             <CountUp value={todayTotal} format="currency" />
           </p>
           {/* changePct is null when yesterday had no sales — a percentage
@@ -301,8 +305,8 @@ export default function DashboardView({
       </div>
 
       {/* ---- Quick actions ---- */}
-      <h2 className="sp-heading mt-7">Quick Actions</h2>
-      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+      <h2 className="sp-heading mt-8">Quick Actions</h2>
+      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
         {(isOwner ? [...QUICK_ACTIONS, ...OWNER_QUICK_ACTIONS] : QUICK_ACTIONS).map((action, i) => {
           const Icon = action.Icon
           return (
@@ -312,21 +316,19 @@ export default function DashboardView({
               // Staggered by position, capped at the sixth step: past ~250ms
               // the last tile reads as late rather than sequenced, and the
               // owner variant of this row is six tiles exactly.
-              className={`sp-rise sp-lift sp-delay-${Math.min(i + 1, 6)} flex flex-col items-center gap-3 sp-e1 rounded-2xl border border-border bg-surface py-6 shadow-sm ${action.span}`}
+              className={`sp-qa sp-rise sp-delay-${Math.min(i + 1, 6)} ${action.span}`}
             >
-              <span
-                className={`flex h-12 w-12 items-center justify-center rounded-lg ${action.wrap}`}
-              >
-                <Icon className={`h-5 w-5 ${action.icon}`} />
+              <span className={`sp-qa-icon ${action.wrap}`}>
+                <Icon className={`h-4 w-4 ${action.icon}`} aria-hidden="true" />
               </span>
-              <span className="text-sm font-medium text-foreground">{action.label}</span>
+              <span className="truncate text-sm font-semibold text-foreground">{action.label}</span>
             </Link>
           )
         })}
       </div>
 
       {/* ---- Trend + recent sales ---- */}
-      <div className="mt-7 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
+      <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6 lg:col-span-2">
           <h2 className="sp-heading">Daily Sales Trends</h2>
           <div className="mt-4">

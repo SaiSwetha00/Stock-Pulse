@@ -27,16 +27,26 @@
      --danger 6.6:1. The page/surface step is the one that was broken
      before at 1.043 — see the elevation ladder note below.
      --------------------------------------------------------------- */
-  --background: #ede2cf;
-  --surface: #fffdf9;
-  --surface-muted: #f3e9d8;
+  /* Page and cards are BOTH near-white. They are separated by
+     elevation and a hairline, never by tinting the page.
+
+     A beige page was tried and reverted: it turned the warm accent
+     family into the background, which is the one job it must not do —
+     gold on beige stops reading as an accent, and the interior drifts
+     away from the near-white the app shipped with. Coffee-brown and
+     gold now appear ONLY as accents: hairlines, icon tiles, KPI values,
+     active states, focus rings. Never as a page or card fill. */
+  --background: #fbfaf8;
+  --surface: #ffffff;
+  --surface-muted: #f4f2ee;
   /* One step above surface, for anything that must sit on top of a
-     card: dropdowns, popovers, the raised rail. */
+     card: dropdowns, popovers, the raised rail. Same near-white — the
+     separation is the shadow and the hairline, not a fill. */
   --raised: #ffffff;
   --overlay: #ffffff;
   --foreground: #14100c;
-  --muted-strong: #5c4a38;
-  --muted: #8a7358;
+  --muted-strong: #4a4139;
+  --muted: #6b6157;
   /* Coffee-brown hairlines. The old #e6e2db measured 1.29 against a
      white card, which is a border you cannot see. */
   --border: #d6c3a3;
@@ -816,10 +826,12 @@ body {
 
 /* --- Entrance: fade up on mount --------------------------------- */
 
+/* Fade plus an 8px rise. Transform and opacity only — neither affects
+   layout, so a staggered grid of cards cannot contribute to CLS. */
 @keyframes sp-rise {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -950,16 +962,28 @@ body {
    costs more than the transition saves. */
 .sp-lift {
   transition:
-    box-shadow 0.18s ease,
-    transform 0.18s ease,
-    border-color 0.18s ease;
+    box-shadow 0.15s ease,
+    transform 0.15s ease,
+    border-color 0.15s ease;
 }
 
+/* Hover raises exactly one rung — e1 to e2 — rather than reaching for
+   an unrelated shadow. Written out instead of `var(--shadow-md)` so it
+   cannot silently resolve to nothing the way the Tailwind shadow
+   utilities did. */
 @media (hover: hover) {
   .sp-lift:hover {
-    box-shadow: var(--shadow-md);
     border-color: var(--border-strong);
     transform: translateY(-2px);
+    box-shadow:
+      0 2px 4px rgba(60, 40, 20, 0.08),
+      0 6px 14px rgba(60, 40, 20, 0.07);
+  }
+
+  .dark .sp-lift:hover {
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.55),
+      0 8px 20px rgba(0, 0, 0, 0.45);
   }
 }
 
@@ -1069,24 +1093,13 @@ body {
    `tabular-nums` so a counting animation does not reflow the card
    width digit by digit.
    --------------------------------------------------------------- */
-.sp-kpi {
-  font-size: 2rem;
-  line-height: 1.05;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--accent);
-  font-variant-numeric: tabular-nums;
-}
+/* Three steps, and only three: an 11px uppercase label, the numeral,
+   and a sub-caption. Before this the label and the value were both
+   near-black and only ~2.8x apart, so a stat card read as a paragraph.
 
-@media (min-width: 1024px) {
-  .sp-kpi {
-    font-size: 2.5rem;
-  }
-}
-
-/* The quiet label above a KPI. */
+   Step 1 — the label. */
 .sp-kpi-label {
-  font-size: 0.6875rem;
+  font-size: 0.6875rem; /* 11 */
   line-height: 1;
   font-weight: 600;
   letter-spacing: 0.12em;
@@ -1094,10 +1107,119 @@ body {
   color: var(--muted);
 }
 
-/* A figure that means "someone must act" keeps the alert colour
-   rather than the accent — gold is emphasis, deep red is a problem. */
+/* Step 2 — the numeral. Two tiers: one hero per page and a secondary
+   tier for everything else, so four cards are not four equal claims on
+   the eye.
+
+   Negative tracking because the default spacing of a 40px+ numeral
+   reads as loose; tabular-nums so a counting animation cannot reflow
+   the card digit by digit. */
+.sp-kpi {
+  font-size: 1.5rem; /* 24 — secondary tier */
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+.sp-kpi-hero {
+  font-size: 2.5rem; /* 40 */
+  letter-spacing: -0.035em;
+  /* Gold is reserved for the one figure the page exists to answer. */
+  color: var(--accent);
+}
+
+@media (min-width: 1024px) {
+  .sp-kpi {
+    font-size: 1.75rem; /* 28 */
+  }
+  .sp-kpi-hero {
+    font-size: 3.25rem; /* 52 */
+  }
+}
+
+/* Step 3 — the sub-caption under a numeral. */
+.sp-kpi-caption {
+  font-size: 0.75rem; /* 12 */
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* A figure that means "someone must act" keeps the alert colour rather
+   than the accent — gold is emphasis, deep red is a problem. */
 .sp-kpi-alert {
   color: var(--danger);
+}
+
+/* ---------------------------------------------------------------
+   QUICK ACTIONS.
+
+   They read as empty boxes because they were a 24px-padded column with
+   a 48px icon floating above a label in a 96px-tall box. Now: one
+   horizontal axis, a real hairline, and a gold hairline plus a scaled
+   icon on hover so the whole tile responds rather than just its shadow.
+   --------------------------------------------------------------- */
+.sp-qa {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.5rem; /* 56 — down from ~96 */
+  padding: 0 1rem;
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow:
+    0 1px 2px rgba(60, 40, 20, 0.06),
+    0 2px 6px rgba(60, 40, 20, 0.05);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.sp-qa-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-lg);
+  transition: transform 0.15s ease;
+}
+
+@media (hover: hover) {
+  .sp-qa:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow:
+      0 2px 4px rgba(60, 40, 20, 0.08),
+      0 6px 14px rgba(60, 40, 20, 0.07);
+  }
+
+  .sp-qa:hover .sp-qa-icon {
+    transform: scale(1.12);
+  }
+}
+
+.sp-qa:active {
+  transform: translateY(0) scale(0.995);
+  transition-duration: 0.06s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-qa,
+  .sp-qa-icon {
+    transition: none;
+  }
+  .sp-qa:hover,
+  .sp-qa:active {
+    transform: none;
+  }
+  .sp-qa:hover .sp-qa-icon {
+    transform: none;
+  }
 }
 
 /* ---------------------------------------------------------------
