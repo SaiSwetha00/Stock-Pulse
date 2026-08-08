@@ -5,6 +5,8 @@ import Image from 'next/image'
 import { Upload, Trash2, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { isOptimizableImage } from '@/lib/images'
+import Modal from '@/components/ui/Modal'
+import ImageAdjuster, { type AdjustedImage } from '@/components/ui/ImageAdjuster'
 
 /**
  * Mirrors the bucket's own limits in 0008. Checked here so the user gets a
@@ -27,8 +29,11 @@ export default function AvatarUpload({
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The chosen file, held while the crop dialog is open. Nothing is uploaded
+  // until the user has framed it and confirmed.
+  const [pending, setPending] = useState<File | null>(null)
 
-  async function handleFile(file: File) {
+  function handleFile(file: File) {
     setError(null)
 
     if (!ACCEPTED.includes(file.type)) {
@@ -40,6 +45,12 @@ export default function AvatarUpload({
       return
     }
 
+    // Framing happens before anything leaves the browser.
+    setPending(file)
+  }
+
+  async function handleAdjusted({ blob }: AdjustedImage) {
+    setPending(null)
     setBusy(true)
     const supabase = createClient()
 
@@ -49,7 +60,9 @@ export default function AvatarUpload({
     const path = `${userId}/avatar`
     const { error: uploadError } = await supabase.storage
       .from('avatars')
-      .upload(path, file, { upsert: true, contentType: file.type })
+      // Always WebP: ImageAdjuster re-encodes, so whatever the camera
+      // produced is irrelevant by this point.
+      .upload(path, blob, { upsert: true, contentType: 'image/webp' })
 
     if (uploadError) {
       setBusy(false)
@@ -151,6 +164,19 @@ export default function AvatarUpload({
       </div>
 
       <p className="mt-2 text-xs text-muted">JPEG, PNG or WebP. Up to 2 MB.</p>
+
+      {pending && (
+        <Modal title="Adjust your photo" onClose={() => setPending(null)} width="sm">
+          <div className="px-6 py-5">
+            <ImageAdjuster
+              file={pending}
+              outputSize={512}
+              onCancel={() => setPending(null)}
+              onConfirm={handleAdjusted}
+            />
+          </div>
+        </Modal>
+      )}
       {error && (
         <p role="alert" className="mt-1 text-xs text-danger">
           {error}
