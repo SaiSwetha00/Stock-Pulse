@@ -252,6 +252,11 @@ summary:focus-visible,
      indistinguishable from a border. Gold reads on both themes and
      is the one ring colour a user will see hundreds of times a day. */
   outline: 2px solid var(--accent) !important;
+  /* The longhand repeated after the shorthand, deliberately.
+     Measured in headless Chrome, the shorthand alone left the ring
+     painting rgb(74,65,57) — currentColor on an inactive nav link —
+     rather than the accent, so the "gold focus ring" was not gold. */
+  outline-color: var(--accent) !important;
   outline-offset: 2px !important;
 }
 

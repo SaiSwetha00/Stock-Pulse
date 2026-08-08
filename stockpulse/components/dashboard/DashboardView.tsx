@@ -147,9 +147,12 @@ function Sparkline({ data }: { data: { label: string; value: number }[] }) {
   if (data.length < 2) return null
   const values = data.map((d) => d.value)
   const max = Math.max(...values)
-  // A flat week of zeroes would divide by zero and draw nothing; draw the
-  // baseline instead, which is honest — it says "no takings", not "no data".
-  const span = max > 0 ? max : 1
+  // A week of zeroes draws a flat line along the baseline, which on screen
+  // reads as a stray horizontal rule floating in the card rather than as "no
+  // takings". Seen in a 1440px screenshot. Render nothing instead — the
+  // "0 sales today" caption beneath already says it.
+  if (max === 0) return null
+  const span = max
   const step = 100 / (data.length - 1)
   const points = values.map((v, i) => `${i * step},${32 - (v / span) * 28}`).join(' ')
 
@@ -354,7 +357,10 @@ export default function DashboardView({
           <p className={STAT_LABEL}>Low Stock Items</p>
           {/* The number keeps the danger colour: it is the one figure here
               that means someone has to act. */}
-          <p className={`${STAT_VALUE} sp-kpi-alert`}>
+          {/* Deep red only when there is something to act on. Zero items low
+              on stock is the good outcome, and colouring it as an alert made
+              an empty store look like a failing one. */}
+          <p className={`${STAT_VALUE} ${lowStockItems.length > 0 ? 'sp-kpi-alert' : ''}`}>
             <CountUp value={lowStockItems.length} />
           </p>
         </Link>
