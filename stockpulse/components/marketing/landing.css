@@ -316,6 +316,87 @@
   color: var(--foreground);
 }
 
+/* ---------------------------------------------------------------
+   Coffee-brown bands — the warm middle of the rhythm.
+
+   Cream alone still left the page reading black-and-white. Coffee is a
+   third surface: dark enough to sit beside a cream band without
+   breaking the "never two light in a row" rule, warm enough that the
+   page stops looking monochrome.
+
+   Same full inversion as cream — every semantic token and every --sp-*
+   variable redefined for the subtree, so cards, borders and gold
+   resolve against brown without any component knowing where it sits.
+
+   Measured on #2b211a — foreground 13.73:1, muted-strong 9.87:1,
+   muted 5.59:1, gold 8.16:1, success 10.19:1, danger 9.26:1. All AA.
+   --------------------------------------------------------------- */
+.sp-landing .sp-band-coffee {
+  --sp-black: #2b211a;
+  --sp-surface: #2b211a;
+  --sp-surface-alt: #241b15;
+  --sp-surface-card: #362a21;
+  --sp-surface-elevated: #40332a;
+  /* Gold lifts against brown; the standard #c9a227 is only 3.4:1 here. */
+  --sp-gold: #e0b551;
+  --sp-gold-light: #f0d78c;
+  --sp-gold-deep: #8a6b1a;
+
+  --background: #2b211a;
+  --surface: #362a21;
+  --surface-muted: #241b15;
+  --foreground: #f4efe6;
+  --muted-strong: #d9cbb8;
+  --muted: #a89880;
+  --border: #453529;
+  --border-strong: #57432f;
+  --accent: #e0b551;
+  --accent-hover: #f0d78c;
+  --accent-soft: #3a2c1a;
+  --accent-ink: #f0d78c;
+  --success: #6ee7a0;
+  --success-bg: #16281f;
+  --success-ink: #6ee7a0;
+  --danger: #ffb4ab;
+  --danger-bg: #3a1f1b;
+  --warning: #e0912f;
+  --warning-bg: #33240f;
+
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.sp-landing .sp-band-coffee .glass-card {
+  background: rgba(64, 51, 42, 0.6);
+  border: 1px solid rgba(244, 239, 230, 0.09);
+}
+
+.sp-landing .sp-band-coffee .glass-card:hover {
+  background: rgba(64, 51, 42, 0.85);
+}
+
+/* Soft boundary at each colour change, matching the cream bands. */
+.sp-landing .sp-band-coffee::before,
+.sp-landing .sp-band-coffee::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 88px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.sp-landing .sp-band-coffee::before {
+  top: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.32) 0%, transparent 100%);
+}
+
+.sp-landing .sp-band-coffee::after {
+  bottom: 0;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.32) 0%, transparent 100%);
+}
+
 /* glass-card is hardcoded rgba, so it needs a cream variant — a translucent
    dark pane on cream reads as a smudge. */
 .sp-landing .sp-band-cream .glass-card {

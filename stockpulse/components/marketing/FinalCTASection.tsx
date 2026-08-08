@@ -6,7 +6,7 @@ import { ArrowUpRight, Sparkles, ShieldCheck, Activity } from 'lucide-react'
 
 export default function FinalCTASection() {
   return (
-    <section className="relative py-32 sp-band-finale border-t border-border overflow-hidden perspective-1500">
+    <section className="relative py-32 sp-band-coffee border-t border-border overflow-hidden perspective-1500">
       {/* Background radial glow */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(201,162,39,0.1)_0%,transparent_70%)] pointer-events-none" />
 
