@@ -229,10 +229,18 @@ export default function MonitoringClient({
       return
     }
     if (!data || data.length === 0) {
+      // Zero rows has two causes and the message must not pick one: the row was
+      // already removed (a stale card the refresh had not cleared yet — this
+      // fires in practice, on a second click), or RLS refused and said nothing.
+      // Blaming the migration outright told a shopkeeper to run SQL for what
+      // was really a double click.
       const message =
-        'The database refused the delete and reported no error. Apply supabase/migrations/0012_checkout_stations_delete_policy.sql.'
+        'Nothing was removed — this counter may already be gone. If it stays on the board, apply supabase/migrations/0012_checkout_stations_delete_policy.sql.'
       setError(message)
       toast.error('Counter not removed', message)
+      setConfirmingRemoveId(null)
+      // Whichever cause it was, what is on screen is out of date.
+      router.refresh()
       return
     }
     setConfirmingRemoveId(null)
