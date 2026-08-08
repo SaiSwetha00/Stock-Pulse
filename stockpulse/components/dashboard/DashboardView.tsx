@@ -26,6 +26,7 @@ import SalesTrendChart from '@/components/dashboard/SalesTrendChartLazy'
 import AutoRefresh from '@/components/dashboard/AutoRefresh'
 import { LocalDate, RelativeTime } from '@/components/ui/LocalTime'
 import Greeting from '@/components/dashboard/Greeting'
+import ProductThumb from '@/components/ui/ProductThumb'
 
 export interface DashboardAlert {
   id: string
@@ -471,7 +472,12 @@ export default function DashboardView({
                   className="block rounded-xl border border-border p-4 lg:table-row lg:rounded-none lg:border-0 lg:border-b lg:border-border lg:p-0 lg:last:border-0"
                 >
                   <td className="block font-medium text-foreground lg:table-cell lg:py-3.5 lg:pr-4">
-                    {p.name}
+                    {/* Same thumbnail as the inventory table, so a line looks
+                        the same wherever it appears. */}
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <ProductThumb name={p.name} imageUrl={p.image_url} size={32} />
+                      <span className="truncate">{p.name}</span>
+                    </span>
                   </td>
                   <td className="mt-2 block lg:mt-0 lg:table-cell lg:py-3.5 lg:pr-4">
                     <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-muted-strong">
