@@ -27,6 +27,7 @@ import AutoRefresh from '@/components/dashboard/AutoRefresh'
 import { LocalDate, RelativeTime } from '@/components/ui/LocalTime'
 import Greeting from '@/components/dashboard/Greeting'
 import ProductThumb from '@/components/ui/ProductThumb'
+import CountUp from '@/components/ui/CountUp'
 
 export interface DashboardAlert {
   id: string
@@ -54,7 +55,7 @@ export interface DashboardAlert {
  * scale in globals.css; the border is what stops a white card dissolving into
  * a near-white page background.
  */
-const STAT_CARD = 'rounded-2xl border border-border bg-surface p-4 shadow-sm lg:p-6'
+const STAT_CARD = 'sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm lg:p-6'
 const STAT_ICON = 'flex h-10 w-10 items-center justify-center rounded-lg'
 const STAT_LABEL = 'mt-4 text-xs font-semibold uppercase tracking-wide text-muted'
 const STAT_VALUE = 'mt-1 text-2xl font-bold text-foreground lg:text-3xl'
@@ -221,12 +222,20 @@ export default function DashboardView({
             The signal each carried now lives in its icon square, so the tiles
             stay distinguishable at a glance without the surfaces fighting
             each other. */}
-        <div className={STAT_CARD}>
+        {/* Gold on exactly one card, and it is this one.
+
+            `sp-accent-edge` is the only decorative use of the accent in the
+            app. Today's takings is the figure a shopkeeper opens this page
+            for, so it is the one that earns the hairline. Putting it on all
+            four would make it mean nothing. */}
+        <div className={`${STAT_CARD} sp-accent-edge sp-delay-1`}>
           <div className={`${STAT_ICON} bg-surface-muted`}>
             <Wallet className="h-5 w-5 text-muted-strong" aria-hidden="true" />
           </div>
           <p className={STAT_LABEL}>{isOwner ? "Today's Sales" : "Today's Total"}</p>
-          <p className={STAT_VALUE}>{formatCurrency(todayTotal)}</p>
+          <p className={STAT_VALUE}>
+            <CountUp value={todayTotal} format={formatCurrency} />
+          </p>
           {/* changePct is null when yesterday had no sales — a percentage
               change from zero is not meaningful, so show nothing. */}
           {changePct !== null && (
@@ -247,13 +256,14 @@ export default function DashboardView({
           )}
         </div>
 
-        <div className={STAT_CARD}>
+        <div className={`${STAT_CARD} sp-delay-2`}>
           <div className={`${STAT_ICON} bg-accent-soft`}>
             <ShoppingBag className="h-5 w-5 text-accent-ink" aria-hidden="true" />
           </div>
           <p className={STAT_LABEL}>Transactions Today</p>
           <p className={STAT_VALUE}>
-            {todayCount} <span className="text-base font-normal text-muted">logged</span>
+            <CountUp value={todayCount} />{' '}
+            <span className="text-base font-normal text-muted">logged</span>
           </p>
           {/* Came from the mobile "Order Volume" card, which was the only
               place the occupied-checkout count surfaced. */}
@@ -262,21 +272,24 @@ export default function DashboardView({
           </p>
         </div>
 
-        <div className={STAT_CARD}>
+        <div className={`${STAT_CARD} sp-delay-3`}>
           <div className={`${STAT_ICON} bg-surface-muted`}>
             <TrendingUp className="h-5 w-5 text-muted-strong" aria-hidden="true" />
           </div>
           <p className={STAT_LABEL}>7-Day Revenue</p>
-          <p className={STAT_VALUE}>{formatCurrency(weekTotal)}</p>
+          <p className={STAT_VALUE}>
+            <CountUp value={weekTotal} format={formatCurrency} />
+          </p>
           <p className={STAT_FOOT}>
             {weekCount} transaction{weekCount === 1 ? '' : 's'}
           </p>
         </div>
 
         {/* The only clickable tile, so it is the only one that lifts on
-            hover — shadow-sm to shadow-md, the affordance the brief asks
-            clickable cards to carry. */}
-        <Link href="/inventory" className={`${STAT_CARD} block transition-shadow duration-150 hover:shadow-md`}>
+            hover. `sp-lift` is the shared affordance: shadow-sm to shadow-md
+            plus 2px of travel, and a press state that also fires on touch,
+            where there is no hover to rely on. */}
+        <Link href="/inventory" className={`${STAT_CARD} sp-delay-4 sp-lift block`}>
           <div className="flex items-center justify-between gap-2">
             <div className={`${STAT_ICON} bg-danger-bg`}>
               <AlertTriangle className="h-5 w-5 text-danger" aria-hidden="true" />
@@ -286,20 +299,25 @@ export default function DashboardView({
           <p className={STAT_LABEL}>Low Stock Items</p>
           {/* The number keeps the danger colour: it is the one figure here
               that means someone has to act. */}
-          <p className={`${STAT_VALUE} text-danger`}>{lowStockItems.length}</p>
+          <p className={`${STAT_VALUE} text-danger`}>
+            <CountUp value={lowStockItems.length} />
+          </p>
         </Link>
       </div>
 
       {/* ---- Quick actions ---- */}
       <h2 className="sp-heading mt-7">Quick Actions</h2>
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-        {(isOwner ? [...QUICK_ACTIONS, ...OWNER_QUICK_ACTIONS] : QUICK_ACTIONS).map((action) => {
+        {(isOwner ? [...QUICK_ACTIONS, ...OWNER_QUICK_ACTIONS] : QUICK_ACTIONS).map((action, i) => {
           const Icon = action.Icon
           return (
             <Link
               key={action.label}
               href={action.href}
-              className={`flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface py-6 shadow-sm transition-shadow duration-150 hover:shadow-md active:brightness-[0.98] ${action.span}`}
+              // Staggered by position, capped at the sixth step: past ~250ms
+              // the last tile reads as late rather than sequenced, and the
+              // owner variant of this row is six tiles exactly.
+              className={`sp-rise sp-lift sp-delay-${Math.min(i + 1, 6)} flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface py-6 shadow-sm ${action.span}`}
             >
               <span
                 className={`flex h-12 w-12 items-center justify-center rounded-lg ${action.wrap}`}
@@ -314,14 +332,14 @@ export default function DashboardView({
 
       {/* ---- Trend + recent sales ---- */}
       <div className="mt-7 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
-        <div className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6 lg:col-span-2">
+        <div className="sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6 lg:col-span-2">
           <h2 className="sp-heading">Daily Sales Trends</h2>
           <div className="mt-4">
             <SalesTrendChart data={trendData} />
           </div>
         </div>
 
-        <div className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
+        <div className="sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
           <div className="flex items-center justify-between gap-2">
             <h2 className="sp-heading">Recent Sales</h2>
             {/* This list is capped by the query's limit(4) — labelling it
@@ -393,7 +411,7 @@ export default function DashboardView({
 
       <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
         {alerts.length === 0 && (
-          <div className="rounded-2xl bg-surface-muted lg:col-span-2">
+          <div className="sp-rise rounded-2xl border border-border bg-surface-muted lg:col-span-2">
             <EmptyState
               icon={BellOff}
               title="No active alerts"
@@ -432,7 +450,7 @@ export default function DashboardView({
       </div>
 
       {/* ---- Low stock ---- */}
-      <div className="mt-7 rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
+      <div className="mt-7 sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
         <div className="flex items-center gap-2">
           <Archive className="h-5 w-5 text-danger" />
           <h2 className="sp-heading">Low Stock Alerts</h2>

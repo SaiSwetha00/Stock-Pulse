@@ -170,15 +170,29 @@ export default function SettingsClient({ store }: { store: StoreType }) {
         </div>
       </div>
 
-      {saveError && (
-        <div role="alert" className="mt-4 rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">
-          Could not save settings: {saveError}
+      {/* Always mounted, opened by an attribute.
+
+          A banner that is conditionally rendered cannot animate — it does not
+          exist in the frame before it appears, so there is nothing to
+          transition from, and it pops in and shoves the form down. `sp-collapse`
+          transitions grid-template-rows 0fr -> 1fr, which is the one way CSS
+          can animate to a content height nobody has measured.
+
+          role="alert" is on the inner element rather than this wrapper so an
+          empty, closed container is never announced. */}
+      <div className="sp-collapse" data-open={saveError ? 'true' : 'false'}>
+        <div>
+          {saveError && (
+            <div role="alert" className="mt-4 rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">
+              Could not save settings: {saveError}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="space-y-6">
-          <div className="rounded-2xl bg-surface p-6 shadow-sm">
+          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <Store className="h-4.5 w-4.5 text-muted-strong" />
               <h2 className="sp-heading">Store Details</h2>
@@ -218,7 +232,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-surface p-6 shadow-sm">
+          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <Palette className="h-4.5 w-4.5 text-muted-strong" />
               <h2 className="sp-heading">Appearance</h2>
@@ -254,7 +268,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
           </div>
         </div>
 
-        <div className="rounded-2xl bg-surface p-6 shadow-sm">
+        <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border pb-4">
             <SlidersHorizontal className="h-4.5 w-4.5 text-muted-strong" />
             <h2 className="sp-heading">Operational Controls</h2>

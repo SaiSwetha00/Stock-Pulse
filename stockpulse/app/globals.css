@@ -734,6 +734,226 @@ body {
   }
 }
 
+/* ===============================================================
+   DEPTH + MOTION
+
+   The rule for everything below: the RESTING state is the correct
+   one, and an animation only overrides it while running. If a
+   keyframe never runs — reduced motion, a throttled background tab,
+   an unsupported browser, a stalled frame loop — the interface is
+   still complete and legible. Nothing here is allowed to leave
+   content invisible.
+
+   That is why every entrance uses `animation-fill-mode: backwards`
+   rather than starting from `opacity: 0` in the base rule. Backwards
+   applies the `from` frame only during the delay before the
+   animation starts; once it ends, the element returns to its own
+   styles. An element that never animates was never hidden.
+
+   All of it is CSS. No library, no per-element JavaScript, and
+   nothing here adds a byte to the shared bundle.
+   =============================================================== */
+
+/* --- Entrance: fade up on mount --------------------------------- */
+
+@keyframes sp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sp-rise {
+    animation: sp-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+
+  /* Stagger steps. Six is deliberate: past roughly 250ms of cumulative
+     delay the last card reads as late rather than sequenced, and a
+     stat band is four to six tiles. Anything longer should not be
+     staggered at all. */
+  .sp-delay-1 {
+    animation-delay: 40ms;
+  }
+  .sp-delay-2 {
+    animation-delay: 80ms;
+  }
+  .sp-delay-3 {
+    animation-delay: 120ms;
+  }
+  .sp-delay-4 {
+    animation-delay: 160ms;
+  }
+  .sp-delay-5 {
+    animation-delay: 200ms;
+  }
+  .sp-delay-6 {
+    animation-delay: 240ms;
+  }
+}
+
+/* --- Elevation -------------------------------------------------- */
+
+/* There is deliberately no `.sp-card` shorthand here.
+
+   Fifty-three cards across the app were `rounded-2xl bg-surface
+   shadow-sm` with no border at all, which is what made them read as
+   tinted rectangles rather than as lifted surfaces — the two-layer
+   shadow scale was already in place and had nothing to sit against.
+   The fix was to add `border border-border` to each, additively.
+
+   Collapsing all four utilities into one class was the tempting
+   version and is a trap: a plain class in this file sits outside
+   Tailwind's cascade layers, so it would beat every `bg-*` utility
+   on the same element. Any card that overrides its background — the
+   dark stat tiles, the accent panels — would silently lose it, with
+   nothing failing to build. Additive cannot do that.
+
+   Interactive cards only — a row you can open, a tile that links
+   somewhere. A card that lifts under the pointer while doing nothing
+   when clicked is a lie about what is clickable, so this is never
+   applied to a static panel.
+
+   `will-change` is deliberately absent: it promotes a layer
+   permanently, and a page of twenty cards each holding its own layer
+   costs more than the transition saves. */
+.sp-lift {
+  transition:
+    box-shadow 0.18s ease,
+    transform 0.18s ease,
+    border-color 0.18s ease;
+}
+
+@media (hover: hover) {
+  .sp-lift:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-strong);
+    transform: translateY(-2px);
+  }
+}
+
+/* Press. Applies on touch as well, where it is the only feedback
+   available — there is no hover on a finger. */
+.sp-lift:active {
+  box-shadow: var(--shadow-xs);
+  transform: translateY(0) scale(0.995);
+  transition-duration: 0.06s;
+}
+
+/* --- Expand / collapse ------------------------------------------ */
+
+/* Height animation without a measured pixel value.
+   `grid-template-rows: 0fr -> 1fr` is the one way to transition to
+   content height in CSS, so a panel that grows by a line does not
+   need JavaScript to re-measure it. The inner element must carry
+   `min-height: 0` or it refuses to shrink below its content. */
+.sp-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sp-collapse > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sp-collapse[data-open='true'] {
+  grid-template-rows: 1fr;
+}
+
+/* --- Skeleton to content ---------------------------------------- */
+
+/* Applied to real content replacing a skeleton. Shorter and with no
+   travel: the placeholder already occupies the exact box, so moving
+   the content in would undo the point of matching the geometry. */
+@keyframes sp-settle {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sp-settle {
+    animation: sp-settle 0.28s ease-out backwards;
+  }
+}
+
+/* --- Save confirmation ------------------------------------------ */
+
+/* A tick that draws itself, then the whole mark settles. Used on the
+   Save control and in the success toast.
+
+   The path is drawn with stroke-dashoffset, so the resting state is
+   a fully drawn tick — if the animation never runs, a save still
+   shows a checkmark rather than an empty box. */
+@keyframes sp-draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes sp-pop {
+  0% {
+    transform: scale(0.7);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.sp-check-path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sp-check-path {
+    animation: sp-draw 0.34s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  }
+
+  .sp-check {
+    animation: sp-pop 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+/* --- Gold, used with intent -------------------------------------- */
+
+/* A hairline of accent along the top edge of a card. This is the one
+   decorative use of gold in the app and it is reserved for the card
+   that answers the page's question — the headline metric, not every
+   panel on the screen. Gold on everything is gold on nothing.
+
+   Drawn as a pseudo-element rather than a border so it does not
+   change the box model or fight the card's own border colour. */
+.sp-accent-edge {
+  position: relative;
+}
+
+.sp-accent-edge::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 2px;
+  border-start-start-radius: var(--radius-2xl);
+  border-start-end-radius: var(--radius-2xl);
+  background: linear-gradient(90deg, var(--accent), var(--chart-2));
+}
+
 /* ---------------------------------------------------------------
    Dashboard pulse mark (components/dashboard/Greeting.tsx).
 

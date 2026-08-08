@@ -181,9 +181,37 @@ the markup.
   copied, so there is no second version to drift. Settings now runs no staff
   query at all and keeps one signpost card. See D15, D16, D17.
 
+- **Item 2 — Depth and motion.** 53 cards across every module were
+  `rounded-2xl bg-surface shadow-sm` with **no border at all** — the two-layer
+  shadow scale was already in place and had nothing to sit against, which is
+  what made them read as tinted rectangles. All 53 given `border border-border`
+  plus `sp-rise`, additively (see the note in globals.css for why a `.sp-card`
+  shorthand would have been a specificity trap).
+
+  New in `globals.css`, all CSS: `sp-rise` + `sp-delay-1..6` (mount entrance
+  and stagger), `sp-lift` (hover elevation and press, press also on touch),
+  `sp-collapse` (0fr→1fr height transition), `sp-settle`, `sp-check`/
+  `sp-check-path` (the tick that draws itself), `sp-accent-edge` (the one
+  decorative use of gold, on the one card that answers the page's question).
+  Every entrance uses `animation-fill-mode: backwards`, so an animation that
+  never runs never hides anything.
+
+  `CountUp` is the single piece of JavaScript — IntersectionObserver to start,
+  rAF to step, and it writes to the DOM over a rendered final value rather than
+  holding the in-flight number in state, so the correct figure is on screen
+  even if the effect never runs. See D18.
+
+  Help Centre was the last page inventing its own frame (`max-w-[1100px]
+  px-6 py-10`, hand-rolled eyebrow, bold Inter h1); it is now
+  `sp-page`/`sp-eyebrow`/`sp-title` like everything else.
+
+  **Shared JS measured 169.3 KB before and after — unchanged.** CSS 19.7 → 20.4
+  KB gz. All seven new classes verified present in the built CSS by the D9
+  recipe.
+
 ## In flight
 
-- Item 2 (depth and motion), Item 3 (Phase 7 completion), Item 4 (deploy).
+- Item 3 (Phase 7 completion), Item 4 (deploy).
 
 ## Known remaining, deliberately not done
 

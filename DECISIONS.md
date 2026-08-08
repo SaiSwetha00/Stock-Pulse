@@ -259,3 +259,50 @@ T }` — narrows correctly, and because the failure arm is already a valid
 rebuilding the message. `app/auth/actions.ts#loadPendingInvite` still uses the
 `in` form; it compiles there only because its callers re-wrap the value rather
 than assigning it to a `string` field.
+
+## D18 — Motion never owns the resting state
+
+One rule governs every animation added in the depth-and-motion pass: **the
+resting state is the correct one, and a keyframe only overrides it while
+running.** If an animation never runs — reduced motion, a throttled background
+tab, an unsupported browser, a thrown error, a stalled frame loop — the
+interface is still complete.
+
+Concretely, this rules out the obvious way to write each of them:
+
+- Entrances do **not** set `opacity: 0` in the base rule and animate to 1. They
+  use `animation-fill-mode: backwards`, which applies the `from` frame only
+  during the delay before the animation starts. An element that never animates
+  was never hidden. The `opacity: 0` version fails silently and invisibly, and
+  the failure is a blank page.
+- The save tick's resting `stroke-dashoffset` is `0` — fully drawn. The keyframe
+  animates *from* 24, so a save with animations off still shows a checkmark
+  rather than an empty box.
+- `CountUp` **renders the final value** and the animation is a DOM write on top
+  of it. Holding the in-flight number in React state would mean the first paint
+  is a zero, and any interruption leaves it there. It also keeps SSR and
+  hydration honest: the server renders the real figure.
+
+`CountUp` is also the pass's one deviation from "CSS and IntersectionObserver
+only", and it is deliberate. A pure-CSS counter is possible — `@property` on an
+integer plus `counter()` — but it can only render a bare integer, and every
+figure on this dashboard is "₹12,480.50" or similar. The formatter must run per
+frame, so the frame loop must be ours. What the constraint was protecting is
+intact: no library, no shared-bundle cost (measured 169.3 KB before and after),
+one loop per figure that stops on landing, and no loop at all under reduced
+motion.
+
+## D19 — No `.sp-card` shorthand, on purpose
+
+Fifty-three cards were `rounded-2xl bg-surface shadow-sm` with no border. The
+tempting fix is one class — `.sp-card { border-radius; border; background;
+box-shadow }` — and a find-and-replace.
+
+It would have broken things silently. A plain class in `globals.css` sits
+outside Tailwind's cascade layers, so it beats every `bg-*` utility on the same
+element. Every card that overrides its own background — the dark stat tiles, the
+accent panels — would have lost it, with nothing failing to build and nothing
+failing to lint. The same class of invisible failure as D9 and D12.
+
+So the change was additive: `border border-border` appended to each of the 53,
+existing utilities untouched. More characters, no way to lose an override.

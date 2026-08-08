@@ -40,7 +40,7 @@ export default function ProfileClient({
 
   return (
     <div className="sp-page">
-      <div className="relative overflow-hidden rounded-2xl bg-surface p-8 shadow-sm">
+      <div className="relative overflow-hidden sp-rise rounded-2xl border border-border bg-surface p-8 shadow-sm">
         <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
           <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-surface-muted ring-4 ring-surface">
             {isOptimizableImage(profile.avatar_url) ? (
@@ -92,7 +92,7 @@ export default function ProfileClient({
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <div className="rounded-2xl bg-surface p-6 shadow-sm">
+          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <User className="h-4.5 w-4.5 text-muted-strong" />
               <h2 className="sp-heading">Personal Information</h2>
@@ -123,7 +123,7 @@ export default function ProfileClient({
             </div>
           </div>
 
-          <div className="rounded-2xl bg-surface p-6 shadow-sm">
+          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <ShieldCheck className="h-4.5 w-4.5 text-muted-strong" />
               <h2 className="sp-heading">Account Security</h2>
@@ -152,7 +152,7 @@ export default function ProfileClient({
               </p>
               <p className="text-xs text-muted">Items Managed</p>
             </div>
-            <div className="rounded-2xl bg-surface p-5 shadow-sm">
+            <div className="sp-rise rounded-2xl border border-border bg-surface p-5 shadow-sm">
               <Users className="h-5 w-5 text-muted" />
               <p className="mt-3 text-2xl font-bold text-foreground">{staffCount}</p>
               <p className="text-xs text-muted">Staff Members</p>

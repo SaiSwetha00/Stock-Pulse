@@ -55,7 +55,7 @@ function Row({ log }: { log: AuditLog }) {
 
   return (
     <>
-      <tr className="block rounded-2xl bg-surface p-4 shadow-sm lg:table-row lg:rounded-none lg:border-b lg:border-border lg:p-0 lg:align-top lg:shadow-none lg:last:border-0">
+      <tr className="block sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm lg:table-row lg:rounded-none lg:border-b lg:border-border lg:p-0 lg:align-top lg:shadow-none lg:last:border-0">
         {/* On a card the record and the action lead, because they are what the
             entry is about; the timestamp drops to a caption. In the table the
             column order stays as it was. */}
@@ -106,7 +106,7 @@ function Row({ log }: { log: AuditLog }) {
         </td>
       </tr>
       {open && (
-        <tr className="block rounded-2xl bg-surface-muted lg:table-row lg:rounded-none lg:border-b lg:border-border">
+        <tr className="block sp-rise rounded-2xl border border-border bg-surface-muted lg:table-row lg:rounded-none lg:border-b lg:border-border">
           <td colSpan={6} className="block p-4 lg:table-cell lg:px-4 lg:py-3">
             <dl className="grid gap-2 sm:grid-cols-2">
               {changes.map((c) => (
@@ -230,7 +230,7 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
         />
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-2 rounded-2xl bg-surface p-4 shadow-sm">
+      <div className="mt-6 flex flex-wrap items-center gap-2 sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm">
         <div className="relative min-w-[14rem] flex-1">
           <input
             value={search}
@@ -379,7 +379,7 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
                 <tr className="block lg:table-row">
                   <td
                     colSpan={6}
-                    className="block rounded-2xl bg-surface shadow-sm lg:table-cell lg:rounded-none lg:shadow-none"
+                    className="block sp-rise rounded-2xl border border-border bg-surface shadow-sm lg:table-cell lg:rounded-none lg:shadow-none"
                   >
                     {logs.length === 0 ? (
                       <EmptyState

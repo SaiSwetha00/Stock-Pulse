@@ -170,7 +170,7 @@ export default function StaffScheduleClient({
       <StaffTabs role={role} />
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="rounded-2xl bg-surface p-6 shadow-sm">
+        <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <button
@@ -335,7 +335,7 @@ export default function StaffScheduleClient({
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-2xl bg-surface p-6 shadow-sm">
+          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="sp-heading">Staff Availability</h2>
               <Users className="h-5 w-5 text-muted" />

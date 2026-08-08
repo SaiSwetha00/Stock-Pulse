@@ -306,7 +306,7 @@ export default function MonitoringClient({
           <p className="sp-body mt-2">Optimal Utilization</p>
         </div>
 
-        <div className="rounded-2xl bg-surface-muted p-6 shadow-sm">
+        <div className="sp-rise rounded-2xl border border-border bg-surface-muted p-6 shadow-sm">
           <p className="sp-heading">Current Intervention Rate</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <p className="text-4xl font-bold text-foreground">{interventionRate.toFixed(1)}%</p>
@@ -319,7 +319,7 @@ export default function MonitoringClient({
       </div>
 
       {totalStations === 0 && (
-        <div className="mt-6 rounded-2xl bg-surface p-12 text-center shadow-sm">
+        <div className="mt-6 sp-rise rounded-2xl border border-border bg-surface p-12 text-center shadow-sm">
           <p className="text-muted">No checkout stations configured yet.</p>
           {/* The spinner carries the "working" state, so the label can stay
               still instead of swapping to "Setting up…". */}
@@ -337,7 +337,7 @@ export default function MonitoringClient({
           const Icon = meta.icon
           const isBusy = busyId === station.id
           return (
-            <div key={station.id} className="overflow-hidden rounded-2xl bg-surface shadow-sm">
+            <div key={station.id} className="overflow-hidden sp-rise rounded-2xl border border-border bg-surface shadow-sm">
               <div className={`h-1.5 w-full ${meta.bar}`} />
               <div className="p-5">
                 <div className="flex items-start justify-between gap-2">

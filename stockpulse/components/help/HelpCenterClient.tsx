@@ -36,14 +36,15 @@ export default function HelpCenterClient() {
   )
 
   return (
-    <div className="mx-auto max-w-[1100px] px-6 py-10 lg:px-8">
-      <div className="text-center">
-        <p className="text-label font-semibold uppercase tracking-[0.14em] text-muted">
-          Help Centre
-        </p>
-        <h1 className="mt-2 text-xl font-bold leading-tight text-foreground lg:text-2xl">
-          How can we help?
-        </h1>
+    // Was `mx-auto max-w-[1100px] px-6 py-10` with a hand-rolled eyebrow and a
+    // bold Inter h1 — the last page in the app still inventing its own frame.
+    // sp-page/sp-eyebrow/sp-title put it on the same grid and in the same
+    // voice as every other module; max-w keeps the centred reading measure,
+    // which is right for prose and wrong for a table.
+    <div className="sp-page max-w-[1100px]">
+      <div className="sp-rise text-center">
+        <p className="sp-eyebrow">Help Centre</p>
+        <h1 className="sp-title mt-2">How can we help?</h1>
         <p className="mx-auto mt-3 max-w-[55ch] text-body leading-relaxed text-muted">
           Search the guides, or browse by topic below. Every article describes what StockPulse
           actually does today.

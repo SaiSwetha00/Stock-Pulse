@@ -224,7 +224,7 @@ export default function AnalyticsClient({
       </div>
 
       {isEmpty ? (
-        <div className="mt-6 rounded-2xl bg-surface shadow-sm">
+        <div className="mt-6 sp-rise rounded-2xl border border-border bg-surface shadow-sm">
           <EmptyState
             icon={BarChart3}
             title="No sales in this period"
@@ -233,7 +233,7 @@ export default function AnalyticsClient({
         </div>
       ) : (
         <>
-          <section className="mt-6 rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
+          <section className="mt-6 sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <h2 className="sp-heading">Revenue trend</h2>
             <div className="mt-4">
               <SalesTrendChart data={trend.map((d) => ({ label: d.label, value: d.value }))} />
@@ -241,7 +241,7 @@ export default function AnalyticsClient({
           </section>
 
           <div className="mt-6 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
-            <section className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
+            <section className="sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
               <h2 className="sp-heading">Category mix</h2>
               <BarList
                 barClass="bg-accent"
@@ -253,7 +253,7 @@ export default function AnalyticsClient({
               />
             </section>
 
-            <section className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
+            <section className="sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
               <h2 className="sp-heading">Top products</h2>
               <BarList
                 barClass="bg-foreground"
@@ -266,7 +266,7 @@ export default function AnalyticsClient({
               />
             </section>
 
-            <section className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
+            <section className="sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
               <h2 className="sp-heading">Payment methods</h2>
               <BarList
                 barClass="bg-info"

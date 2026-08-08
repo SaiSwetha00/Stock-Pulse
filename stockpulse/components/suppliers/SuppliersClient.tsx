@@ -176,7 +176,7 @@ export default function SuppliersClient({
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <div className="rounded-2xl bg-surface shadow-sm">
+          <div className="sp-rise rounded-2xl border border-border bg-surface shadow-sm">
             <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center">
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
@@ -403,7 +403,7 @@ export default function SuppliersClient({
             </div>
           </div>
 
-          <div className="rounded-2xl bg-surface p-6 shadow-sm">
+          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="sp-heading">Incoming Shipments</h2>
               <div className="flex items-center gap-2">
@@ -468,7 +468,7 @@ export default function SuppliersClient({
 
           </div>
 
-          <div className="rounded-2xl bg-surface p-6 shadow-sm">
+          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <h2 className="sp-heading">Recent Supplier Activity</h2>
             <div className="mt-4 space-y-4">
               {activity.length === 0 && (
