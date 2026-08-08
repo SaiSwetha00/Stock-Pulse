@@ -3,7 +3,9 @@ import Link from 'next/link'
 import LegalPage from '@/components/legal/LegalPage'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — StockPulse',
+  // Just the page's own name — app/layout.tsx appends "· StockPulse" via its
+  // title template, so naming the product here rendered it twice in the tab.
+  title: 'Privacy Policy',
   description: 'What StockPulse stores, who can see it, and what is still being written.',
 }
 
