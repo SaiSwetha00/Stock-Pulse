@@ -118,79 +118,7 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
       return texture
     }
 
-    // 2. Olive Oil Bottle Label Texture
-    const createBottleLabel = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = 512
-      canvas.height = 512
-      const ctx = canvas.getContext('2d')
-      if (ctx) {
-        ctx.fillStyle = '#f8f5eb'
-        ctx.fillRect(0, 0, 512, 512)
 
-        ctx.strokeStyle = '#c9a037'
-        ctx.lineWidth = 10
-        ctx.strokeRect(20, 20, 472, 472)
-
-        ctx.fillStyle = '#1c2118'
-        ctx.font = 'bold 36px serif'
-        ctx.textAlign = 'center'
-        ctx.fillText('ESTATE SELECTION', 256, 120)
-
-        ctx.fillStyle = '#c9a037'
-        ctx.font = 'bold 48px serif'
-        ctx.fillText('EXTRA VIRGIN', 256, 190)
-        ctx.fillText('OLIVE OIL', 256, 245)
-
-        ctx.fillStyle = '#4a5240'
-        ctx.font = '22px sans-serif'
-        ctx.fillText('COLD PRESSED • 500 ML', 256, 310)
-        ctx.fillText('PRODUCT OF TUSCANY', 256, 350)
-
-        // Gold Seal Badge
-        ctx.beginPath()
-        ctx.arc(256, 420, 35, 0, Math.PI * 2)
-        ctx.fillStyle = '#c9a037'
-        ctx.fill()
-        ctx.fillStyle = '#ffffff'
-        ctx.font = 'bold 18px monospace'
-        ctx.fillText('100%', 256, 426)
-      }
-      return new THREE.CanvasTexture(canvas)
-    }
-
-    // 3. Milk Carton Printed Texture
-    const createCartonTexture = () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = 512
-      canvas.height = 512
-      const ctx = canvas.getContext('2d')
-      if (ctx) {
-        ctx.fillStyle = '#ffffff'
-        ctx.fillRect(0, 0, 512, 512)
-
-        // Blue header band
-        ctx.fillStyle = '#1e3a8a'
-        ctx.fillRect(0, 0, 512, 160)
-
-        ctx.fillStyle = '#ffffff'
-        ctx.font = 'bold 44px sans-serif'
-        ctx.fillText('PURE ORGANIC', 30, 90)
-        ctx.font = '28px sans-serif'
-        ctx.fillText('WHOLE MILK', 30, 130)
-
-        ctx.fillStyle = '#1e293b'
-        ctx.font = 'bold 32px sans-serif'
-        ctx.fillText('PASTEURIZED', 30, 240)
-        ctx.font = '22px sans-serif'
-        ctx.fillText('Grade A • 1 Gallon (3.78L)', 30, 280)
-
-        // Green Grass graphic
-        ctx.fillStyle = '#16a34a'
-        ctx.fillRect(0, 400, 512, 112)
-      }
-      return new THREE.CanvasTexture(canvas)
-    }
 
     // PHOTOREALISTIC TEXTURE LOADER & ASSET MAPS
     const textureLoader = new THREE.TextureLoader()
