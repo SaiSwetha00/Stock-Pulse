@@ -733,3 +733,60 @@ body {
     margin-top: 2rem;
   }
 }
+
+/* ---------------------------------------------------------------
+   Dashboard pulse mark (components/dashboard/Greeting.tsx).
+
+   Both animations are gated behind prefers-reduced-motion: with
+   reduced motion the path simply draws in full and stays put, which
+   still reads as a pulse line — it just does not move.
+   --------------------------------------------------------------- */
+.sp-trace {
+  stroke-dashoffset: 0;
+}
+
+.sp-blip {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes sp-trace {
+    0% {
+      stroke-dashoffset: 100;
+    }
+    55% {
+      stroke-dashoffset: 0;
+    }
+    100% {
+      stroke-dashoffset: -100;
+    }
+  }
+
+  @keyframes sp-blip {
+    0%,
+    45% {
+      opacity: 0;
+      r: 2.5;
+    }
+    60% {
+      opacity: 1;
+      r: 4;
+    }
+    100% {
+      opacity: 0;
+      r: 2.5;
+    }
+  }
+
+  .sp-trace {
+    animation-name: sp-trace;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+  }
+
+  .sp-blip {
+    animation-name: sp-blip;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+  }
+}

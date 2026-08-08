@@ -25,6 +25,7 @@ import { CATEGORY_LABELS, type Product, type Sale } from '@/types'
 import SalesTrendChart from '@/components/dashboard/SalesTrendChartLazy'
 import AutoRefresh from '@/components/dashboard/AutoRefresh'
 import { LocalDate, RelativeTime } from '@/components/ui/LocalTime'
+import Greeting from '@/components/dashboard/Greeting'
 
 export interface DashboardAlert {
   id: string
@@ -164,6 +165,7 @@ const OWNER_QUICK_ACTIONS: QuickAction[] = [
  */
 export default function DashboardView({
   isOwner,
+  fullName,
   nowIso,
   todayTotal,
   todayCount,
@@ -177,6 +179,7 @@ export default function DashboardView({
   alerts,
 }: {
   isOwner: boolean
+  fullName: string
   nowIso: string
   todayTotal: number
   todayCount: number
@@ -191,15 +194,20 @@ export default function DashboardView({
 }) {
   return (
     <div className="sp-page">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="sp-eyebrow">Overview</p>
-          <h1 className="sp-title mt-2">Dashboard Overview</h1>
-          {/* The server's calendar day is not necessarily the viewer's. */}
-          <p className="sp-body mt-2">
-            <LocalDate iso={nowIso} withYear />
-          </p>
-        </div>
+      {/* The greeting replaces the old eyebrow + "Dashboard Overview" title.
+          A page titled after itself tells you nothing the sidebar did not
+          already say; a greeting that names what needs attention does. */}
+      <Greeting
+        fullName={fullName}
+        lowStockCount={lowStockItems.length}
+        pendingCount={pendingCount}
+      />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* The server's calendar day is not necessarily the viewer's. */}
+        <p className="sp-eyebrow">
+          <LocalDate iso={nowIso} withYear />
+        </p>
         <AutoRefresh />
       </div>
 

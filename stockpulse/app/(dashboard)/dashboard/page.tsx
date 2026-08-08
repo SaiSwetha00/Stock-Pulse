@@ -129,6 +129,7 @@ export default async function DashboardPage() {
   return (
     <DashboardView
       isOwner={isOwner}
+      fullName={profile.full_name}
       nowIso={now.toISOString()}
       todayTotal={todayTotal}
       todayCount={todayCount}
