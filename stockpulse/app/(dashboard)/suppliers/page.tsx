@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
@@ -5,6 +6,12 @@ import { canManage } from '@/lib/permissions'
 import { reportingDate } from '@/lib/reportingTimezone'
 import SuppliersClient from '@/components/suppliers/SuppliersClient'
 import type { Shipment, Supplier, SupplierActivity } from '@/types'
+
+export const metadata: Metadata = {
+  title: "Suppliers",
+  description: "Who you buy from, and where each delivery has got to.",
+  robots: { index: false, follow: false },
+}
 
 /** Shapes returned by the aggregate functions in migration 0004. */
 type ActiveOrderCount = { supplier_id: string; active_orders: number }

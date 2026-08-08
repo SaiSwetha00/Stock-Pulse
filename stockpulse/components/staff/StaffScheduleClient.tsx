@@ -1,7 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { canManage } from '@/lib/permissions'
+import Link from 'next/link'
+import { canManage, isOwner } from '@/lib/permissions'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Plus, AlertTriangle, Users, Trash2 } from 'lucide-react'
 import { toLocalISODate } from '@/lib/format'
@@ -340,6 +341,22 @@ export default function StaffScheduleClient({
               <h2 className="sp-heading">Staff Availability</h2>
               <Users className="h-5 w-5 text-muted" />
             </div>
+            {/* A store with nobody in it is the first-run state, not an
+                error — the owner has signed up and has not invited anyone
+                yet. Point them at where that happens rather than showing an
+                empty column with a "0 of 0 on shift" line under it. */}
+            {availability.length === 0 && (
+              <p className="mt-4 text-sm leading-relaxed text-muted">
+                Nobody on the team yet.{' '}
+                {isOwner(role) ? (
+                  <Link href="/staff/team" className="font-semibold text-foreground underline">
+                    Invite your first colleague
+                  </Link>
+                ) : (
+                  'The store owner can invite people from the Team tab.'
+                )}
+              </p>
+            )}
             <div className="mt-4 space-y-4">
               {availability.map(({ profile, onToday }) => (
                 <div key={profile.id} className="flex items-center gap-3">

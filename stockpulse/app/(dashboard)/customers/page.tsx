@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
@@ -6,6 +7,12 @@ import CustomersClient from '@/components/customers/CustomersClient'
 import CustomersSetupNotice from '@/components/customers/CustomersSetupNotice'
 import { isMissingTableError } from '@/lib/supabase/errors'
 import type { Customer } from '@/types'
+
+export const metadata: Metadata = {
+  title: "Customers",
+  description: "The people who shop with you, and what they buy.",
+  robots: { index: false, follow: false },
+}
 
 export default async function CustomersPage() {
   const { profile, store } = await getCurrentUser()

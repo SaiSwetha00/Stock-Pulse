@@ -234,7 +234,7 @@ export default function DashboardView({
           </div>
           <p className={STAT_LABEL}>{isOwner ? "Today's Sales" : "Today's Total"}</p>
           <p className={STAT_VALUE}>
-            <CountUp value={todayTotal} format={formatCurrency} />
+            <CountUp value={todayTotal} format="currency" />
           </p>
           {/* changePct is null when yesterday had no sales — a percentage
               change from zero is not meaningful, so show nothing. */}
@@ -278,7 +278,7 @@ export default function DashboardView({
           </div>
           <p className={STAT_LABEL}>7-Day Revenue</p>
           <p className={STAT_VALUE}>
-            <CountUp value={weekTotal} format={formatCurrency} />
+            <CountUp value={weekTotal} format="currency" />
           </p>
           <p className={STAT_FOOT}>
             {weekCount} transaction{weekCount === 1 ? '' : 's'}

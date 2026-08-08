@@ -181,7 +181,11 @@ export default function ImportProductsModal({
               </p>
             )}
 
-            <div className="max-h-72 overflow-y-auto rounded-xl border border-border">
+            {/* The preview table has five columns and does not reflow, and
+                the modal is full-bleed on a phone — so it has to be able to
+                scroll sideways inside its own box rather than pushing the
+                dialog wider than the viewport. */}
+            <div className="max-h-72 overflow-auto rounded-xl border border-border">
               <table className="sp-table w-full text-left text-sm">
                 <thead className="sticky top-0 bg-surface-muted">
                   <tr className="text-xs font-semibold uppercase tracking-wide text-muted">

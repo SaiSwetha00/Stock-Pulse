@@ -1,8 +1,15 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import type { AuditLog } from '@/lib/audit'
 import AuditLogClient from '@/components/audit/AuditLogClient'
+
+export const metadata: Metadata = {
+  title: "Activity",
+  description: "A record of who changed what, and when.",
+  robots: { index: false, follow: false },
+}
 
 /**
  * Most recent entries only. The table grows with every write in the store, so

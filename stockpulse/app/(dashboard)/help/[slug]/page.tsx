@@ -96,7 +96,7 @@ export default async function HelpArticlePage({
   const { profile } = await getCurrentUser()
 
   return (
-    <div className="mx-auto max-w-[1100px] px-6 py-8 lg:px-8">
+    <div className="sp-page max-w-[1100px]">
       <Link
         href="/help"
         className="inline-flex items-center gap-1.5 rounded-lg text-sm font-semibold text-muted-strong transition hover:text-foreground"

@@ -253,7 +253,11 @@ export default function ReportsClient({
                 itemLabel="days"
               />
             </div>
-            <div className="mt-4 max-h-80 overflow-y-auto">
+            {/* overflow-x as well as -y. This table does not reflow into
+                cards the way the module tables do, so at 390px its only
+                escape from a long date column is sideways — without this the
+                page itself scrolls horizontally instead. */}
+            <div className="mt-4 max-h-80 overflow-auto">
               <table className="sp-table w-full text-left text-sm">
                 <thead className="sticky top-0 bg-surface">
                   <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">

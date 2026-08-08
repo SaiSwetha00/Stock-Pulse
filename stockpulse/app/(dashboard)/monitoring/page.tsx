@@ -1,7 +1,14 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import MonitoringClient from '@/components/monitoring/MonitoringClient'
 import type { CheckoutStation } from '@/types'
+
+export const metadata: Metadata = {
+  title: "Monitoring",
+  description: "Live checkout status across the shop floor.",
+  robots: { index: false, follow: false },
+}
 
 export default async function MonitoringPage() {
   const { profile, store } = await getCurrentUser()

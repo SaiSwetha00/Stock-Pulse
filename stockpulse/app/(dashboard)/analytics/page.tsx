@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
@@ -6,6 +7,12 @@ import { toLocalISODate } from '@/lib/format'
 import type { Category, Product } from '@/types'
 import type { ReportItem, ReportSale } from '@/lib/reports'
 import AnalyticsClient from '@/components/analytics/AnalyticsClient'
+
+export const metadata: Metadata = {
+  title: "Analytics",
+  description: "Revenue, transactions and product mix, compared against the period before.",
+  robots: { index: false, follow: false },
+}
 
 /**
  * The longest period the page offers is 90 days, and each of those compares

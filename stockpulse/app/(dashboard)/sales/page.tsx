@@ -1,9 +1,16 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import { DAY_LABELS } from '@/lib/format'
 import { REPORTING_TIMEZONE, reportingDate, shiftDays, weekdayIndex } from '@/lib/reportingTimezone'
 import { CATEGORY_LABELS, type Product, type Sale } from '@/types'
 import SalesClient from '@/components/sales/SalesClient'
+
+export const metadata: Metadata = {
+  title: "Sales",
+  description: "Log sales and review every transaction your store has taken.",
+  robots: { index: false, follow: false },
+}
 
 /** Shapes returned by the aggregate functions in migration 0004. */
 type DailyTotal = { day: string; total: number; sale_count: number }

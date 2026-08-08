@@ -209,9 +209,46 @@ the markup.
   KB gz. All seven new classes verified present in the built CSS by the D9
   recipe.
 
+- **Item 3 — Phase 7, completed rather than sampled.**
+
+  | Item | State |
+  |---|---|
+  | Page titles | 15 routes had none. All now titled; the 4 auth pages get theirs from a new segment `layout.tsx` because a client component cannot export `metadata`. Every `(dashboard)` route also carries `robots: { index: false }`. |
+  | Loading states | 8 route-specific `loading.tsx` added (analytics, reports, customers, audit, monitoring, support, settings, profile) so each reserves its own geometry rather than the generic group fallback. 15 in total now. |
+  | Error boundaries | `app/error.tsx` added. The landing, `/login`, `/signup`, `/privacy` and `/terms` previously had **none** — `(dashboard)/error.tsx` covers only the authenticated group and `global-error.tsx` only fires when the root layout throws. |
+  | Empty states | Audited all 15 modules. All covered; the two gaps found were the staff availability rail (no team yet) and monitoring (already had a bespoke "Set Up 4 Stations" state, left as-is). |
+  | Favicon | Was still create-next-app's default — 25,931 bytes of the Next.js mark. Replaced with a generated 16/32/48px ICO (1,283 B) and a 180px `apple-icon.png`, both the gold pulse mark. |
+  | OG image | Did not exist; link previews rendered as blank cards. `app/opengraph-image.tsx` added and **verified serving as `image/png`, 70 KB**. |
+  | 404 | Returns a real 404 with the right page. See the caveat below. |
+  | Focus rings | Global `:focus-visible` rule confirmed present in the shipped stylesheet, along with `.skip-link` and 7 `prefers-reduced-motion` blocks. |
+  | Mobile 390px | All 15 routes measured `scrollWidth === 390` — no horizontal overflow anywhere. Two non-reflowing tables (Reports' revenue-by-day, the CSV import preview) were given `overflow-auto` so they scroll inside their own box. |
+
+  Three bugs that only running the production server could find — `tsc`,
+  `eslint` and `next build` were green through all of them:
+
+  1. **The dashboard crashed at request time.** `DashboardView` is a Server
+     Component and `format={formatCurrency}` passed a *function* to a Client
+     Component. `CountUp` now takes a format *name*.
+  2. **The OG image was redirected to `/login`.** Next serves it from an
+     extensionless route, so the proxy matcher's extension rules missed it and
+     every scraper got the sign-in page as HTML.
+  3. **`/help` rendered "Help Centre · StockPulse · StockPulse"** — the page
+     spelled out a suffix the layout template already appends.
+
+  Bundle after all of it: shared JS **169.4 KB** (+0.1 KB), CSS 20.4 KB gz.
+
 ## In flight
 
-- Item 3 (Phase 7 completion), Item 4 (deploy).
+- Item 4 (merge and deploy).
+
+## Known caveat
+
+- **A signed-out visitor hitting an unknown URL gets `/login`, not the 404
+  page.** `updateSession` redirects any non-public path when there is no
+  session, and it cannot know which paths exist. Signed-in users get a proper
+  404 with status 404. Left as-is deliberately: changing it late means
+  touching the auth redirect, and bouncing an anonymous visitor to sign-in is
+  defensible behaviour. Flagged rather than fixed.
 
 ## Known remaining, deliberately not done
 

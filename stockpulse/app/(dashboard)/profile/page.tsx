@@ -1,6 +1,13 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import ProfileClient from '@/components/profile/ProfileClient'
+
+export const metadata: Metadata = {
+  title: "Profile",
+  description: "Your name, photo, contact details and password.",
+  robots: { index: false, follow: false },
+}
 
 export default async function ProfilePage() {
   const { profile, store } = await getCurrentUser()

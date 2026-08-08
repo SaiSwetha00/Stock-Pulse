@@ -1,8 +1,15 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import { toLocalISODate } from '@/lib/format'
 import StaffScheduleClient from '@/components/staff/StaffScheduleClient'
 import type { Profile, Shift } from '@/types'
+
+export const metadata: Metadata = {
+  title: "Staff Schedule",
+  description: "This week and who is covering each shift.",
+  robots: { index: false, follow: false },
+}
 
 function startOfWeek(d: Date): Date {
   const date = new Date(d)

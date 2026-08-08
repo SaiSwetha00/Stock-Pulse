@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { formatCurrency } from '@/lib/format'
 
 /**
  * A number that counts up to its value when it first scrolls into view.
@@ -8,7 +9,7 @@ import { useEffect, useRef } from 'react'
  * Deliberately not CSS-only. Everything else in the depth-and-motion pass is
  * pure CSS, and a pure-CSS counter is possible (`@property` on an integer plus
  * `counter()`), but it can only render a bare integer — it cannot produce
- * "₹12,480.50", which is what most figures on this dashboard are. The formatter
+ * "$12,480.50", which is what most figures on this dashboard are. The formatter
  * has to run per frame, so the frame loop has to be ours.
  *
  * What it keeps from the CSS approach: no library, nothing added to the shared
@@ -27,24 +28,39 @@ import { useEffect, useRef } from 'react'
  * already on screen. Holding the in-flight number in state would instead mean
  * the first paint shows a zero, and a stalled loop would leave it there.
  */
+
+/**
+ * `format` is a NAME, not a function, and that is load-bearing.
+ *
+ * DashboardView — the only caller — is a Server Component, and a function
+ * cannot cross the server/client boundary: React throws "Functions cannot be
+ * passed directly to Client Components". Passing `format={formatCurrency}`
+ * type-checked, linted and built completely clean, and then crashed the
+ * dashboard at request time, where it showed as a page stuck on its loading
+ * skeleton. A string prop is serialisable, so the boundary cannot be crossed
+ * wrongly in the first place.
+ */
+type Format = 'currency' | 'integer'
+
+const FORMATTERS: Record<Format, (n: number) => string> = {
+  currency: formatCurrency,
+  integer: (n) => Math.round(n).toLocaleString(),
+}
+
 export default function CountUp({
   value,
-  format,
+  format = 'integer',
   duration = 900,
   className,
 }: {
   value: number
-  /** Turns the in-flight number into what the user reads. */
-  format?: (n: number) => string
+  format?: Format
   duration?: number
   className?: string
 }) {
   const ref = useRef<HTMLSpanElement>(null)
+  const render = FORMATTERS[format]
 
-  // `format` is a dependency rather than a ref, so a caller must pass a stable
-  // function — every current one passes a module-level import. An inline arrow
-  // would restart the count on each parent render, which is a real bug and one
-  // this dependency makes visible instead of hiding behind a ref.
   useEffect(() => {
     const node = ref.current
     if (!node) return
@@ -58,11 +74,7 @@ export default function CountUp({
       return
     }
 
-    const render = (n: number) => {
-      const f = format
-      node.textContent = f ? f(n) : Math.round(n).toLocaleString()
-    }
-
+    const write = FORMATTERS[format]
     let frame = 0
     let start = 0
 
@@ -70,11 +82,11 @@ export default function CountUp({
       if (!start) start = now
       const t = Math.min(1, (now - start) / duration)
       // easeOutCubic — fast first, settling at the end. A linear count reads
-      // as a loading spinner rather than a figure arriving.
-      render(value * (1 - Math.pow(1 - t, 3)))
+      // as a loading spinner rather than a figure arriving. t reaches exactly
+      // 1 on the final frame, so it lands on the true value, not on an eased
+      // approximation of it.
+      node.textContent = write(value * (1 - Math.pow(1 - t, 3)))
       if (t < 1) frame = requestAnimationFrame(step)
-      // Landing on `value` itself rather than on the eased approximation is
-      // handled by t === 1 giving exactly 1, so the final frame is exact.
     }
 
     const observer = new IntersectionObserver(
@@ -83,7 +95,7 @@ export default function CountUp({
         // Once only. Re-running on every scroll back would make the dashboard
         // twitch each time someone scrolled up.
         observer.disconnect()
-        render(0)
+        node.textContent = write(0)
         frame = requestAnimationFrame(step)
       },
       { threshold: 0.2 },
@@ -96,14 +108,13 @@ export default function CountUp({
       cancelAnimationFrame(frame)
       // A value that changed mid-count (an auto-refresh landing) must not be
       // left showing a half-counted figure from the previous total.
-      const f = format
-      node.textContent = f ? f(value) : Math.round(value).toLocaleString()
+      node.textContent = write(value)
     }
   }, [value, duration, format])
 
   return (
     <span ref={ref} className={className}>
-      {format ? format(value) : Math.round(value).toLocaleString()}
+      {render(value)}
     </span>
   )
 }

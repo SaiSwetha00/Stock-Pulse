@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
@@ -6,6 +7,12 @@ import { toLocalISODate } from '@/lib/format'
 import type { Category, Product } from '@/types'
 import type { ReportItem, ReportSale } from '@/lib/reports'
 import ReportsClient from '@/components/reports/ReportsClient'
+
+export const metadata: Metadata = {
+  title: "Reports",
+  description: "Period reports for your store, exportable as CSV or PDF.",
+  robots: { index: false, follow: false },
+}
 
 /** Widest preset the page offers; everything narrower filters this set. */
 const WINDOW_DAYS = 90
