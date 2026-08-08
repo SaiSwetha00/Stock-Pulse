@@ -29,7 +29,9 @@ export default function PageSkeleton({
       // state once, not read out two dozen empty boxes.
       role="status"
       aria-label="Loading"
-      className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
+      // Same wrapper as a real page, so the skeleton occupies the exact box
+      // its content will — otherwise the layout jumps when data lands.
+      className="sp-page"
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>

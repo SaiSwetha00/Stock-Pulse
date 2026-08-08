@@ -8,9 +8,10 @@ import Link from 'next/link'
  */
 export default function CustomersSetupNotice() {
   return (
-    <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-8">
+    <div className="sp-page">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Customers</h1>
+        <p className="sp-eyebrow">Relationships</p>
+        <h1 className="sp-title mt-2">Customers</h1>
         <p className="mt-1 text-sm text-muted">
           Customer profiles, purchase history, and loyalty tiers.
         </p>

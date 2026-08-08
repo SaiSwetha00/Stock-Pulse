@@ -62,7 +62,11 @@ export default function ProfileClient({
             )}
           </div>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-foreground">{profile.full_name}</h1>
+            {/* The person's own name is the title here, so the eyebrow says
+                which page it is — the one case where the two carry different
+                information rather than repeating each other. */}
+            <p className="sp-eyebrow">Account</p>
+            <h1 className="sp-title mt-1.5">{profile.full_name}</h1>
             <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-muted">
               <Store className="h-4 w-4" />
               {roleLabel} <span>·</span> Member since {memberSince}
