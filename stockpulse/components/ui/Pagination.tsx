@@ -57,7 +57,7 @@ export default function Pagination({
             id={selectId}
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="control-h rounded-lg border border-border bg-surface px-2 text-sm text-muted-strong focus:border-border-strong focus:outline-none"
+            className="control-h rounded-lg border border-border bg-surface-muted px-2 text-sm text-muted-strong transition-[border-color,background-color] duration-150 focus:border-border-strong focus:bg-surface focus:outline-none"
           >
             {PAGE_SIZE_OPTIONS.map((size) => (
               <option key={size} value={size}>

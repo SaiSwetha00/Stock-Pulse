@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import { ArrowDownRight, ArrowUpRight, BarChart3, FileDown } from 'lucide-react'
 import { formatCurrency } from '@/lib/format'
@@ -130,6 +131,7 @@ export default function ReportsClient({
   windowStartIso: string
 }) {
   const toast = useToast()
+  const router = useRouter()
   const [from, setFrom] = useState(defaultFrom)
   const [to, setTo] = useState(defaultTo)
   const [pdfBusy, setPdfBusy] = useState(false)
@@ -288,7 +290,7 @@ export default function ReportsClient({
           value={from}
           max={to || undefined}
           onChange={(e) => setFrom(e.target.value)}
-          className="control-h rounded-lg border border-border bg-surface px-3 text-sm text-muted-strong focus:border-border-strong focus:outline-none"
+          className="control-h rounded-lg border border-border bg-surface-muted px-3 text-sm text-muted-strong transition-[border-color,background-color] duration-150 focus:border-border-strong focus:bg-surface focus:outline-none"
         />
         <label htmlFor="report-to" className="text-sm font-medium text-muted-strong">
           To
@@ -299,7 +301,7 @@ export default function ReportsClient({
           value={to}
           min={from || undefined}
           onChange={(e) => setTo(e.target.value)}
-          className="control-h rounded-lg border border-border bg-surface px-3 text-sm text-muted-strong focus:border-border-strong focus:outline-none"
+          className="control-h rounded-lg border border-border bg-surface-muted px-3 text-sm text-muted-strong transition-[border-color,background-color] duration-150 focus:border-border-strong focus:bg-surface focus:outline-none"
         />
 
         <div className="flex flex-wrap items-center gap-2 sm:ml-2">
@@ -347,16 +349,27 @@ export default function ReportsClient({
 
       {isEmpty ? (
         <div className="mt-6 sp-rise sp-e1 rounded-2xl border border-border bg-surface shadow-sm">
+          {/* "Last 90 days" was the first attempt here and it was wrong: on a
+              store with no sales at all, widening the range changes nothing,
+              so the primary action led nowhere in exactly the case a new
+              client sees. It also duplicated the preset chip directly above.
+              Logging a sale is what actually resolves this state — the same
+              action the dashboard's empty trend panel offers. */}
           <EmptyState
             icon={BarChart3}
             title="No sales in this range"
             description="Widen the date range, or log a sale to see it reported here."
+            action={
+              <Button variant="secondary" onClick={() => router.push('/sales')}>
+                Log a sale
+              </Button>
+            }
           />
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
           {/* Revenue by day */}
-          <section className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+          <section className="sp-rise sp-delay-1 sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="sp-heading">Revenue by day</h2>
               <ExportCsvButton
@@ -389,7 +402,7 @@ export default function ReportsClient({
                   {daily.map((d) => (
                     <tr key={d.iso} className="border-b border-border last:border-0">
                       <td className="py-2.5 pr-4 text-muted-strong">{d.label}</td>
-                      <td className="py-2.5 text-right font-semibold text-foreground">
+                      <td className="sp-num py-2.5 text-right font-semibold text-foreground">
                         {formatCurrency(d.value)}
                       </td>
                     </tr>
@@ -400,7 +413,7 @@ export default function ReportsClient({
           </section>
 
           {/* Top products */}
-          <section className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+          <section className="sp-rise sp-delay-2 sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="sp-heading">Top products</h2>
               <ExportCsvButton
@@ -433,8 +446,8 @@ export default function ReportsClient({
                   {products.map((p) => (
                     <tr key={p.name} className="border-b border-border last:border-0">
                       <td className="py-2.5 pr-4 text-muted-strong">{p.name}</td>
-                      <td className="py-2.5 pr-4 text-right text-muted-strong">{p.units}</td>
-                      <td className="py-2.5 text-right font-semibold text-foreground">
+                      <td className="sp-num py-2.5 pr-4 text-right text-muted-strong">{p.units}</td>
+                      <td className="sp-num py-2.5 text-right font-semibold text-foreground">
                         {formatCurrency(p.revenue)}
                       </td>
                     </tr>
@@ -445,7 +458,7 @@ export default function ReportsClient({
           </section>
 
           {/* Category mix */}
-          <section className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+          <section className="sp-rise sp-delay-3 sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="sp-heading">Category mix</h2>
               <ExportCsvButton
@@ -480,7 +493,7 @@ export default function ReportsClient({
           </section>
 
           {/* Payment methods */}
-          <section className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+          <section className="sp-rise sp-delay-4 sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="sp-heading">Payment methods</h2>
               <ExportCsvButton

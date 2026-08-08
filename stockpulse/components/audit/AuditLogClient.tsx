@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { History, ChevronDown, X } from 'lucide-react'
 import Badge, { type BadgeTone } from '@/components/ui/Badge'
+import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
 import SortableTh from '@/components/ui/SortableTh'
 import Pagination from '@/components/ui/Pagination'
@@ -209,7 +210,7 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
   }
 
   const selectClass =
-    'control-h rounded-lg border border-border bg-surface px-3 text-sm text-muted-strong focus:border-border-strong focus:outline-none'
+    'control-h rounded-lg border border-border bg-surface-muted px-3 text-sm text-muted-strong transition-[border-color,background-color] duration-150 focus:border-border-strong focus:bg-surface focus:outline-none'
 
   return (
     <div className="sp-page">
@@ -241,7 +242,7 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
             type="search"
             aria-label="Search activity"
             placeholder="Search person, record, or field..."
-            className="control-h w-full rounded-lg border border-border bg-surface px-3 pr-11 text-sm placeholder:text-muted focus:border-border-strong focus:outline-none"
+            className="control-h w-full rounded-lg border border-border bg-surface-muted px-3 pr-11 text-sm placeholder:text-muted transition-[border-color,background-color] duration-150 focus:border-border-strong focus:bg-surface focus:outline-none"
           />
           {search && (
             <button
@@ -392,6 +393,11 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
                         icon={History}
                         title="No entries match your filters"
                         description="Try widening the date range or clearing a filter."
+                        action={
+                          <Button variant="secondary" onClick={clearFilters}>
+                            Clear filters
+                          </Button>
+                        }
                       />
                     )}
                   </td>

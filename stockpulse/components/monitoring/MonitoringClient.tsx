@@ -307,7 +307,7 @@ export default function MonitoringClient({
       )}
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr_1.6fr]">
-        <div className="rounded-2xl bg-danger-bg p-6 shadow-sm">
+        <div className="sp-rise sp-delay-1 rounded-2xl bg-danger-bg p-6 shadow-sm">
           <p className="sp-heading flex items-center gap-2 text-danger">
             <AlertTriangle className="h-5 w-5" />
             Active Alerts
@@ -316,7 +316,7 @@ export default function MonitoringClient({
           <p className="mt-1 text-sm text-danger">Require Immediate Attention</p>
         </div>
 
-        <div className="rounded-2xl bg-gradient-to-br from-success-bg to-surface-muted p-6 shadow-sm">
+        <div className="sp-rise sp-delay-2 rounded-2xl bg-gradient-to-br from-success-bg to-surface-muted p-6 shadow-sm">
           <p className="sp-heading flex items-center gap-2 text-success">
             <CheckCircle2 className="h-5 w-5" />
             Stations Active
@@ -327,7 +327,7 @@ export default function MonitoringClient({
           <p className="sp-body mt-2">Optimal Utilization</p>
         </div>
 
-        <div className="sp-rise rounded-2xl border border-border bg-surface-muted p-6 shadow-sm">
+        <div className="sp-rise sp-delay-3 rounded-2xl border border-border bg-surface-muted p-6 shadow-sm">
           <p className="sp-heading">Current Intervention Rate</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <p className="text-4xl font-bold text-foreground">{interventionRate.toFixed(1)}%</p>

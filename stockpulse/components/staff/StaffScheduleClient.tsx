@@ -9,6 +9,7 @@ import { toLocalISODate } from '@/lib/format'
 import { useLocalToday } from '@/components/ui/LocalTime'
 import { leaveCoversDay } from '@/lib/validation/leave'
 import { LEAVE_KIND_LABELS, type Profile, type Role, type Shift, type StaffLeave } from '@/types'
+import Button from '@/components/ui/Button'
 import ShiftModal from './ShiftModal'
 import DeleteShiftDialog from './DeleteShiftDialog'
 import LeaveModal from './LeaveModal'
@@ -189,20 +190,19 @@ export default function StaffScheduleClient({
             <>
               {/* Secondary to Assign Shift: recording absence is the rarer of
                   the two, and the rota's primary action is still building it. */}
-              <button
-                onClick={() => setEditingLeave('new')}
-                className="flex control-h items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted"
-              >
+              {/* Both were hand-rolled copies of the secondary and primary
+                  variants. The primary also carried `uppercase tracking-wide`,
+                  which no other primary in the app has — a lone shouting
+                  button on one screen. On the ladder they inherit the focus
+                  ring and disabled handling too. */}
+              <Button variant="secondary" onClick={() => setEditingLeave('new')}>
                 <Palmtree className="h-4 w-4" aria-hidden="true" />
                 Record Leave
-              </button>
-              <button
-                onClick={() => setEditing('new')}
-                className="flex control-h items-center gap-2 rounded-lg bg-foreground px-4 text-sm font-semibold uppercase tracking-wide text-surface hover:opacity-90"
-              >
-                <Plus className="h-4 w-4" />
+              </Button>
+              <Button onClick={() => setEditing('new')}>
+                <Plus className="h-4 w-4" aria-hidden="true" />
                 Assign Shift
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -244,7 +244,23 @@ export default function StaffScheduleClient({
               inside them. Below 800px the grid scrolls sideways instead. That
               floor is what each column needs to seat a 44px delete target and
               still leave a 44px edit target beside it. */}
-          <div className="-mx-6 mt-6 overflow-x-auto px-6">
+          {/* Below lg the rota is wider than the screen, and Chrome makes an
+              overflowing container keyboard-focusable on its own so the week
+              can be scrolled without a mouse. That implicit focus carries no
+              tabindex attribute, so the global gold-ring rule — which reaches
+              `[tabindex]:focus-visible` — missed it, and the strip was the one
+              tab stop on the page painting the black UA ring. Measured at 390:
+              nonGoldRing=1, rgb(16,16,16).
+
+              Declaring the focusability rather than inheriting it fixes the
+              ring and makes the stop announce itself instead of being an
+              unlabelled div a screen-reader user lands on. */}
+          <div
+            className="-mx-6 mt-6 overflow-x-auto px-6"
+            tabIndex={0}
+            role="region"
+            aria-label="Weekly rota, scrolls horizontally"
+          >
           <div className="grid min-w-[800px] grid-cols-[56px_repeat(7,1fr)] gap-x-1">
             <div />
             {weekDates.map((d, i) => {
