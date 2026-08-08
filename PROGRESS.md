@@ -237,9 +237,50 @@ the markup.
 
   Bundle after all of it: shared JS **169.4 KB** (+0.1 KB), CSS 20.4 KB gz.
 
-## In flight
+- **Item 4 — Merged and deployed.** `main` at `31e5c90`, live at
+  **https://stock-pulse-mu.vercel.app**.
 
-- Item 4 (merge and deploy).
+  **There were two Vercel projects, and the repo was linked to the wrong one.**
+  `stockpulse/.vercel/project.json` pointed at `stockpulse` (created 8d ago,
+  Root Directory `.` — i.e. the repo-root Vite prototype, not the Next app —
+  and missing `RESEND_API_KEY`, `SUPPORT_NOTIFY_EMAIL` and `STORE_TIMEZONE`).
+  The credentials had been added to `stock-pulse` (Root Directory `stockpulse`,
+  all 8 env vars). Confirmed with the owner, then relinked. The relink is
+  local-only: `.vercel` is in `stockpulse/.gitignore:43` by Vercel's own
+  convention, so it cannot be committed without un-ignoring it.
+
+  Verified live: `/`, `/login`, `/signup`, `/privacy`, `/terms` all 200 and
+  hydrate; `/opengraph-image` serves `image/png` 70 KB (the proxy fix holds in
+  production); favicon and apple-icon serve; `robots.txt` and `sitemap.xml`
+  carry the right absolute domain, which also confirms `NEXT_PUBLIC_SITE_URL`
+  is correct for the live host; `/dashboard` 307s when signed out; no
+  horizontal overflow at 390px. One more doubled-suffix title bug found on the
+  deployed pages (`/privacy`, `/terms`) and fixed in `31e5c90`.
+
+## Could not verify this session
+
+- **Authenticated routes on the *live* domain.** Signing in means typing a
+  password, which this agent will not do. All 15 authenticated routes were
+  verified against the identical production build (`next build` + `next start`,
+  same commit, same Supabase project) using the existing local session: every
+  one returned 200 with the right title, no error boundary, `sp-rise` present,
+  and `scrollWidth === 390` at a 390px viewport. That is strong evidence, not
+  a substitute for signing in on the live URL.
+- **Supabase redirect URL allow-list.** No read-only endpoint exposes it — the
+  obvious probe (`/auth/v1/authorize`) returns `provider is not enabled`
+  because no OAuth provider is on, so it cannot discriminate. Needs the
+  dashboard. The value that must be listed is
+  `https://stock-pulse-mu.vercel.app/reset-password` (invites and recovery both
+  target it) plus `https://stock-pulse-mu.vercel.app/auth/callback`.
+- **Support email actually arriving.** Requires a real submission.
+- **Invite delivery and anything needing a second account** — including
+  Deactivate/Reactivate against a real staff member. The action is owner-gated
+  and refuses self and owner targets, but it has not been exercised end to end.
+- **Lighthouse, LCP, INP, CLS.** Unchanged from the previous session: these
+  need a real browser run against authenticated routes.
+- **Screenshots.** The Browser pane could not composite frames this session, so
+  everything visual was verified through the DOM and the shipped stylesheet
+  rather than by eye.
 
 ## Known caveat
 
