@@ -124,6 +124,9 @@ const EMPTY: ProductInput = {
   stock: '',
   lowStockThreshold: '',
   expiryDate: '',
+  // CSV has no image column; a bulk import leaves the photo unset rather
+  // than inventing one.
+  imageUrl: '',
 }
 
 /**

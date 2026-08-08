@@ -18,6 +18,7 @@ import ExportCsvButton from '@/components/ui/ExportCsvButton'
 import { useTable, type SortAccessors } from '@/lib/useTable'
 import type { CsvColumn } from '@/lib/csv'
 import ProductModal from './ProductModal'
+import ProductThumb from '@/components/ui/ProductThumb'
 import ImportProductsModal from './ImportProductsModal'
 
 const CATEGORY_FILTERS: { value: Category | 'all'; label: string }[] = [
@@ -100,11 +101,13 @@ const CSV_COLUMNS: CsvColumn<Product>[] = [
  */
 export default function InventoryClient({
   role,
+  storeId,
   initialProducts,
 }: {
   // storeId is no longer needed: mutations go through Server Actions that read
   // the store from the session.
   role: Role
+  storeId: string
   initialProducts: Product[]
 }) {
   const router = useRouter()
@@ -417,9 +420,7 @@ export default function InventoryClient({
                 >
                   <td className="block lg:table-cell lg:px-6 lg:py-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-sm font-bold text-muted">
-                        {p.name.slice(0, 2).toUpperCase()}
-                      </div>
+                      <ProductThumb name={p.name} imageUrl={p.image_url} size={40} />
                       <div className="min-w-0">
                         <p className="truncate font-semibold text-foreground">{p.name}</p>
                         {p.brand && <p className="truncate text-xs text-muted">{p.brand}</p>}
@@ -511,6 +512,7 @@ export default function InventoryClient({
       {modalOpen && (
         <ProductModal
           product={editing}
+          storeId={storeId}
           onClose={() => {
             setModalOpen(false)
             setEditing(null)

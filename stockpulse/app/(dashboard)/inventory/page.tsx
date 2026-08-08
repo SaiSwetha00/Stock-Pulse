@@ -16,6 +16,7 @@ export default async function InventoryPage() {
   return (
     <InventoryClient
       role={profile.role}
+      storeId={store.id}
       initialProducts={(products ?? []) as Product[]}
     />
   )

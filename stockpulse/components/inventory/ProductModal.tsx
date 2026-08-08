@@ -6,6 +6,7 @@ import Modal from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { saveProduct } from '@/app/(dashboard)/inventory/actions'
 import { validateProduct, type ProductErrors, type ProductInput } from '@/lib/validation/product'
+import ProductImageUpload from './ProductImageUpload'
 import type { Category, Product } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
 
@@ -13,9 +14,13 @@ const CATEGORIES: Category[] = ['produce', 'dairy', 'packaged', 'beverages', 'ho
 
 export default function ProductModal({
   product,
+  storeId,
   onClose,
   onSaved,
 }: {
+  /** Only the Storage path prefix. Not a permission — migration 0009's
+   *  policies re-check it against current_store_id(). */
+  storeId: string
   // storeId is intentionally absent: the Server Action reads it from the
   // session, so the browser can no longer choose which store it writes to.
   product: Product | null
@@ -31,6 +36,7 @@ export default function ProductModal({
   const [stock, setStock] = useState(product?.stock?.toString() ?? '')
   const [threshold, setThreshold] = useState(product?.low_stock_threshold?.toString() ?? '10')
   const [expiryDate, setExpiryDate] = useState(product?.expiry_date ?? '')
+  const [imageUrl, setImageUrl] = useState<string | null>(product?.image_url ?? null)
   const router = useRouter()
   const toast = useToast()
   const [error, setError] = useState('')
@@ -59,6 +65,7 @@ export default function ProductModal({
       stock,
       lowStockThreshold: threshold,
       expiryDate,
+      imageUrl: imageUrl ?? '',
     }
   }
 
@@ -100,6 +107,10 @@ export default function ProductModal({
   return (
     <Modal title={product ? 'Edit Product' : 'Add Product'} onClose={onClose} width="lg">
         <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+          {/* First field: the photo is what a shopkeeper recognises a line by,
+              so it is asked for before the paperwork. */}
+          <ProductImageUpload storeId={storeId} value={imageUrl} onChange={setImageUrl} />
+
           {(error || fieldErrors.length > 0) && (
             <div role="alert" className="rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">
               {error}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Search, Plus, Minus, Trash2, ShoppingCart } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import Modal from '@/components/ui/Modal'
+import ProductThumb from '@/components/ui/ProductThumb'
 import { useToast } from '@/components/ui/Toast'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/format'
@@ -182,9 +183,14 @@ export default function LogSaleModal({
                   <button
                     key={p.id}
                     onClick={() => addToCart(p)}
-                    className="flex control-h w-full items-center justify-between px-4 text-left text-sm hover:bg-surface-muted"
+                    className="flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-sm hover:bg-surface-muted"
                   >
-                    <span className="font-medium text-foreground">{p.name}</span>
+                    {/* The photo is how a line gets recognised at a till — far
+                        faster than reading a name out of a long list. */}
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <ProductThumb name={p.name} imageUrl={p.image_url} size={28} />
+                      <span className="truncate font-medium text-foreground">{p.name}</span>
+                    </span>
                     <span className="text-muted">
                       {formatCurrency(p.unit_price)} · {p.stock} in stock
                     </span>
