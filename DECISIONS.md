@@ -481,3 +481,55 @@ general rule for anything in the verification path: **an instrument that cannot
 tell you it is broken is worse than no instrument**, because it converts absence
 of evidence into evidence of absence. Prefer a loud failure to a green one on
 every check the harness makes.
+
+## D27 — Hover lift is for things you can click. These are not.
+
+Phase 3A asked for the dashboard's motion vocabulary on Inventory, Sales,
+Suppliers and Customers, and that list included a hover lift. It was not
+applied, and the omission is deliberate — recorded here so a later batch does
+not "fix" it.
+
+`.sp-lift` raises an element one elevation rung on hover and presses it on
+click. Its own definition in `globals.css` already says it: a card that moves
+when you point at it and depresses when clicked is a promise that something
+happens. On the four Phase 3A routes nothing does. The stat panels are
+readouts. The table rows are not links — the actions live on buttons inside
+the row, which have their own hover and focus states.
+
+Applying it anyway would buy visual consistency with the dashboard by lying
+about affordance in four places, and the cost lands on exactly the user who
+trusts the interface most: the one who points at a card, sees it respond, and
+clicks.
+
+The honest hover affordance for a table is the row tint, and that is present
+and measured — `--surface-muted` at 0.12s, above `lg` only, because below that
+the rows are separate cards and tinting one would read as a stuck selection.
+
+If a card in these modules ever becomes clickable, `sp-lift` is the right
+answer for that card. Blanket application is not.
+
+## D28 — Toolbar controls are the same family, not the same component
+
+The search boxes and filter selects on the four list routes do not use
+`Field`. They should not: `Field` puts a visible uppercase label above its
+control, and a search box that already carries a magnifier icon, a placeholder
+describing exactly what it matches, and a clear button does not need the word
+"Search" stacked on top of it. That is a form pattern applied to a toolbar.
+
+What was wrong was the drift underneath. Measured before this pass, the eight
+toolbar controls disagreed on radius (`rounded-xl` on three routes,
+`rounded-lg` on Sales), on background (`bg-surface` on five, `bg-surface-muted`
+on two), and on whether focus changed the fill at all.
+
+So the shared *skin* is now identical to `Field`'s `CONTROL` — same radius,
+same border token, same `bg-surface-muted` resting fill, same `focus:bg-surface`,
+same `control-h` height, same 150ms transition, same gold `:focus-visible`
+ring — while the *layout* stays a toolbar: icon inside the box, placeholder
+doing the labelling work, clear button on the right.
+
+Accessible names come from `aria-label` on every search input and an `sr-only`
+`<label htmlFor>` on every select, verified in the browser rather than by
+reading the markup. Font size is left per-toolbar on purpose: Sales runs a
+compact filter bar at `text-xs` in a 192px box, and forcing `text-sm` there
+would overflow it to buy a consistency nobody can see, since the two toolbars
+are never on screen together.

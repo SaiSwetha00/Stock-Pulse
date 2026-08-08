@@ -257,7 +257,7 @@ export default function InventoryClient({
             type="search"
             aria-label="Search inventory"
             placeholder="Search name, SKU, brand, category, or unit..."
-            className="control-h w-full rounded-xl border border-border bg-surface pl-10 pr-12 text-sm placeholder:text-muted focus:border-border-strong focus:outline-none"
+            className="control-h w-full rounded-lg border border-border bg-surface-muted pl-10 pr-12 text-sm placeholder:text-muted transition-[border-color,background-color] duration-150 focus:border-border-strong focus:bg-surface focus:outline-none"
           />
           {search && (
             <button
@@ -285,7 +285,7 @@ export default function InventoryClient({
               setStatus(e.target.value as StockStatus | 'all')
               table.setPage(1)
             }}
-            className="control-h rounded-xl border border-border bg-surface px-3 text-sm text-muted-strong focus:border-border-strong focus:outline-none"
+            className="control-h rounded-lg border border-border bg-surface-muted px-3 text-sm text-muted-strong transition-[border-color,background-color] duration-150 focus:border-border-strong focus:bg-surface focus:outline-none"
           >
             {STATUS_FILTERS.map((f) => (
               <option key={f.value} value={f.value}>
