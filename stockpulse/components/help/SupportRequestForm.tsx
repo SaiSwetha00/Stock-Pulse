@@ -72,7 +72,7 @@ export default function SupportRequestForm({
       <div className="rounded-xl border border-border bg-surface p-6">
         <div className="flex items-center gap-2 text-accent">
           <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
-          <h3 className="text-lg font-bold">Request sent</h3>
+          <h3 className="sp-heading">Request sent</h3>
         </div>
         {/* role="status" so the change is announced — a sighted user sees the
             panel swap, a screen reader user would otherwise get nothing. */}

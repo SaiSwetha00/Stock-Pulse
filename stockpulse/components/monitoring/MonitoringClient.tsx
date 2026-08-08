@@ -287,7 +287,7 @@ export default function MonitoringClient({
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr_1.6fr]">
         <div className="rounded-2xl bg-danger-bg p-6 shadow-sm">
-          <p className="flex items-center gap-2 text-lg font-bold text-danger">
+          <p className="sp-heading flex items-center gap-2 text-danger">
             <AlertTriangle className="h-5 w-5" />
             Active Alerts
           </p>
@@ -296,7 +296,7 @@ export default function MonitoringClient({
         </div>
 
         <div className="rounded-2xl bg-gradient-to-br from-success-bg to-surface-muted p-6 shadow-sm">
-          <p className="flex items-center gap-2 text-lg font-bold text-success">
+          <p className="sp-heading flex items-center gap-2 text-success">
             <CheckCircle2 className="h-5 w-5" />
             Stations Active
           </p>

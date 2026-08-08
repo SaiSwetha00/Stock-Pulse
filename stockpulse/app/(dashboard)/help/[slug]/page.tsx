@@ -43,7 +43,7 @@ export async function generateMetadata({
 function Block({ block }: { block: HelpBlock }) {
   switch (block.kind) {
     case 'h':
-      return <h2 className="mt-9 text-lg font-bold text-foreground">{block.text}</h2>
+      return <h2 className="sp-heading mt-9">{block.text}</h2>
     case 'p':
       // 65ch cap: past roughly 75 characters the eye loses the start of the
       // next line, which is what makes long-form text tiring to read.
@@ -127,7 +127,7 @@ export default async function HelpArticlePage({
 
       {related.length > 0 && (
         <section className="mt-12 border-t border-border pt-8">
-          <h2 className="text-lg font-bold text-foreground">More on this</h2>
+          <h2 className="sp-heading">More on this</h2>
           <ul className="mt-4 space-y-2">
             {related.map((a) => (
               <li key={a.slug}>

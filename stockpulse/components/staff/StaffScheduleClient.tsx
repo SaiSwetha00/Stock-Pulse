@@ -214,7 +214,7 @@ export default function StaffScheduleClient({
                   <p className={`text-[10px] font-semibold uppercase tracking-wide ${isToday ? 'text-muted' : 'text-muted'}`}>
                     {DAY_NAMES[i]}
                   </p>
-                  <p className="text-lg font-bold">{dayNum}</p>
+                  <p className="sp-heading">{dayNum}</p>
                 </div>
               )
             })}

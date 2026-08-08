@@ -177,7 +177,7 @@ export default function SalesClient({
           </div>
 
           <div className="rounded-2xl bg-foreground p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-surface">Popular Categories</h2>
+            <h2 className="sp-heading-invert">Popular Categories</h2>
             <div className="mt-5 space-y-4">
               {categoryBreakdown.map((c) => (
                 <div key={c.label}>

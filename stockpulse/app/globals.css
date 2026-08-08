@@ -629,7 +629,23 @@ body {
   line-height: 1.4;
   font-weight: 700;
   letter-spacing: -0.011em;
+}
+
+/* Colour at zero specificity so any text-* utility on the same element wins. */
+:where(.sp-heading) {
   color: var(--foreground);
+}
+
+/* Explicit inverted variant, for headings that sit on a filled dark card.
+   Relying on `sp-heading text-surface` was a mistake: the two tie on
+   specificity, so it came down to source order — and it rendered dark text on
+   a dark card, i.e. invisible. A named class cannot lose that race. */
+.sp-heading-invert {
+  font-size: 1.0625rem;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: -0.011em;
+  color: var(--surface);
 }
 
 .sp-subheading {
@@ -637,6 +653,9 @@ body {
   line-height: 1.45;
   font-weight: 600;
   letter-spacing: -0.006em;
+}
+
+:where(.sp-subheading) {
   color: var(--foreground);
 }
 
