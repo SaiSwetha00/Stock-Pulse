@@ -51,18 +51,32 @@ export default async function StaffPage({
     // The test is "starts on or before the week ends, and ends on or after it
     // begins" — the standard interval overlap, with both bounds inclusive.
     supabase
+      // The FK must be named. `profiles(full_name)` is ambiguous here because
+      // staff_leave has TWO foreign keys to profiles — staff_id and created_by
+      // — and PostgREST refuses to guess, answering PGRST201 with a 300. The
+      // rows returned fine; only the embed failed, so leave silently rendered
+      // as empty. Found by querying PostgREST directly, not by reading code.
       .from('staff_leave')
-      .select('*, profiles(full_name)')
+      .select('*, profiles!staff_leave_staff_id_fkey(full_name)')
       .eq('store_id', store.id)
       .lte('starts_on', weekEndISO)
       .gte('ends_on', weekStartISO),
   ])
 
-  // Migration 0011 may not have been run yet. The rota predates leave and has
-  // to keep rendering without it — an unapplied migration should cost the
-  // leave stripes, not the whole schedule.
-  const leave =
-    leaveResult.error?.code === '42P01' ? [] : ((leaveResult.data ?? []) as StaffLeave[])
+  /**
+   * Migration 0011 may not have been run yet. The rota predates leave and has
+   * to keep rendering without it — an unapplied migration should cost the
+   * leave bands, not the whole schedule.
+   *
+   * Every OTHER error is logged rather than swallowed. An earlier version
+   * returned `data ?? []` for any failure at all, which is precisely how the
+   * ambiguous embed above stayed invisible: the page rendered perfectly, with
+   * no leave on it and nothing anywhere saying why.
+   */
+  if (leaveResult.error && leaveResult.error.code !== '42P01') {
+    console.error('[staff] leave query failed', leaveResult.error)
+  }
+  const leave = (leaveResult.data ?? []) as StaffLeave[]
 
   return (
     <StaffScheduleClient
