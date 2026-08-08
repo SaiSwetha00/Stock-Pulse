@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
+import { sendSupportEmails } from '@/lib/email/resend'
 import {
   validateSupportRequest,
   toSupportRequestPayload,
@@ -53,7 +54,7 @@ export async function submitSupportRequest(
   const { data, error } = await supabase
     .from('support_requests')
     .insert({ ...payload, store_id: store.id, raised_by: profile.id })
-    .select('reference')
+    .select('reference, created_at')
     .single()
 
   if (error) {
@@ -82,6 +83,39 @@ export async function submitSupportRequest(
       ok: false,
       message: 'Your request was saved, but we could not read back its ticket number.',
     }
+  }
+
+  /**
+   * The request is saved by this point, and nothing below may change that.
+   *
+   * Notification is a side effect of filing a ticket, not part of filing it: a
+   * Resend outage must not tell someone their message was lost when it is
+   * sitting safely in the table. So the result is logged and discarded rather
+   * than surfaced — the operator finds the request in the Support section
+   * regardless, which is precisely why that section exists.
+   */
+  const { operator, confirmation } = await sendSupportEmails({
+    reference: data.reference,
+    name: payload.name,
+    email: payload.email,
+    category: payload.category,
+    message: payload.message,
+    storeName: store.name,
+    createdAtIso: data.created_at ?? new Date().toISOString(),
+  })
+
+  if (!operator.ok) {
+    // console.error, not a swallowed catch: this lands in the Vercel function
+    // log where it can be found. "not-configured" is a deployment problem,
+    // "failed" is a Resend problem, and the message says which.
+    console.error(
+      `[support ${data.reference}] operator notification ${operator.reason}: ${operator.detail}`,
+    )
+  }
+  if (confirmation && !confirmation.ok) {
+    console.error(
+      `[support ${data.reference}] submitter confirmation ${confirmation.reason}: ${confirmation.detail}`,
+    )
   }
 
   return { ok: true, reference: data.reference }
