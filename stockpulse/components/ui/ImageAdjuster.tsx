@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ZoomIn, ZoomOut, Loader2 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 
@@ -39,23 +39,27 @@ export default function ImageAdjuster({
   onConfirm: (result: AdjustedImage) => void
   confirmLabel?: string
 }) {
-  const [src, setSrc] = useState<string | null>(null)
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
   const [zoom, setZoom] = useState(1)
-  const [pan, setPan] = useState({ x: 0, y: 0 })
+  /**
+   * Raw, unclamped drag offset. The value actually used is derived below —
+   * storing the clamped value would need an effect to re-clamp on zoom, and a
+   * setState inside an effect is both a lint error here and a cascading
+   * render. Deriving keeps one source of truth.
+   */
+  const [rawPan, setPan] = useState({ x: 0, y: 0 })
   const [working, setWorking] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const imgRef = useRef<HTMLImageElement | null>(null)
   const dragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null)
 
-  // Object URLs are a manual resource: without the revoke the blob stays
-  // resident for the life of the document.
-  useEffect(() => {
-    const url = URL.createObjectURL(file)
-    setSrc(url)
-    return () => URL.revokeObjectURL(url)
-  }, [file])
+  // Created during render rather than in an effect, so there is no frame where
+  // src is null and no setState inside an effect. The effect only revokes:
+  // object URLs are a manual resource and would otherwise stay resident for
+  // the life of the document.
+  const src = useMemo(() => URL.createObjectURL(file), [file])
+  useEffect(() => () => URL.revokeObjectURL(src), [src])
 
   /**
    * Scale at which the image exactly covers the square. Everything else is a
@@ -83,19 +87,9 @@ export default function ImageAdjuster({
     [drawnW, drawnH],
   )
 
-  // Re-clamp when zoom changes, or zooming out leaves the image parked
-  // off-centre with a gap at one edge.
-  useEffect(() => {
-    setPan((p) => {
-      const limitX = Math.max(0, (drawnW - VIEWPORT) / 2)
-      const limitY = Math.max(0, (drawnH - VIEWPORT) / 2)
-      const next = {
-        x: Math.min(limitX, Math.max(-limitX, p.x)),
-        y: Math.min(limitY, Math.max(-limitY, p.y)),
-      }
-      return next.x === p.x && next.y === p.y ? p : next
-    })
-  }, [drawnW, drawnH])
+  // Derived, not stored. Zooming out therefore re-frames immediately instead
+  // of leaving the image parked off-centre with a gap at one edge.
+  const pan = clamp(rawPan)
 
   function onPointerDown(e: React.PointerEvent) {
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -105,7 +99,7 @@ export default function ImageAdjuster({
   function onPointerMove(e: React.PointerEvent) {
     const d = dragRef.current
     if (!d) return
-    setPan(clamp({ x: d.panX + (e.clientX - d.x), y: d.panY + (e.clientY - d.y) }))
+    setPan({ x: d.panX + (e.clientX - d.x), y: d.panY + (e.clientY - d.y) })
   }
 
   function onPointerUp(e: React.PointerEvent) {
