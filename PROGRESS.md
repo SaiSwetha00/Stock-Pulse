@@ -325,6 +325,66 @@ the markup.
   server-rendered HTML and the Server Actions directly. The rail's server-side
   render is correct; its hydrated state is unexercised.
 
+## Phase 2 close-out (2026-08-08, branch `ui/palette-round`)
+
+- **Migration 0012 applied.** `checkout_stations` went from 3 policies to 4;
+  the new one is `managers can delete stations · DELETE · ((store_id =
+  current_store_id()) AND can_manage())`. Applied through the SQL editor.
+
+- **The delete policy had no UI to exercise it** — 0012's own header says so.
+  Added `Remove Counter` to each station card, owner/manager only, and only for
+  a station that is free or already offline so a live basket cannot be deleted
+  out from under the customer at it.
+
+  The delete asks for the removed ids back (`.select('id')`). Without that, RLS
+  refusing is indistinguishable from success — 200, no error, zero rows — which
+  is the exact silent no-op 0012 fixes.
+
+- **Two defects found by running it, both invisible to `tsc`/`eslint`/`build`:**
+
+  1. `Button` carries `shrink-0`, so two `fullWidth` buttons in the confirm row
+     could not shrink and Cancel sat **+237.3px** past the card's inner edge,
+     where the card's `overflow-hidden` clipped it away entirely. The control
+     was unreachable. Now `flex-1 min-w-0`; re-measured at −31px.
+  2. The zero-row guard blamed the migration for *any* empty result. Driving
+     the flow headless hit the other cause: after a removal the board shows the
+     stale card until `router.refresh()` lands, so a second click deletes an
+     already-deleted row and the UI told the shopkeeper to go and run SQL. Now
+     names both causes and refreshes.
+
+- **Seed then delete, both proved.** Four counters inserted: all `available`,
+  `items_scanned 0`, `current_total 0`, `session_started_at null`, all four
+  alert fields null — **4/4**, read from PostgREST, not from the page. Then all
+  four removed through the UI's own buttons: DB rows **4 → 0**, board ended on
+  the empty state.
+
+  (The table holds 16 rows across 4 stores; the 12 fabricated ones belong to
+  three *other* stores and were not touched.)
+
+- **Harness matrix, 16 measurements** — `/dashboard` and `/monitoring` × light
+  and dark × 390 and 1440, run twice: once with 4 counters, once with none.
+
+  | | |
+  |---|---|
+  | CLS | **0** in all 16 |
+  | Console errors/warnings | **0** in all 16 |
+  | Network failures | 0 real; every one was an `ERR_ABORTED` on a `?_rsc=` prefetch |
+  | Card overflow offenders | 0 |
+  | Horizontal page overflow | none at 390 or 1440 |
+  | Focus rings | every tab stop gold, 0 ringless, 0 non-gold |
+  | `N of M counters busy` | `"0 of 4 counters busy"` in all 4 dashboard states with counters; correctly absent in all 4 with none |
+  | Monitoring empty state | present in all 4 states with none, with `Set Up 4 Stations`; absent in all 4 with counters |
+
+  **Harness auth is now a dedicated test account**, not a lifted session
+  cookie: `harness@stockpulse.test`, created via the Admin API, owner of
+  `sandal local store`. Repeatable with nobody in the loop, which Phase 3's
+  11-route sweep needs. Setup and its three Windows/Git-Bash traps are written
+  up in the scratchpad's `HARNESS-AUTH.md`. **The account still exists** —
+  `node harness-auth.js --destroy` removes it.
+
+  The harness now hard-fails when `location.pathname` is not the requested
+  path. It had been measuring `/login` and labelling the result `/dashboard`.
+
 ## Could not verify this session
 
 - **Authenticated routes on the *live* domain.** Signing in means typing a
