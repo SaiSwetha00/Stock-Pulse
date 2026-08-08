@@ -290,11 +290,40 @@ the markup.
   leave on record". Only `saveLeave` reports the missing table, and it names the
   file to run.
 
-## Blocked on the owner
+- **Leave verified end to end, and the verification found a bug.** `0011` was
+  applied, then every path was exercised against the real table by invoking the
+  Server Actions over HTTP with a live session.
 
-| What | Why |
-|---|---|
-| Run `0011_staff_leave.sql` | **NOT APPLIED.** Record Leave returns "Leave is not set up yet" until it is run. Everything else, including the whole rota, works without it. |
+  **The bug:** `saveLeave` returned `{ok:true}` and wrote the row correctly, but
+  the rota showed nothing. `staff_leave` has *two* foreign keys to `profiles`
+  (`staff_id` and `created_by`), so `profiles(full_name)` is ambiguous and
+  PostgREST answers PGRST201 with a 300. Worse, the result was handled as
+  `error?.code === '42P01' ? [] : (data ?? [])`, so **every** error but a
+  missing table silently became an empty list — the page rendered perfectly
+  with no leave on it and nothing saying why. Fixed in `267002c`: the embed is
+  named, and only 42P01 stays special-cased.
+
+  | Checked | Result |
+  |---|---|
+  | Two-day range renders on the rota | 2 bands, one per day |
+  | Assign on a leave day | refused, field error on the date |
+  | Assign on a free day (control) | saved |
+  | Day before / day after the range | both allowed |
+  | First / last day of the range | both blocked — inclusive, no off-by-one |
+  | Edit the range | block moves with it |
+  | End before start · unknown kind · 732-day span · staff id from another store | each rejected with the right field error |
+  | Unassigned shift on a leave day | allowed, which is correct |
+  | Delete the leave | day frees up again |
+
+  Test rows were all removed afterwards; `shifts` and `staff_leave` are back to
+  empty.
+
+  **Not verified:** the availability rail's "on leave today" state, which is
+  gated on `useLocalToday()` and therefore only appears after client hydration.
+  The Browser pane in this environment never hydrates React (confirmed: no
+  `__react` props on any DOM node), so every UI check here was against
+  server-rendered HTML and the Server Actions directly. The rail's server-side
+  render is correct; its hydrated state is unexercised.
 
 ## Could not verify this session
 
