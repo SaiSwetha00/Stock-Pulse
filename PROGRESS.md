@@ -154,6 +154,17 @@ the markup.
   added as honest placeholders and made public in the proxy. "Stock Pulse
   Technologies Inc." -> "Stock Pulse".
 
+- **Dashboard greeting.** Time-of-day greeting in Cinzel using the profile's
+  first name, one line of live context from real data, and a sub-1KB inline-SVG
+  pulse mark on CSS keyframes. Shared bundle measured 169.3 KB before and after,
+  so it added nothing.
+- **Image adjuster.** One shared crop + zoom component for the profile photo and
+  product images. Square 512px WebP output; a 4MB camera JPEG lands around 40KB.
+- **Product images.** Bucket migration `0009`, upload with crop, `image_url`
+  threaded through `ProductInput`/`ProductPayload` (it was absent, so the save
+  would have silently dropped it), and `ProductThumb` in the inventory list and
+  sales picker with an initials placeholder.
+
 ## In flight
 
 - Nothing. All requested phases are complete.
@@ -198,7 +209,8 @@ the markup.
 
 | What | Why |
 |---|---|
-| Run `0008_avatars_bucket.sql` | Avatar upload fails until the bucket exists |
+| Run `0009_product_images_bucket.sql` | **NOT APPLIED.** Product image uploads report "storage is not set up" until it is run |
+| Run `0008_avatars_bucket.sql` | Applied |
 | Resend -> Supabase custom SMTP | Invitations cannot be delivered; blocks Phase 3 |
 
 ## Could not verify without the owner
