@@ -1,3 +1,16 @@
+-- =====================================================================
+-- DEVELOPMENT SEED DATA — NEVER RUN THIS AGAINST A PRODUCTION DATABASE.
+--
+-- This file inserts fabricated products, sales, customers and suppliers.
+-- Run against a real store it becomes indistinguishable from that shop's
+-- own trading history: invented revenue in Reports, invented stock in
+-- Inventory, invented people in Customers.
+--
+-- The application never executes this file. It exists only for seeding a
+-- scratch database during development. It lives under supabase/dev-only/
+-- and is named this way so it cannot be pasted into the Supabase SQL
+-- editor by accident.
+-- =====================================================================
 -- StockPulse demo seed data
 -- Run in the Supabase SQL editor AFTER schema.sql, schema_phase2.sql,
 -- schema_phase3.sql and schema_phase4.sql.
