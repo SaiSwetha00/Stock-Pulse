@@ -156,7 +156,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
       { kind: 'h', text: 'Step 4 — Invite your team' },
       {
         kind: 'p',
-        text: 'In Settings, use Add Staff to invite people by email. Give them the Manager role if they run shifts and order stock, or Staff if they mainly log sales. They set their own password from the invite.',
+        text: 'Open Staff, switch to the Team tab, and use Add Staff to invite people by email. Give them the Manager role if they run shifts and order stock, or Staff if they mainly log sales. They set their own password from the invite.',
       },
       {
         kind: 'note',
@@ -390,14 +390,18 @@ export const HELP_ARTICLES: HelpArticle[] = [
       {
         kind: 'steps',
         items: [
-          'Open Settings — only the owner can do this.',
-          'In Staff Management, click Add Staff.',
+          'Open Staff and switch to the Team tab — only the owner sees it.',
+          'Click Add Staff.',
           'Enter their name, email, and role, then send the invite.',
         ],
       },
       {
         kind: 'p',
-        text: 'They appear in the list as Invited until they accept and set a password, at which point they show as Active.',
+        text: 'They appear in the list as Invited until they accept and set a password, at which point they show as Active. While an invitation is still pending you can resend or revoke it from the same row.',
+      },
+      {
+        kind: 'p',
+        text: 'Once someone is Active, Edit changes their name, job title, and role, and Deactivate removes their sign-in without deleting anything — their past sales and shifts stay exactly where they are, and Reactivate puts them back.',
       },
       { kind: 'h', text: 'Assigning a shift' },
       {
@@ -612,7 +616,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
         kind: 'list',
         items: [
           'Check their spam folder first — this is the answer most of the time.',
-          'Check the address in Settings under Staff Management for a typo.',
+          'Check the address under Staff → Team for a typo.',
           'If they are still listed as Invited, the owner can send the invite again.',
         ],
       },

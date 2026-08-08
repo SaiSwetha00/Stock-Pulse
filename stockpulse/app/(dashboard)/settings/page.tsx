@@ -1,19 +1,20 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import SettingsClient from '@/components/settings/SettingsClient'
-import type { Profile } from '@/types'
+
+export const metadata: Metadata = {
+  title: 'Store Settings',
+  description: 'Store details, appearance, and operational thresholds.',
+}
 
 export default async function SettingsPage() {
   const { profile, store } = await getCurrentUser()
   if (profile.role !== 'owner') redirect('/dashboard')
 
-  const supabase = await createClient()
-  const { data: staff } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('store_id', store.id)
-    .order('created_at', { ascending: true })
-
-  return <SettingsClient store={store} staff={(staff ?? []) as Profile[]} />
+  // The staff query that used to run here moved to /staff/team along with the
+  // roster it fed. Settings is store configuration now, and the store already
+  // arrives with getCurrentUser's single round trip — this page needs no query
+  // of its own.
+  return <SettingsClient store={store} />
 }

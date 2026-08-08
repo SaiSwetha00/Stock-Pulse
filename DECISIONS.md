@@ -197,3 +197,65 @@ Storing raw pan and clamping during render fixed all of it at once. Same for the
 object URL: `useMemo` during render, with the effect used only to revoke. Where
 a value is a pure function of state, computing it is both simpler and more
 correct than synchronising it.
+
+## D15 — Staff lives at `/staff/team`, and `/staff` keeps the rota
+
+The roster could have become the Staff module's landing page, with the schedule
+demoted to a sub-route. It did not, for two reasons.
+
+`/staff` is in `NAV_ITEMS` for all three roles and the rota is the surface staff
+and managers actually open — moving it would change what the sidebar's "Staff"
+link does for everyone in order to serve the one role that manages the team.
+And `/staff?week=` is a live URL shape people bookmark; repointing it at a
+roster silently breaks those links.
+
+So: `/staff` is unchanged, `/staff/team` is new and owner-only, and `StaffTabs`
+joins them. The tab is *absent* rather than disabled for a manager, matching how
+`lib/nav.ts` treats `/settings` — a tab that bounces you back where you started
+is worse than no tab. `/staff/team` still redirects a manager who types the URL.
+
+Settings keeps a signpost card pointing at it. That is not a staff surface; it
+is there because an owner who has used the app will look in Settings first, and
+a screen that silently loses a feature reads as a broken screen.
+
+## D16 — Deactivate is a GoTrue ban, not a `profiles.active` column
+
+"Deactivate a staff member" has an obvious implementation — add `active boolean`
+to `profiles`, filter on it — and it is the wrong one twice over.
+
+It needs a migration, which blocks the work on the owner being at a keyboard.
+And it does not actually do the thing: a profile flagged inactive still has an
+`auth.users` row, so the person can still sign in. Every query in the app would
+have to learn about the flag, and the one that forgot would be a hole.
+
+`admin.auth.admin.updateUserById(id, { ban_duration: '876000h' })` revokes
+sign-in at the layer that grants it, holds at the next token refresh for anyone
+already signed in, and needs no schema change. `'none'` reverses it. The profile
+row is untouched, so `sales.sold_by`, shift assignments and audit entries still
+resolve — deleting the profile instead would put holes in the shop's own
+history.
+
+Cost: status is not a column, so it cannot be selected alongside the roster.
+`/staff/team` reads it with one `getUserById` per member, in parallel.
+Deliberately not `listUsers`, which returns every user of the whole Supabase
+project — a page for one shop would page through every other shop's accounts to
+find five rows. A lookup that fails resolves to *active*: showing a working
+colleague as locked out is the worse error, and the row's controls still work.
+
+## D17 — `loadTeamMember` discriminates on `ok`, not on an optional `error`
+
+Recorded because it cost real time and looks like a style preference.
+
+A helper returning `{ error: string } | { profile: T }` reads fine and does not
+work. `if ('error' in found)` narrows nothing useful once TypeScript widens the
+returns, and annotating it as `{ error: string; profile?: undefined } | { error?:
+undefined; profile: T }` makes it worse: TS narrows the *property* on a
+truthiness check without narrowing the *union* it sits in, so `found.profile`
+stays `T | undefined` in the branch that has already proved it is not.
+
+A literal discriminant — `{ ok: false; message: string } | { ok: true; profile:
+T }` — narrows correctly, and because the failure arm is already a valid
+`TeamActionResult`, callers forward a refusal with `return found` instead of
+rebuilding the message. `app/auth/actions.ts#loadPendingInvite` still uses the
+`in` form; it compiles there only because its callers re-wrap the value rather
+than assigning it to a `string` field.

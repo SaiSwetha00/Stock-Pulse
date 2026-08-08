@@ -9,6 +9,7 @@ import { useLocalToday } from '@/components/ui/LocalTime'
 import type { Profile, Role, Shift } from '@/types'
 import ShiftModal from './ShiftModal'
 import DeleteShiftDialog from './DeleteShiftDialog'
+import StaffTabs from './StaffTabs'
 
 const DAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 const DEFAULT_START_HOUR = 8
@@ -165,6 +166,8 @@ export default function StaffScheduleClient({
           )}
         </div>
       </div>
+
+      <StaffTabs role={role} />
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
         <div className="rounded-2xl bg-surface p-6 shadow-sm">

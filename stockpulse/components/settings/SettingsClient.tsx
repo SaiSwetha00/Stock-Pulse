@@ -1,41 +1,24 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Button from '@/components/ui/Button'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Store, SlidersHorizontal, UserSquare2, Palette, UserPlus } from 'lucide-react'
+import { Store, SlidersHorizontal, Palette, Users, ArrowRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { Profile, Role, Store as StoreType } from '@/types'
+import type { Store as StoreType } from '@/types'
 import Toggle from '@/components/ui/Toggle'
-import { ROLE_LABELS } from '@/lib/permissions'
 import { useToast } from '@/components/ui/Toast'
-import { LocalDate } from '@/components/ui/LocalTime'
-import AddStaffModal from './AddStaffModal'
-import InviteActions from './InviteActions'
 
 /**
- * One entry per role. `manager` was missing, so `ROLE_STYLES[s.role]` returned
- * undefined for every manager and React rendered the literal string
- * "undefined" into the badge's class list — the pill lost its styling
- * entirely. Migration 0002 added the role; this lookup was never updated.
+ * Store configuration, and nothing else.
  *
- * Typed as the full Role union rather than Record<string, string> so the next
- * role added to the system fails the build here instead of silently producing
- * the same bug again.
+ * The team roster, Add Staff, invitation resend/revoke and the role badges all
+ * used to live at the bottom of this screen, which meant "who works here" sat
+ * under "how many hours before a perishable warns" while the rota they belong
+ * beside lived in a different module. They are now the Staff module's Team tab;
+ * what remains here is the store itself.
  */
-const ROLE_STYLES: Record<Role, string> = {
-  owner: 'bg-accent-soft text-accent-ink',
-  manager: 'bg-info-bg text-info',
-  staff: 'bg-surface-muted text-muted-strong',
-}
-
-export default function SettingsClient({
-  store,
-  staff,
-}: {
-  store: StoreType
-  staff: Profile[]
-}) {
+export default function SettingsClient({ store }: { store: StoreType }) {
   const router = useRouter()
   const [name, setName] = useState(store.name)
   const [address, setAddress] = useState(store.address ?? '')
@@ -50,7 +33,6 @@ export default function SettingsClient({
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const [addStaffOpen, setAddStaffOpen] = useState(false)
 
   /**
    * The theme actually in effect comes from localStorage — app/layout.tsx reads
@@ -158,7 +140,7 @@ export default function SettingsClient({
           <p className="sp-eyebrow">Configuration</p>
           <h1 className="sp-title mt-2">Store Settings</h1>
           <p className="sp-body mt-2">
-            Manage configuration, personnel, and operational parameters for {store.name}.
+            Configuration and operational parameters for {store.name}.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -360,109 +342,34 @@ export default function SettingsClient({
         </div>
       </div>
 
-      <div className="mt-6 rounded-2xl bg-surface p-6 shadow-sm">
-        <div className="flex items-center justify-between border-b border-border pb-4">
-          <div className="flex items-center gap-2">
-            <UserSquare2 className="h-4.5 w-4.5 text-muted-strong" />
-            <h2 className="sp-heading">Staff Management</h2>
-          </div>
-          <Button onClick={() => setAddStaffOpen(true)}>
-            <UserPlus className="h-4 w-4" aria-hidden="true" />
-            Add Staff
-          </Button>
-        </div>
+      {/* Not a staff surface — a signpost to one.
 
-        {/* Rows become a card list below `lg`; this table sits inside the
-            staff panel, so they are divided blocks rather than floating
-            cards. */}
-        <div className="mt-4 lg:overflow-x-auto">
-          <table className="sp-table block w-full text-left text-sm lg:table">
-            <thead className="hidden lg:table-header-group">
-              <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
-                <th className="pb-3 pr-4">Employee</th>
-                <th className="pb-3 pr-4">Role</th>
-                <th className="pb-3 pr-4">Joined</th>
-                <th className="pb-3 pr-4">Status</th>
-                <th className="pb-3">
-                  <span className="sr-only">Invitation actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="block lg:table-row-group">
-              {staff.map((s) => (
-                <tr
-                  key={s.id}
-                  className="block border-b border-border py-3 last:border-0 lg:table-row lg:py-0"
-                >
-                  <td className="block lg:table-cell lg:pr-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-muted text-xs font-bold text-muted">
-                        {s.full_name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold text-foreground">{s.full_name}</p>
-                        <p className="truncate text-xs text-muted">{s.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  {/* Below `lg` the column header is gone, so each value
-                      carries its own label. */}
-                  <td className="mt-3 flex items-center justify-between gap-3 lg:mt-0 lg:table-cell lg:pr-4">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                      Role
-                    </span>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${ROLE_STYLES[s.role]}`}>
-                      {s.role === 'owner' ? 'Store Owner' : s.job_title || ROLE_LABELS[s.role]}
-                    </span>
-                  </td>
-                  <td className="mt-2 flex items-center justify-between gap-3 text-muted-strong lg:mt-0 lg:table-cell lg:pr-4">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                      Joined
-                    </span>
-                    <LocalDate iso={s.created_at} withYear />
-                  </td>
-                  <td className="mt-2 flex items-center justify-between gap-3 lg:mt-0 lg:table-cell lg:pr-4">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                      Status
-                    </span>
-                    <span className="flex items-center gap-1.5 text-muted-strong">
-                      {/* Tokens rather than raw emerald/amber, so these two
-                          dots follow dark mode like every other status
-                          colour in the app. */}
-                      <span
-                        className={`h-2 w-2 rounded-full ${
-                          s.role === 'owner' || !s.invited ? 'bg-accent' : 'bg-warning'
-                        }`}
-                      />
-                      {s.role === 'owner' || !s.invited ? 'Active' : 'Invited'}
-                    </span>
-                  </td>
-                  {/* Only pending invitations get controls. Somebody who has
-                      accepted is an active colleague, and "resend invitation"
-                      next to "delete this account" is not a pair of buttons
-                      that should sit beside their name. */}
-                  <td className="mt-2 flex items-center justify-between gap-3 lg:mt-0 lg:table-cell">
-                    {s.role !== 'owner' && s.invited && (
-                      <>
-                        <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                          Invitation
-                        </span>
-                        <InviteActions
-                          profileId={s.id}
-                          fullName={s.full_name}
-                          email={s.email}
-                        />
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          Everything that used to be here (the roster, Add Staff, invitation
+          resend and revoke, role changes) now lives in the Staff module beside
+          the rota. This line exists because an owner who has been using the app
+          will look here first, and a screen that silently loses a feature reads
+          as a broken screen. */}
+      <div className="sp-card-p mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-surface shadow-sm">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-muted">
+            <Users className="h-4.5 w-4.5 text-muted-strong" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="sp-heading">Your team</h2>
+            <p className="mt-0.5 text-sm text-muted">
+              Invitations, roles and access moved to Staff, beside the rota.
+            </p>
+          </div>
         </div>
+        <Link
+          href="/staff/team"
+          className="control-h inline-flex shrink-0 items-center gap-2 rounded-lg border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted"
+        >
+          Manage team
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
       </div>
 
-      {addStaffOpen && <AddStaffModal storeId={store.id} onClose={() => setAddStaffOpen(false)} />}
     </div>
   )
 }

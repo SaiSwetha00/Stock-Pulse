@@ -171,9 +171,19 @@ the markup.
   would have silently dropped it), and `ProductThumb` in the inventory list and
   sales picker with an initials placeholder.
 
+## Final round (2026-08-08)
+
+- **Item 1 — Staff management moved out of Settings.** New `/staff/team`,
+  owner-only, joined to the rota by a `StaffTabs` strip. Carries the roster,
+  Add Staff, Edit (name / job title / role), Deactivate & Reactivate, and
+  resend/revoke for pending invitations. `components/settings/AddStaffModal`
+  and `InviteActions` were `git mv`'d into `components/staff` — moved, not
+  copied, so there is no second version to drift. Settings now runs no staff
+  query at all and keeps one signpost card. See D15, D16, D17.
+
 ## In flight
 
-- Nothing. All requested phases are complete.
+- Item 2 (depth and motion), Item 3 (Phase 7 completion), Item 4 (deploy).
 
 ## Known remaining, deliberately not done
 
