@@ -4,12 +4,14 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { canManage, isOwner } from '@/lib/permissions'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronRight, Plus, AlertTriangle, Users, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, AlertTriangle, Users, Trash2, Palmtree } from 'lucide-react'
 import { toLocalISODate } from '@/lib/format'
 import { useLocalToday } from '@/components/ui/LocalTime'
-import type { Profile, Role, Shift } from '@/types'
+import { leaveCoversDay } from '@/lib/validation/leave'
+import { LEAVE_KIND_LABELS, type Profile, type Role, type Shift, type StaffLeave } from '@/types'
 import ShiftModal from './ShiftModal'
 import DeleteShiftDialog from './DeleteShiftDialog'
+import LeaveModal from './LeaveModal'
 import StaffTabs from './StaffTabs'
 
 const DAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
@@ -87,6 +89,7 @@ export default function StaffScheduleClient({
   currentUserId,
   staff,
   shifts,
+  leave,
   weekStartISO,
 }: {
   // storeId removed: shift mutations go through Server Actions that read the
@@ -95,6 +98,8 @@ export default function StaffScheduleClient({
   currentUserId: string
   staff: Profile[]
   shifts: Shift[]
+  /** Every leave range overlapping this week — not only those starting in it. */
+  leave: StaffLeave[]
   weekStartISO: string
 }) {
   const router = useRouter()
@@ -103,6 +108,8 @@ export default function StaffScheduleClient({
   // `'new'` opens a blank form; a Shift opens it prefilled for editing.
   const [editing, setEditing] = useState<Shift | 'new' | null>(null)
   const [deletingShift, setDeletingShift] = useState<Shift | null>(null)
+  // Same convention as `editing`: 'new' is a blank form, a row is an edit.
+  const [editingLeave, setEditingLeave] = useState<StaffLeave | 'new' | null>(null)
 
   const weekDates = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStartISO, i)),
@@ -134,9 +141,31 @@ export default function StaffScheduleClient({
     weekDates[6] + 'T00:00:00'
   ).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
 
+  const visibleLeave = myScheduleOnly ? leave.filter((l) => l.staff_id === currentUserId) : leave
+
+  /**
+   * Leave overlapping a given day, as a lookup the day columns can use without
+   * re-scanning the whole list seven times.
+   */
+  const leaveByDay = useMemo(() => {
+    const map = new Map<string, StaffLeave[]>()
+    for (const day of weekDates) {
+      map.set(
+        day,
+        visibleLeave.filter((l) => leaveCoversDay(l, day)),
+      )
+    }
+    return map
+  }, [visibleLeave, weekDates])
+
   const availability = staff.map((s) => ({
     profile: s,
     onToday: shifts.some((sh) => sh.staff_id === s.id && sh.shift_date === todayISO),
+    // null until hydrated, same as todayISO — so this cannot claim someone is
+    // on leave "today" using the server's calendar day.
+    onLeaveToday: todayISO
+      ? leave.find((l) => l.staff_id === s.id && leaveCoversDay(l, todayISO)) ?? null
+      : null,
   }))
 
   return (
@@ -157,13 +186,24 @@ export default function StaffScheduleClient({
             My Schedule
           </button>
           {canWrite && (
-            <button
-              onClick={() => setEditing('new')}
-              className="flex control-h items-center gap-2 rounded-lg bg-foreground px-4 text-sm font-semibold uppercase tracking-wide text-surface hover:opacity-90"
-            >
-              <Plus className="h-4 w-4" />
-              Assign Shift
-            </button>
+            <>
+              {/* Secondary to Assign Shift: recording absence is the rarer of
+                  the two, and the rota's primary action is still building it. */}
+              <button
+                onClick={() => setEditingLeave('new')}
+                className="flex control-h items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted"
+              >
+                <Palmtree className="h-4 w-4" aria-hidden="true" />
+                Record Leave
+              </button>
+              <button
+                onClick={() => setEditing('new')}
+                className="flex control-h items-center gap-2 rounded-lg bg-foreground px-4 text-sm font-semibold uppercase tracking-wide text-surface hover:opacity-90"
+              >
+                <Plus className="h-4 w-4" />
+                Assign Shift
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -219,6 +259,50 @@ export default function StaffScheduleClient({
                     {DAY_NAMES[i]}
                   </p>
                   <p className="sp-heading">{dayNum}</p>
+                  {/* Leave sits ABOVE the hour grid rather than inside it.
+
+                      A day off has no start or end time, so drawing it as a
+                      block on a timeline would mean inventing hours it does
+                      not have — and a full-height block would bury the shifts
+                      underneath it. A band in the header says "this person is
+                      not here today" without pretending to be a shift.
+
+                      It is a warning tone, not danger: somebody being on
+                      holiday is expected, and an unassigned shift (which is a
+                      genuine gap in cover) already owns the danger tone on
+                      this grid. */}
+                  {(leaveByDay.get(d) ?? []).map((l) => {
+                    const who = l.profiles?.full_name ?? 'Team member'
+                    const label = `${who} — ${LEAVE_KIND_LABELS[l.kind]}${
+                      l.note ? `: ${l.note}` : ''
+                    }`
+                    const content = (
+                      <>
+                        <Palmtree className="h-3 w-3 shrink-0" aria-hidden="true" />
+                        <span className="truncate">{who.split(' ')[0]}</span>
+                      </>
+                    )
+                    const classes =
+                      'mt-1 flex w-full items-center gap-1 rounded-md bg-warning-bg px-1.5 py-1 text-left text-[10px] font-semibold text-warning'
+
+                    return canWrite ? (
+                      <button
+                        key={l.id}
+                        type="button"
+                        onClick={() => setEditingLeave(l)}
+                        title={label}
+                        aria-label={`Edit leave: ${label}`}
+                        className={`${classes} transition-colors hover:brightness-95`}
+                      >
+                        {content}
+                      </button>
+                    ) : (
+                      <span key={l.id} title={label} className={classes}>
+                        {content}
+                        <span className="sr-only">{label}</span>
+                      </span>
+                    )
+                  })}
                 </div>
               )
             })}
@@ -358,23 +442,43 @@ export default function StaffScheduleClient({
               </p>
             )}
             <div className="mt-4 space-y-4">
-              {availability.map(({ profile, onToday }) => (
+              {availability.map(({ profile, onToday, onLeaveToday }) => (
                 <div key={profile.id} className="flex items-center gap-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-muted text-xs font-bold text-muted">
                     {profile.full_name.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-foreground">{profile.full_name}</p>
-                    <p className="truncate text-xs text-muted">{profile.job_title || 'Staff'}</p>
+                    <p className="truncate text-xs text-muted">
+                      {onLeaveToday
+                        ? `${LEAVE_KIND_LABELS[onLeaveToday.kind]} until ${onLeaveToday.ends_on}`
+                        : profile.job_title || 'Staff'}
+                    </p>
                   </div>
-                  {/* Not being scheduled today isn't an error state, so the
-                      off-shift dot is neutral rather than red. */}
-                  <span
-                    title={onToday ? 'On shift today' : 'Not scheduled today'}
-                    className={`h-2 w-2 shrink-0 rounded-full ${onToday ? 'bg-accent' : 'bg-surface-muted'}`}
-                  />
+                  {/* Three states, not two. "Not scheduled" and "on leave"
+                      look identical on a rota — both are an empty column —
+                      and the difference is the whole point: one is someone you
+                      can still call in, the other is not. */}
+                  {onLeaveToday ? (
+                    // The tooltip sits on a wrapper: lucide icons do not accept
+                    // a `title` prop, and passing one silently does nothing.
+                    <span title={`On ${LEAVE_KIND_LABELS[onLeaveToday.kind].toLowerCase()} today`}>
+                      <Palmtree className="h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" />
+                    </span>
+                  ) : (
+                    // Not being scheduled today isn't an error state, so the
+                    // off-shift dot is neutral rather than red.
+                    <span
+                      title={onToday ? 'On shift today' : 'Not scheduled today'}
+                      className={`h-2 w-2 shrink-0 rounded-full ${onToday ? 'bg-accent' : 'bg-surface-muted'}`}
+                    />
+                  )}
                   <span className="sr-only">
-                    {onToday ? 'On shift today' : 'Not scheduled today'}
+                    {onLeaveToday
+                      ? `On ${LEAVE_KIND_LABELS[onLeaveToday.kind].toLowerCase()} today`
+                      : onToday
+                        ? 'On shift today'
+                        : 'Not scheduled today'}
                   </span>
                 </div>
               ))}
@@ -382,6 +486,8 @@ export default function StaffScheduleClient({
             {/* Replaces a dead "View All Staff" button. */}
             <p className="mt-4 text-center text-xs font-semibold uppercase tracking-wide text-muted">
               {availability.filter((a) => a.onToday).length} of {staff.length} on shift today
+              {availability.filter((a) => a.onLeaveToday).length > 0 &&
+                ` · ${availability.filter((a) => a.onLeaveToday).length} on leave`}
             </p>
           </div>
 
@@ -398,6 +504,7 @@ export default function StaffScheduleClient({
           key={editing === 'new' ? 'new' : editing.id}
           shift={editing === 'new' ? null : editing}
           staff={staff}
+          leave={leave}
           weekDates={weekDates}
           onClose={() => setEditing(null)}
         />
@@ -405,6 +512,20 @@ export default function StaffScheduleClient({
 
       {deletingShift && (
         <DeleteShiftDialog shift={deletingShift} onClose={() => setDeletingShift(null)} />
+      )}
+
+      {editingLeave && (
+        <LeaveModal
+          // Form state seeds from props on mount, so a different target has to
+          // remount rather than reuse the previous entry's values.
+          key={editingLeave === 'new' ? 'new' : editingLeave.id}
+          leave={editingLeave === 'new' ? null : editingLeave}
+          staff={staff}
+          // Opens on the week being viewed rather than on today, which is the
+          // date someone looking at next week actually means.
+          defaultDate={todayISO && weekDates.includes(todayISO) ? todayISO : weekDates[0]}
+          onClose={() => setEditingLeave(null)}
+        />
       )}
     </div>
   )

@@ -257,6 +257,45 @@ the markup.
   horizontal overflow at 390px. One more doubled-suffix title bug found on the
   deployed pages (`/privacy`, `/terms`) and fixed in `31e5c90`.
 
+## Follow-up round (2026-08-08, after the deploy)
+
+- **Analytics folded into Reports; `/analytics` retired.** Reports now compares
+  each range against the equally-long period before it — and unlike the old
+  Analytics page, that works for custom ranges, not just 7/30/90 presets.
+  `WINDOW_DAYS` went 90 → 180 because a 90-day report needs 180 days in hand to
+  compare against anything; `windowStartIso` reaches the client so a range at
+  the edge of the window says "outside compared window" rather than reading a
+  half-empty prior period as a collapse in revenue. Route, client and loading
+  state deleted; `NAV_ITEMS`, `robots.ts`, the dashboard quick actions and five
+  help articles repointed. Verified: `/analytics` 404s, and zero `/analytics`
+  links or "Analytics" strings remain in the rendered HTML of `/dashboard`,
+  `/staff`, `/reports` or `/help`. See D20.
+
+- **Leave added to the Staff module.** `Record Leave` on the rota takes a
+  person, a first and last day (both inclusive, so one date twice is a single
+  day off), a type (holiday/sick/unpaid/other) and an optional note. It draws
+  as a warning-toned band across the top of the affected day columns —
+  deliberately *not* a block on the hour grid, since a day off has no start or
+  end time — and the availability rail gains a third state, because "not
+  scheduled" and "on leave" otherwise look identical.
+
+  **Shift assignment is blocked in `saveShift`, not in the form.** `ShiftModal`
+  warns as soon as you pick a person and a date, but a tab left open while
+  someone else recorded the leave knows nothing about it, and both fields
+  arrive from the browser. See D21.
+
+  **`0011_staff_leave.sql` is NOT APPLIED — see the table below.** The app is
+  built to ship ahead of it: `/staff` was loaded against a database without the
+  table and renders the rota exactly as before, because 42P01 is treated as "no
+  leave on record". Only `saveLeave` reports the missing table, and it names the
+  file to run.
+
+## Blocked on the owner
+
+| What | Why |
+|---|---|
+| Run `0011_staff_leave.sql` | **NOT APPLIED.** Record Leave returns "Leave is not set up yet" until it is run. Everything else, including the whole rota, works without it. |
+
 ## Could not verify this session
 
 - **Authenticated routes on the *live* domain.** Signing in means typing a

@@ -149,6 +149,29 @@ export interface Shift {
   profiles?: { full_name: string; avatar_url: string | null } | null
 }
 
+/** Migration 0011. Both dates are inclusive — see the note in that file. */
+export type LeaveKind = 'holiday' | 'sick' | 'unpaid' | 'other'
+
+export interface StaffLeave {
+  id: string
+  store_id: string
+  staff_id: string
+  starts_on: string
+  ends_on: string
+  kind: LeaveKind
+  note: string | null
+  created_by: string | null
+  created_at: string
+  profiles?: { full_name: string } | null
+}
+
+export const LEAVE_KIND_LABELS: Record<LeaveKind, string> = {
+  holiday: 'Holiday',
+  sick: 'Sick',
+  unpaid: 'Unpaid',
+  other: 'Leave',
+}
+
 export const SUPPLIER_CATEGORY_LABELS: Record<SupplierCategory, string> = {
   produce: 'Produce',
   dairy: 'Dairy',

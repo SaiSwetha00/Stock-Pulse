@@ -110,7 +110,7 @@ export default function BenefitsSection() {
                 No Hardware, No Setup Fees, No Catch
               </h3>
               <p className="text-[#d1c5b0] text-sm leading-relaxed max-w-xl">
-                Stock Pulse runs in the browser — inventory, sales, staff, suppliers, customers, and analytics in one dashboard. Nothing to install, nothing to wire up, and it’s free while the platform is in beta.
+                Stock Pulse runs in the browser — inventory, sales, staff, suppliers, customers, and reporting in one dashboard. Nothing to install, nothing to wire up, and it’s free while the platform is in beta.
               </p>
             </div>
 

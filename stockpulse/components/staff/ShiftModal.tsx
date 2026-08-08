@@ -7,8 +7,9 @@ import { useToast } from '@/components/ui/Toast'
 import Button from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Field'
 import { saveShift } from '@/app/(dashboard)/staff/actions'
+import { leaveCoversDay } from '@/lib/validation/leave'
 import { validateShift, type ShiftErrors, type ShiftInput } from '@/lib/validation/shift'
-import type { Profile, Shift } from '@/types'
+import { LEAVE_KIND_LABELS, type Profile, type Shift, type StaffLeave } from '@/types'
 
 const ROLE_LABELS = ['Front Desk', 'Produce', 'Dairy/Frozen', 'Manager', 'Receiving', 'Bakery']
 
@@ -26,11 +27,14 @@ function toInputTime(value: string | undefined, fallback: string): string {
 export default function ShiftModal({
   shift,
   staff,
+  leave,
   weekDates,
   onClose,
 }: {
   shift?: Shift | null
   staff: Profile[]
+  /** Leave overlapping the visible week, for the clash warning below. */
+  leave: StaffLeave[]
   weekDates: string[]
   onClose: () => void
 }) {
@@ -56,6 +60,20 @@ export default function ShiftModal({
   // A role carried over from older data may not be in the preset list.
   const roleOptions =
     roleLabel && !ROLE_LABELS.includes(roleLabel) ? [roleLabel, ...ROLE_LABELS] : ROLE_LABELS
+
+  /**
+   * The chosen person's leave on the chosen day, if any.
+   *
+   * A warning, not a block — saveShift is what actually refuses, because this
+   * only knows about leave in the week the page loaded and a stale tab knows
+   * about none of it. The point of showing it here is that being told before
+   * you fill in two times and press save is better than being told after.
+   *
+   * An unassigned shift (`staffId === ''`) is nobody's leave, hence the guard.
+   */
+  const leaveClash = staffId
+    ? leave.find((l) => l.staff_id === staffId && leaveCoversDay(l, shiftDate)) ?? null
+    : null
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -134,6 +152,17 @@ export default function ShiftModal({
             </Select>
           )}
         </Field>
+
+        {leaveClash && (
+          <p
+            role="status"
+            className="rounded-lg bg-warning-bg px-3.5 py-2.5 text-sm text-warning"
+          >
+            {leaveClash.profiles?.full_name ?? 'That person'} is on{' '}
+            {LEAVE_KIND_LABELS[leaveClash.kind].toLowerCase()} from {leaveClash.starts_on} to{' '}
+            {leaveClash.ends_on}. This shift will not save.
+          </p>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <Field label="Start Time" required error={errors.startTime}>

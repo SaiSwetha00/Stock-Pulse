@@ -146,7 +146,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
       { kind: 'h', text: 'Step 2 — Log a sale' },
       {
         kind: 'p',
-        text: 'Go to Sales and click Log Sale. Logging a sale reduces the stock count of each product in it, which is what drives low-stock alerts, the dashboard totals, and the Analytics charts.',
+        text: 'Go to Sales and click Log Sale. Logging a sale reduces the stock count of each product in it, which is what drives low-stock alerts, the dashboard totals, and the Reports charts.',
       },
       { kind: 'h', text: 'Step 3 — Add your suppliers' },
       {
@@ -191,7 +191,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
         items: [
           'Name and brand — what appears in search and on the sale screen.',
           'SKU — your own product code. Optional, but it makes CSV imports far more reliable, because StockPulse matches on it.',
-          'Category — one of produce, dairy, packaged, beverages, or household. The category filter chips and the Analytics breakdown both use this.',
+          'Category — one of produce, dairy, packaged, beverages, or household. The category filter chips and the Reports category mix both use this.',
           'Unit price and unit — the price for one unit, and what a unit is (each, kg, litre).',
           'Stock — how many you currently hold. Logging a sale reduces this automatically.',
           'Low-stock threshold — the count at which this product starts showing as low. Defaults to 10.',
@@ -285,7 +285,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
         items: [
           'Stock for each product in the sale goes down by the quantity sold.',
           'A product that drops to or below its low-stock threshold starts appearing in low-stock alerts.',
-          'The dashboard totals and the Analytics charts update.',
+          'The dashboard totals and the Reports charts update.',
         ],
       },
       { kind: 'h', text: 'Finding an earlier sale' },
@@ -384,7 +384,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     slug: 'inviting-staff-and-building-the-rota',
     title: 'Inviting staff and building the rota',
     category: 'staff',
-    summary: 'Add people to your store and assign their shifts for the week.',
+    summary: 'Add people to your store, assign their shifts, and record time off.',
     body: [
       { kind: 'h', text: 'Inviting someone' },
       {
@@ -420,6 +420,27 @@ export const HELP_ARTICLES: HelpArticle[] = [
       {
         kind: 'note',
         text: 'Owners and managers can assign shifts. Staff see the same grid read-only, and open on their own schedule by default.',
+      },
+      { kind: 'h', text: 'Recording leave' },
+      {
+        kind: 'steps',
+        items: [
+          'Open Staff and click Record Leave.',
+          'Choose the person, the first day, and the last day.',
+          'Pick a type — holiday, sick, unpaid, or other — and save.',
+        ],
+      },
+      {
+        kind: 'p',
+        text: 'Both dates are included, so picking the same date twice is a single day off. The days appear as a band across the top of those columns on the week grid, and the person shows as on leave in the Staff Availability list.',
+      },
+      {
+        kind: 'p',
+        text: 'While someone is on leave you cannot assign them a shift on those days. The shift form warns you as soon as you pick the person and the date, and saving is refused even if the form was already open when the leave was recorded.',
+      },
+      {
+        kind: 'note',
+        text: 'To cancel leave, click the band on the rota and choose Remove. That frees the person up for scheduling again; nothing else is deleted.',
       },
     ],
   },
@@ -527,7 +548,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
         kind: 'list',
         items: [
           'Full use of Inventory, Sales, Suppliers, Customers, and Staff scheduling.',
-          'Analytics and Reports — managers run the shop, so they see the numbers.',
+          'Reports — managers run the shop, so they see the numbers.',
           'No access to Settings, staff invitations, or the audit log.',
         ],
       },
@@ -538,7 +559,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
           'Dashboard, and Inventory as read-only — they can look up a price or a stock count, but not change one.',
           'Logging sales.',
           'Their own schedule.',
-          'No access to Suppliers, Customers, Analytics, Reports, Settings, or the audit log.',
+          'No access to Suppliers, Customers, Reports, Settings, or the audit log.',
         ],
       },
       { kind: 'h', text: 'One thing nobody can see: AI assistant chats' },

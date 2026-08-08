@@ -14,8 +14,19 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-/** Widest preset the page offers; everything narrower filters this set. */
-const WINDOW_DAYS = 90
+/**
+ * Twice the widest preset, not once.
+ *
+ * The page offers up to 90 days and now compares each range against the
+ * equally-long period before it, so a 90-day report needs 180 days in hand.
+ * Fetching only 90 would leave the comparison reading a half-empty prior
+ * period as a collapse in revenue. `windowStartIso` goes to the client so it
+ * can say "outside compared window" rather than invent a number when a range
+ * still reaches past the edge.
+ *
+ * This is the window the retired /analytics page used, for the same reason.
+ */
+const WINDOW_DAYS = 180
 
 /** The sale_items -> sales join comes back nested, and PostgREST may hand it
  *  back as an object or a single-element array depending on the relationship. */
@@ -93,6 +104,7 @@ export default async function ReportsPage() {
       storeName={store.name}
       defaultFrom={toLocalISODate(from)}
       defaultTo={toLocalISODate(to)}
+      windowStartIso={toLocalISODate(windowStart)}
     />
   )
 }

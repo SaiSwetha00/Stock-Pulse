@@ -306,3 +306,56 @@ failing to lint. The same class of invisible failure as D9 and D12.
 
 So the change was additive: `border border-border` appended to each of the 53,
 existing utilities untouched. More characters, no way to lose an override.
+
+## D20 — Analytics folded into Reports, not the other way round
+
+The two pages had the same guard, the same query and the same four KPIs over
+the same four panels. Only two things differed: Analytics compared each period
+against the one before it, Reports exported CSV and PDF.
+
+Reports absorbed Analytics rather than the reverse, because the export paths
+(`lib/pdf.ts`, `ExportCsvButton` on four panels) are substantially more code
+than a percentage change, and because "Reports" is what a shopkeeper calls the
+thing. `/analytics` is deleted outright rather than redirected: it was in the
+sidebar for a week, nobody has bookmarked it, and a permanent redirect for a
+route that briefly existed is clutter with a maintenance cost.
+
+The comparison got *better* in the move. Analytics could only compare fixed
+7/30/90-day presets; Reports derives the previous period from whatever range is
+on screen, so a custom range now gets a comparison it could not have before.
+
+The subtle part is the window. Reports fetched 90 days for a 90-day maximum
+range, which is exactly wrong once you compare — the prior period would be
+empty and summarise as a total collapse in revenue. `WINDOW_DAYS` is now 180,
+and `windowStartIso` goes to the client so a range still reaching past the edge
+reads "outside compared window" instead of inventing a number. A comparison
+that is quietly wrong is worse than no comparison.
+
+## D21 — Leave is a date range, and the block is server-side
+
+Two calls worth recording.
+
+**One row per absence, not one per day.** A fortnight's holiday is one decision
+and should be one thing to enter, cancel and correct. Fourteen rows makes
+"cancel the second week" a multi-row edit and invites half-deleted leave.
+Both bounds are inclusive, so `starts_on = ends_on` is a single day off — the
+commonest entry by far, and the one a half-open range would make read wrongly.
+
+**The block lives in `saveShift`, not in the form.** `ShiftModal` warns as soon
+as you pick a person and a date, but that is a courtesy: it only knows about
+leave in the week the page loaded, and a tab left open while somebody else
+recorded the leave knows about none of it. Both the shift date and the staff id
+arrive from the browser, so the refusal has to be where the write is.
+
+Dates are compared as `YYYY-MM-DD` strings (`leaveCoversDay`) or as dates in
+Postgres — never by constructing `Date` objects. `new Date(iso)` parses as UTC
+and shifts by a day either side of midnight for anyone east or west of it,
+which is precisely the bug that would let someone be rostered on the first
+morning of their own holiday.
+
+**Unapplied-migration behaviour is deliberate.** `/staff` treats Postgres error
+42P01 as "no leave on record" and renders the rota exactly as before; `saveShift`
+does the same, so scheduling keeps working; only `saveLeave` reports the missing
+table, and it names the file to run. The rota predates leave and must not break
+because a migration is pending — verified by loading `/staff` against a database
+without the table.

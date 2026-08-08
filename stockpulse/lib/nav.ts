@@ -9,7 +9,6 @@ import {
   Settings,
   LifeBuoy,
   Inbox,
-  ChartColumn,
   FileText,
   History,
   type LucideIcon,
@@ -44,7 +43,11 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/sales', label: 'Sales', icon: TrendingUp, roles: ['owner', 'manager', 'staff'] },
   // canViewReports() — store-wide takings. Managers run the shop, so they see
   // the numbers; both pages redirect anyone else who reaches them by URL.
-  { href: '/analytics', label: 'Analytics', icon: ChartColumn, roles: ['owner', 'manager'] },
+  // /analytics is gone. It was the same guard, the same query and the same
+  // four KPIs over the same four panels as /reports — one module wearing two
+  // sidebar entries, which left a user clicking both to work out which was
+  // authoritative. Its one distinct feature, the period-over-period
+  // comparison, now lives in Reports and works for custom ranges too.
   { href: '/reports', label: 'Reports', icon: FileText, roles: ['owner', 'manager'] },
   // profile.role !== 'owner' redirects — the audit trail records what managers
   // do, so it cannot be readable by them.

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Button from '@/components/ui/Button'
-import { FileDown, BarChart3 } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, BarChart3, FileDown } from 'lucide-react'
 import { formatCurrency } from '@/lib/format'
 import type { Category } from '@/types'
 import {
@@ -29,25 +29,73 @@ const PRESETS = [
   { label: 'Last 90 days', days: 90 },
 ]
 
-function Kpi({ label, value, tone }: { label: string; value: string; tone?: 'dark' }) {
+/**
+ * Percentage change, or null when the comparison would be meaningless.
+ *
+ * A change from zero is not a percentage: "+100%" off no baseline reads as a
+ * real result and is not one. Showing nothing is the honest answer.
+ */
+function pctChange(current: number, previous: number): number | null {
+  if (previous === 0) return null
+  return ((current - previous) / previous) * 100
+}
+
+/**
+ * A headline figure and how it moved against the period before it.
+ *
+ * The comparison arrived here when Analytics was folded in — it was the only
+ * thing that page did which this one did not, and it was sitting behind its own
+ * sidebar entry showing the same four KPIs over the same four panels.
+ *
+ * `change === null` covers two different situations and says so plainly rather
+ * than printing a misleading number: no takings in the prior period, or a prior
+ * period that falls outside the window the server fetched.
+ */
+function Kpi({
+  label,
+  value,
+  change,
+  comparable,
+  tone,
+}: {
+  label: string
+  value: string
+  change: number | null
+  /** False when the previous period predates the fetched window. */
+  comparable: boolean
+  tone?: 'dark'
+}) {
+  const dark = tone === 'dark'
   return (
     <div
-      className={`rounded-2xl p-4 shadow-sm lg:p-6 ${tone === 'dark' ? 'bg-foreground' : 'bg-surface'}`}
+      className={`sp-rise rounded-2xl border border-border p-4 shadow-sm lg:p-6 ${
+        dark ? 'bg-foreground' : 'bg-surface'
+      }`}
     >
-      <p
-        className={`text-xs font-semibold uppercase tracking-wide ${
-          tone === 'dark' ? 'text-muted' : 'text-muted'
-        }`}
-      >
-        {label}
-      </p>
-      <p
-        className={`mt-2 text-2xl font-bold lg:text-3xl ${
-          tone === 'dark' ? 'text-surface' : 'text-foreground'
-        }`}
-      >
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
+      <p className={`mt-2 text-2xl font-bold lg:text-3xl ${dark ? 'text-surface' : 'text-foreground'}`}>
         {value}
       </p>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {!comparable ? (
+          <span className="text-xs text-muted">Outside compared window</span>
+        ) : change === null ? (
+          <span className="text-xs text-muted">No prior data</span>
+        ) : (
+          <>
+            {change >= 0 ? (
+              <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
+            ) : (
+              <ArrowDownRight className="h-3.5 w-3.5 shrink-0 text-danger" aria-hidden="true" />
+            )}
+            <span className={`text-xs font-semibold ${change >= 0 ? 'text-accent' : 'text-danger'}`}>
+              {change >= 0 ? '+' : ''}
+              {change.toFixed(1)}%
+            </span>
+            <span className="text-xs text-muted">vs previous period</span>
+          </>
+        )}
+      </div>
     </div>
   )
 }
@@ -59,6 +107,7 @@ export default function ReportsClient({
   storeName,
   defaultFrom,
   defaultTo,
+  windowStartIso,
 }: {
   sales: ReportSale[]
   items: ReportItem[]
@@ -70,6 +119,15 @@ export default function ReportsClient({
   // mismatch. Preset clicks recompute against the viewer's own clock.
   defaultFrom: string
   defaultTo: string
+  /**
+   * The earliest day the server actually fetched.
+   *
+   * Needed because the comparison can silently lie without it: pick a range at
+   * the far edge of the window and the "previous period" is half-empty, which
+   * summarises as a real-looking collapse in revenue rather than as missing
+   * data. The KPI cards say "outside compared window" instead.
+   */
+  windowStartIso: string
 }) {
   const toast = useToast()
   const [from, setFrom] = useState(defaultFrom)
@@ -85,6 +143,41 @@ export default function ReportsClient({
       rangeItems: items.filter((i) => withinRange(i.created_at, fromTs, toTs)),
     }
   }, [sales, items, from, to])
+
+  /**
+   * The equally-long period ending the day before `from`.
+   *
+   * Derived from whatever range is on screen rather than from a fixed 7/30/90
+   * choice, which is what the retired Analytics page offered — so a custom
+   * range now gets a comparison too, which it could not before.
+   */
+  const previous = useMemo(() => {
+    if (!from || !to) return null
+    const fromMs = new Date(`${from}T00:00:00`).getTime()
+    const toMs = new Date(`${to}T00:00:00`).getTime()
+    if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs < fromMs) return null
+
+    const DAY = 86_400_000
+    const lengthDays = Math.round((toMs - fromMs) / DAY) + 1
+    const prevTo = new Date(fromMs - DAY)
+    const prevFrom = new Date(fromMs - lengthDays * DAY)
+    const iso = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    return { from: iso(prevFrom), to: iso(prevTo) }
+  }, [from, to])
+
+  // A comparison is only honest while the whole previous period sits inside
+  // what the server fetched. String compare is safe on YYYY-MM-DD.
+  const comparable = previous !== null && previous.from >= windowStartIso
+
+  const prevKpis = useMemo(() => {
+    if (!previous) return null
+    const { fromTs, toTs } = dayBounds(previous.from, previous.to)
+    return summarize(
+      sales.filter((s) => withinRange(s.created_at, fromTs, toTs)),
+      items.filter((i) => withinRange(i.created_at, fromTs, toTs)),
+    )
+  }, [sales, items, previous])
 
   const kpis = useMemo(() => summarize(rangeSales, rangeItems), [rangeSales, rangeItems])
   const daily = useMemo(() => revenueByDay(rangeSales, from, to), [rangeSales, from, to])
@@ -170,7 +263,9 @@ export default function ReportsClient({
           <p className="sp-eyebrow">Reporting</p>
           <h1 className="sp-title mt-2">Reports</h1>
           <p className="sp-body mt-2">
-            Sales performance for a date range you choose.
+            {comparable && previous
+              ? `${rangeLabel}, compared with ${previous.from} to ${previous.to}.`
+              : 'Sales performance for a date range you choose.'}
           </p>
         </div>
         {/* The label no longer swaps to "Preparing…" — the spinner says that,
@@ -223,10 +318,31 @@ export default function ReportsClient({
 
       {/* ---- KPIs ---- */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-        <Kpi label="Revenue" value={formatCurrency(kpis.revenue)} />
-        <Kpi label="Transactions" value={String(kpis.transactions)} tone="dark" />
-        <Kpi label="Avg Order" value={formatCurrency(kpis.avgOrder)} />
-        <Kpi label="Units Sold" value={String(kpis.unitsSold)} />
+        <Kpi
+          label="Revenue"
+          value={formatCurrency(kpis.revenue)}
+          change={prevKpis ? pctChange(kpis.revenue, prevKpis.revenue) : null}
+          comparable={comparable}
+        />
+        <Kpi
+          label="Transactions"
+          value={String(kpis.transactions)}
+          change={prevKpis ? pctChange(kpis.transactions, prevKpis.transactions) : null}
+          comparable={comparable}
+          tone="dark"
+        />
+        <Kpi
+          label="Avg Order"
+          value={formatCurrency(kpis.avgOrder)}
+          change={prevKpis ? pctChange(kpis.avgOrder, prevKpis.avgOrder) : null}
+          comparable={comparable}
+        />
+        <Kpi
+          label="Units Sold"
+          value={String(kpis.unitsSold)}
+          change={prevKpis ? pctChange(kpis.unitsSold, prevKpis.unitsSold) : null}
+          comparable={comparable}
+        />
       </div>
 
       {isEmpty ? (

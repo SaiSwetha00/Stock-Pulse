@@ -12,7 +12,7 @@ import type { Role, Store } from '@/types'
  *
  * This is the only route to most of the app below 1024px: the bottom tab bar
  * carries four destinations and the rail is hidden, so the remaining eight —
- * suppliers, customers, staff, reports, analytics, activity, settings, help —
+ * suppliers, customers, staff, reports, activity, settings, help —
  * had no reachable link at all on a phone.
  */
 export default function MobileDrawer({

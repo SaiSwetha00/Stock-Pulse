@@ -15,7 +15,6 @@ import {
   Receipt,
   BellOff,
   PackageCheck,
-  ChartColumn,
   FileText,
   type LucideIcon,
 } from 'lucide-react'
@@ -131,26 +130,22 @@ const QUICK_ACTIONS: QuickAction[] = [
 ]
 
 /**
- * Analytics and Reports live in the sidebar, which is `hidden lg:flex`, and the
- * mobile tab bar has four fixed slots. Without these two entries an owner on a
- * phone has no route to either page at all.
+ * Reports lives in the sidebar, which is `hidden lg:flex`, and the mobile tab
+ * bar has four fixed slots. Without this entry an owner on a phone has no
+ * route to it at all.
+ *
+ * Was two entries; /analytics was retired into /reports, so the second would
+ * now be a dead link. It takes the full row on a two-column phone grid rather
+ * than sitting alone beside a gap.
  */
 const OWNER_QUICK_ACTIONS: QuickAction[] = [
-  {
-    href: '/analytics',
-    label: 'Analytics',
-    Icon: ChartColumn,
-    wrap: 'bg-surface-muted',
-    icon: 'text-muted-strong',
-    span: '',
-  },
   {
     href: '/reports',
     label: 'Reports',
     Icon: FileText,
     wrap: 'bg-surface-muted',
     icon: 'text-muted-strong',
-    span: '',
+    span: 'col-span-2 sm:col-span-1',
   },
 ]
 

@@ -23,7 +23,7 @@ export default async function AuditPage() {
   const { profile, store } = await getCurrentUser()
   // Belt and braces: the RLS policy already restricts this table to owners,
   // so a staff member would simply see nothing. Redirecting is the clearer
-  // outcome, and it matches how /reports and /analytics behave.
+  // outcome, and it matches how /reports behaves.
   if (profile.role !== 'owner') redirect('/dashboard')
 
   const supabase = await createClient()
