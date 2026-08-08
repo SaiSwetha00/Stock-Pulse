@@ -117,19 +117,58 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
       texture.anisotropy = 16
       return texture
     }
+    // Every texture in this scene is generated locally — no loader needed.
 
+    /**
+     * Locally drawn product panels: a vertical palette gradient plus a simple
+     * line glyph. No network, no third party.
+     *
+     * These replaced six `images.unsplash.com` texture loads. Three reasons,
+     * any one of which is sufficient for something shipping to a paying
+     * client: it is remote stock photography with licensing attached, it made
+     * the landing page depend on a third-party CDN at render time, and all six
+     * URLs had already gone 404 — so the scene was fetching, failing, and
+     * logging errors to the console only to render untextured anyway.
+     *
+     * Canvas-drawn rather than checked-in images because this file already
+     * builds textures this way (see createEInkTexture and the screen canvas
+     * below), so it adds no new technique and no asset to the repo.
+     */
+    function createProductPanel(top: string, bottom: string, ink: string) {
+      const c = document.createElement('canvas')
+      c.width = 256
+      c.height = 256
+      const g = c.getContext('2d')
+      if (g) {
+        const grad = g.createLinearGradient(0, 0, 0, 256)
+        grad.addColorStop(0, top)
+        grad.addColorStop(1, bottom)
+        g.fillStyle = grad
+        g.fillRect(0, 0, 256, 256)
 
+        // One restrained line mark, centred — enough to read as a labelled
+        // product face at this scale without pretending to be a photograph.
+        g.strokeStyle = ink
+        g.lineWidth = 6
+        g.globalAlpha = 0.55
+        g.beginPath()
+        g.arc(128, 112, 46, 0, Math.PI * 2)
+        g.stroke()
+        g.beginPath()
+        g.moveTo(78, 186)
+        g.lineTo(178, 186)
+        g.stroke()
+      }
+      return new THREE.CanvasTexture(c)
+    }
 
-    // PHOTOREALISTIC TEXTURE LOADER & ASSET MAPS
-    const textureLoader = new THREE.TextureLoader()
-
-    // High-resolution Unsplash Studio Grocery Photography URLs
-    const pomegranatesTex = textureLoader.load('https://images.unsplash.com/photo-1615485290382-441e4d049cb5?auto=format&fit=crop&w=800&q=80')
-    const avocadoTex = textureLoader.load('https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?auto=format&fit=crop&w=800&q=80')
-    const oliveOilTex = textureLoader.load('https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=800&q=80')
-    const honeyJarTex = textureLoader.load('https://images.unsplash.com/photo-1587049352847-4a222e784d38?auto=format&fit=crop&w=800&q=80')
-    const organicMilkTex = textureLoader.load('https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=800&q=80')
-    const artisanCheeseTex = textureLoader.load('https://images.unsplash.com/photo-1452195100486-9cc805987862?auto=format&fit=crop&w=800&q=80')
+    // Palette only: gold, deep red, coffee-brown, cream, near-black.
+    const pomegranatesTex = createProductPanel('#8f2a1c', '#5c1a11', '#f4e8d4')
+    const avocadoTex = createProductPanel('#4a3524', '#2b1f16', '#c9a227')
+    const oliveOilTex = createProductPanel('#c9a227', '#8a6206', '#14100c')
+    const honeyJarTex = createProductPanel('#e3b341', '#a8822c', '#14100c')
+    const organicMilkTex = createProductPanel('#f4e8d4', '#d6c3a3', '#4a3524')
+    const artisanCheeseTex = createProductPanel('#edc155', '#c9a227', '#14100c')
 
     ;[pomegranatesTex, avocadoTex, oliveOilTex, honeyJarTex, organicMilkTex, artisanCheeseTex].forEach((tex) => {
       tex.colorSpace = THREE.SRGBColorSpace

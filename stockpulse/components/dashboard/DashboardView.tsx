@@ -129,9 +129,50 @@ const QUICK_ACTIONS: QuickAction[] = [
     icon: 'text-muted-strong',
     // Odd one out on a two-column phone grid, so it takes the full row
     // there and falls back into line once a third column exists.
-    span: 'col-span-2 sm:col-span-1',
+    span: '',
   },
 ]
+
+/**
+ * The week's revenue shape, as one inline SVG path.
+ *
+ * Deliberately not the charting library the panel below uses: this is seven
+ * numbers at 96x32, where recharts would mount a responsive container and a
+ * whole render tree to draw one polyline. No dependency, no canvas, ~30 lines.
+ *
+ * `preserveAspectRatio="none"` lets it stretch to whatever width the hero's
+ * right column has without needing to be measured.
+ */
+function Sparkline({ data }: { data: { label: string; value: number }[] }) {
+  if (data.length < 2) return null
+  const values = data.map((d) => d.value)
+  const max = Math.max(...values)
+  // A flat week of zeroes would divide by zero and draw nothing; draw the
+  // baseline instead, which is honest — it says "no takings", not "no data".
+  const span = max > 0 ? max : 1
+  const step = 100 / (data.length - 1)
+  const points = values.map((v, i) => `${i * step},${32 - (v / span) * 28}`).join(' ')
+
+  return (
+    <svg
+      viewBox="0 0 100 32"
+      preserveAspectRatio="none"
+      className="h-8 w-full max-w-[180px]"
+      role="img"
+      aria-label={`Revenue for the last ${data.length} days`}
+    >
+      <polyline
+        points={points}
+        fill="none"
+        stroke="var(--accent)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  )
+}
 
 /**
  * Reports lives in the sidebar, which is `hidden lg:flex`, and the mobile tab
@@ -149,7 +190,7 @@ const OWNER_QUICK_ACTIONS: QuickAction[] = [
     Icon: FileText,
     wrap: 'bg-surface-muted',
     icon: 'text-muted-strong',
-    span: 'col-span-2 sm:col-span-1',
+    span: '',
   },
 ]
 
@@ -227,32 +268,47 @@ export default function DashboardView({
             app. Today's takings is the figure a shopkeeper opens this page
             for, so it is the one that earns the hairline. Putting it on all
             four would make it mean nothing. */}
-        <div className={`${STAT_CARD_HERO} sp-delay-1`}>
-          <div className={`${STAT_ICON} bg-surface-muted`}>
-            <Wallet className="h-5 w-5 text-muted-strong" aria-hidden="true" />
-          </div>
-          <p className={STAT_LABEL}>{isOwner ? "Today's Sales" : "Today's Total"}</p>
-          <p className={STAT_VALUE_HERO}>
-            <CountUp value={todayTotal} format="currency" />
-          </p>
-          {/* changePct is null when yesterday had no sales — a percentage
-              change from zero is not meaningful, so show nothing. */}
-          {changePct !== null && (
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              {changePct >= 0 ? (
-                <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
-              ) : (
-                <ArrowDownRight className="h-3.5 w-3.5 shrink-0 text-danger" aria-hidden="true" />
-              )}
-              <span
-                className={`text-xs font-semibold ${changePct >= 0 ? 'text-accent' : 'text-danger'}`}
-              >
-                {changePct >= 0 ? '+' : ''}
-                {changePct.toFixed(1)}%
-              </span>
-              <span className="text-xs text-muted">vs yesterday</span>
+        {/* Two columns inside the hero. Measured at 1536px the numeral sat in
+            a 525px box and left ~300px of nothing to its right; a wide card
+            with a void in it is worse than the equal grid it replaced. The
+            right column carries the week's shape and today's volume, which is
+            the context someone reads a takings figure against. */}
+        <div className={`${STAT_CARD_HERO} sp-delay-1 flex flex-wrap items-end justify-between gap-x-6 gap-y-4`}>
+          <div className="min-w-0">
+            <div className={`${STAT_ICON} bg-accent-soft`}>
+              <Wallet className="h-5 w-5 text-accent-ink" aria-hidden="true" />
             </div>
-          )}
+            <p className={STAT_LABEL}>{isOwner ? "Today's Sales" : "Today's Total"}</p>
+            <p className={STAT_VALUE_HERO}>
+              <CountUp value={todayTotal} format="currency" />
+            </p>
+            {/* changePct is null when yesterday had no sales — a percentage
+                change from zero is not meaningful, so show nothing. */}
+            {changePct !== null && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {changePct >= 0 ? (
+                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
+                ) : (
+                  <ArrowDownRight className="h-3.5 w-3.5 shrink-0 text-danger" aria-hidden="true" />
+                )}
+                <span
+                  className={`text-xs font-semibold ${changePct >= 0 ? 'text-accent' : 'text-danger'}`}
+                >
+                  {changePct >= 0 ? '+' : ''}
+                  {changePct.toFixed(1)}%
+                </span>
+                <span className="text-xs text-muted">vs yesterday</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex min-w-0 flex-1 flex-col items-end gap-2">
+            <Sparkline data={trendData} />
+            <p className="sp-kpi-caption text-right">
+              <span className="font-semibold text-foreground">{todayCount}</span>{' '}
+              {todayCount === 1 ? 'sale' : 'sales'} today
+            </p>
+          </div>
         </div>
 
         <div className={`${STAT_CARD} sp-delay-2`}>
@@ -288,7 +344,7 @@ export default function DashboardView({
             hover. `sp-lift` is the shared affordance: shadow-sm to shadow-md
             plus 2px of travel, and a press state that also fires on touch,
             where there is no hover to rely on. */}
-        <Link href="/inventory" className={`${STAT_CARD} sp-delay-4 sp-lift block`}>
+        <Link href="/inventory" className={`${STAT_CARD} sp-delay-4 col-span-2 xl:col-span-1`}>
           <div className="flex items-center justify-between gap-2">
             <div className={`${STAT_ICON} bg-danger-bg`}>
               <AlertTriangle className="h-5 w-5 text-danger" aria-hidden="true" />
@@ -306,7 +362,7 @@ export default function DashboardView({
 
       {/* ---- Quick actions ---- */}
       <h2 className="sp-heading mt-8">Quick Actions</h2>
-      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <div className="sp-qa-grid mt-4">
         {(isOwner ? [...QUICK_ACTIONS, ...OWNER_QUICK_ACTIONS] : QUICK_ACTIONS).map((action, i) => {
           const Icon = action.Icon
           return (
@@ -331,9 +387,28 @@ export default function DashboardView({
       <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6 lg:col-span-2">
           <h2 className="sp-heading">Daily Sales Trends</h2>
-          <div className="mt-4">
-            <SalesTrendChart data={trendData} />
-          </div>
+          {/* A chart of seven zeroes is a flat line along the axis, which reads
+              as a broken panel rather than as an empty store. Say it instead. */}
+          {trendData.every((d) => d.value === 0) ? (
+            <EmptyState
+              icon={TrendingUp}
+              title="No sales this week"
+              description="Once you log sales, the last seven days appear here as a trend."
+              className="py-10"
+              action={
+                <Link
+                  href="/sales"
+                  className="control-h inline-flex items-center rounded-lg bg-foreground px-4 text-sm font-semibold text-surface transition-opacity hover:opacity-90"
+                >
+                  Log a sale
+                </Link>
+              }
+            />
+          ) : (
+            <div className="mt-4">
+              <SalesTrendChart data={trendData} />
+            </div>
+          )}
         </div>
 
         <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">

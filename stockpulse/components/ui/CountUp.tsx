@@ -107,7 +107,12 @@ export default function CountUp({
       // text node grows as digits arrive and drags its siblings with it. `ch`
       // is exact here because .sp-kpi sets tabular-nums, so every digit is
       // one ch wide.
-      style={{ display: 'inline-block', minWidth: `${finalText.length}ch` }}
+      // `min()` so the reservation cannot become an overflow. At 28px a
+      // 9-character total reserves ~150px, which is wider than a stat card at
+      // 390px — that is what clipped the Low Stock and 7-day cards on a phone.
+      // Capping at 100% keeps CLS protection on wide screens and yields to the
+      // card on narrow ones.
+      style={{ display: 'inline-block', minWidth: `min(${finalText.length}ch, 100%)` }}
       className={className}
     >
       {finalText}

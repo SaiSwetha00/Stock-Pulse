@@ -57,12 +57,21 @@
      passes — 5.30:1 on surface, 5.08:1 on background, 4.74:1 on surface-muted.
      `accent` is the text/icon value; `accent-ink` pairs with `accent-soft`,
      never with an `accent` fill. White on an accent fill is 5.30:1. */
+  /* Two golds, and they do different jobs.
+
+     --accent is for gold TEXT and icons, so it has to clear 4.5:1 on a
+     white card — that pushes it dark, and at 40px+ it reads as gold but
+     as a small filled pill it reads as mud. That is exactly what went
+     wrong with the sidebar's active item.
+
+     --accent-fill is for gold SURFACES, where the contrast requirement
+     moves to the ink sitting on top instead. It is the landing page's
+     own #c9a227, and near-black ink on it measures 7.8:1. */
   --accent: #8a6206;
-  /* Text/icon colour for anything sitting ON a gold fill. Theme-aware
-     because gold is mid-luminance: it needs near-white ink on the
-     darker light-theme gold and near-black ink on the bright dark-theme
-     gold. A single value fails one theme or the other. */
-  --on-accent: #fffdf9;
+  --accent-fill: #c9a227;
+  /* Ink for anything on a gold fill. Near-black in both themes now that
+     both fills are bright gold. */
+  --on-accent: #14100c;
   --accent-hover: #6d4d04;
   --accent-soft: #f6e8c8;
   --accent-ink: #5a3f03;
@@ -133,6 +142,7 @@
   /* The landing's bright gold, unchanged — this is the colour the two
      halves of the product share. 10.4:1 on --surface. */
   --accent: #e3b341;
+  --accent-fill: #e3b341;
   --on-accent: #0f0b07;
   --accent-hover: #f2c862;
   --accent-soft: #3a2a10;
@@ -1160,12 +1170,25 @@ body {
    horizontal axis, a real hairline, and a gold hairline plus a scaled
    icon on hover so the whole tile responds rather than just its shadow.
    --------------------------------------------------------------- */
+/* Four tiles, evenly, with no orphan row.
+   `repeat(3, ...)` left a 4-item set as 3 + 1 — measured, rows were
+   [3, 1]. auto-fit sizes to whatever the set actually is, so 3 actions
+   (staff) and 4 (owner) both fill their rows. */
+.sp-qa-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+}
+
 .sp-qa {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  min-height: 3.5rem; /* 56 — down from ~96 */
-  padding: 0 1rem;
+  /* Centred, not left-huddled. Measured 306px of dead space to the right
+     of the label when this was flex-start. */
+  justify-content: center;
+  gap: 0.625rem;
+  min-height: 3rem; /* 48 — down from 56, and from ~96 before that */
+  padding: 0 0.875rem;
   border-radius: var(--radius-2xl);
   border: 1px solid var(--border);
   background: var(--surface);
@@ -1182,8 +1205,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: 1.75rem;
+  height: 1.75rem;
   flex-shrink: 0;
   border-radius: var(--radius-lg);
   transition: transform 0.15s ease;
@@ -1235,7 +1258,10 @@ body {
    gold needs near-white on it and the dark theme's needs near-black.
    --------------------------------------------------------------- */
 .sp-nav-pill {
-  background: var(--accent);
+  /* --accent-fill, not --accent. The text-grade gold is dark enough to
+     read as coffee-brown when it becomes a small filled pill, which is
+     precisely how this shipped and got rejected. */
+  background: var(--accent-fill);
 }
 
 .sp-nav-active {

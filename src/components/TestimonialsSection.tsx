@@ -14,7 +14,7 @@ export const TestimonialsSection: React.FC = () => {
       company: 'MIT Retail Automation Labs',
       location: 'Cambridge, MA',
       avatarUrl:
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        '',
       rating: 5,
       quote:
         'Our empirical research study across 48 regional grocery stores demonstrated that Stock Pulse’s predictive optical telemetry reduced perishable spoilage by 41.8% while maintaining 99.98% shelf availability across high-turnover produce and dairy SKUs.',
@@ -27,7 +27,7 @@ export const TestimonialsSection: React.FC = () => {
       company: 'Global Cold-Chain Systems Institute',
       location: 'London, UK',
       avatarUrl:
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+        '',
       rating: 5,
       quote:
         'The cold-chain probe telemetry and micro-climate shelf mapping are extraordinarily precise. Real-time temperature and ethylene sensors prevent inventory loss hours before visual decay can even begin.',
@@ -40,7 +40,7 @@ export const TestimonialsSection: React.FC = () => {
       company: 'Artisan Grocery Tech Consortium',
       location: 'Tokyo, Japan',
       avatarUrl:
-        'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+        '',
       rating: 5,
       quote:
         'Stock Pulse gives our operations team real-time cryptographic audit precision across our retail floor and cold vaults. It is the definitive technology standard for high-turnover modern food retail.',

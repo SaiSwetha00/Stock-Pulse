@@ -193,13 +193,13 @@ export const ThreeGroceryVisual: React.FC<ThreeGroceryVisualProps> = ({ interact
     // PHOTOREALISTIC TEXTURE LOADER & ASSET MAPS
     const textureLoader = new THREE.TextureLoader();
 
-    // High-resolution Unsplash Studio Grocery Photography URLs
-    const pomegranatesTex = textureLoader.load('https://images.unsplash.com/photo-1615485290382-441e4d049cb5?auto=format&fit=crop&w=800&q=80');
-    const avocadoTex = textureLoader.load('https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?auto=format&fit=crop&w=800&q=80');
-    const oliveOilTex = textureLoader.load('https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?auto=format&fit=crop&w=800&q=80');
-    const honeyJarTex = textureLoader.load('https://images.unsplash.com/photo-1587049352847-4a222e784d38?auto=format&fit=crop&w=800&q=80');
-    const organicMilkTex = textureLoader.load('https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&w=800&q=80');
-    const artisanCheeseTex = textureLoader.load('https://images.unsplash.com/photo-1452195100486-9cc805987862?auto=format&fit=crop&w=800&q=80');
+    // Remote stock photography removed — see stockpulse/components/marketing/ThreeGroceryVisual.tsx
+    const pomegranatesTex = null as unknown as THREE.Texture;
+    const avocadoTex = null as unknown as THREE.Texture;
+    const oliveOilTex = null as unknown as THREE.Texture;
+    const honeyJarTex = null as unknown as THREE.Texture;
+    const organicMilkTex = null as unknown as THREE.Texture;
+    const artisanCheeseTex = null as unknown as THREE.Texture;
 
     [pomegranatesTex, avocadoTex, oliveOilTex, honeyJarTex, organicMilkTex, artisanCheeseTex].forEach(tex => {
       tex.colorSpace = THREE.SRGBColorSpace;
