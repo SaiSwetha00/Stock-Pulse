@@ -11,43 +11,43 @@ export default function FAQSection() {
   const faqs: FAQItem[] = [
     {
       id: 'faq-1',
-      question: 'How long does physical hardware deployment take in a retail store?',
+      question: 'What hardware do we need to install?',
       answer:
-        'Most boutique markets deploy Stock Pulse within 45 minutes. Our optical tags and ambient cold-chain probes connect directly over standard encrypted Wi-Fi or cellular IoT. No structural wiring or store downtime is required.',
+        'None. There are no tags, sensors or probes to fit — Stock Pulse runs in a web browser on whatever you already have, whether that is the office computer or a phone behind the counter. Setting up means entering your stock, which you can do by hand or by importing a spreadsheet.',
       category: 'Hardware & Scanning',
     },
     {
       id: 'faq-2',
-      question: 'Can Stock Pulse integrate with our existing POS and ERP software?',
+      question: 'Does it connect to our existing till or accounting software?',
       answer:
-        'Yes. Stock Pulse features bi-directional API connectors for Toast, Square Retail, Lightspeed, SAP, Oracle NetSuite, and NCR Emerald. Transaction data syncs in real-time.',
+        'Not yet. There are no POS or accounting integrations today, and we would rather tell you that up front than have you find out after signing up. Sales are entered in Stock Pulse itself, and you can export any list to CSV to take into a spreadsheet or send to your accountant.',
       category: 'General',
     },
     {
       id: 'faq-3',
-      question: 'What happens if our store internet connection drops?',
+      question: 'What happens if our internet connection drops?',
       answer:
-        'Stock Pulse edge nodes maintain an offline encrypted SQLite buffer. All shelf telemetry, temperature probes, and scanning events continue logging seamlessly and auto-reconcile with the cloud once connectivity resumes.',
+        'Stock Pulse needs a connection to work — there is no offline mode. If the line goes down you will not be able to record sales or check stock until it is back, so if your connection is unreliable, keep a paper fallback for the till and enter the day when you are back online.',
       category: 'Security',
     },
     {
       id: 'faq-4',
-      question: 'How accurate is the AI produce spoilage prediction model?',
+      question: 'Does StockPulse predict when produce will spoil?',
       answer:
-        'Our computer vision and ethylene models achieve 94.2% predictive accuracy across fruits, vegetables, and floral perishables, giving store operators up to 72 hours of advanced warning before visible decay.',
+        'No — and we would rather say so than imply otherwise. There is no camera, no sensor and no prediction model. What StockPulse does is simpler and it works: you record an expiry date against a perishable line, you choose how much warning you want (12 hours up to a week), and those items surface on your dashboard while there is still time to move them. The judgement about the produce stays yours.',
       category: 'General',
     },
     {
       id: 'faq-5',
-      question: 'Is there a free trial period for new store locations?',
+      question: 'What does it cost?',
       answer:
-        'Yes. We offer a 14-day risk-free pilot program including pre-configured starter hardware for up to 500 SKUs. If you don’t measure a reduction in spoilage, return the hardware with zero obligation.',
+        'Nothing. Stock Pulse is free to use — there is no trial to run out, no card to enter and no tier to upgrade to. There is also no hardware to send back, because there is none to begin with.',
       category: 'Pricing',
     },
   ]
 
   return (
-    <section id="faq" className="relative py-32 bg-black overflow-hidden perspective-1500">
+    <section id="faq" className="relative py-32 sp-band-cream overflow-hidden perspective-1500">
       <div className="max-w-4xl mx-auto px-6 md:px-12 relative z-10">
         {/* Header */}
         <motion.div
@@ -57,10 +57,10 @@ export default function FAQSection() {
           transition={{ duration: 0.8 }}
           className="text-center mb-20"
         >
-          <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-white/10">
+          <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-border">
             <HelpCircle className="w-3.5 h-3.5" /> FREQUENTLY ASKED QUESTIONS
           </div>
-          <h2 className="font-sans font-medium text-3xl sm:text-4xl text-[#e0e2ed] tracking-normal mb-7">
+          <h2 className="font-sans font-medium text-3xl sm:text-4xl text-foreground tracking-normal mb-7">
             Everything You Need to Know About Stock Pulse
           </h2>
         </motion.div>
@@ -78,17 +78,17 @@ export default function FAQSection() {
                 transition={{ duration: 0.5, delay: idx * 0.1 }}
                 whileHover={{ translateZ: 10 }}
                 className={`glass-card rounded-2xl border transition-all duration-300 overflow-hidden preserve-3d ${
-                  isOpen ? 'border-[var(--sp-gold)]/60 bg-[var(--sp-surface-card)]/90 shadow-[0_10px_30px_rgba(201,162,39,0.15)]' : 'border-white/10 bg-[var(--sp-surface-alt)]/60'
+                  isOpen ? 'border-[var(--sp-gold)]/60 bg-[var(--sp-surface-card)]/90 shadow-[0_10px_30px_rgba(201,162,39,0.15)]' : 'border-border bg-[var(--sp-surface-alt)]/60'
                 }`}
               >
                 <button
                   onClick={() => setOpenId(isOpen ? '' : faq.id)}
                   className="w-full p-7 text-left flex items-center justify-between gap-4 cursor-pointer"
                 >
-                  <span className="font-sans font-medium text-base sm:text-lg text-[#e0e2ed]">{faq.question}</span>
+                  <span className="font-sans font-medium text-base sm:text-lg text-foreground">{faq.question}</span>
                   <div
-                    className={`w-8 h-8 rounded-full bg-black border border-[var(--sp-gold)]/30 flex items-center justify-center text-[var(--sp-gold)] shrink-0 transition-transform duration-300 ${
-                      isOpen ? 'rotate-180 bg-[var(--sp-gold)] text-black' : ''
+                    className={`w-8 h-8 rounded-full bg-background border border-[var(--sp-gold)]/30 flex items-center justify-center text-[var(--sp-gold)] shrink-0 transition-transform duration-300 ${
+                      isOpen ? 'rotate-180 bg-[var(--sp-gold)] text-accent-ink' : ''
                     }`}
                   >
                     <ChevronDown className="w-5 h-5" />
@@ -102,7 +102,7 @@ export default function FAQSection() {
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.3 }}
-                      className="px-7 pb-7 text-[#d1c5b0] text-sm leading-relaxed border-t border-white/5 pt-5"
+                      className="px-7 pb-7 text-muted-strong text-sm leading-relaxed border-t border-border pt-5"
                     >
                       {faq.answer}
                     </motion.div>

@@ -87,12 +87,12 @@ export default function SignupPage() {
     >
       <GlassCard>
         <div className="mb-6">
-          <div className="mb-2 flex items-center justify-between text-xs font-medium text-[#d1c5b0]">
+          <div className="mb-2 flex items-center justify-between text-xs font-medium text-muted-strong">
             <span>Step {Math.min(step + 1, 3)} of 3</span>
             <span>{Math.round((progress / 3) * 100)}%</span>
           </div>
           <div
-            className="h-1.5 w-full overflow-hidden rounded-full bg-white/10"
+            className="h-1.5 w-full overflow-hidden rounded-full bg-surface/10"
             role="progressbar"
             aria-valuenow={progress}
             aria-valuemin={1}
@@ -124,8 +124,8 @@ export default function SignupPage() {
               >
                 <Check className="h-8 w-8 text-[#edc155]" strokeWidth={3} />
               </motion.div>
-              <h2 className="font-display mt-5 text-xl font-bold text-[#e0e2ed]">Store created</h2>
-              <p className="mt-1 text-sm text-[#d1c5b0]">Taking you to your dashboard…</p>
+              <h2 className="font-serif-brand mt-5 text-[20px] font-semibold tracking-[0.01em] text-foreground">Store created</h2>
+              <p className="mt-1 text-sm text-muted-strong">Taking you to your dashboard…</p>
             </motion.div>
           ) : (
             <motion.form
@@ -145,10 +145,10 @@ export default function SignupPage() {
             >
               <div className="text-center">
                 <BrandMark />
-                <h2 className="font-display mt-4 text-2xl font-bold tracking-tight text-[#e0e2ed]">
+                <h2 className="font-serif-brand mt-5 text-[22px] font-semibold tracking-[0.01em] text-foreground">
                   {STEPS[step].title}
                 </h2>
-                <p className="mt-1 text-sm text-[#d1c5b0]">{STEPS[step].blurb}</p>
+                <p className="mt-1 text-sm text-muted-strong">{STEPS[step].blurb}</p>
               </div>
 
               <div className="mt-6 space-y-4">
@@ -234,7 +234,7 @@ export default function SignupPage() {
         </AnimatePresence>
 
         {!succeeded && (
-          <motion.p variants={fadeUp} className="mt-6 text-center text-sm text-[#d1c5b0]">
+          <motion.p variants={fadeUp} className="mt-6 text-center text-sm text-muted-strong">
             Already registered?{' '}
             <Link href="/login" className="font-semibold text-[#e0e2ed] hover:underline">
               Sign in

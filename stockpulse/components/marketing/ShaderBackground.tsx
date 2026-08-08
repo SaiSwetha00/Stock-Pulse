@@ -145,7 +145,7 @@ export default function ShaderBackground() {
   }, [])
 
   return (
-    <div className="fixed inset-0 w-full h-full -z-50 pointer-events-none overflow-hidden bg-black">
+    <div className="fixed inset-0 w-full h-full -z-50 pointer-events-none overflow-hidden bg-background">
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-70" />
       <div className="film-grain" />
       {/* Ambient background glow spheres */}

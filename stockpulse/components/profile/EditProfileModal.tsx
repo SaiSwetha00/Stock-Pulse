@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Modal from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { createClient } from '@/lib/supabase/client'
+import AvatarUpload from './AvatarUpload'
 import type { Profile } from '@/types'
 
 export default function EditProfileModal({
@@ -18,7 +19,7 @@ export default function EditProfileModal({
   const [fullName, setFullName] = useState(profile.full_name)
   const [phone, setPhone] = useState(profile.phone ?? '')
   const [location, setLocation] = useState(profile.location ?? '')
-  const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url ?? '')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url ?? null)
   const toast = useToast()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -86,17 +87,12 @@ export default function EditProfileModal({
               className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
             />
           </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-              Photo URL
-            </label>
-            <input
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-              placeholder="https://..."
-              className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
-            />
-          </div>
+          <AvatarUpload
+            userId={profile.id}
+            fullName={fullName || profile.full_name}
+            value={avatarUrl}
+            onChange={setAvatarUrl}
+          />
           <div className="flex gap-3 pt-2">
             <button
               type="button"

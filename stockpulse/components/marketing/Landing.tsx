@@ -35,7 +35,7 @@ const FONT_VARIABLES = `${outfit.variable} ${plusJakartaSans.variable} ${cinzelD
 
 export default function Landing() {
   return (
-    <div className={`sp-landing ${FONT_VARIABLES} min-h-screen bg-black text-[#e0e2ed] relative font-sans selection:bg-[var(--sp-gold)] selection:text-black`}>
+    <div className={`sp-landing ${FONT_VARIABLES} min-h-screen bg-background text-[#e0e2ed] relative font-sans selection:bg-[var(--sp-gold)] selection:text-accent-ink`}>
       {/* Rendered verbatim — fixed literal above, nothing from user input. */}
       <style dangerouslySetInnerHTML={{ __html: PAGE_STYLES }} />
 

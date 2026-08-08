@@ -1,7 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { canManage } from '@/lib/permissions'
+import Link from 'next/link'
+import { canManage, isOwner } from '@/lib/permissions'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Plus, AlertTriangle, Users, Trash2 } from 'lucide-react'
 import { toLocalISODate } from '@/lib/format'
@@ -9,6 +10,7 @@ import { useLocalToday } from '@/components/ui/LocalTime'
 import type { Profile, Role, Shift } from '@/types'
 import ShiftModal from './ShiftModal'
 import DeleteShiftDialog from './DeleteShiftDialog'
+import StaffTabs from './StaffTabs'
 
 const DAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 const DEFAULT_START_HOUR = 8
@@ -46,15 +48,36 @@ function addDays(iso: string, n: number): string {
   return toLocalISODate(d)
 }
 
+/**
+ * Semantic tokens only — no raw palette classes.
+ *
+ * These blocks previously used `bg-red-50` / `bg-emerald-800` and friends,
+ * which are fixed values: they do not follow dark mode, and they would have
+ * been the only thing on this page still wearing the old palette after Phase 4.
+ * An unassigned shift is a genuine alert state, so it uses the same danger
+ * tokens as every other alert in the app rather than a red of its own.
+ *
+ * No `/opacity` modifiers here, deliberately. These tokens do not support them
+ * — `text-danger/80` and friends compile, build and then emit no rule at all,
+ * so the text simply loses its colour. Verified by grepping the built CSS; see
+ * DECISIONS.md D9.
+ */
 function shiftStyle(shift: Shift, isCurrentUser: boolean) {
   if (!shift.staff_id) {
-    return { block: 'bg-red-50 border border-red-200', text: 'text-red-700', sub: 'text-red-600' }
+    return {
+      block: 'bg-danger-bg border border-danger',
+      text: 'text-danger',
+      sub: 'text-danger',
+    }
   }
   if (isCurrentUser || shift.role_label.toLowerCase() === 'manager') {
     return { block: 'bg-foreground', text: 'text-surface', sub: 'text-muted' }
   }
   if (shift.role_label.toLowerCase() === 'produce') {
-    return { block: 'bg-emerald-800', text: 'text-surface', sub: 'text-emerald-200' }
+    // accent-ink pairs with accent-soft, not with an accent fill — every other
+    // usage in the app does the same, and ink-on-fill measures 2.6:1. Together
+    // these are 8.19:1 in light and 9.58:1 in dark.
+    return { block: 'bg-accent-soft', text: 'text-accent-ink', sub: 'text-accent-ink' }
   }
   return { block: 'bg-surface-muted border border-border', text: 'text-foreground', sub: 'text-muted' }
 }
@@ -117,11 +140,12 @@ export default function StaffScheduleClient({
   }))
 
   return (
-    <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Staff Scheduling</h1>
-          <p className="mt-1 text-sm text-muted">Manage team shifts and coverage.</p>
+          <p className="sp-eyebrow">Team</p>
+          <h1 className="sp-title mt-2">Staff Scheduling</h1>
+          <p className="sp-body mt-2">Manage team shifts and coverage.</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -144,8 +168,10 @@ export default function StaffScheduleClient({
         </div>
       </div>
 
+      <StaffTabs role={role} />
+
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="rounded-2xl bg-surface p-6 shadow-sm">
+        <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <button
@@ -156,7 +182,7 @@ export default function StaffScheduleClient({
               >
                 <ChevronLeft className="h-5 w-5" aria-hidden="true" />
               </button>
-              <h2 className="text-lg font-bold text-foreground">{rangeLabel}</h2>
+              <h2 className="sp-heading">{rangeLabel}</h2>
               <button
                 type="button"
                 onClick={() => goToWeek(7)}
@@ -192,7 +218,7 @@ export default function StaffScheduleClient({
                   <p className={`text-[10px] font-semibold uppercase tracking-wide ${isToday ? 'text-muted' : 'text-muted'}`}>
                     {DAY_NAMES[i]}
                   </p>
-                  <p className="text-lg font-bold">{dayNum}</p>
+                  <p className="sp-heading">{dayNum}</p>
                 </div>
               )
             })}
@@ -280,7 +306,7 @@ export default function StaffScheduleClient({
                               type="button"
                               onClick={() => setEditing(shift)}
                               aria-label={`Edit ${shift.role_label} shift on ${shift.shift_date}`}
-                              className="absolute inset-y-0 left-0 right-11 rounded-l-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
+                              className="absolute inset-y-0 left-0 right-11 rounded-l-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
                             />
                             {/* Was a 20px control revealed on hover, so it was
                                 both under the 44px floor and unreachable on a
@@ -293,7 +319,7 @@ export default function StaffScheduleClient({
                               type="button"
                               onClick={() => setDeletingShift(shift)}
                               aria-label={`Delete ${shift.role_label} shift on ${shift.shift_date}`}
-                              className={`tap-target absolute right-0 top-0 z-10 rounded-lg opacity-70 transition hover:bg-black/20 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900 group-hover:opacity-100 ${style.text}`}
+                              className={`tap-target absolute right-0 top-0 z-10 rounded-lg opacity-70 transition hover:bg-black/20 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground group-hover:opacity-100 ${style.text}`}
                             >
                               <Trash2 className="h-4 w-4" aria-hidden="true" />
                             </button>
@@ -310,11 +336,27 @@ export default function StaffScheduleClient({
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-2xl bg-surface p-6 shadow-sm">
+          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">Staff Availability</h2>
+              <h2 className="sp-heading">Staff Availability</h2>
               <Users className="h-5 w-5 text-muted" />
             </div>
+            {/* A store with nobody in it is the first-run state, not an
+                error — the owner has signed up and has not invited anyone
+                yet. Point them at where that happens rather than showing an
+                empty column with a "0 of 0 on shift" line under it. */}
+            {availability.length === 0 && (
+              <p className="mt-4 text-sm leading-relaxed text-muted">
+                Nobody on the team yet.{' '}
+                {isOwner(role) ? (
+                  <Link href="/staff/team" className="font-semibold text-foreground underline">
+                    Invite your first colleague
+                  </Link>
+                ) : (
+                  'The store owner can invite people from the Team tab.'
+                )}
+              </p>
+            )}
             <div className="mt-4 space-y-4">
               {availability.map(({ profile, onToday }) => (
                 <div key={profile.id} className="flex items-center gap-3">

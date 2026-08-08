@@ -34,9 +34,9 @@ const TIER_FILTERS: { value: LoyaltyTier | 'all'; label: string }[] = [
 
 const TIER_STYLES: Record<LoyaltyTier, string> = {
   platinum: 'bg-foreground text-surface',
-  gold: 'bg-amber-100 text-amber-700',
+  gold: 'bg-warning-bg text-warning',
   silver: 'bg-surface-muted text-muted-strong',
-  bronze: 'bg-orange-100 text-orange-700',
+  bronze: 'bg-warning-bg text-warning',
 }
 
 type Activity = 'active' | 'dormant'
@@ -146,11 +146,12 @@ export default function CustomersClient({
   const repeatCustomers = initialCustomers.filter((c) => c.visits > 1).length
 
   return (
-    <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Customers</h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="sp-eyebrow">Relationships</p>
+          <h1 className="sp-title mt-2">Customers</h1>
+          <p className="sp-body mt-2">
             Customer profiles, purchase history, and loyalty tiers.
           </p>
         </div>
@@ -239,7 +240,7 @@ export default function CustomersClient({
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl bg-surface p-6 shadow-sm">
+        <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">
               Total Customers
@@ -248,7 +249,7 @@ export default function CustomersClient({
           </div>
           <p className="mt-2 text-2xl font-bold text-foreground">{initialCustomers.length}</p>
         </div>
-        <div className="rounded-2xl bg-surface p-6 shadow-sm">
+        <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">
               Lifetime Revenue
@@ -291,7 +292,7 @@ export default function CustomersClient({
                 <tr className="block lg:table-row">
                   <td
                     colSpan={7}
-                    className="block rounded-2xl bg-surface shadow-sm lg:table-cell lg:rounded-none lg:shadow-none"
+                    className="block sp-rise rounded-2xl border border-border bg-surface shadow-sm lg:table-cell lg:rounded-none lg:shadow-none"
                   >
                     {initialCustomers.length === 0 ? (
                       <EmptyState
@@ -318,7 +319,7 @@ export default function CustomersClient({
               {pageItems.map((c) => (
                 <tr
                   key={c.id}
-                  className="block rounded-2xl bg-surface p-4 shadow-sm lg:table-row lg:rounded-none lg:border-b lg:border-border lg:p-0 lg:shadow-none lg:last:border-0"
+                  className="block sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm lg:table-row lg:rounded-none lg:border-b lg:border-border lg:p-0 lg:shadow-none lg:last:border-0"
                 >
                   <td className="block lg:table-cell lg:px-6">
                     <div className="flex items-center gap-3">

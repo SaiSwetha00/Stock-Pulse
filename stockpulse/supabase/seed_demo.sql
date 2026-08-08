@@ -5,12 +5,24 @@
 -- Safe to re-run. Each section fills a table only when that table is empty for
 -- the target store; nothing here updates or deletes pre-existing rows.
 --
--- Targets the oldest store by default. To seed a different one, replace the
--- `select id into target_store ...` line with:
---     target_store := '<your-store-uuid>';
+-- TARGET IS PINNED TO ONE STORE ON PURPOSE.
+--
+-- This previously seeded whichever store was oldest, which on a real project
+-- means the owner's actual shop. The target is now a hardcoded id, checked
+-- three ways before a single row is written: it must not be one of the known
+-- protected stores, it must exist, and its name must still match. Any mismatch
+-- aborts the whole script — a DO block is one transaction, so an abort leaves
+-- nothing behind.
+--
+-- To retarget, change `expected_store` AND `expected_name` together. Changing
+-- only the id trips the name check, which is the point.
 
 do $$
 declare
+  -- The only store this script may write to.
+  expected_store constant uuid := 'e47fe6eb-8825-4612-965f-cb61b9be3864';
+  expected_name  constant text := 'sandal local store';
+  actual_name    text;
   target_store uuid;
   seller       uuid;
   new_sale     uuid;
@@ -20,10 +32,40 @@ declare
   item_count   integer;
   qty          integer;
   sale_time    timestamptz;
+  staff_rec    record;
+  week_monday  date;
 begin
-  select id into target_store from stores order by created_at asc limit 1;
-  if target_store is null then
-    raise exception 'No store found. Create an account in the app first, then re-run this script.';
+  target_store := expected_store;
+
+  -- Guard 1: the three real stores, named explicitly. Belt and braces next to
+  -- the name check below, but it states the intent in a way nobody editing
+  -- this file later can misread.
+  if target_store in (
+    'd046df4c-45b2-420b-90ef-ed02f21d1b68',  -- Neighborhood Market
+    'e46a2aaa-6c92-4cba-9649-2ddda35f42fe',  -- corner grocer
+    'aa595aa9-b89a-4101-a67d-166ea94a42d0'   -- sital
+  ) then
+    raise exception
+      'Refusing to seed: % is a protected store. This script may only touch the test store (%).',
+      target_store, expected_store;
+  end if;
+
+  -- Guard 2: the store has to be there at all.
+  select name into actual_name from stores where id = target_store;
+
+  if actual_name is null then
+    raise exception
+      'Refusing to seed: no store with id % exists. Check the id, or create the test store first.',
+      target_store;
+  end if;
+
+  -- Guard 3: and it has to still be the store this id was verified against.
+  -- Catches an id edited to point somewhere else, and a test store that was
+  -- deleted and replaced by a different shop.
+  if actual_name is distinct from expected_name then
+    raise exception
+      'Refusing to seed: store % is named "%", but this script expects "%". Aborting rather than writing to the wrong shop.',
+      target_store, actual_name, expected_name;
   end if;
 
   -- Prefer the owner as the recorded seller; fall back to any member.
@@ -134,6 +176,98 @@ begin
       where id = new_sale;
     end loop;
     raise notice '  sales: 70 inserted with line items';
+  end if;
+
+  -- ==========================================================
+  -- SUPPLIERS  (+ incoming shipments and the activity feed)
+  -- ==========================================================
+  if exists (select 1 from suppliers where store_id = target_store) then
+    raise notice '  suppliers: already populated, skipped';
+  else
+    insert into suppliers (store_id, name, primary_contact, category, status)
+    values
+      (target_store, 'Fresh Farms Produce',  'Maria Delgado',   'produce',   'active'),
+      (target_store, 'Dairy Best Co-op',     'Tom Whelan',      'dairy',     'active'),
+      (target_store, 'Corner Bakery Supply', 'Aisha Rahman',    'bakery',    'active'),
+      -- One vendor deliberately in trouble: 'issue' sorts to the top of the
+      -- table, so the status sort has something to demonstrate.
+      (target_store, 'Highland Beverages',   'Ken Osei',        'beverages', 'issue'),
+      (target_store, 'Pantry Wholesale',     'Ruth Lindqvist',  'dry_goods', 'active'),
+      (target_store, 'Valley Greens',        'Sam Okafor',      'produce',   'inactive');
+    raise notice '  suppliers: 6 inserted';
+
+    -- Shipments span all four tracker stages. Two are due today so the
+    -- "Arriving Today" badge and the Today's Inbound pallet counts are not
+    -- empty; the 'dock' one is excluded from the incoming list by the page,
+    -- which is what makes the received/pending split add up.
+    insert into shipments (store_id, supplier_id, po_number, status, pallets, eta)
+    select target_store, s.id, v.po, v.status, v.pallets, v.eta
+    from (values
+      ('PO-4417', 'transit', 6, current_date),
+      ('PO-4418', 'dock',    4, current_date),
+      ('PO-4419', 'shipped', 3, current_date + 1),
+      ('PO-4420', 'ordered', 8, current_date + 3),
+      ('PO-4421', 'transit', 2, current_date + 1)
+    ) as v(po, status, pallets, eta)
+    join lateral (
+      select id from suppliers
+      where store_id = target_store and status <> 'inactive'
+      order by created_at
+      offset (case v.po
+                when 'PO-4417' then 0 when 'PO-4418' then 1
+                when 'PO-4419' then 2 when 'PO-4420' then 3
+                else 4 end)
+      limit 1
+    ) s on true;
+    raise notice '  shipments: 5 inserted';
+
+    insert into supplier_activity (store_id, supplier_id, supplier_name, message, created_at)
+    select target_store, s.id, s.name, m.message, now() - m.ago
+    from (values
+      ('Fresh Farms Produce',  'PO-4417 left the depot and is in transit', interval '2 hours'),
+      ('Highland Beverages',   'Delivery window missed — flagged as an issue', interval '9 hours'),
+      ('Dairy Best Co-op',     'PO-4418 arrived at the dock', interval '1 day'),
+      ('Corner Bakery Supply', 'Corner Bakery Supply added as a new supplier', interval '3 days')
+    ) as m(supplier_name, message, ago)
+    join suppliers s
+      on s.store_id = target_store and s.name = m.supplier_name;
+    raise notice '  supplier_activity: 4 inserted';
+  end if;
+
+  -- ==========================================================
+  -- SHIFTS  (the ISO week containing today)
+  -- ==========================================================
+  if exists (select 1 from shifts where store_id = target_store) then
+    raise notice '  shifts: already populated, skipped';
+  else
+    -- Monday of the current ISO week. The Staff page opens on this week, so
+    -- seeding any other one would leave the grid looking empty.
+    week_monday := current_date - (extract(isodow from current_date)::int - 1);
+
+    i := 0;
+    for staff_rec in
+      select id from profiles where store_id = target_store order by created_at
+    loop
+      -- Alternating earlies and lates by index, so two people on the same day
+      -- do not sit on top of each other in the grid.
+      insert into shifts (store_id, staff_id, role_label, shift_date, start_time, end_time)
+      select
+        target_store,
+        staff_rec.id,
+        case (i % 3) when 0 then 'Tills' when 1 then 'Produce' else 'Stockroom' end,
+        week_monday + d,
+        case when (i % 2) = 0 then time '07:00' else time '13:00' end,
+        case when (i % 2) = 0 then time '15:00' else time '21:00' end
+      from generate_series(0, 4) as d;
+      i := i + 1;
+    end loop;
+
+    -- One unassigned shift, so the UNASSIGNED warning state is visible
+    -- without having to create a gap by hand.
+    insert into shifts (store_id, staff_id, role_label, shift_date, start_time, end_time)
+    values (target_store, null, 'Deliveries', week_monday + 5, time '06:00', time '10:00');
+
+    raise notice '  shifts: % staff x 5 days, plus 1 unassigned', i;
   end if;
 
   raise notice 'Seed complete for store %', target_store;

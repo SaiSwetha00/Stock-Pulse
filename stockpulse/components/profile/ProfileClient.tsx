@@ -39,10 +39,10 @@ export default function ProfileClient({
     profile.role === 'owner' ? 'Store Owner' : profile.job_title || ROLE_LABELS[profile.role]
 
   return (
-    <div className="mx-auto max-w-[1100px] px-6 py-8 lg:px-8">
-      <div className="relative overflow-hidden rounded-2xl bg-surface p-8 shadow-sm">
+    <div className="sp-page">
+      <div className="relative overflow-hidden sp-rise rounded-2xl border border-border bg-surface p-8 shadow-sm">
         <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
-          <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-surface-muted ring-4 ring-white">
+          <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full bg-surface-muted ring-4 ring-surface">
             {isOptimizableImage(profile.avatar_url) ? (
               // 96px = the h-24 w-24 box. This is the largest image in the
               // app, so an unsized <img> here was the worst layout shift going
@@ -62,7 +62,11 @@ export default function ProfileClient({
             )}
           </div>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-foreground">{profile.full_name}</h1>
+            {/* The person's own name is the title here, so the eyebrow says
+                which page it is — the one case where the two carry different
+                information rather than repeating each other. */}
+            <p className="sp-eyebrow">Account</p>
+            <h1 className="sp-title mt-1.5">{profile.full_name}</h1>
             <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-muted">
               <Store className="h-4 w-4" />
               {roleLabel} <span>·</span> Member since {memberSince}
@@ -88,10 +92,10 @@ export default function ProfileClient({
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
-          <div className="rounded-2xl bg-surface p-6 shadow-sm">
+          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <User className="h-4.5 w-4.5 text-muted-strong" />
-              <h2 className="text-lg font-bold text-foreground">Personal Information</h2>
+              <h2 className="sp-heading">Personal Information</h2>
             </div>
             <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div>
@@ -119,10 +123,10 @@ export default function ProfileClient({
             </div>
           </div>
 
-          <div className="rounded-2xl bg-surface p-6 shadow-sm">
+          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <ShieldCheck className="h-4.5 w-4.5 text-muted-strong" />
-              <h2 className="text-lg font-bold text-foreground">Account Security</h2>
+              <h2 className="sp-heading">Account Security</h2>
             </div>
             <div className="mt-4 flex items-center justify-between">
               <div>
@@ -142,13 +146,13 @@ export default function ProfileClient({
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div className="rounded-2xl bg-foreground p-5">
-              <Archive className="h-5 w-5 text-emerald-400" />
+              <Archive className="h-5 w-5 text-success" />
               <p className="mt-3 text-2xl font-bold text-surface">
                 {itemsManaged >= 1000 ? `${(itemsManaged / 1000).toFixed(1)}k` : itemsManaged}
               </p>
               <p className="text-xs text-muted">Items Managed</p>
             </div>
-            <div className="rounded-2xl bg-surface p-5 shadow-sm">
+            <div className="sp-rise rounded-2xl border border-border bg-surface p-5 shadow-sm">
               <Users className="h-5 w-5 text-muted" />
               <p className="mt-3 text-2xl font-bold text-foreground">{staffCount}</p>
               <p className="text-xs text-muted">Staff Members</p>

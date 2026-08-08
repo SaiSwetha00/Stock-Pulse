@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import { canViewReports } from '@/lib/permissions'
@@ -5,6 +6,12 @@ import { DAY_LABELS } from '@/lib/format'
 import { REPORTING_TIMEZONE, reportingDate, shiftDays, weekdayIndex } from '@/lib/reportingTimezone'
 import { CATEGORY_LABELS, type Product, type Sale } from '@/types'
 import DashboardView, { type DashboardAlert } from '@/components/dashboard/DashboardView'
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+  description: "Today's takings, low stock, and what needs attention in your store.",
+  robots: { index: false, follow: false },
+}
 
 /** One row per day from public.sales_daily_totals (migration 0004). */
 type DailyTotal = { day: string; total: number; sale_count: number }
@@ -129,6 +136,7 @@ export default async function DashboardPage() {
   return (
     <DashboardView
       isOwner={isOwner}
+      fullName={profile.full_name}
       nowIso={now.toISOString()}
       todayTotal={todayTotal}
       todayCount={todayCount}

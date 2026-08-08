@@ -17,6 +17,13 @@ export const config = {
     // status 200, content-type text/html — so the browser had no decodable
     // source and the hero rendered black. A static file under public/ should
     // never reach session handling.
-    '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|mp4|webm|mov|woff|woff2)$).*)',
+    // opengraph-image and twitter-image belong here for the same reason as
+    // robots.txt above: Next serves them from an extensionless route
+    // (/opengraph-image?<hash>), so none of the extension rules catch them,
+    // and the auth middleware answered a scraper's image request with the
+    // sign-in page as HTML. The card rendered blank in every link preview.
+    // Caught by curling the production server — the build reports the route
+    // as generated either way, so nothing upstream of this shows a problem.
+    '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|opengraph-image|twitter-image|icon|apple-icon|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|mp4|webm|mov|woff|woff2)$).*)',
   ],
 }

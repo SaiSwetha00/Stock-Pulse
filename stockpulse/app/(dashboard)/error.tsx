@@ -18,7 +18,7 @@ export default function DashboardError({
 
   return (
     <div className="mx-auto flex max-w-[1400px] items-center justify-center px-6 py-20 lg:px-8">
-      <div className="w-full max-w-lg rounded-2xl bg-surface p-8 shadow-sm">
+      <div className="w-full max-w-lg sp-rise rounded-2xl border border-border bg-surface p-8 shadow-sm">
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-danger-bg">
           <AlertTriangle className="h-6 w-6 text-danger" />
         </div>

@@ -18,6 +18,7 @@ import ExportCsvButton from '@/components/ui/ExportCsvButton'
 import { useTable, type SortAccessors } from '@/lib/useTable'
 import type { CsvColumn } from '@/lib/csv'
 import ProductModal from './ProductModal'
+import ProductThumb from '@/components/ui/ProductThumb'
 import ImportProductsModal from './ImportProductsModal'
 
 const CATEGORY_FILTERS: { value: Category | 'all'; label: string }[] = [
@@ -100,11 +101,13 @@ const CSV_COLUMNS: CsvColumn<Product>[] = [
  */
 export default function InventoryClient({
   role,
+  storeId,
   initialProducts,
 }: {
   // storeId is no longer needed: mutations go through Server Actions that read
   // the store from the session.
   role: Role
+  storeId: string
   initialProducts: Product[]
 }) {
   const router = useRouter()
@@ -205,11 +208,12 @@ export default function InventoryClient({
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground lg:text-3xl">Inventory Management</h1>
-          <p className="mt-1 text-sm text-muted">Manage stock levels, categories, and pricing.</p>
+          <p className="sp-eyebrow">Stock</p>
+          <h1 className="sp-title mt-2">Inventory Management</h1>
+          <p className="sp-body mt-2">Manage stock levels, categories, and pricing.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ExportCsvButton
@@ -323,7 +327,7 @@ export default function InventoryClient({
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-        <div className="col-span-2 rounded-2xl bg-surface p-4 shadow-sm sm:col-span-1 lg:p-6">
+        <div className="col-span-2 sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:col-span-1 lg:p-6">
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">Total Value</p>
             <Wallet className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
@@ -368,7 +372,7 @@ export default function InventoryClient({
               <tr className="block lg:table-row">
                 <td
                   colSpan={canWrite ? 6 : 5}
-                  className="block rounded-2xl bg-surface shadow-sm lg:table-cell lg:rounded-none lg:shadow-none"
+                  className="block sp-rise rounded-2xl border border-border bg-surface shadow-sm lg:table-cell lg:rounded-none lg:shadow-none"
                 >
                   {/* An empty store and a filter that matched nothing need
                       different words — and different ways out. */}
@@ -412,13 +416,11 @@ export default function InventoryClient({
               return (
                 <tr
                   key={p.id}
-                  className="block rounded-2xl bg-surface p-4 shadow-sm lg:table-row lg:rounded-none lg:border-b lg:border-border lg:p-0 lg:shadow-none lg:last:border-0 lg:hover:bg-surface-muted"
+                  className="block sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm lg:table-row lg:rounded-none lg:border-b lg:border-border lg:p-0 lg:shadow-none lg:last:border-0 lg:hover:bg-surface-muted"
                 >
                   <td className="block lg:table-cell lg:px-6 lg:py-4">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-sm font-bold text-muted">
-                        {p.name.slice(0, 2).toUpperCase()}
-                      </div>
+                      <ProductThumb name={p.name} imageUrl={p.image_url} size={40} />
                       <div className="min-w-0">
                         <p className="truncate font-semibold text-foreground">{p.name}</p>
                         {p.brand && <p className="truncate text-xs text-muted">{p.brand}</p>}
@@ -510,6 +512,7 @@ export default function InventoryClient({
       {modalOpen && (
         <ProductModal
           product={editing}
+          storeId={storeId}
           onClose={() => {
             setModalOpen(false)
             setEditing(null)

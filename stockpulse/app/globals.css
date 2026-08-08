@@ -25,10 +25,23 @@
   --border: #e6e2db;
   --border-strong: #d4cfc6;
 
-  --accent: #1f6f4a;
-  --accent-hover: #195b3d;
-  --accent-soft: #e4f0e9;
-  --accent-ink: #145235;
+  /* Gold. The brief asked for #B8860B; it measures 3.25:1 on white and fails
+     AA for normal text, so this is the nearest value in the same family that
+     passes — 5.30:1 on surface, 5.08:1 on background, 4.74:1 on surface-muted.
+     `accent` is the text/icon value; `accent-ink` pairs with `accent-soft`,
+     never with an `accent` fill. White on an accent fill is 5.30:1. */
+  --accent: #8b6508;
+  --accent-hover: #6f5006;
+  --accent-soft: #f7efda;
+  --accent-ink: #5c4206;
+
+  /* "Optimal" needed its own token once the accent went gold. Green used to
+     be the accent, so `emerald-*` doubled as the healthy-state colour across
+     the dashboard; with a gold accent, in-stock items would otherwise have
+     read as gold. 5.42:1 on surface, 4.84:1 on surface-muted. */
+  --success: #157a3a;
+  --success-bg: #e7f4ec;
+  --success-ink: #0d4f26;
 
   --danger: #b42318;
   --danger-bg: #fdecea;
@@ -37,9 +50,11 @@
   --info: #175cd3;
   --info-bg: #eaf0fc;
 
-  --chart-1: #1f6f4a;
-  --chart-2: #7ba890;
-  --chart-3: #c4d6cb;
+  /* Same family as the accent, stepping lighter. Charts that kept the old
+     green would have been the one place the previous palette survived. */
+  --chart-1: #8b6508;
+  --chart-2: #c2a253;
+  --chart-3: #e6d6a8;
 }
 
 .dark {
@@ -52,10 +67,18 @@
   --border: #2a3034;
   --border-strong: #3a4247;
 
-  --accent: #4fa97c;
-  --accent-hover: #63bc8f;
-  --accent-soft: #16281f;
-  --accent-ink: #9bd9b8;
+  /* The dark-theme gold from the brief, unchanged — it measures 8.90:1 on
+     surface and 9.74:1 on background, comfortably AA. Two values rather than
+     one because a single hue cannot hold contrast against both a white and a
+     near-black surface. */
+  --accent: #e3b341;
+  --accent-hover: #f0c65c;
+  --accent-soft: #2a2008;
+  --accent-ink: #e8c46a;
+
+  --success: #4ade80;
+  --success-bg: #10231a;
+  --success-ink: #86efac;
 
   --danger: #f0736a;
   --danger-bg: #2c1614;
@@ -64,9 +87,63 @@
   --info: #6ea0f0;
   --info-bg: #131e31;
 
-  --chart-1: #4fa97c;
-  --chart-2: #337054;
-  --chart-3: #244438;
+  --chart-1: #e3b341;
+  --chart-2: #a8822c;
+  --chart-3: #6b551c;
+}
+
+/* ---------------------------------------------------------------
+   The landing and auth surfaces are permanently dark.
+
+   They are not "the dark theme" — they are black regardless of what
+   the rest of the app is set to, which is the identity the brief
+   asked to keep. Before this they got there with raw palette classes
+   (`text-white`, `border-white/10`, `text-emerald-400`), which meant
+   ~156 values the token system could not reach.
+
+   Redefining the semantic tokens here lets those components use the
+   same names as the dashboard — `text-foreground`, `border-border`,
+   `text-success` — and always resolve dark. Custom properties inherit
+   from the nearest ancestor that sets them, so this beats `html.dark`
+   for its own subtree no matter which theme is active, and no matter
+   what order the rules appear in.
+
+   Values carry their alpha baked in rather than relying on `/opacity`
+   modifiers, which these tokens do not support — see DECISIONS.md D9.
+   `--border` is the old `white/10` on black, resolved to a flat value.
+
+   All measured against #000: foreground 19.03:1, muted-strong 12.32:1,
+   muted 6.86:1, accent 8.68:1, success 12.05:1, danger 12.37:1.
+   --------------------------------------------------------------- */
+.sp-landing {
+  --background: #000000;
+  --surface: #0a0d0f;
+  --surface-muted: #14181b;
+  --foreground: #f2f4f5;
+  /* Warm neutrals, matching the landing's existing #d1c5b0 body copy
+     rather than the dashboard's cooler greys. */
+  --muted-strong: #d1c5b0;
+  --muted: #9c9284;
+  --border: #1c1f22;
+  --border-strong: #2b2f33;
+
+  /* The landing keeps its own restrained gold — see DECISIONS.md D11.
+     accent-ink is near-black here because it sits ON a gold fill,
+     which is what `text-black` was doing on the buttons. */
+  --accent: #c9a227;
+  --accent-hover: #edc155;
+  --accent-soft: #1e1a0d;
+  --accent-ink: #000000;
+
+  --success: #4ade80;
+  --success-bg: #10231a;
+  --success-ink: #86efac;
+  --danger: #ffb4ab;
+  --danger-bg: #2c1614;
+  --warning: #e0912f;
+  --warning-bg: #2a1e0f;
+  --info: #6ea0f0;
+  --info-bg: #131e31;
 }
 
 /* ---------------------------------------------------------------
@@ -140,6 +217,10 @@ summary:focus-visible,
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
   --color-accent-ink: var(--accent-ink);
+  --font-display: var(--font-cinzel-app), Georgia, serif;
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-ink: var(--success-ink);
   --color-danger: var(--danger);
   --color-danger-bg: var(--danger-bg);
   --color-warning: var(--warning);
@@ -505,5 +586,427 @@ body {
   .sp-pulse,
   .sp-toast {
     animation: none;
+  }
+}
+
+/* ===============================================================
+   TYPE SCALE + SPACING RHYTHM  (app shell, not the landing)
+
+   Before this the app had neither. Page titles were `text-3xl
+   font-bold` on four modules and `text-2xl lg:text-3xl` on two;
+   page padding was `px-6 py-8 lg:px-8` on four and
+   `px-4 py-6 sm:px-6 lg:px-8 lg:py-8` on two. Nothing carried an
+   eyebrow label. Every module had quietly drifted.
+
+   These are classes rather than raw utilities so the values live
+   in one place and a module cannot invent its own.
+   =============================================================== */
+
+/* --- Type ------------------------------------------------------ */
+
+/* Page title. Cinzel, matching the wordmark and the landing hero,
+   so the app reads as the same product. Positive tracking: Cinzel
+   has generous sidebearings and tightening muddies its caps. */
+.sp-title {
+  font-family: var(--font-display);
+  font-size: 1.625rem;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--foreground);
+}
+
+@media (min-width: 1024px) {
+  .sp-title {
+    font-size: 1.875rem;
+  }
+}
+
+/* Section heading inside a page — Inter, because these sit close to
+   data and need to disappear rather than perform. */
+.sp-heading {
+  font-size: 1.0625rem;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: -0.011em;
+}
+
+/* Colour at zero specificity so any text-* utility on the same element wins. */
+:where(.sp-heading) {
+  color: var(--foreground);
+}
+
+/* Explicit inverted variant, for headings that sit on a filled dark card.
+   Relying on `sp-heading text-surface` was a mistake: the two tie on
+   specificity, so it came down to source order — and it rendered dark text on
+   a dark card, i.e. invisible. A named class cannot lose that race. */
+.sp-heading-invert {
+  font-size: 1.0625rem;
+  line-height: 1.4;
+  font-weight: 700;
+  letter-spacing: -0.011em;
+  color: var(--surface);
+}
+
+.sp-subheading {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  font-weight: 600;
+  letter-spacing: -0.006em;
+}
+
+:where(.sp-subheading) {
+  color: var(--foreground);
+}
+
+/* Eyebrow label. Small, spaced, uppercase — it says what kind of
+   page this is before the title says which one. */
+.sp-eyebrow {
+  font-size: 0.6875rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sp-body {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--muted-strong);
+}
+
+/* --- Spacing --------------------------------------------------- */
+
+/* One page wrapper for every module. Replaces the two competing
+   paddings that were in use. */
+.sp-page {
+  margin-inline: auto;
+  max-width: 1400px;
+  padding-inline: 1rem;
+  padding-block: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .sp-page {
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sp-page {
+    padding-inline: 2rem;
+    padding-block: 2rem;
+  }
+}
+
+/* Card interior. 20px on phones, 24px from sm — the same box on
+   every module, rather than p-5 here and p-6 there. */
+.sp-card-p {
+  padding: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .sp-card-p {
+    padding: 1.5rem;
+  }
+}
+
+/* Gap between cards in a grid, and between stacked blocks. */
+.sp-gap {
+  gap: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .sp-gap {
+    gap: 1.5rem;
+  }
+}
+
+/* Vertical rhythm between major blocks on a page. */
+.sp-stack > * + * {
+  margin-top: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .sp-stack > * + * {
+    margin-top: 2rem;
+  }
+}
+
+/* ===============================================================
+   DEPTH + MOTION
+
+   The rule for everything below: the RESTING state is the correct
+   one, and an animation only overrides it while running. If a
+   keyframe never runs — reduced motion, a throttled background tab,
+   an unsupported browser, a stalled frame loop — the interface is
+   still complete and legible. Nothing here is allowed to leave
+   content invisible.
+
+   That is why every entrance uses `animation-fill-mode: backwards`
+   rather than starting from `opacity: 0` in the base rule. Backwards
+   applies the `from` frame only during the delay before the
+   animation starts; once it ends, the element returns to its own
+   styles. An element that never animates was never hidden.
+
+   All of it is CSS. No library, no per-element JavaScript, and
+   nothing here adds a byte to the shared bundle.
+   =============================================================== */
+
+/* --- Entrance: fade up on mount --------------------------------- */
+
+@keyframes sp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sp-rise {
+    animation: sp-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+
+  /* Stagger steps. Six is deliberate: past roughly 250ms of cumulative
+     delay the last card reads as late rather than sequenced, and a
+     stat band is four to six tiles. Anything longer should not be
+     staggered at all. */
+  .sp-delay-1 {
+    animation-delay: 40ms;
+  }
+  .sp-delay-2 {
+    animation-delay: 80ms;
+  }
+  .sp-delay-3 {
+    animation-delay: 120ms;
+  }
+  .sp-delay-4 {
+    animation-delay: 160ms;
+  }
+  .sp-delay-5 {
+    animation-delay: 200ms;
+  }
+  .sp-delay-6 {
+    animation-delay: 240ms;
+  }
+}
+
+/* --- Elevation -------------------------------------------------- */
+
+/* There is deliberately no `.sp-card` shorthand here.
+
+   Fifty-three cards across the app were `rounded-2xl bg-surface
+   shadow-sm` with no border at all, which is what made them read as
+   tinted rectangles rather than as lifted surfaces — the two-layer
+   shadow scale was already in place and had nothing to sit against.
+   The fix was to add `border border-border` to each, additively.
+
+   Collapsing all four utilities into one class was the tempting
+   version and is a trap: a plain class in this file sits outside
+   Tailwind's cascade layers, so it would beat every `bg-*` utility
+   on the same element. Any card that overrides its background — the
+   dark stat tiles, the accent panels — would silently lose it, with
+   nothing failing to build. Additive cannot do that.
+
+   Interactive cards only — a row you can open, a tile that links
+   somewhere. A card that lifts under the pointer while doing nothing
+   when clicked is a lie about what is clickable, so this is never
+   applied to a static panel.
+
+   `will-change` is deliberately absent: it promotes a layer
+   permanently, and a page of twenty cards each holding its own layer
+   costs more than the transition saves. */
+.sp-lift {
+  transition:
+    box-shadow 0.18s ease,
+    transform 0.18s ease,
+    border-color 0.18s ease;
+}
+
+@media (hover: hover) {
+  .sp-lift:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-strong);
+    transform: translateY(-2px);
+  }
+}
+
+/* Press. Applies on touch as well, where it is the only feedback
+   available — there is no hover on a finger. */
+.sp-lift:active {
+  box-shadow: var(--shadow-xs);
+  transform: translateY(0) scale(0.995);
+  transition-duration: 0.06s;
+}
+
+/* --- Expand / collapse ------------------------------------------ */
+
+/* Height animation without a measured pixel value.
+   `grid-template-rows: 0fr -> 1fr` is the one way to transition to
+   content height in CSS, so a panel that grows by a line does not
+   need JavaScript to re-measure it. The inner element must carry
+   `min-height: 0` or it refuses to shrink below its content. */
+.sp-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sp-collapse > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.sp-collapse[data-open='true'] {
+  grid-template-rows: 1fr;
+}
+
+/* --- Skeleton to content ---------------------------------------- */
+
+/* Applied to real content replacing a skeleton. Shorter and with no
+   travel: the placeholder already occupies the exact box, so moving
+   the content in would undo the point of matching the geometry. */
+@keyframes sp-settle {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sp-settle {
+    animation: sp-settle 0.28s ease-out backwards;
+  }
+}
+
+/* --- Save confirmation ------------------------------------------ */
+
+/* A tick that draws itself, then the whole mark settles. Used on the
+   Save control and in the success toast.
+
+   The path is drawn with stroke-dashoffset, so the resting state is
+   a fully drawn tick — if the animation never runs, a save still
+   shows a checkmark rather than an empty box. */
+@keyframes sp-draw {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes sp-pop {
+  0% {
+    transform: scale(0.7);
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.sp-check-path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sp-check-path {
+    animation: sp-draw 0.34s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  }
+
+  .sp-check {
+    animation: sp-pop 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+/* --- Gold, used with intent -------------------------------------- */
+
+/* A hairline of accent along the top edge of a card. This is the one
+   decorative use of gold in the app and it is reserved for the card
+   that answers the page's question — the headline metric, not every
+   panel on the screen. Gold on everything is gold on nothing.
+
+   Drawn as a pseudo-element rather than a border so it does not
+   change the box model or fight the card's own border colour. */
+.sp-accent-edge {
+  position: relative;
+}
+
+.sp-accent-edge::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 2px;
+  border-start-start-radius: var(--radius-2xl);
+  border-start-end-radius: var(--radius-2xl);
+  background: linear-gradient(90deg, var(--accent), var(--chart-2));
+}
+
+/* ---------------------------------------------------------------
+   Dashboard pulse mark (components/dashboard/Greeting.tsx).
+
+   Both animations are gated behind prefers-reduced-motion: with
+   reduced motion the path simply draws in full and stays put, which
+   still reads as a pulse line — it just does not move.
+   --------------------------------------------------------------- */
+.sp-trace {
+  stroke-dashoffset: 0;
+}
+
+.sp-blip {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes sp-trace {
+    0% {
+      stroke-dashoffset: 100;
+    }
+    55% {
+      stroke-dashoffset: 0;
+    }
+    100% {
+      stroke-dashoffset: -100;
+    }
+  }
+
+  @keyframes sp-blip {
+    0%,
+    45% {
+      opacity: 0;
+      r: 2.5;
+    }
+    60% {
+      opacity: 1;
+      r: 4;
+    }
+    100% {
+      opacity: 0;
+      r: 2.5;
+    }
+  }
+
+  .sp-trace {
+    animation-name: sp-trace;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+  }
+
+  .sp-blip {
+    animation-name: sp-blip;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
   }
 }

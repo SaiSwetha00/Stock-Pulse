@@ -54,8 +54,8 @@ export default function FeaturesSection() {
       title: 'Self-Checkout Monitoring',
       category: 'LIVE OPERATIONS',
       description:
-        'A live board of every self-checkout station — in use, awaiting assistance, or under review — with instant alerts on basket-weight mismatches and age-verification holds, right when they happen.',
-      metrics: 'Live station status • Instant mismatch alerts',
+        'A board showing every self-checkout station and where it stands — available, waiting on assistance, or out for maintenance — so whoever is on the floor can see at a glance which one needs somebody.',
+      metrics: 'Station status board • Assistance flags',
       highlightColor: 'purple',
     },
     {
@@ -81,7 +81,7 @@ export default function FeaturesSection() {
   ]
 
   return (
-    <section id="features" className="relative py-32 bg-black overflow-hidden perspective-1500">
+    <section id="features" className="relative py-32 sp-band-cream overflow-hidden perspective-1500">
       {/* Background Section Ambient Glow */}
       <div className="absolute top-1/2 left-0 w-96 h-96 bg-[var(--sp-gold)]/8 rounded-full blur-[150px] pointer-events-none" />
 
@@ -94,13 +94,13 @@ export default function FeaturesSection() {
           transition={{ duration: 0.8 }}
           className="text-center max-w-3xl mx-auto mb-24"
         >
-          <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-white/10 shadow-lg">
+          <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-border shadow-lg">
             <Cpu className="w-3.5 h-3.5" /> ARCHITECTURE SUPERPOWERS
           </div>
-          <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#e0e2ed] tracking-tight mb-7">
+          <h2 className="font-display font-semibold text-3xl sm:text-4xl text-foreground tracking-tight mb-7">
             Engineered for Precision Freshness & Zero-Waste Profit
           </h2>
-          <p className="text-[#d1c5b0] text-base sm:text-lg leading-relaxed">
+          <p className="text-muted-strong text-base sm:text-lg leading-relaxed">
             Every module in Stock Pulse was designed alongside master grocers to transform volatile perishables into predictable, high-margin revenue.
           </p>
         </motion.div>
@@ -121,7 +121,7 @@ export default function FeaturesSection() {
                 className={`glass-card p-10 rounded-2xl border transition-all duration-500 cursor-pointer flex flex-col justify-between group relative overflow-hidden preserve-3d ${
                   isSelected
                     ? 'border-[var(--sp-gold)]/60 bg-[var(--sp-surface-card)]/95 shadow-[0_20px_50px_-20px_rgba(201,162,39,0.35)]'
-                    : 'border-white/10 hover:border-[var(--sp-gold)]/35 bg-[var(--sp-surface-alt)]/70'
+                    : 'border-border hover:border-[var(--sp-gold)]/35 bg-[var(--sp-surface-alt)]/70'
                 }`}
               >
                 {/* Top Corner Badge & Icon */}
@@ -130,7 +130,7 @@ export default function FeaturesSection() {
                     <div
                       className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6 ${
                         item.highlightColor === 'crimson'
-                          ? 'bg-[#93000a]/30 border-[#ffb4ab]/40 text-[#ffb4ab]'
+                          ? 'bg-[#93000a]/30 border-[#ffb4ab]/40 text-danger'
                           : item.highlightColor === 'purple'
                           ? 'bg-[#A882C1]/20 border-[#A882C1]/40 text-[#A882C1]'
                           : 'bg-[var(--sp-gold)]/15 border-[var(--sp-gold)]/35 text-[var(--sp-gold)]'
@@ -144,20 +144,20 @@ export default function FeaturesSection() {
                       {item.id === 'customer-loyalty' && <Heart className="w-6 h-6" />}
                     </div>
 
-                    <span className="font-mono text-[10px] tracking-widest text-[#d1c5b0]/60 uppercase px-2.5 py-1 rounded bg-black border border-white/5">
+                    <span className="font-mono text-[10px] tracking-widest text-muted uppercase px-2.5 py-1 rounded bg-background border border-border">
                       {item.category}
                     </span>
                   </div>
 
-                  <h3 className="font-display font-medium text-2xl text-[#e0e2ed] group-hover:text-[var(--sp-gold)] transition-colors mb-4">
+                  <h3 className="font-display font-medium text-2xl text-foreground group-hover:text-[var(--sp-gold)] transition-colors mb-4">
                     {item.title}
                   </h3>
 
-                  <p className="text-[#d1c5b0] text-sm leading-relaxed mb-7">{item.description}</p>
+                  <p className="text-muted-strong text-sm leading-relaxed mb-7">{item.description}</p>
                 </div>
 
                 {/* Bottom Metric Footer */}
-                <div className="pt-5 border-t border-white/5 flex items-center justify-between font-mono text-xs text-[#d1c5b0]/70">
+                <div className="pt-5 border-t border-border flex items-center justify-between font-mono text-xs text-muted">
                   <span className="flex items-center gap-1.5 text-xs text-[var(--sp-gold)]">
                     <CheckCircle2 className="w-3.5 h-3.5 text-[var(--sp-gold)]" />
                     {item.metrics}

@@ -1,29 +1,24 @@
 'use client'
 
-import { useState } from 'react'
-import Button from '@/components/ui/Button'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Store, SlidersHorizontal, UserSquare2, Palette, UserPlus } from 'lucide-react'
+import { Store, SlidersHorizontal, Palette, Users, ArrowRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { Profile, Store as StoreType } from '@/types'
+import type { Store as StoreType } from '@/types'
 import Toggle from '@/components/ui/Toggle'
-import { ROLE_LABELS } from '@/lib/permissions'
 import { useToast } from '@/components/ui/Toast'
-import { LocalDate } from '@/components/ui/LocalTime'
-import AddStaffModal from './AddStaffModal'
 
-const ROLE_STYLES: Record<string, string> = {
-  owner: 'bg-emerald-100 text-emerald-700',
-  staff: 'bg-surface-muted text-muted-strong',
-}
-
-export default function SettingsClient({
-  store,
-  staff,
-}: {
-  store: StoreType
-  staff: Profile[]
-}) {
+/**
+ * Store configuration, and nothing else.
+ *
+ * The team roster, Add Staff, invitation resend/revoke and the role badges all
+ * used to live at the bottom of this screen, which meant "who works here" sat
+ * under "how many hours before a perishable warns" while the rota they belong
+ * beside lived in a different module. They are now the Staff module's Team tab;
+ * what remains here is the store itself.
+ */
+export default function SettingsClient({ store }: { store: StoreType }) {
   const router = useRouter()
   const [name, setName] = useState(store.name)
   const [address, setAddress] = useState(store.address ?? '')
@@ -38,7 +33,6 @@ export default function SettingsClient({
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const [addStaffOpen, setAddStaffOpen] = useState(false)
 
   /**
    * The theme actually in effect comes from localStorage — app/layout.tsx reads
@@ -56,6 +50,55 @@ export default function SettingsClient({
       // session, and stores.theme still records the choice.
     }
   }
+
+  /**
+   * Compared against the props rather than tracked with a flag.
+   *
+   * A boolean set by every onChange goes stale the moment someone types a
+   * character and deletes it again — it would report unsaved changes for an
+   * edit that no longer exists. Deriving it means "dirty" is always exactly
+   * "differs from what is stored", and `router.refresh()` after a save brings
+   * new props in, which clears it without any extra bookkeeping.
+   */
+  const dirty =
+    name !== store.name ||
+    address !== (store.address ?? '') ||
+    phone !== (store.contact_phone ?? '') ||
+    threshold !== store.low_stock_threshold_units ||
+    perishableHours !== store.perishables_warning_hours ||
+    criticalAlerts !== store.critical_stock_alerts ||
+    dailyDigest !== store.daily_digest ||
+    supplierUpdates !== store.supplier_updates ||
+    theme !== store.theme
+
+  function discard() {
+    setName(store.name)
+    setAddress(store.address ?? '')
+    setPhone(store.contact_phone ?? '')
+    setThreshold(store.low_stock_threshold_units)
+    setPerishableHours(store.perishables_warning_hours)
+    setCriticalAlerts(store.critical_stock_alerts)
+    setDailyDigest(store.daily_digest)
+    setSupplierUpdates(store.supplier_updates)
+    // Theme is the one control that takes effect before saving, so undoing it
+    // has to undo the class and localStorage too, not just the state.
+    // stores.theme is a plain text column, so anything that is not 'dark'
+    // resolves to light rather than being passed through unchecked.
+    applyTheme(store.theme === 'dark' ? 'dark' : 'light')
+    setSaveError('')
+  }
+
+  // Closing the tab is the one exit this component cannot intercept, and the
+  // theme aside, nothing here is applied until Save. Without this the work is
+  // gone with no warning.
+  useEffect(() => {
+    if (!dirty) return
+    function warn(e: BeforeUnloadEvent) {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
 
   async function handleSave() {
     setSaving(true)
@@ -91,35 +134,68 @@ export default function SettingsClient({
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Store Settings</h1>
-          <p className="mt-1 text-sm text-muted">
-            Manage configuration, personnel, and operational parameters for {store.name}.
+          <p className="sp-eyebrow">Configuration</p>
+          <h1 className="sp-title mt-2">Store Settings</h1>
+          <p className="sp-body mt-2">
+            Configuration and operational parameters for {store.name}.
           </p>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="control-h rounded-lg bg-foreground px-5 text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-60"
-        >
-          {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save Changes'}
-        </button>
+        <div className="flex items-center gap-3">
+          {dirty && (
+            <span role="status" className="text-xs font-medium text-muted">
+              Unsaved changes
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={discard}
+            disabled={!dirty || saving}
+            className="control-h rounded-lg border border-border px-4 text-sm font-semibold text-muted-strong hover:bg-surface-muted disabled:pointer-events-none disabled:opacity-40"
+          >
+            Discard
+          </button>
+          {/* Disabled when nothing has changed: a Save that is always
+              available invites clicking it to check whether anything was
+              missed, and every one of those is a pointless write. */}
+          <button
+            onClick={handleSave}
+            disabled={saving || !dirty}
+            className="control-h rounded-lg bg-foreground px-5 text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-60"
+          >
+            {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save Changes'}
+          </button>
+        </div>
       </div>
 
-      {saveError && (
-        <div role="alert" className="mt-4 rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">
-          Could not save settings: {saveError}
+      {/* Always mounted, opened by an attribute.
+
+          A banner that is conditionally rendered cannot animate — it does not
+          exist in the frame before it appears, so there is nothing to
+          transition from, and it pops in and shoves the form down. `sp-collapse`
+          transitions grid-template-rows 0fr -> 1fr, which is the one way CSS
+          can animate to a content height nobody has measured.
+
+          role="alert" is on the inner element rather than this wrapper so an
+          empty, closed container is never announced. */}
+      <div className="sp-collapse" data-open={saveError ? 'true' : 'false'}>
+        <div>
+          {saveError && (
+            <div role="alert" className="mt-4 rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">
+              Could not save settings: {saveError}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="space-y-6">
-          <div className="rounded-2xl bg-surface p-6 shadow-sm">
+          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <Store className="h-4.5 w-4.5 text-muted-strong" />
-              <h2 className="text-lg font-bold text-foreground">Store Details</h2>
+              <h2 className="sp-heading">Store Details</h2>
             </div>
             <div className="mt-4 space-y-4">
               <div>
@@ -156,22 +232,22 @@ export default function SettingsClient({
             </div>
           </div>
 
-          <div className="rounded-2xl bg-surface p-6 shadow-sm">
+          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <Palette className="h-4.5 w-4.5 text-muted-strong" />
-              <h2 className="text-lg font-bold text-foreground">Appearance</h2>
+              <h2 className="sp-heading">Appearance</h2>
             </div>
-            <div className="mt-4 flex items-center justify-between">
-              <div>
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-foreground">Interface Theme</p>
                 <p className="text-xs text-muted">Toggle light/dark mode</p>
               </div>
-              <div className="flex rounded-lg bg-surface-muted p-1">
+              <div className="flex shrink-0 rounded-lg bg-surface-muted p-1">
                 <button
                   type="button"
                   onClick={() => applyTheme('light')}
                   aria-pressed={theme === 'light'}
-                  className={`control-h rounded-md px-3 text-sm font-semibold${
+                  className={`control-h rounded-md px-3 text-sm font-semibold ${
                     theme === 'light' ? 'bg-surface shadow-sm' : 'text-muted'
                   }`}
                 >
@@ -181,7 +257,7 @@ export default function SettingsClient({
                   type="button"
                   onClick={() => applyTheme('dark')}
                   aria-pressed={theme === 'dark'}
-                  className={`control-h rounded-md px-3 text-sm font-semibold${
+                  className={`control-h rounded-md px-3 text-sm font-semibold ${
                     theme === 'dark' ? 'bg-surface shadow-sm' : 'text-muted'
                   }`}
                 >
@@ -192,10 +268,10 @@ export default function SettingsClient({
           </div>
         </div>
 
-        <div className="rounded-2xl bg-surface p-6 shadow-sm">
+        <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border pb-4">
             <SlidersHorizontal className="h-4.5 w-4.5 text-muted-strong" />
-            <h2 className="text-lg font-bold text-foreground">Operational Controls</h2>
+            <h2 className="sp-heading">Operational Controls</h2>
           </div>
 
           <div className="mt-4">
@@ -246,8 +322,8 @@ export default function SettingsClient({
           <div className="mt-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">Notifications</p>
             <div className="mt-3 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">Critical Stock Alerts</p>
                   <p className="text-xs text-muted">SMS & Email when items hit 0</p>
                 </div>
@@ -257,15 +333,15 @@ export default function SettingsClient({
                   label="Critical Stock Alerts"
                 />
               </div>
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">Daily Digest</p>
                   <p className="text-xs text-muted">End-of-day sales summary</p>
                 </div>
                 <Toggle checked={dailyDigest} onChange={setDailyDigest} label="Daily Digest" />
               </div>
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">Supplier Updates</p>
                   <p className="text-xs text-muted">Delivery ETA changes</p>
                 </div>
@@ -280,88 +356,34 @@ export default function SettingsClient({
         </div>
       </div>
 
-      <div className="mt-6 rounded-2xl bg-surface p-6 shadow-sm">
-        <div className="flex items-center justify-between border-b border-border pb-4">
-          <div className="flex items-center gap-2">
-            <UserSquare2 className="h-4.5 w-4.5 text-muted-strong" />
-            <h2 className="text-lg font-bold text-foreground">Staff Management</h2>
-          </div>
-          <Button onClick={() => setAddStaffOpen(true)}>
-            <UserPlus className="h-4 w-4" aria-hidden="true" />
-            Add Staff
-          </Button>
-        </div>
+      {/* Not a staff surface — a signpost to one.
 
-        {/* Rows become a card list below `lg`; this table sits inside the
-            staff panel, so they are divided blocks rather than floating
-            cards. */}
-        <div className="mt-4 lg:overflow-x-auto">
-          <table className="sp-table block w-full text-left text-sm lg:table">
-            <thead className="hidden lg:table-header-group">
-              <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
-                <th className="pb-3 pr-4">Employee</th>
-                <th className="pb-3 pr-4">Role</th>
-                <th className="pb-3 pr-4">Joined</th>
-                <th className="pb-3">Status</th>
-              </tr>
-            </thead>
-            <tbody className="block lg:table-row-group">
-              {staff.map((s) => (
-                <tr
-                  key={s.id}
-                  className="block border-b border-border py-3 last:border-0 lg:table-row lg:py-0"
-                >
-                  <td className="block lg:table-cell lg:pr-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-muted text-xs font-bold text-muted">
-                        {s.full_name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold text-foreground">{s.full_name}</p>
-                        <p className="truncate text-xs text-muted">{s.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  {/* Below `lg` the column header is gone, so each value
-                      carries its own label. */}
-                  <td className="mt-3 flex items-center justify-between gap-3 lg:mt-0 lg:table-cell lg:pr-4">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                      Role
-                    </span>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${ROLE_STYLES[s.role]}`}>
-                      {s.role === 'owner' ? 'Store Owner' : s.job_title || ROLE_LABELS[s.role]}
-                    </span>
-                  </td>
-                  <td className="mt-2 flex items-center justify-between gap-3 text-muted-strong lg:mt-0 lg:table-cell lg:pr-4">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                      Joined
-                    </span>
-                    <LocalDate iso={s.created_at} withYear />
-                  </td>
-                  <td className="mt-2 flex items-center justify-between gap-3 lg:mt-0 lg:table-cell">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                      Status
-                    </span>
-                    <span className="flex items-center gap-1.5 text-muted-strong">
-                      {/* Tokens rather than raw emerald/amber, so these two
-                          dots follow dark mode like every other status
-                          colour in the app. */}
-                      <span
-                        className={`h-2 w-2 rounded-full ${
-                          s.role === 'owner' || !s.invited ? 'bg-accent' : 'bg-warning'
-                        }`}
-                      />
-                      {s.role === 'owner' || !s.invited ? 'Active' : 'Invited'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          Everything that used to be here (the roster, Add Staff, invitation
+          resend and revoke, role changes) now lives in the Staff module beside
+          the rota. This line exists because an owner who has been using the app
+          will look here first, and a screen that silently loses a feature reads
+          as a broken screen. */}
+      <div className="sp-card-p mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-surface shadow-sm">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-muted">
+            <Users className="h-4.5 w-4.5 text-muted-strong" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="sp-heading">Your team</h2>
+            <p className="mt-0.5 text-sm text-muted">
+              Invitations, roles and access moved to Staff, beside the rota.
+            </p>
+          </div>
         </div>
+        <Link
+          href="/staff/team"
+          className="control-h inline-flex shrink-0 items-center gap-2 rounded-lg border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted"
+        >
+          Manage team
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
       </div>
 
-      {addStaffOpen && <AddStaffModal storeId={store.id} onClose={() => setAddStaffOpen(false)} />}
     </div>
   )
 }

@@ -49,7 +49,7 @@ export default function TestimonialsSection() {
   const current = scenarios[activeIndex]
 
   return (
-    <section id="testimonials" className="relative py-32 sp-band-warm overflow-hidden perspective-1500">
+    <section id="testimonials" className="relative py-32 sp-band-cream overflow-hidden perspective-1500">
       {/* Background flare */}
       <div className="absolute top-1/2 right-10 w-96 h-96 bg-[var(--sp-gold)]/10 rounded-full blur-[160px] pointer-events-none" />
 
@@ -62,13 +62,13 @@ export default function TestimonialsSection() {
           transition={{ duration: 0.8 }}
           className="text-center max-w-3xl mx-auto mb-20"
         >
-          <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-black/30 border border-white/10">
+          <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-background/30 border border-border">
             ILLUSTRATIVE EXAMPLES
           </div>
-          <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#e0e2ed] tracking-tight mb-4">
+          <h2 className="font-display font-semibold text-3xl sm:text-4xl text-foreground tracking-tight mb-4">
             How Store Owners Use Stock Pulse
           </h2>
-          <p className="text-[#d1c5b0] text-sm">
+          <p className="text-muted-strong text-sm">
             Hypothetical scenarios built from real features — not actual customer quotes.
           </p>
         </motion.div>
@@ -83,7 +83,7 @@ export default function TestimonialsSection() {
               exit={{ opacity: 0, rotateY: -20, scale: 0.95 }}
               transition={{ duration: 0.5 }}
               whileHover={{ translateZ: 15 }}
-              className="p-10 sm:p-14 rounded-2xl border border-white/10 relative overflow-hidden bg-[var(--sp-surface-card)]/70 shadow-[0_30px_70px_-30px_rgba(0,0,0,0.6)] preserve-3d"
+              className="p-10 sm:p-14 rounded-2xl border border-border relative overflow-hidden bg-[var(--sp-surface-card)]/70 shadow-[0_30px_70px_-30px_rgba(0,0,0,0.6)] preserve-3d"
             >
               <Quote className="absolute top-8 right-8 w-16 h-16 text-[var(--sp-gold)]/15" />
 
@@ -95,13 +95,13 @@ export default function TestimonialsSection() {
                 “{current.quote}”
               </p>
 
-              <div className="pt-6 border-t border-white/10 flex items-center gap-4">
+              <div className="pt-6 border-t border-border flex items-center gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--sp-gold)]/12 border border-[var(--sp-gold)]/30 text-[var(--sp-gold)]">
                   <Store className="h-5 w-5" />
                 </div>
                 <div>
-                  <div className="font-display font-medium text-base text-[#e0e2ed]">Independent grocer</div>
-                  <div className="font-mono text-xs text-[#d1c5b0]/70">
+                  <div className="font-display font-medium text-base text-foreground">Independent grocer</div>
+                  <div className="font-mono text-xs text-muted">
                     Feature shown: <span className="text-[var(--sp-gold)]">{current.feature}</span>
                   </div>
                 </div>
@@ -117,7 +117,7 @@ export default function TestimonialsSection() {
                   key={i}
                   onClick={() => setActiveIndex(i)}
                   className={`h-2 rounded-full transition-all cursor-pointer ${
-                    i === activeIndex ? 'w-8 bg-[var(--sp-gold)]' : 'w-2 bg-white/15'
+                    i === activeIndex ? 'w-8 bg-[var(--sp-gold)]' : 'w-2 bg-surface/15'
                   }`}
                   aria-label={`Go to slide ${i + 1}`}
                 />
@@ -127,14 +127,14 @@ export default function TestimonialsSection() {
             <div className="flex items-center gap-3">
               <button
                 onClick={handlePrev}
-                className="w-10 h-10 rounded-xl bg-[var(--sp-surface-card)] border border-white/10 hover:border-[var(--sp-gold)]/50 text-[#e0e2ed] hover:text-[var(--sp-gold)] flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                className="w-10 h-10 rounded-xl bg-[var(--sp-surface-card)] border border-border hover:border-[var(--sp-gold)]/50 text-foreground hover:text-[var(--sp-gold)] flex items-center justify-center transition-all cursor-pointer shadow-sm"
                 aria-label="Previous example"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button
                 onClick={handleNext}
-                className="w-10 h-10 rounded-xl bg-[var(--sp-surface-card)] border border-white/10 hover:border-[var(--sp-gold)]/50 text-[#e0e2ed] hover:text-[var(--sp-gold)] flex items-center justify-center transition-all cursor-pointer shadow-sm"
+                className="w-10 h-10 rounded-xl bg-[var(--sp-surface-card)] border border-border hover:border-[var(--sp-gold)]/50 text-foreground hover:text-[var(--sp-gold)] flex items-center justify-center transition-all cursor-pointer shadow-sm"
                 aria-label="Next example"
               >
                 <ChevronRight className="w-5 h-5" />

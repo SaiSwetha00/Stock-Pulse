@@ -29,7 +29,9 @@ export default function PageSkeleton({
       // state once, not read out two dozen empty boxes.
       role="status"
       aria-label="Loading"
-      className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
+      // Same wrapper as a real page, so the skeleton occupies the exact box
+      // its content will — otherwise the layout jumps when data lands.
+      className="sp-page"
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -42,7 +44,7 @@ export default function PageSkeleton({
       {stats > 0 && (
         <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           {Array.from({ length: stats }, (_, i) => (
-            <div key={i} className="rounded-2xl bg-surface p-4 shadow-sm lg:p-6">
+            <div key={i} className="rounded-2xl border border-border bg-surface p-4 shadow-sm lg:p-6">
               <Skeleton className="h-10 w-10 rounded-lg" />
               <Skeleton className="mt-4 h-3 w-24" />
               <Skeleton className="mt-2 h-7 w-32" />
@@ -53,11 +55,11 @@ export default function PageSkeleton({
 
       {chart && (
         <div className="mt-7 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
-          <div className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6 lg:col-span-2">
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6 lg:col-span-2">
             <Skeleton className="h-5 w-40" />
             <Skeleton className="mt-4 h-[280px] w-full" />
           </div>
-          <div className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <Skeleton className="h-5 w-32" />
             <div className="mt-4 space-y-3">
               {Array.from({ length: 4 }, (_, i) => (
@@ -69,7 +71,7 @@ export default function PageSkeleton({
       )}
 
       <div className={sidePanel ? 'mt-7 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]' : 'mt-7'}>
-        <div className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
+        <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
           <Skeleton className="h-5 w-44" />
           <div className="mt-4 space-y-3">
             {Array.from({ length: rows }, (_, i) => (
@@ -90,7 +92,7 @@ export default function PageSkeleton({
         </div>
 
         {sidePanel && (
-          <div className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <Skeleton className="h-5 w-36" />
             <div className="mt-4 space-y-4">
               {Array.from({ length: 5 }, (_, i) => (

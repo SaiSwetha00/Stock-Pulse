@@ -50,7 +50,7 @@ const TRACKER_STAGES: ShipmentStatus[] = ['ordered', 'shipped', 'transit', 'dock
 // differ between the server HTML and the client.
 function shipmentBadge(shipment: Shipment, today: string | null) {
   if (today !== null && shipment.eta === today && shipment.status !== 'dock') {
-    return { label: 'Arriving Today', className: 'bg-emerald-100 text-emerald-700' }
+    return { label: 'Arriving Today', className: 'bg-success-bg text-success' }
   }
   if (shipment.status === 'transit') {
     return { label: 'In Transit', className: 'bg-surface-muted text-muted-strong' }
@@ -153,11 +153,12 @@ export default function SuppliersClient({
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Supplier Management</h1>
-          <p className="mt-1 text-sm text-muted">Manage vendor relationships and track inbound freight.</p>
+          <p className="sp-eyebrow">Supply chain</p>
+          <h1 className="sp-title mt-2">Supplier Management</h1>
+          <p className="sp-body mt-2">Manage vendor relationships and track inbound freight.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ExportCsvButton
@@ -175,7 +176,7 @@ export default function SuppliersClient({
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <div className="rounded-2xl bg-surface shadow-sm">
+          <div className="sp-rise rounded-2xl border border-border bg-surface shadow-sm">
             <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center">
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
@@ -390,7 +391,7 @@ export default function SuppliersClient({
             <p className="text-sm font-semibold text-surface">Today&apos;s Inbound</p>
             <p className="mt-2 text-4xl font-bold text-surface">{totalPallets}</p>
             <p className="text-sm text-muted">Pallets Expected</p>
-            <div className="mt-4 flex gap-6 border-t border-white/10 pt-4 text-sm">
+            <div className="mt-4 flex gap-6 border-t border-border pt-4 text-sm">
               <div>
                 <p className="text-muted">Received</p>
                 <p className="font-semibold text-surface">{receivedPallets}</p>
@@ -402,9 +403,9 @@ export default function SuppliersClient({
             </div>
           </div>
 
-          <div className="rounded-2xl bg-surface p-6 shadow-sm">
+          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">Incoming Shipments</h2>
+              <h2 className="sp-heading">Incoming Shipments</h2>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -467,8 +468,8 @@ export default function SuppliersClient({
 
           </div>
 
-          <div className="rounded-2xl bg-surface p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-foreground">Recent Supplier Activity</h2>
+          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
+            <h2 className="sp-heading">Recent Supplier Activity</h2>
             <div className="mt-4 space-y-4">
               {activity.length === 0 && (
                 <p className="text-sm text-muted">No recent activity.</p>

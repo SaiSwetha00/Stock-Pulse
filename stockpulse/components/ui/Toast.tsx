@@ -36,8 +36,10 @@ const TONES: Record<
 > = {
   success: {
     Icon: CheckCircle2,
-    iconWrap: 'bg-accent-soft',
-    icon: 'text-accent',
+    // Green, not the accent — same reason as Badge. A gold tick on a
+    // "Settings saved" toast reads as a warning, not a confirmation.
+    iconWrap: 'bg-success-bg',
+    icon: 'text-success',
     role: 'status',
   },
   error: {
@@ -139,10 +141,32 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
                 role={tone.role}
                 className="sp-toast pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-xl border border-border bg-surface p-3.5 shadow-lg"
               >
+                {/* A success toast draws its tick rather than snapping it on.
+                    Every save in the app lands here, so this one element is
+                    the confirmation animation for the whole product — no
+                    module has to build its own.
+
+                    The other tones keep their static lucide icon: an error is
+                    not something to make an entrance. */}
                 <span
                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tone.iconWrap}`}
                 >
-                  <Icon className={`h-4 w-4 ${tone.icon}`} aria-hidden="true" />
+                  {toast.tone === 'success' ? (
+                    <svg
+                      viewBox="0 0 24 24"
+                      className={`sp-check h-4 w-4 ${tone.icon}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path className="sp-check-path" d="M4.5 12.5 9.5 17.5 19.5 7" />
+                    </svg>
+                  ) : (
+                    <Icon className={`h-4 w-4 ${tone.icon}`} aria-hidden="true" />
+                  )}
                 </span>
                 <div className="min-w-0 flex-1 pt-1">
                   <p className="text-sm font-semibold text-foreground">{toast.title}</p>

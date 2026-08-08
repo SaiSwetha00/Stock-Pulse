@@ -6,7 +6,7 @@ import { ArrowUpRight, Sparkles, ShieldCheck, Activity } from 'lucide-react'
 
 export default function FinalCTASection() {
   return (
-    <section className="relative py-32 sp-band-finale border-t border-white/8 overflow-hidden perspective-1500">
+    <section className="relative py-32 sp-band-coffee border-t border-border overflow-hidden perspective-1500">
       {/* Background radial glow */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(201,162,39,0.1)_0%,transparent_70%)] pointer-events-none" />
 
@@ -20,8 +20,8 @@ export default function FinalCTASection() {
           className="glass-card p-12 md:p-20 rounded-3xl border border-[var(--sp-gold)]/40 bg-gradient-to-b from-[var(--sp-surface-card)]/95 via-black/95 to-[var(--sp-surface-card)]/95 shadow-[0_0_60px_rgba(201,162,39,0.25)] preserve-3d animate-3d-glow"
         >
           {/* Header Tag */}
-          <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-7 px-4 py-1.5 rounded-full bg-black border border-[var(--sp-gold)]/40 shadow-inner">
-            <Sparkles className="w-4 h-4" /> REVOLUTIONIZE YOUR SHELF TELEMETRY
+          <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-7 px-4 py-1.5 rounded-full bg-background border border-[var(--sp-gold)]/40 shadow-inner">
+            <Sparkles className="w-4 h-4" /> GET OFF THE CLIPBOARD
           </div>
 
           <h2 className="font-display font-semibold text-3xl sm:text-5xl text-[#e0e2ed] tracking-normal mb-7">
@@ -35,14 +35,14 @@ export default function FinalCTASection() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-5 mb-12">
             <Link
               href="/signup"
-              className="w-full sm:w-auto px-11 py-5 rounded-xl font-mono text-xs uppercase tracking-widest font-semibold text-black bg-gradient-to-r from-[var(--sp-gold)] via-[var(--sp-gold-light)] to-[var(--sp-gold-deep)] shadow-[0_0_30px_rgba(201,162,39,0.5)] hover:shadow-[0_0_50px_rgba(201,162,39,0.8)] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer group"
+              className="w-full sm:w-auto px-11 py-5 rounded-xl font-mono text-xs uppercase tracking-widest font-semibold text-accent-ink bg-gradient-to-r from-[var(--sp-gold)] via-[var(--sp-gold-light)] to-[var(--sp-gold-deep)] shadow-[0_0_30px_rgba(201,162,39,0.5)] hover:shadow-[0_0_50px_rgba(201,162,39,0.8)] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer group"
             >
               Get Started Now <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
             </Link>
 
             <Link
               href="/login"
-              className="w-full sm:w-auto px-9 py-5 rounded-xl font-mono text-xs uppercase tracking-widest text-[#e0e2ed] hover:text-[var(--sp-gold)] border border-[#4e4636] hover:border-[var(--sp-gold)]/60 bg-black transition-all cursor-pointer"
+              className="w-full sm:w-auto px-9 py-5 rounded-xl font-mono text-xs uppercase tracking-widest text-[#e0e2ed] hover:text-[var(--sp-gold)] border border-[#4e4636] hover:border-[var(--sp-gold)]/60 bg-background transition-all cursor-pointer"
             >
               Sign In to Command Center
             </Link>
@@ -50,7 +50,7 @@ export default function FinalCTASection() {
 
           <div className="flex flex-wrap items-center justify-center gap-6 font-mono text-xs text-[#d1c5b0]/60">
             <span className="flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" /> 14-Day Free Pilot
+              <ShieldCheck className="w-4 h-4 text-success" /> 14-Day Free Pilot
             </span>
             <span>•</span>
             <span className="flex items-center gap-1.5">

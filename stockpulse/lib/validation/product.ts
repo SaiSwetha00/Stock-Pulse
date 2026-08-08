@@ -13,6 +13,10 @@ export type ProductInput = {
   stock: string
   lowStockThreshold: string
   expiryDate: string
+  /** Public Storage URL, or '' for no photo. Not user-typed — it is set by
+   *  ProductImageUpload after a successful upload, so there is nothing to
+   *  validate beyond empty-means-null. */
+  imageUrl: string
 }
 
 export type ProductErrors = Partial<Record<keyof ProductInput, string>>
@@ -28,6 +32,7 @@ export type ProductPayload = {
   stock: number
   low_stock_threshold: number
   expiry_date: string | null
+  image_url: string | null
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -86,5 +91,6 @@ export function toProductPayload(values: ProductInput): ProductPayload {
     stock: Number(values.stock.trim() || '0'),
     low_stock_threshold: Number(values.lowStockThreshold.trim() || '0'),
     expiry_date: values.expiryDate.trim() || null,
+    image_url: values.imageUrl.trim() || null,
   }
 }

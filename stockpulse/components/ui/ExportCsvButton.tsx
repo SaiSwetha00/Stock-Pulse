@@ -51,7 +51,7 @@ export default function ExportCsvButton<T>({
       type="button"
       onClick={handleExport}
       className={cn(
-        'flex control-h items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-muted-strong transition hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400',
+        'flex control-h items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-muted-strong transition hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong',
         className
       )}
     >

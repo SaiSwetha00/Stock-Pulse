@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { TOOL_DECLARATIONS, executeTool } from '@/lib/gemini/tools'
 import { rateLimit } from '@/lib/rateLimit'
 import { canViewReports } from '@/lib/permissions'
+import { persistTurn } from '@/lib/ai/persistTurn'
 import type { Role } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -48,6 +49,20 @@ function parseMessages(body: unknown): ChatMessage[] | null {
   return out
 }
 
+/**
+ * The conversation to record this turn against.
+ *
+ * Optional on purpose: the endpoint answers with or without one. A caller that
+ * omits it — an older client, or a future surface with nothing to persist —
+ * gets exactly the behaviour it had before threads existed, rather than a 400
+ * for a field it does not know about.
+ */
+function parseThreadId(body: unknown): string | null {
+  if (typeof body !== 'object' || body === null) return null
+  const { threadId } = body as { threadId?: unknown }
+  return typeof threadId === 'string' && threadId.length > 0 ? threadId : null
+}
+
 export async function POST(req: NextRequest) {
   // Parsed inside a try: a malformed payload previously threw here and
   // surfaced as an unhandled 500.
@@ -62,6 +77,7 @@ export async function POST(req: NextRequest) {
   if (!messages) {
     return new Response('Invalid or oversized message payload.', { status: 400 })
   }
+  const threadId = parseThreadId(raw)
 
   const supabase = await createClient()
   const {
@@ -119,6 +135,17 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder()
+
+      // Everything the user actually sees, captured as it goes out, so what
+      // gets stored is what was on screen — including the two apology strings
+      // below. A history that silently drops the failed turns would show a
+      // question with no answer under it and no explanation why.
+      let emitted = ''
+      function send(text: string) {
+        emitted += text
+        controller.enqueue(encoder.encode(text))
+      }
+
       try {
         const contents: Content[] = [...history, { role: 'user', parts: [{ text: lastMessage }] }]
 
@@ -149,7 +176,7 @@ export async function POST(req: NextRequest) {
             const piece = chunk.text
             if (piece) {
               turnText += piece
-              controller.enqueue(encoder.encode(piece))
+              send(piece)
             }
 
             const parts = chunk.candidates?.[0]?.content?.parts
@@ -201,24 +228,34 @@ export async function POST(req: NextRequest) {
         // The loop can exit with calls still outstanding once the guard trips.
         // Saying so beats returning an empty bubble the user can't interpret.
         if (calls.length > 0) {
-          controller.enqueue(
-            encoder.encode(
-              "\n\nI wasn't able to finish looking that up — the request needed too many lookups. Try asking for one thing at a time.",
-            ),
+          send(
+            "\n\nI wasn't able to finish looking that up — the request needed too many lookups. Try asking for one thing at a time.",
           )
         } else if (!streamedAnything) {
-          controller.enqueue(
-            encoder.encode("Sorry, I couldn't come up with an answer for that. Try rephrasing?"),
-          )
+          send("Sorry, I couldn't come up with an answer for that. Try rephrasing?")
         }
       } catch (err) {
-        controller.enqueue(
-          new TextEncoder().encode(
-            `Sorry, I ran into an error: ${err instanceof Error ? err.message : 'unknown error'}`
-          )
-        )
+        send(`Sorry, I ran into an error: ${err instanceof Error ? err.message : 'unknown error'}`)
       } finally {
+        // Close first, then write. The user has the complete answer on screen
+        // the moment the model stops talking; making them wait on two database
+        // round trips before the stream ends would add latency to every single
+        // turn in exchange for nothing they can perceive.
         controller.close()
+
+        if (threadId && lastMessage.trim()) {
+          await persistTurn({
+            supabase,
+            threadId,
+            userId: user.id,
+            userText: lastMessage,
+            modelText: emitted,
+          })
+          // A persistence failure is not reported to the user: the answer is
+          // already delivered and the stream is closed, so there is nowhere
+          // left to say it. The visible symptom is a turn missing from
+          // history after a refresh, which is the honest consequence.
+        }
       }
     },
   })

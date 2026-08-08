@@ -103,12 +103,12 @@ export default function AuthHero({ title, subtitle }: AuthHeroProps) {
         />
         <div
           aria-hidden
-          className="auth-blob absolute bottom-[-18%] right-[-12%] h-96 w-96 rounded-full bg-emerald-300/30 blur-3xl dark:bg-emerald-500/15"
+          className="auth-blob absolute bottom-[-18%] right-[-12%] h-96 w-96 rounded-full bg-success-bg blur-3xl dark:bg-success/15"
           style={{ animationDelay: '-6s' }}
         />
         <div
           aria-hidden
-          className="auth-blob absolute left-1/3 top-1/2 h-64 w-64 rounded-full bg-amber-200/25 blur-3xl dark:bg-amber-400/10"
+          className="auth-blob absolute left-1/3 top-1/2 h-64 w-64 rounded-full bg-warning-bg blur-3xl dark:bg-warning-bg"
           style={{ animationDelay: '-12s' }}
         />
       </ParallaxLayer>

@@ -14,7 +14,7 @@ export default function TrustedByStats() {
   ]
 
   return (
-    <section className="relative py-24 sp-band-lifted border-y border-white/8 overflow-hidden perspective-1000">
+    <section className="relative py-24 sp-band-coffee border-y border-border overflow-hidden perspective-1000">
       <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
         {/* Header Label */}
         <motion.div
@@ -39,7 +39,7 @@ export default function TrustedByStats() {
               viewport={{ once: true }}
               transition={{ duration: 0.6, delay: i * 0.1 }}
               whileHover={{ scale: 1.05, translateZ: 20, rotateX: 5 }}
-              className="glass-card p-5 rounded-xl border border-white/5 hover:border-[var(--sp-gold)]/35 flex flex-col items-center justify-center text-center transition-all group animate-3d-float"
+              className="glass-card p-5 rounded-xl border border-border hover:border-[var(--sp-gold)]/35 flex flex-col items-center justify-center text-center transition-all group animate-3d-float"
               style={{ animationDelay: `${i * 0.4}s` }}
             >
               <div className="font-display font-bold tracking-widest text-[#e0e2ed] group-hover:text-[var(--sp-gold)] text-sm md:text-base">
@@ -76,10 +76,10 @@ export default function TrustedByStats() {
             viewport={{ once: true }}
             transition={{ duration: 0.7, delay: 0.2 }}
             whileHover={{ translateZ: 30, rotateY: -3, scale: 1.02 }}
-            className="glass-card p-7 rounded-2xl border border-white/10 bg-[var(--sp-surface-card)]/40 relative overflow-hidden group"
+            className="glass-card p-7 rounded-2xl border border-border bg-[var(--sp-surface-card)]/40 relative overflow-hidden group"
           >
-            <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
-            <div className="font-mono text-xs text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+            <div className="absolute top-0 left-0 w-1 h-full bg-success" />
+            <div className="font-mono text-xs text-success uppercase tracking-wider mb-2 flex items-center gap-2">
               <Zap className="w-4 h-4" /> Setup
             </div>
             <div className="font-display font-bold text-4xl text-[#e0e2ed] mb-1">No Hardware</div>
@@ -92,7 +92,7 @@ export default function TrustedByStats() {
             viewport={{ once: true }}
             transition={{ duration: 0.7, delay: 0.3 }}
             whileHover={{ translateZ: 30, rotateY: 3, scale: 1.02 }}
-            className="glass-card p-7 rounded-2xl border border-white/10 bg-[var(--sp-surface-card)]/40 relative overflow-hidden group"
+            className="glass-card p-7 rounded-2xl border border-border bg-[var(--sp-surface-card)]/40 relative overflow-hidden group"
           >
             <div className="absolute top-0 left-0 w-1 h-full bg-[#93000a]" />
             <div className="font-mono text-xs text-[#ffb4ab] uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -108,7 +108,7 @@ export default function TrustedByStats() {
             viewport={{ once: true }}
             transition={{ duration: 0.7, delay: 0.4 }}
             whileHover={{ translateZ: 30, rotateY: 3, scale: 1.02 }}
-            className="glass-card p-7 rounded-2xl border border-white/10 bg-[var(--sp-surface-card)]/40 relative overflow-hidden group"
+            className="glass-card p-7 rounded-2xl border border-border bg-[var(--sp-surface-card)]/40 relative overflow-hidden group"
           >
             <div className="absolute top-0 left-0 w-1 h-full bg-[#A882C1]" />
             <div className="font-mono text-xs text-[#A882C1] uppercase tracking-wider mb-2 flex items-center gap-2">

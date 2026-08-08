@@ -39,7 +39,7 @@ export default function SortableTh<K extends string>({
         type="button"
         onClick={() => onSort(sortKey)}
         className={cn(
-          'group inline-flex control-h items-center gap-1.5 rounded-md text-xs font-semibold uppercase tracking-wide transition hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400',
+          'group inline-flex control-h items-center gap-1.5 rounded-md text-xs font-semibold uppercase tracking-wide transition hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong',
           active ? 'text-muted-strong' : 'text-muted',
           align === 'right' && 'flex-row-reverse'
         )}

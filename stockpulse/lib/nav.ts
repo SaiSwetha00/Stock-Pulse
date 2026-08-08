@@ -8,6 +8,7 @@ import {
   MonitorCheck,
   Settings,
   LifeBuoy,
+  Inbox,
   ChartColumn,
   FileText,
   History,
@@ -60,6 +61,10 @@ export const NAV_ITEMS: NavItem[] = [
   // to /dashboard on click; personal preferences live at /profile, which every
   // role reaches from the avatar menu.
   { href: '/settings', label: 'Settings', icon: Settings, roles: ['owner'] },
+  // canManage() — /support redirects anyone else. Managers field day-to-day
+  // questions, so they see the queue; a staff member can still read their own
+  // request through the Help Centre's policy, not this screen.
+  { href: '/support', label: 'Support', icon: Inbox, roles: ['owner', 'manager'] },
   { href: '/help', label: 'Help Center', icon: LifeBuoy, roles: ['owner', 'manager', 'staff'] },
 ]
 

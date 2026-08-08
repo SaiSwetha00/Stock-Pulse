@@ -141,11 +141,12 @@ export default function SalesClient({
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-6 py-8 lg:px-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Sales</h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="sp-eyebrow">Transactions</p>
+          <h1 className="sp-title mt-2">Sales</h1>
+          <p className="sp-body mt-2">
             {canSeeRevenue
               ? `This week: ${formatCurrency(weekTotal)} · Avg order ${formatCurrency(avgOrder)}`
               : 'Log new sales and browse recent transactions.'}
@@ -167,16 +168,16 @@ export default function SalesClient({
 
       {canSeeRevenue && (
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="rounded-2xl bg-surface p-6 shadow-sm lg:col-span-2">
+          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm lg:col-span-2">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">Weekly Performance</h2>
+              <h2 className="sp-heading">Weekly Performance</h2>
               <p className="text-sm text-muted">Revenue, last 7 days</p>
             </div>
             <SalesTrendChart data={trendData} />
           </div>
 
           <div className="rounded-2xl bg-foreground p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-surface">Popular Categories</h2>
+            <h2 className="sp-heading-invert">Popular Categories</h2>
             <div className="mt-5 space-y-4">
               {categoryBreakdown.map((c) => (
                 <div key={c.label}>
@@ -185,7 +186,7 @@ export default function SalesClient({
                     <span className="font-semibold text-surface">{c.pct}%</span>
                   </div>
                   <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface/10">
-                    <div className="h-full rounded-full bg-emerald-400" style={{ width: `${c.pct}%` }} />
+                    <div className="h-full rounded-full bg-success" style={{ width: `${c.pct}%` }} />
                   </div>
                 </div>
               ))}
@@ -203,9 +204,9 @@ export default function SalesClient({
       )}
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="rounded-2xl bg-surface p-6 shadow-sm lg:col-span-2">
+        <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm lg:col-span-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-foreground">
+            <h2 className="sp-heading">
               {canSeeRevenue ? 'Recent Transactions' : 'Sales History'}
             </h2>
             <div className="relative w-48">
@@ -389,10 +390,10 @@ export default function SalesClient({
         </div>
 
         {canSeeRevenue && (
-          <div className="rounded-2xl bg-surface p-6 shadow-sm">
+          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2">
-              <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-              <h2 className="text-lg font-bold text-foreground">Top Selling Items</h2>
+              <Star className="h-4 w-4 fill-warning text-warning" />
+              <h2 className="sp-heading">Top Selling Items</h2>
             </div>
             <div className="mt-4 space-y-4">
               {topSelling.length === 0 && (

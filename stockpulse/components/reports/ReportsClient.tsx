@@ -164,11 +164,12 @@ export default function ReportsClient({
   }
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+    <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground lg:text-3xl">Reports</h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="sp-eyebrow">Reporting</p>
+          <h1 className="sp-title mt-2">Reports</h1>
+          <p className="sp-body mt-2">
             Sales performance for a date range you choose.
           </p>
         </div>
@@ -182,7 +183,7 @@ export default function ReportsClient({
       </div>
 
       {/* ---- Date range ---- */}
-      <div className="mt-6 flex flex-wrap items-center gap-2 rounded-2xl bg-surface p-4 shadow-sm">
+      <div className="mt-6 flex flex-wrap items-center gap-2 sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm">
         <label htmlFor="report-from" className="text-sm font-medium text-muted-strong">
           From
         </label>
@@ -229,7 +230,7 @@ export default function ReportsClient({
       </div>
 
       {isEmpty ? (
-        <div className="mt-6 rounded-2xl bg-surface shadow-sm">
+        <div className="mt-6 sp-rise rounded-2xl border border-border bg-surface shadow-sm">
           <EmptyState
             icon={BarChart3}
             title="No sales in this range"
@@ -239,9 +240,9 @@ export default function ReportsClient({
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
           {/* Revenue by day */}
-          <section className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
+          <section className="sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-foreground">Revenue by day</h2>
+              <h2 className="sp-heading">Revenue by day</h2>
               <ExportCsvButton
                 columns={[
                   { header: 'Date', value: (d: (typeof daily)[number]) => d.iso },
@@ -252,7 +253,11 @@ export default function ReportsClient({
                 itemLabel="days"
               />
             </div>
-            <div className="mt-4 max-h-80 overflow-y-auto">
+            {/* overflow-x as well as -y. This table does not reflow into
+                cards the way the module tables do, so at 390px its only
+                escape from a long date column is sideways — without this the
+                page itself scrolls horizontally instead. */}
+            <div className="mt-4 max-h-80 overflow-auto">
               <table className="sp-table w-full text-left text-sm">
                 <thead className="sticky top-0 bg-surface">
                   <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
@@ -279,9 +284,9 @@ export default function ReportsClient({
           </section>
 
           {/* Top products */}
-          <section className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
+          <section className="sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-foreground">Top products</h2>
+              <h2 className="sp-heading">Top products</h2>
               <ExportCsvButton
                 columns={[
                   { header: 'Product', value: (p: (typeof products)[number]) => p.name },
@@ -324,9 +329,9 @@ export default function ReportsClient({
           </section>
 
           {/* Category mix */}
-          <section className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
+          <section className="sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-foreground">Category mix</h2>
+              <h2 className="sp-heading">Category mix</h2>
               <ExportCsvButton
                 columns={[
                   { header: 'Category', value: (c: (typeof categories)[number]) => c.label },
@@ -359,9 +364,9 @@ export default function ReportsClient({
           </section>
 
           {/* Payment methods */}
-          <section className="rounded-2xl bg-surface p-4 shadow-sm sm:p-6">
+          <section className="sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-bold text-foreground">Payment methods</h2>
+              <h2 className="sp-heading">Payment methods</h2>
               <ExportCsvButton
                 columns={[
                   { header: 'Method', value: (p: (typeof payments)[number]) => p.label },
