@@ -159,3 +159,139 @@ Scope: owner decision.
 `/monitoring` (Live Operations Center), `/reports`, and `/audit` are built, routed, and in
 the sidebar, but are not among the eleven modules the prompt enumerates. They will need the
 same Phase 4 / Phase 7 treatment or they will be the only pages left on the old design.
+
+---
+
+# Found during the palette round (branch `ui/palette-round`, 2026-08-08)
+
+Unlike the entries above, these are **all fixed** on the branch. They are kept
+because each one was invisible to `tsc`, `eslint` and `next build` — every
+single one was green through all three — and the pattern of how each was found
+is more useful than the fix.
+
+## S2 — 23 shadow classes painted nothing · FIXED `f28d73b`
+
+Every element carrying a Tailwind `shadow-*` class computed to
+`rgba(0, 0, 0, 0)`. All 23 of them. The previous round had claimed "real
+elevation and layered shadows"; there was no elevation at all, which is a large
+part of why cards read as flat tinted rectangles.
+
+Replaced with a plain-CSS ladder `sp-e1/e2/e3`; 23 of 23 now paint.
+
+**Found by** reading computed styles in the browser, not the class list. A class
+being present in the markup says nothing about whether it emits a rule — the
+same failure mode as D9's `/opacity` modifiers.
+
+## S2 — The focus ring was never gold · FIXED `b2b0b0e`
+
+Measured `rgb(74, 65, 57)` — `currentColor` inherited from the nav link, not the
+accent. The `outline` shorthand with `!important` was not carrying its colour
+through; the longhand now repeats after it.
+
+**Found by** dispatching real `Input.dispatchKeyEvent` Tab presses over CDP and
+reading `getComputedStyle` on `document.activeElement`. `el.focus()` would not
+have caught it — it does not reliably trigger `:focus-visible`.
+
+## S2 — Toggle knob escaped its track; OFF state invisible in dark · FIXED `70e1f2a`
+
+Reported as "toggles overflow their card". The card was innocent: the button sat
+1px inside the card's padding box at every width. The knob was escaping its own
+track — absolutely positioned with no inline anchor, so it resolved against its
+static position (22px) and the translate stacked on top of that.
+
+    before  ON  leftInset 42px in a 44px track, rightOverflow +18px
+    after   ON  leftInset 22px, rightOverflow -2px
+
+Second defect in the same component: the OFF track was `--surface-muted`
+`#2f2118` on a `#241a12` card, so an unset switch in dark mode was nearly
+invisible — it read as empty space rather than a control.
+
+**Lesson:** the reported symptom named the wrong element. Measuring both boxes
+separately is what separated them.
+
+## S1 — "Set Up 4 Stations" fabricated live trade · FIXED `7dc5d12`
+
+Inserted baskets mid-scan totalling $148.00, a weight-mismatch alert and an
+age-verification hold, into the real table in the real store. The dashboard then
+reported live checkout activity for a shop with no products and no sales — and
+that is the state that shipped to a client review.
+
+Now inserts four available counters, all session fields zeroed, all alert fields
+null. The four fabricated rows were removed from the live store. See D23.
+
+## S1 — `checkout_stations` had no DELETE policy · FIXED, migration 0012
+
+Select, insert and update policies existed; delete did not. RLS denies by
+default, so `.delete()` through the normal client returned **HTTP 200 with zero
+rows removed** — nothing in the app could remove a counter, and the failure
+reported success.
+
+Found while clearing the fabricated rows above: the delete came back 200 with
+the rows still present. Migration 0012 adds
+`managers can delete stations · DELETE · ((store_id = current_store_id()) AND
+can_manage())`, applied 2026-08-08 and verified (3 policies → 4).
+
+There was also no UI capable of issuing a delete; `Remove Counter` was added and
+driven end to end, DB rows 4 → 0. See D24.
+
+## S2 — Confirm button clipped out of existence · FIXED `7f2633c`
+
+The new Remove-Counter confirm row put two `fullWidth` buttons in a flex row.
+`Button` carries `shrink-0` in its base class, so neither could shrink: Cancel
+measured **+237.3px** past the card's inner edge, where the card's
+`overflow-hidden` clipped it away entirely. The control existed, rendered, and
+could not be reached.
+
+`flex-1 min-w-0` instead — a zero flex-basis divides the row and survives
+`shrink-0`. Re-measured at −31px, inside the card.
+
+**Found by** measuring `getBoundingClientRect()` against the card's padding box
+in a real browser. It was introduced and caught within the same hour, by
+looking.
+
+## S2 — Zero rows blamed the migration for a double click · FIXED `7f2633c`
+
+The guard added for the bug above treated any empty delete result as "the
+policy is missing". Driving the flow headless hit the other cause: after a
+removal the board still shows the old card until `router.refresh()` lands, so a
+second click deletes an already-deleted row, gets zero rows, and the UI told the
+shopkeeper to apply a migration that was already applied.
+
+Zero rows now names both causes and refreshes.
+
+## S1 — The harness measured `/login` and called it `/dashboard` · FIXED
+
+The most dangerous defect of the round, because it fails *upward*.
+
+`SP_COOKIE_FILE="$PWD/cookie.txt"` — `$PWD` in Git Bash is `/c/Users/...`, which
+Node on Windows cannot stat. The file read as absent, no cookie was set, the app
+redirected to sign-in, and the harness reported CLS 0, console 0, no overflow,
+all focus rings gold. Every figure was correct. Every figure described the
+sign-in page.
+
+Fixed by using `$(pwd -W)`, and by making `harness.js` throw when
+`location.pathname` is not the requested path.
+
+A sibling trap: bare `node harness.js /dashboard` is rewritten by Git Bash to
+`C:/Program Files/Git/dashboard`. Prefix `MSYS_NO_PATHCONV=1`. The previous
+session left `result-CProgramFilesGitsettings-light.json` behind as evidence of
+that one going unnoticed too.
+
+**Scope:** verification tooling, not the app. Recorded here because every
+Phase 3 and Phase 7 number depends on the harness being honest, and it was not.
+See D26.
+
+## S3 — Six `images.unsplash.com` loads, all already 404 · FIXED `f0d6af6`
+
+Texture loads in the landing's `ThreeGroceryVisual`. Replaced with canvas-drawn
+palette gradients and a line glyph — the pattern that file already used for its
+shelf labels. Verified: zero remote image hosts in tracked files, zero
+third-party hosts requested at runtime.
+
+## Note — station toast labels hardcode a leading zero
+
+`Station 0${station.station_number}` appears in three toasts in
+`MonitoringClient.tsx`. At station 10 or above that reads "Station 010". The
+card heading uses `padStart(2, '0')` and is correct; the new remove toast
+matches the heading. Cosmetic, and unreachable until a shop configures ten
+counters — left alone rather than widening this branch's diff.

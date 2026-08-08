@@ -325,6 +325,92 @@ the markup.
   server-rendered HTML and the Server Actions directly. The rail's server-side
   render is correct; its hydrated state is unexercised.
 
+## Phase 1 — palette and dashboard (2026-08-08, branch `ui/palette-round`)
+
+Branch cut from `main` at `b91ab2a`. Held off `main` deliberately: production
+was broken in a way unrelated to this work (authenticated pages stuck on their
+loading skeleton), and stacking a visual round on top of an outage makes the
+outage harder to reason about.
+
+- **The palette was reversed mid-round, and that is the important part.** The
+  first pass (`f28d73b`) tinted the whole page beige, `#ede2cf`. It measured
+  well — page-to-surface contrast went 1.043 → 1.262 — and it was still wrong:
+  it turned an accent into a page fill, so every card sat on a coloured field
+  instead of reading as paper on a desk.
+
+  `a916c07` reverted the page to the near-white it had on `main` (`#fbfaf8`,
+  cards `#ffffff`) and demoted gold `#8a6206`, coffee `#d6c3a3` and deep red
+  `#8f2a1c` to accents only — hairlines, icon tiles, KPI values, active states,
+  focus rings, **never a page or card fill**. Separation now comes from a
+  coffee hairline (1.72:1 against the card) plus a soft two-layer shadow. Dark
+  mode was left alone.
+
+- **The previous round's "layered shadows" claim was false.** All 23 elements
+  carrying a Tailwind `shadow-*` class computed to `rgba(0,0,0,0)` — they
+  painted nothing at all. Replaced with a plain-CSS elevation ladder
+  `sp-e1/e2/e3`; 23 of 23 now paint. See D22.
+
+- **Dashboard hierarchy.** "Today's Sales" became the hero at 40px (52px from
+  `lg`) gold across 2 of 5 columns; the other three dropped to a 24px near-black
+  secondary tier. Three-step scale (11px uppercase label / numeral / 12px
+  caption), vertical rhythm moved onto 8px, `CountUp` reserves its final width
+  in `ch` with `tabular-nums` so counting cannot shift layout.
+
+  Every measured pair clears AA — light: hero gold on card 5.48, secondary
+  18.93, label 6.05, body 18.15. Dark: 8.76 / 14.08 / 5.15 / 16.62.
+
+- **Six review defects fixed and measured** (`f0d6af6`): a 525×179 hero card
+  holding ~300px of nothing (now a 180px inline-SVG sparkline); the sidebar
+  pill using text-grade gold as a fill, which reads coffee-brown (split into
+  `--accent` for text and `--accent-fill` `#c9a227` for surfaces, ink 7.8:1);
+  Quick Actions measured `[3, 1]`, an orphan row, now `auto-fit
+  minmax(9.5rem, 1fr)` measuring `[4]`; **six `images.unsplash.com` loads that
+  were already 404**, replaced with canvas-drawn gradients; `CountUp`'s own ch
+  reservation clipping numerals on a 390px card; and a flat line of seven
+  zeroes rendering as a broken panel.
+
+- **The focus ring was never gold.** Measured `rgb(74,65,57)` — `currentColor`
+  on the nav link. The `outline` shorthand with `!important` was not carrying
+  its colour; the longhand is now repeated after it. Verified with real
+  `Input.dispatchKeyEvent` Tab presses, because `el.focus()` does not reliably
+  trigger `:focus-visible`.
+
+- **The toggle bug was not where it looked** (`70e1f2a`). The reported "toggles
+  overflow their card" was real, but the button sat 1px *inside* the card at
+  every width — the knob was escaping its own track, because it was absolutely
+  positioned with no inline anchor and resolved against its static position
+  (22px) with the translate stacked on top. ON measured `leftInset 42px in a
+  44px track, rightOverflow +18px`. `left-0.5` anchors it; now 2px inside at
+  both ends. A second defect surfaced in the same screenshot: the OFF track was
+  `--surface-muted #2f2118` on a `#241a12` card, so an unset switch in dark was
+  very nearly invisible.
+
+- **Fabricated station data removed from the product** (`7dc5d12`). "Set Up 4
+  Stations" was inserting invented live trade: baskets mid-scan totalling
+  $148.00, a weight-mismatch alert and an age-verification hold. Those rows
+  surfaced on the dashboard as real activity in a shop with no products and no
+  sales, and that is what shipped to a client review. The seeder now writes four
+  available counters with every session field zeroed and every alert field null.
+
+  The four fabricated rows in the live store were deleted with the service-role
+  key — 16 rows existed across all stores, 4 in the target store, 4 removed, 12
+  in other stores untouched. The app itself could not remove them, which is how
+  the missing DELETE policy was found.
+
+  The rest of the app was swept for invented values: every other `.insert()`
+  writes user-supplied form data, and no hardcoded currency, percentage,
+  customer or transaction literals exist outside `components/marketing`.
+
+- **Copy.** "N checkouts pending" implied queued work sitting unattended; it
+  actually counts counters that are not free. Now "N of M counters busy", and
+  when M is 0 the clause is not rendered at all rather than printing "0 of 0".
+
+- **`seed_demo.sql` quarantined** to
+  `supabase/dev-only/seed_demo.DO-NOT-RUN-AGAINST-PRODUCTION.sql`, with a header
+  explaining that its fabricated products, sales, customers and suppliers become
+  indistinguishable from a shop's real trading history. Moved, not deleted, so a
+  scratch database can still be seeded. See D23.
+
 ## Phase 2 close-out (2026-08-08, branch `ui/palette-round`)
 
 - **Migration 0012 applied.** `checkout_stations` went from 3 policies to 4;
@@ -382,8 +468,40 @@ the markup.
   up in the scratchpad's `HARNESS-AUTH.md`. **The account still exists** —
   `node harness-auth.js --destroy` removes it.
 
-  The harness now hard-fails when `location.pathname` is not the requested
-  path. It had been measuring `/login` and labelling the result `/dashboard`.
+  **Account scope measured, not assumed.** `scope-check.js` signs in with the
+  anon key so RLS applies, and compares against service-role ground truth: of
+  4 stores / 8 profiles / 12 stations / 6 products / 6 sales / 14 customers /
+  6 suppliers in the project, it sees 1 store, 2 profiles and **zero rows
+  belonging to any other store**. A `PATCH` aimed at another store's station
+  returned HTTP 200 with 0 rows affected and the row unchanged. Inside its own
+  store it is a full owner, which is not the same as harmless — that is exactly
+  why it could run the counters test.
+
+- **The harness had been measuring the wrong page and reporting it as green.**
+  This is the most dangerous thing found this round, because it fails upward.
+
+  `SP_COOKIE_FILE="$PWD/cookie.txt"` looks correct and is not: `$PWD` in Git
+  Bash is `/c/Users/...`, which Node on Windows cannot stat. The file read as
+  absent, no cookie was set, the app bounced to `/login`, and the harness
+  measured the **sign-in page** while labelling every number `/dashboard`. CLS
+  0, console 0, no overflow — a clean report about a page nobody asked about.
+
+  It cost three wrong theories (cookie encoding, CDP `setCookie` semantics, a
+  corrupt Chrome profile) before the diagnostic that settled it: a `[diag]` line
+  printing how many cookie pairs were parsed, which printed nothing at all
+  because the count was zero.
+
+  Two fixes, both in the harness: use `$(pwd -W)` for Windows paths, and
+  **hard-fail when `location.pathname` is not the requested path**. A run that
+  measures the wrong page must look broken rather than green. Had this stayed
+  hidden, every Phase 3 number across 11 routes would have been a measurement
+  of `/login`.
+
+  A third Git Bash trap sits next to it: bare `node harness.js /dashboard`
+  rewrites the argument to `C:/Program Files/Git/dashboard`. Always prefix
+  `MSYS_NO_PATHCONV=1`. The previous session left a
+  `result-CProgramFilesGitsettings-light.json` behind as evidence of the same
+  bug going unnoticed.
 
 ## Could not verify this session
 

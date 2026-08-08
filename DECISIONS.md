@@ -359,3 +359,125 @@ does the same, so scheduling keeps working; only `saveLeave` reports the missing
 table, and it names the file to run. The rota predates leave and must not break
 because a migration is pending — verified by loading `/staff` against a database
 without the table.
+
+## D22 — The accent is never a page or card fill
+
+Recorded because it was tried, measured well, and was still wrong.
+
+The first palette pass tinted the page beige (`#ede2cf`). By the numbers it was
+an improvement: page-to-surface contrast went 1.043 → 1.262, border-against-card
+1.291 → 1.695. Both directions of the thing being optimised got better.
+
+It was reverted anyway. Tinting the page makes the accent the *ground* rather
+than the mark, so every card sits on a coloured field and nothing is emphasised
+by being gold, because everything already is. The page went back to near-white
+`#fbfaf8` with `#ffffff` cards, separated by a coffee hairline (1.72:1 against
+the card) and a soft two-layer shadow — separation by edge and elevation, not
+by tint.
+
+The rule that came out of it: **gold, coffee and deep red are hairlines, icon
+tiles, KPI values, active states and focus rings. Never a surface.** The one
+exception is deliberate and split out under its own token — `--accent-fill`
+`#c9a227` for gold *surfaces* like the sidebar pill, where the contrast burden
+moves to the ink sitting on top (measured 7.8:1) rather than to the gold itself.
+`--accent` `#8a6206` stays the text-grade gold and must clear 4.5:1 on white.
+
+Corollary, learned the same day: **a contrast measurement is not a design
+verdict.** It can only tell you two colours are distinguishable, not that the
+one you tinted should have been tinted.
+
+## D23 — A setup button configures hardware; it must not invent trade
+
+"Set Up 4 Stations" inserted baskets mid-scan totalling $148.00, a
+weight-mismatch alert and an age-verification hold. It reads as harmless demo
+data. It is not: those rows are written to the real `checkout_stations` table
+in the real store, so the dashboard then reported live checkout activity for a
+shop with no products and no sales. That is what shipped to a client review.
+
+The rule is that a control which sets something up creates the *thing*, empty.
+Four counters, every session field zeroed, every alert field null. If a demo
+needs populated state, that is a separate, clearly-labelled action.
+
+Same reasoning moved `seed_demo.sql` to
+`supabase/dev-only/seed_demo.DO-NOT-RUN-AGAINST-PRODUCTION.sql`. Its fabricated
+products, sales, customers and suppliers are indistinguishable from real trading
+history once they are in a live store — there is no `is_demo` column to filter
+on and no way to tell afterwards which sales the shop actually made. Moved
+rather than deleted, because seeding a scratch database is still legitimate.
+
+## D24 — A write that can be refused silently must ask what it changed
+
+`checkout_stations` had select/insert/update policies and no DELETE policy. RLS
+denies by default, so `.delete().eq('id', id)` returned **HTTP 200, no error,
+zero rows removed**. The UI would have said "Counter removed" and removed
+nothing. Migration 0012 adds the policy, but the migration is not the lesson.
+
+The lesson is that a supabase-js write returns an error object that only covers
+*errors*, and an RLS refusal is not one — it is a successful statement that
+matched no rows. The two are indistinguishable unless you ask for the affected
+rows back:
+
+```ts
+.delete().eq('id', station.id).select('id')   // data.length === 0 means refused
+```
+
+Applies to any `update` or `delete` behind RLS where the caller then tells a
+human it worked. It does not apply to inserts, which fail loudly with 42501.
+
+The follow-up matters as much: an empty result has **two** causes, and the first
+version of the message picked one. It blamed the missing migration, so a
+shopkeeper double-clicking Remove — deleting a row already gone from a board
+that had not refreshed yet — was told to go and run SQL. Zero rows now names
+both causes and refreshes the view, because either way what is on screen is out
+of date.
+
+## D25 — Harness auth is a dedicated test account, not the owner's cookie
+
+The measurement harness needs an authenticated browser. The obvious route is to
+copy the owner's live session cookie out of their browser into headless Chrome.
+Don't.
+
+That pattern — page JavaScript reading `document.cookie` and POSTing it to a
+local listener — is byte-for-byte what credential exfiltration looks like, and
+it was correctly refused by the permission layer. Dressing it up to get past
+that would be the wrong instinct twice over.
+
+`harness-auth.js` instead creates `harness@stockpulse.test` through the Supabase
+Admin API, signs it in with the ordinary anon-key password grant, and writes the
+session using `@supabase/ssr`'s *own* chunker and base64url encoder so the
+cookie format cannot drift from what the app will try to parse. Repeatable with
+nobody in the loop, which is what Phase 3's 11-route sweep and Phase 7's
+Lighthouse passes need.
+
+Three constraints worth keeping:
+
+- **It must be a member of the store under test.** Every table is RLS-scoped by
+  `store_id`, so an account anywhere else renders a different shop's numbers.
+- **Role is `owner` on purpose.** Several routes are owner-gated; a lesser role
+  renders a shorter sidebar, and the harness would measure a page no real user
+  sees and call it clean.
+- **Scope is measured, not asserted.** `scope-check.js` signs in with the anon
+  key so RLS applies and proves it sees 1 store of 4 and zero rows belonging to
+  any other. Re-run it after any change to roles or policies.
+
+The service-role key is read from the gitignored `.env.local` at runtime and
+written nowhere. Verified by literal-value grep across tracked content, the
+whole working tree, every `package.json`, and every commit on this branch.
+
+## D26 — A harness that measures the wrong page must fail, not report
+
+The harness spent an unknown number of runs measuring `/login` and labelling the
+results `/dashboard`. Cookie loading had silently no-op'd — `$PWD` in Git Bash
+is `/c/Users/...`, which Node on Windows cannot stat — so the app bounced to
+sign-in and the harness dutifully reported CLS 0, console 0, no overflow. Every
+number was true. Every number was about the wrong page.
+
+This is the worst failure shape a measurement tool has: it fails *upward*, into
+a clean report. A crash would have been caught in seconds.
+
+So `harness.js` now asserts `location.pathname === TARGET` and throws otherwise,
+and the cookie loader throws rather than proceeding with an empty jar. The
+general rule for anything in the verification path: **an instrument that cannot
+tell you it is broken is worse than no instrument**, because it converts absence
+of evidence into evidence of absence. Prefer a loud failure to a green one on
+every check the harness makes.
