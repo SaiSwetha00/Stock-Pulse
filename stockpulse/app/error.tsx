@@ -31,7 +31,7 @@ export default function PublicError({
 
   return (
     <div className="sp-landing flex min-h-screen items-center justify-center bg-background px-6 py-20">
-      <div className="sp-rise w-full max-w-lg rounded-2xl border border-border bg-surface p-8 shadow-lg">
+      <div className="sp-rise w-full max-w-lg sp-e1 rounded-2xl border border-border bg-surface p-8 shadow-lg">
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-danger-bg">
           <AlertTriangle className="h-6 w-6 text-danger" aria-hidden="true" />
         </div>

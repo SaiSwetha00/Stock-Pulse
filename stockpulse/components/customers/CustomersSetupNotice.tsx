@@ -17,7 +17,7 @@ export default function CustomersSetupNotice() {
         </p>
       </div>
 
-      <div className="mt-8 sp-rise rounded-2xl border border-border bg-surface p-8 shadow-sm">
+      <div className="mt-8 sp-rise sp-e1 rounded-2xl border border-border bg-surface p-8 shadow-sm">
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-surface-muted">
           <Database className="h-6 w-6 text-muted-strong" />
         </div>

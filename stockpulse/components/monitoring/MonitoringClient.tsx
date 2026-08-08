@@ -319,7 +319,7 @@ export default function MonitoringClient({
       </div>
 
       {totalStations === 0 && (
-        <div className="mt-6 sp-rise rounded-2xl border border-border bg-surface p-12 text-center shadow-sm">
+        <div className="mt-6 sp-rise sp-e1 rounded-2xl border border-border bg-surface p-12 text-center shadow-sm">
           <p className="text-muted">No checkout stations configured yet.</p>
           {/* The spinner carries the "working" state, so the label can stay
               still instead of swapping to "Setting up…". */}
@@ -337,7 +337,7 @@ export default function MonitoringClient({
           const Icon = meta.icon
           const isBusy = busyId === station.id
           return (
-            <div key={station.id} className="overflow-hidden sp-rise rounded-2xl border border-border bg-surface shadow-sm">
+            <div key={station.id} className="overflow-hidden sp-rise sp-e1 rounded-2xl border border-border bg-surface shadow-sm">
               <div className={`h-1.5 w-full ${meta.bar}`} />
               <div className="p-5">
                 <div className="flex items-start justify-between gap-2">

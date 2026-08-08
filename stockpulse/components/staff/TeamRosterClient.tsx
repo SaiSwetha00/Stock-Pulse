@@ -110,7 +110,7 @@ export default function TeamRosterClient({
 
       <StaffTabs role={role} />
 
-      <div className="sp-rise mt-6 rounded-2xl border border-border bg-surface shadow-sm">
+      <div className="sp-rise mt-6 sp-e1 rounded-2xl border border-border bg-surface shadow-sm">
         {members.length === 0 ? (
           <EmptyState
             icon={Users}

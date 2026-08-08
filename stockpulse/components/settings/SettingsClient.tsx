@@ -192,7 +192,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="space-y-6">
-          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
+          <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <Store className="h-4.5 w-4.5 text-muted-strong" />
               <h2 className="sp-heading">Store Details</h2>
@@ -232,7 +232,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
             </div>
           </div>
 
-          <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
+          <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <Palette className="h-4.5 w-4.5 text-muted-strong" />
               <h2 className="sp-heading">Appearance</h2>
@@ -268,7 +268,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
           </div>
         </div>
 
-        <div className="sp-rise rounded-2xl border border-border bg-surface p-6 shadow-sm">
+        <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border pb-4">
             <SlidersHorizontal className="h-4.5 w-4.5 text-muted-strong" />
             <h2 className="sp-heading">Operational Controls</h2>
@@ -363,7 +363,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
           the rota. This line exists because an owner who has been using the app
           will look here first, and a screen that silently loses a feature reads
           as a broken screen. */}
-      <div className="sp-card-p mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-surface shadow-sm">
+      <div className="sp-card-p mt-6 flex flex-wrap items-center justify-between gap-4 sp-e1 rounded-2xl border border-border bg-surface shadow-sm">
         <div className="flex min-w-0 items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-muted">
             <Users className="h-4.5 w-4.5 text-muted-strong" aria-hidden="true" />

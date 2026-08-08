@@ -58,14 +58,16 @@ export default function SidebarNav({
               'group relative flex control-h items-center rounded-lg text-sm font-medium',
               'transition-colors duration-150',
               collapsed ? 'justify-center px-0' : 'gap-3 px-3',
-              active ? 'text-surface' : 'text-muted-strong hover:bg-surface-muted hover:text-foreground',
+              active
+                ? 'sp-nav-active'
+                : 'text-muted-strong hover:bg-surface-muted hover:text-foreground',
             )}
           >
             {active && (
               <motion.span
                 layoutId={layoutId}
                 aria-hidden="true"
-                className="absolute inset-0 rounded-lg bg-foreground"
+                className="sp-nav-pill absolute inset-0 rounded-lg"
                 transition={
                   prefersReduced
                     ? { duration: 0 }

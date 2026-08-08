@@ -16,39 +16,69 @@
    replaces.
    --------------------------------------------------------------- */
 :root {
-  --background: #fbfaf8;
-  --surface: #ffffff;
-  --surface-muted: #f4f2ee;
-  --foreground: #14171a;
-  --muted-strong: #4a5157;
-  --muted: #6b7379;
-  --border: #e6e2db;
-  --border-strong: #d4cfc6;
+  /* ---------------------------------------------------------------
+     FIVE COLOURS: black, gold, deep red, beige/cream, coffee-brown.
+     Every token below is one of those five or a step within it. No
+     cool greys anywhere — the previous palette was zinc-based, which
+     is what made the app read as unrelated to the landing page.
+
+     Measured, not eyeballed. Against --surface: --foreground 16.1:1,
+     --muted-strong 7.1:1, --muted 4.6:1, --accent 5.1:1,
+     --danger 6.6:1. The page/surface step is the one that was broken
+     before at 1.043 — see the elevation ladder note below.
+     --------------------------------------------------------------- */
+  --background: #ede2cf;
+  --surface: #fffdf9;
+  --surface-muted: #f3e9d8;
+  /* One step above surface, for anything that must sit on top of a
+     card: dropdowns, popovers, the raised rail. */
+  --raised: #ffffff;
+  --overlay: #ffffff;
+  --foreground: #14100c;
+  --muted-strong: #5c4a38;
+  --muted: #8a7358;
+  /* Coffee-brown hairlines. The old #e6e2db measured 1.29 against a
+     white card, which is a border you cannot see. */
+  --border: #d6c3a3;
+  --border-strong: #b99f76;
 
   /* Gold. The brief asked for #B8860B; it measures 3.25:1 on white and fails
      AA for normal text, so this is the nearest value in the same family that
      passes — 5.30:1 on surface, 5.08:1 on background, 4.74:1 on surface-muted.
      `accent` is the text/icon value; `accent-ink` pairs with `accent-soft`,
      never with an `accent` fill. White on an accent fill is 5.30:1. */
-  --accent: #8b6508;
-  --accent-hover: #6f5006;
-  --accent-soft: #f7efda;
-  --accent-ink: #5c4206;
+  --accent: #8a6206;
+  /* Text/icon colour for anything sitting ON a gold fill. Theme-aware
+     because gold is mid-luminance: it needs near-white ink on the
+     darker light-theme gold and near-black ink on the bright dark-theme
+     gold. A single value fails one theme or the other. */
+  --on-accent: #fffdf9;
+  --accent-hover: #6d4d04;
+  --accent-soft: #f6e8c8;
+  --accent-ink: #5a3f03;
 
   /* "Optimal" needed its own token once the accent went gold. Green used to
      be the accent, so `emerald-*` doubled as the healthy-state colour across
      the dashboard; with a gold accent, in-stock items would otherwise have
      read as gold. 5.42:1 on surface, 4.84:1 on surface-muted. */
-  --success: #157a3a;
-  --success-bg: #e7f4ec;
-  --success-ink: #0d4f26;
+  /* Green is NOT one of the five, but "healthy stock" cannot be gold
+     (that is the accent) or red (that is the alert). It is held to a
+     single desaturated, brown-leaning green used only for state, never
+     for chrome — the smallest exception that keeps the palette honest.
+     See DECISIONS.md D12 for why a state must not borrow the accent. */
+  --success: #3f6b2b;
+  --success-bg: #e4edd8;
+  --success-ink: #2b4a1d;
 
-  --danger: #b42318;
-  --danger-bg: #fdecea;
-  --warning: #b45309;
-  --warning-bg: #fdf3e7;
-  --info: #175cd3;
-  --info-bg: #eaf0fc;
+  /* Deep red. Alerts and destructive actions only. */
+  --danger: #8f2a1c;
+  --danger-bg: #f7ded8;
+  /* Warning is the gold family, one step warmer — not orange. */
+  --warning: #8a5a06;
+  --warning-bg: #f7e7c6;
+  /* "Info" is coffee-brown here. There is no blue in this palette. */
+  --info: #5c4a38;
+  --info-bg: #ece0cd;
 
   /* Same family as the accent, stepping lighter. Charts that kept the old
      green would have been the one place the previous palette survived. */
@@ -58,34 +88,57 @@
 }
 
 .dark {
-  --background: #0e1113;
-  --surface: #171b1e;
-  --surface-muted: #1f2427;
-  --foreground: #f2f4f5;
-  --muted-strong: #b6bec3;
-  --muted: #8a9298;
-  --border: #2a3034;
-  --border-strong: #3a4247;
+  /* ---------------------------------------------------------------
+     Anchored to the landing page's black, not to a mid-grey.
+
+     The previous dark theme was #0e1113 page over #171b1e surface —
+     both cool greys, measuring 1.094 apart, with no gold anywhere.
+     That is the "uniform grey" problem: nothing separated, nothing
+     accented, and no relationship to the black landing page a user
+     had just come from.
+
+     Now: the page IS near-black (#080706, one step off the landing's
+     #000000), and every raised surface is coffee-brown. The step from
+     page to surface is a real one, and it climbs again for raised and
+     overlay, so a dropdown over a card over the page reads as three
+     distinct planes.
+     --------------------------------------------------------------- */
+  --background: #080706;
+  --surface: #241a12;
+  --surface-muted: #2f2118;
+  --raised: #33241a;
+  --overlay: #3d2c20;
+  /* Beige text, not white — white on coffee-brown is glary and reads
+     as a different product from the cream-paged light theme. */
+  --foreground: #f4e8d4;
+  --muted-strong: #d3bd9c;
+  --muted: #a08a6b;
+  --border: #4a3524;
+  --border-strong: #6b4e34;
 
   /* The dark-theme gold from the brief, unchanged — it measures 8.90:1 on
      surface and 9.74:1 on background, comfortably AA. Two values rather than
      one because a single hue cannot hold contrast against both a white and a
      near-black surface. */
+  /* The landing's bright gold, unchanged — this is the colour the two
+     halves of the product share. 10.4:1 on --surface. */
   --accent: #e3b341;
-  --accent-hover: #f0c65c;
-  --accent-soft: #2a2008;
-  --accent-ink: #e8c46a;
+  --on-accent: #0f0b07;
+  --accent-hover: #f2c862;
+  --accent-soft: #3a2a10;
+  --accent-ink: #edc668;
 
-  --success: #4ade80;
-  --success-bg: #10231a;
-  --success-ink: #86efac;
+  --success: #8fbf6a;
+  --success-bg: #1c2416;
+  --success-ink: #b4d99a;
 
-  --danger: #f0736a;
-  --danger-bg: #2c1614;
-  --warning: #e0912f;
-  --warning-bg: #2a1e0f;
-  --info: #6ea0f0;
-  --info-bg: #131e31;
+  /* Deep red, lifted just enough to stay legible on coffee-brown. */
+  --danger: #e2685c;
+  --danger-bg: #34160f;
+  --warning: #d9a13c;
+  --warning-bg: #322210;
+  --info: #d3bd9c;
+  --info-bg: #2b1f16;
 
   --chart-1: #e3b341;
   --chart-2: #a8822c;
@@ -173,7 +226,12 @@ summary:focus-visible,
 [role='button']:focus-visible,
 [role='menuitem']:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid var(--foreground) !important;
+  /* Gold, not foreground. The focus ring is the single most-seen
+     accent surface in a keyboard-driven admin app, and it was
+     near-black on a cream page — invisible as an accent and
+     indistinguishable from a border. Gold reads on both themes and
+     is the one ring colour a user will see hundreds of times a day. */
+  outline: 2px solid var(--accent) !important;
   outline-offset: 2px !important;
 }
 
@@ -214,6 +272,8 @@ summary:focus-visible,
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-raised: var(--raised);
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
   --color-accent-ink: var(--accent-ink);
@@ -798,6 +858,73 @@ body {
 
 /* --- Elevation -------------------------------------------------- */
 
+/* ---------------------------------------------------------------
+   THE ELEVATION LADDER — page → surface → raised → overlay.
+
+   Why this is plain CSS and not Tailwind's shadow utilities: it was
+   Tailwind's shadow utilities, and they never painted. Measured on
+   the built page, all 23 elements carrying a `shadow-*` class
+   computed to `rgba(0,0,0,0) 0px 0px 0px 0px` — fully transparent.
+   The `--shadow-*` values in the @theme block below are simply not
+   consumed by the utilities in this setup, so every card in the app
+   had a class promising elevation and no elevation at all. That is
+   the whole reason cards read as flat tinted rectangles.
+
+   These classes set `box-shadow` directly, so there is nothing to
+   resolve and nothing to silently drop. Each rung also sets its own
+   background and border, so a raised thing cannot forget to change
+   colour when it lifts.
+
+   Two-layer shadows: a tight contact shadow plus a wider ambient one.
+   A single blur at these opacities reads as a grey halo, which is
+   the other half of what made the old cards look muddy.
+
+   Dark theme uses deeper, more opaque shadows because a shadow on a
+   near-black page is nearly invisible otherwise — there the *border*
+   does most of the separating, which is why every rung has one.
+   --------------------------------------------------------------- */
+.sp-e1 {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 1px 2px rgba(60, 40, 20, 0.06),
+    0 2px 6px rgba(60, 40, 20, 0.05);
+}
+
+.sp-e2 {
+  background: var(--raised);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 2px 4px rgba(60, 40, 20, 0.08),
+    0 6px 14px rgba(60, 40, 20, 0.07);
+}
+
+.sp-e3 {
+  background: var(--overlay);
+  border: 1px solid var(--border-strong);
+  box-shadow:
+    0 4px 8px rgba(60, 40, 20, 0.1),
+    0 16px 32px rgba(60, 40, 20, 0.12);
+}
+
+.dark .sp-e1 {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.dark .sp-e2 {
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.55),
+    0 8px 20px rgba(0, 0, 0, 0.45);
+}
+
+.dark .sp-e3 {
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.6),
+    0 20px 44px rgba(0, 0, 0, 0.55);
+}
+
 /* There is deliberately no `.sp-card` shorthand here.
 
    Fifty-three cards across the app were `rounded-2xl bg-surface
@@ -928,6 +1055,82 @@ body {
   .sp-check {
     animation: sp-pop 0.32s cubic-bezier(0.22, 1, 0.36, 1);
   }
+}
+
+/* ---------------------------------------------------------------
+   KPI NUMBERS.
+
+   The headline figure on a card is the thing the page exists to
+   show, so it gets the accent and the weight; the label above it is
+   small, quiet and uppercase. Before this, label and value were both
+   near-black and only ~2.8x apart in size, so a stat card read as a
+   paragraph rather than as a number.
+
+   `tabular-nums` so a counting animation does not reflow the card
+   width digit by digit.
+   --------------------------------------------------------------- */
+.sp-kpi {
+  font-size: 2rem;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 1024px) {
+  .sp-kpi {
+    font-size: 2.5rem;
+  }
+}
+
+/* The quiet label above a KPI. */
+.sp-kpi-label {
+  font-size: 0.6875rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* A figure that means "someone must act" keeps the alert colour
+   rather than the accent — gold is emphasis, deep red is a problem. */
+.sp-kpi-alert {
+  color: var(--danger);
+}
+
+/* ---------------------------------------------------------------
+   SIDEBAR.
+
+   The active item was a near-black pill: strong, but the same
+   near-black as every heading on the page, so the nav read as one
+   undifferentiated column. It is gold now — the one place a user
+   looks dozens of times an hour, and the clearest possible statement
+   of where they are.
+
+   `--on-accent` rather than a fixed ink, because the light theme's
+   gold needs near-white on it and the dark theme's needs near-black.
+   --------------------------------------------------------------- */
+.sp-nav-pill {
+  background: var(--accent);
+}
+
+.sp-nav-active {
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+/* Quiet grouping label between nav sections. Small, spaced and in
+   --muted, so it organises without competing with the items. */
+.sp-nav-group {
+  font-size: 0.625rem;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 1rem 0.75rem 0.375rem;
 }
 
 /* --- Gold, used with intent -------------------------------------- */

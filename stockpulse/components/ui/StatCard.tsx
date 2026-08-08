@@ -30,7 +30,7 @@ export default function StatCard({
   const TrendIcon = rising ? ArrowUpRight : ArrowDownRight
 
   return (
-    <div className={cn('rounded-2xl border border-border bg-surface p-5 shadow-sm', className)}>
+    <div className={cn('sp-e1 rounded-2xl border border-border bg-surface p-5 shadow-sm', className)}>
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
         {Icon && <Icon className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />}

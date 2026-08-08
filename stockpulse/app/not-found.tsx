@@ -4,7 +4,7 @@ import { Compass, ArrowLeft } from 'lucide-react'
 export default function NotFound() {
   return (
     <div className="flex min-h-screen flex-1 items-center justify-center bg-background px-6">
-      <div className="w-full max-w-md sp-rise rounded-2xl border border-border bg-surface p-8 text-center shadow-sm">
+      <div className="w-full max-w-md sp-rise sp-e1 rounded-2xl border border-border bg-surface p-8 text-center shadow-sm">
         {/* No border and no entrance of its own: this is a 56px icon tile
             inside the card above, not a card. The elevation sweep's prefix
             match caught `rounded-2xl bg-surface-muted` here, which gave it

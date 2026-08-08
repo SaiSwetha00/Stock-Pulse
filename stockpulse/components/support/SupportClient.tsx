@@ -84,7 +84,7 @@ export default function SupportClient({ requests }: { requests: SupportRequestRo
       ) : (
         <ul className="sp-stack">
           {visible.map((r) => (
-            <li key={r.id} className="sp-card-p rounded-2xl border border-border bg-surface shadow-sm">
+            <li key={r.id} className="sp-card-p sp-e1 rounded-2xl border border-border bg-surface shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">

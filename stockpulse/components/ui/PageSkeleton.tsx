@@ -44,7 +44,7 @@ export default function PageSkeleton({
       {stats > 0 && (
         <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
           {Array.from({ length: stats }, (_, i) => (
-            <div key={i} className="rounded-2xl border border-border bg-surface p-4 shadow-sm lg:p-6">
+            <div key={i} className="sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm lg:p-6">
               <Skeleton className="h-10 w-10 rounded-lg" />
               <Skeleton className="mt-4 h-3 w-24" />
               <Skeleton className="mt-2 h-7 w-32" />
@@ -55,11 +55,11 @@ export default function PageSkeleton({
 
       {chart && (
         <div className="mt-7 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
-          <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6 lg:col-span-2">
+          <div className="sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6 lg:col-span-2">
             <Skeleton className="h-5 w-40" />
             <Skeleton className="mt-4 h-[280px] w-full" />
           </div>
-          <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+          <div className="sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <Skeleton className="h-5 w-32" />
             <div className="mt-4 space-y-3">
               {Array.from({ length: 4 }, (_, i) => (
@@ -71,7 +71,7 @@ export default function PageSkeleton({
       )}
 
       <div className={sidePanel ? 'mt-7 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]' : 'mt-7'}>
-        <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+        <div className="sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
           <Skeleton className="h-5 w-44" />
           <div className="mt-4 space-y-3">
             {Array.from({ length: rows }, (_, i) => (
@@ -92,7 +92,7 @@ export default function PageSkeleton({
         </div>
 
         {sidePanel && (
-          <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+          <div className="sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <Skeleton className="h-5 w-36" />
             <div className="mt-4 space-y-4">
               {Array.from({ length: 5 }, (_, i) => (

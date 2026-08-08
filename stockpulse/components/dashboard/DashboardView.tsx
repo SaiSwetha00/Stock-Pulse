@@ -54,10 +54,10 @@ export interface DashboardAlert {
  * scale in globals.css; the border is what stops a white card dissolving into
  * a near-white page background.
  */
-const STAT_CARD = 'sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm lg:p-6'
+const STAT_CARD = 'sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm lg:p-6'
 const STAT_ICON = 'flex h-10 w-10 items-center justify-center rounded-lg'
-const STAT_LABEL = 'mt-4 text-xs font-semibold uppercase tracking-wide text-muted'
-const STAT_VALUE = 'mt-1 text-2xl font-bold text-foreground lg:text-3xl'
+const STAT_LABEL = 'sp-kpi-label mt-4'
+const STAT_VALUE = 'sp-kpi mt-2'
 const STAT_FOOT = 'mt-2 text-xs text-muted'
 
 const ALERT_STYLES = {
@@ -294,7 +294,7 @@ export default function DashboardView({
           <p className={STAT_LABEL}>Low Stock Items</p>
           {/* The number keeps the danger colour: it is the one figure here
               that means someone has to act. */}
-          <p className={`${STAT_VALUE} text-danger`}>
+          <p className={`${STAT_VALUE} sp-kpi-alert`}>
             <CountUp value={lowStockItems.length} />
           </p>
         </Link>
@@ -312,7 +312,7 @@ export default function DashboardView({
               // Staggered by position, capped at the sixth step: past ~250ms
               // the last tile reads as late rather than sequenced, and the
               // owner variant of this row is six tiles exactly.
-              className={`sp-rise sp-lift sp-delay-${Math.min(i + 1, 6)} flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface py-6 shadow-sm ${action.span}`}
+              className={`sp-rise sp-lift sp-delay-${Math.min(i + 1, 6)} flex flex-col items-center gap-3 sp-e1 rounded-2xl border border-border bg-surface py-6 shadow-sm ${action.span}`}
             >
               <span
                 className={`flex h-12 w-12 items-center justify-center rounded-lg ${action.wrap}`}
@@ -327,14 +327,14 @@ export default function DashboardView({
 
       {/* ---- Trend + recent sales ---- */}
       <div className="mt-7 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
-        <div className="sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6 lg:col-span-2">
+        <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6 lg:col-span-2">
           <h2 className="sp-heading">Daily Sales Trends</h2>
           <div className="mt-4">
             <SalesTrendChart data={trendData} />
           </div>
         </div>
 
-        <div className="sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+        <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
           <div className="flex items-center justify-between gap-2">
             <h2 className="sp-heading">Recent Sales</h2>
             {/* This list is capped by the query's limit(4) — labelling it
@@ -445,7 +445,7 @@ export default function DashboardView({
       </div>
 
       {/* ---- Low stock ---- */}
-      <div className="mt-7 sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+      <div className="mt-7 sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
         <div className="flex items-center gap-2">
           <Archive className="h-5 w-5 text-danger" />
           <h2 className="sp-heading">Low Stock Alerts</h2>

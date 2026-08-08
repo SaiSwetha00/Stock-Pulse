@@ -278,7 +278,7 @@ export default function ReportsClient({
       </div>
 
       {/* ---- Date range ---- */}
-      <div className="mt-6 flex flex-wrap items-center gap-2 sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm">
+      <div className="mt-6 flex flex-wrap items-center gap-2 sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm">
         <label htmlFor="report-from" className="text-sm font-medium text-muted-strong">
           From
         </label>
@@ -346,7 +346,7 @@ export default function ReportsClient({
       </div>
 
       {isEmpty ? (
-        <div className="mt-6 sp-rise rounded-2xl border border-border bg-surface shadow-sm">
+        <div className="mt-6 sp-rise sp-e1 rounded-2xl border border-border bg-surface shadow-sm">
           <EmptyState
             icon={BarChart3}
             title="No sales in this range"
@@ -356,7 +356,7 @@ export default function ReportsClient({
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
           {/* Revenue by day */}
-          <section className="sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+          <section className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="sp-heading">Revenue by day</h2>
               <ExportCsvButton
@@ -400,7 +400,7 @@ export default function ReportsClient({
           </section>
 
           {/* Top products */}
-          <section className="sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+          <section className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="sp-heading">Top products</h2>
               <ExportCsvButton
@@ -445,7 +445,7 @@ export default function ReportsClient({
           </section>
 
           {/* Category mix */}
-          <section className="sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+          <section className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="sp-heading">Category mix</h2>
               <ExportCsvButton
@@ -480,7 +480,7 @@ export default function ReportsClient({
           </section>
 
           {/* Payment methods */}
-          <section className="sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+          <section className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="sp-heading">Payment methods</h2>
               <ExportCsvButton
