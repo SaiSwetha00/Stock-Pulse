@@ -42,10 +42,13 @@ function firstNameOf(fullName: string): string {
  * dashboard label — and it says "Everything's in order" instead of showing two
  * zeroes, because a zero still reads as something you have to check.
  */
-function contextLine(lowStock: number, pending: number): string {
+function contextLine(lowStock: number, busyCounters: number, totalCounters: number): string {
   const parts: string[] = []
   if (lowStock > 0) parts.push(`${lowStock} item${lowStock === 1 ? '' : 's'} low on stock`)
-  if (pending > 0) parts.push(`${pending} checkout${pending === 1 ? '' : 's'} pending`)
+  // "pending" implied queued work; this counts counters that are not free.
+  // With no counters configured there is nothing to say, so say nothing.
+  if (totalCounters > 0 && busyCounters > 0)
+    parts.push(`${busyCounters} of ${totalCounters} counters busy`)
   if (parts.length === 0) return 'Everything’s in order.'
   return parts.join(' · ')
 }
@@ -54,13 +57,16 @@ export default function Greeting({
   fullName,
   lowStockCount,
   pendingCount,
+  counterCount,
 }: {
   fullName: string
   lowStockCount: number
   pendingCount: number
+  /** Total configured counters. 0 means none, and the clause is dropped. */
+  counterCount: number
 }) {
   const greeting = useSyncExternalStore(subscribeNever, localGreeting, () => 'Welcome back')
-  const needsAttention = lowStockCount > 0 || pendingCount > 0
+  const needsAttention = lowStockCount > 0 || (counterCount > 0 && pendingCount > 0)
 
   return (
     <div className="mb-6 flex items-center justify-between gap-4 lg:mb-8">
@@ -71,10 +77,10 @@ export default function Greeting({
         <p className="sp-body mt-1.5">
           {needsAttention ? (
             <span className="font-medium text-foreground">
-              {contextLine(lowStockCount, pendingCount)}
+              {contextLine(lowStockCount, pendingCount, counterCount)}
             </span>
           ) : (
-            contextLine(lowStockCount, pendingCount)
+            contextLine(lowStockCount, pendingCount, counterCount)
           )}
         </p>
       </div>

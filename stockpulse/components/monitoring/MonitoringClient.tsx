@@ -209,49 +209,27 @@ export default function MonitoringClient({
     setSeeding(true)
     setError('')
     const supabase = createClient()
-    const now = Date.now()
-    const rows = [
-      {
-        store_id: storeId,
-        station_number: 1,
-        status: 'assistance',
-        payment_type: 'Card Only',
-        items_scanned: 6,
-        current_total: 18.4,
-        session_started_at: new Date(now - 4 * 60000).toISOString(),
-        alert_type: 'weight_mismatch',
-        alert_expected: 1.2,
-        alert_actual: 2.5,
-      },
-      {
-        store_id: storeId,
-        station_number: 2,
-        status: 'review',
-        payment_type: 'Cash & Card',
-        items_scanned: 9,
-        current_total: 42.15,
-        session_started_at: new Date(now - 6 * 60000).toISOString(),
-        alert_type: 'age_verification',
-        alert_item: 'Alcohol Item',
-      },
-      {
-        store_id: storeId,
-        station_number: 3,
-        status: 'in_use',
-        payment_type: 'Card Only',
-        items_scanned: 14,
-        current_total: 87.42,
-        session_started_at: new Date(now - 165000).toISOString(),
-      },
-      {
-        store_id: storeId,
-        station_number: 4,
-        status: 'available',
-        payment_type: 'Cash & Card',
-        items_scanned: 0,
-        current_total: 0,
-      },
-    ]
+    // Four EMPTY counters.
+    //
+    // This used to insert fabricated live state: baskets mid-scan totalling
+    // $148.00, a weight-mismatch alert and an age-verification hold. Those
+    // rows then surfaced on the dashboard as real store activity in a shop
+    // with no products and no sales, and they are exactly what shipped to a
+    // client review. A setup button configures hardware; it must not invent
+    // trade.
+    const rows = Array.from({ length: 4 }, (_, i) => ({
+      store_id: storeId,
+      station_number: i + 1,
+      status: 'available',
+      payment_type: 'Cash & Card',
+      items_scanned: 0,
+      current_total: 0,
+      session_started_at: null,
+      alert_type: null,
+      alert_expected: null,
+      alert_actual: null,
+      alert_item: null,
+    }))
     const { error: dbError } = await supabase.from('checkout_stations').insert(rows)
     setSeeding(false)
     if (dbError) {

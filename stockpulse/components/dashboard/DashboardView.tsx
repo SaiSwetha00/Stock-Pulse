@@ -215,6 +215,7 @@ export default function DashboardView({
   todayTotal,
   todayCount,
   pendingCount,
+  counterCount,
   changePct,
   weekTotal,
   weekCount,
@@ -229,6 +230,8 @@ export default function DashboardView({
   todayTotal: number
   todayCount: number
   pendingCount: number
+  /** Total configured checkout counters. */
+  counterCount: number
   changePct: number | null
   weekTotal: number
   weekCount: number
@@ -246,6 +249,7 @@ export default function DashboardView({
         fullName={fullName}
         lowStockCount={lowStockItems.length}
         pendingCount={pendingCount}
+        counterCount={counterCount}
       />
 
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -325,9 +329,14 @@ export default function DashboardView({
           </p>
           {/* Came from the mobile "Order Volume" card, which was the only
               place the occupied-checkout count surfaced. */}
-          <p className={STAT_FOOT}>
-            {pendingCount} checkout{pendingCount === 1 ? '' : 's'} pending
-          </p>
+          {/* "pending" implied queued work sitting unattended. This counts
+              counters that are not free. With none configured the line is
+              dropped rather than rendering "0 of 0". */}
+          {counterCount > 0 && (
+            <p className={STAT_FOOT}>
+              {pendingCount} of {counterCount} counters busy
+            </p>
+          )}
         </div>
 
         <div className={`${STAT_CARD} sp-delay-3`}>

@@ -141,6 +141,7 @@ export default async function DashboardPage() {
       todayTotal={todayTotal}
       todayCount={todayCount}
       pendingCount={occupiedStations.length}
+      counterCount={(stations ?? []).length}
       changePct={changePct}
       weekTotal={weekTotal}
       weekCount={weekCount}
