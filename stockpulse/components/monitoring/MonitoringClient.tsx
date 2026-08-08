@@ -30,6 +30,7 @@ import {
   Receipt,
   Wrench,
   ScanLine,
+  Trash2,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/format'
@@ -131,6 +132,7 @@ export default function MonitoringClient({
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [seeding, setSeeding] = useState(false)
+  const [confirmingRemoveId, setConfirmingRemoveId] = useState<string | null>(null)
   const now = useSyncExternalStore(subscribeToClock, getClientClock, getServerClock)
 
   const activeAlerts = stations.filter((s) => s.alert_type !== null).length
@@ -202,6 +204,39 @@ export default function MonitoringClient({
       return
     }
     toast.success('Staff dispatched', `Station 0${station.station_number}`)
+    router.refresh()
+  }
+
+  async function removeStation(station: CheckoutStation) {
+    setBusyId(station.id)
+    setError('')
+    const supabase = createClient()
+    // `.select()` on a delete returns the rows that were actually removed, and
+    // that is the whole point here. Without it, RLS refusing the delete is
+    // indistinguishable from success: PostgREST answers 200 with no error and
+    // zero rows touched. That silent no-op is the bug 0012 fixes, so an empty
+    // result names the missing migration rather than reporting a removal that
+    // did not happen.
+    const { data, error: dbError } = await supabase
+      .from('checkout_stations')
+      .delete()
+      .eq('id', station.id)
+      .select('id')
+    setBusyId(null)
+    if (dbError) {
+      setError(dbError.message)
+      toast.error('Could not remove counter', dbError.message)
+      return
+    }
+    if (!data || data.length === 0) {
+      const message =
+        'The database refused the delete and reported no error. Apply supabase/migrations/0012_checkout_stations_delete_policy.sql.'
+      setError(message)
+      toast.error('Counter not removed', message)
+      return
+    }
+    setConfirmingRemoveId(null)
+    toast.success('Counter removed', `Station ${String(station.station_number).padStart(2, '0')}`)
     router.refresh()
   }
 
@@ -447,6 +482,60 @@ export default function MonitoringClient({
                           : 'Maintenance Mode'}
                     </button>
                   )}
+
+                  {/* Removing a counter is configuration, not operations, so it
+                      is offered only for a station that is free or already
+                      offline — a live basket cannot be deleted out from under
+                      the customer standing at it. Same authority as the
+                      maintenance toggle, which is what migration 0012's policy
+                      grants. */}
+                  {canWrite &&
+                    (station.status === 'available' || station.status === 'maintenance') &&
+                    (confirmingRemoveId === station.id ? (
+                      <div className="rounded-lg bg-danger-bg p-2.5">
+                        <p className="text-center text-xs font-semibold text-danger">
+                          Remove this counter?
+                        </p>
+                        {/* `flex-1 min-w-0`, not `fullWidth`: Button carries
+                            `shrink-0` in its base class, so two `w-full`
+                            buttons in a flex row cannot shrink and the second
+                            one lands outside the card — where the card's
+                            `overflow-hidden` clips it away entirely. Measured
+                            at +237px past the inner edge before this. A zero
+                            flex-basis divides the row instead of overflowing
+                            it, and survives `shrink-0`. */}
+                        <div className="mt-2 flex gap-2">
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            className="min-w-0 flex-1"
+                            loading={isBusy}
+                            onClick={() => removeStation(station)}
+                          >
+                            Remove
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="min-w-0 flex-1"
+                            disabled={isBusy}
+                            onClick={() => setConfirmingRemoveId(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingRemoveId(station.id)}
+                        disabled={isBusy}
+                        className="flex control-h w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold text-muted hover:bg-danger-bg hover:text-danger disabled:opacity-60"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        Remove Counter
+                      </button>
+                    ))}
 
                   {station.alert_type && (
                     <button
