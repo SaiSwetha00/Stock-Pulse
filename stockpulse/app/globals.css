@@ -487,6 +487,87 @@ summary:focus-visible,
 }
 
 /* ---------------------------------------------------------------
+   The table skin.
+
+   Every list in the app is the same shape: `sp-table block w-full
+   ... lg:table`, a `hidden lg:table-header-group` head, and a tbody
+   that is a stack of bordered cards on a phone and a real table from
+   `lg` up. So the skin lives here and all four modules inherit it
+   rather than each spelling out its own separators.
+
+   TWO THINGS THIS HAS TO GET RIGHT, both learned the hard way:
+
+   1. `@layer components`, not bare rules. Plain CSS in this file is
+      UNLAYERED, and unlayered styles beat every layered one whatever
+      the specificity — exactly the trap D19 recorded when a `.sp-card`
+      shorthand would have silently eaten every `bg-*` override. Inside
+      `components`, Tailwind's `utilities` layer still wins, so a cell
+      that wants different padding says `py-2` and gets it.
+
+   2. Everything below `lg` is left alone. At 390 the rows are not rows,
+      they are cards with their own border and a `space-y-3` gap; a
+      `tbody tr` hairline would draw a stray line under each one.
+   --------------------------------------------------------------- */
+@layer components {
+  @media (min-width: 1024px) {
+    /* Hairlines between rows — no outer border, no vertical rules. The
+       card the table sits in already provides the edge; a grid of boxes
+       inside it just adds noise.
+
+       Only inventory and customers drew these, as per-row `lg:border-b`
+       utilities; sales and suppliers had none. Moved here so all four
+       agree and no new table has to remember. */
+    .sp-table tbody tr {
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* The last hairline would double with the card's own bottom edge. */
+    .sp-table tbody tr:last-child {
+      border-bottom: 0;
+    }
+
+    /* Row height, vertical padding, the hover tint and its transition are
+       NOT set here — they already exist above, and `.sp-table tbody tr > *`
+       is deliberately (0,1,2) so it can beat a `py-4` utility. A second
+       opinion in this block would either lose silently or start a fight;
+       measured 48px rows and a working hover before touching anything. */
+
+    .sp-table thead th {
+      padding-block: 0.75rem;
+      /* Sticky so the column meanings survive a long list. The head is
+         `hidden` below lg, so this can only apply where there is a real
+         table to stick. */
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      /* The sticky element itself must carry the fill — a bg on the
+         parent `tr` does not travel with a stuck cell, and the head
+         would render transparent over the scrolling rows. */
+      background-color: var(--surface-muted);
+    }
+
+    /* A pseudo-element rule, not `border-bottom`: with `border-collapse`
+       the head's own border is not painted while the cell is stuck. */
+    .sp-table thead th::after {
+      content: '';
+      position: absolute;
+      inset-inline: 0;
+      bottom: 0;
+      height: 1px;
+      background-color: var(--border);
+    }
+  }
+
+  /* Numerics. Right-aligned so the units line up, and tabular so digits
+     do not jitter between rows or while CountUp runs. Not width-scoped:
+     a figure should be a figure on a phone too. */
+  .sp-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ---------------------------------------------------------------
    Invalid form controls.
 
    The `Field` primitive styles its own children through

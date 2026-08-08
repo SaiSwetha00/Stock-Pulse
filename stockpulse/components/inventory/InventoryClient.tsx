@@ -334,14 +334,18 @@ export default function InventoryClient({
           </div>
           <p className="mt-2 text-2xl font-bold text-foreground">{formatCurrency(totalValue)}</p>
         </div>
-        <div className="rounded-2xl bg-danger-bg p-4 shadow-sm lg:p-6">
+        {/* Entrance and stagger only — deliberately NOT sp-e1. That class
+            sets `background: var(--surface)` and lives outside Tailwind's
+            layers, so it would beat `bg-danger-bg` and quietly repaint this
+            card as a plain white one. Same trap D19 recorded. */}
+        <div className="sp-rise sp-delay-1 rounded-2xl bg-danger-bg p-4 shadow-sm lg:p-6">
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-danger">Low Stock</p>
             <AlertTriangle className="h-5 w-5 shrink-0 text-danger" aria-hidden="true" />
           </div>
           <p className="mt-2 text-2xl font-bold text-danger">{lowStockCount} items</p>
         </div>
-        <div className="rounded-2xl bg-foreground p-4 shadow-sm lg:p-6">
+        <div className="sp-rise sp-delay-2 rounded-2xl bg-foreground p-4 shadow-sm lg:p-6">
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">Out of Stock</p>
             <PackageX className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
@@ -357,8 +361,8 @@ export default function InventoryClient({
             <tr className="border-b border-border bg-surface-muted text-xs font-semibold uppercase tracking-wide text-muted">
               <SortableTh label="Product" sortKey="name" sort={table.sort} onSort={table.toggleSort} className="px-6" />
               <SortableTh label="SKU / Category" sortKey="sku" sort={table.sort} onSort={table.toggleSort} className="px-4" />
-              <SortableTh label="Unit Price" sortKey="unit_price" sort={table.sort} onSort={table.toggleSort} className="px-4" />
-              <SortableTh label="Stock" sortKey="stock" sort={table.sort} onSort={table.toggleSort} className="px-4" />
+              <SortableTh label="Unit Price" sortKey="unit_price" sort={table.sort} onSort={table.toggleSort} align="right" className="px-4" />
+              <SortableTh label="Stock" sortKey="stock" sort={table.sort} onSort={table.toggleSort} align="right" className="px-4" />
               <SortableTh label="Status" sortKey="status" sort={table.sort} onSort={table.toggleSort} className="px-4" />
               {canWrite && (
                 <th scope="col" className="px-4 py-3.5">
@@ -433,13 +437,13 @@ export default function InventoryClient({
                       {CATEGORY_LABELS[p.category]}
                     </span>
                   </td>
-                  <td className="mt-2 flex items-center justify-between gap-2 text-muted-strong lg:mt-0 lg:table-cell lg:px-4 lg:py-4">
+                  <td className="sp-num mt-2 flex items-center justify-between gap-2 text-muted-strong lg:mt-0 lg:table-cell lg:px-4 lg:py-4">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
                       Unit Price
                     </span>
                     {formatCurrency(p.unit_price)}
                   </td>
-                  <td className="mt-2 flex items-center justify-between gap-2 lg:mt-0 lg:table-cell lg:px-4 lg:py-4">
+                  <td className="sp-num mt-2 flex items-center justify-between gap-2 lg:mt-0 lg:table-cell lg:px-4 lg:py-4">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
                       Stock
                     </span>

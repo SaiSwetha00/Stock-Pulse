@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Modal from '@/components/ui/Modal'
+import Button from '@/components/ui/Button'
+import { Field, Input, Select } from '@/components/ui/Field'
 import { useToast } from '@/components/ui/Toast'
 import { saveProduct } from '@/app/(dashboard)/inventory/actions'
 import { validateProduct, type ProductErrors, type ProductInput } from '@/lib/validation/product'
@@ -49,10 +51,8 @@ export default function ProductModal({
   // re-fetched yet.
   const [saving, startTransition] = useTransition()
 
-  // Rendered as a list in the alert. The fields in this form are hand-rolled
-  // rather than using the Field primitive, so there is no per-input slot to
-  // hang messages off without restyling the whole modal.
-  const fieldErrors = Object.entries(errors) as [keyof ProductErrors, string][]
+  // Keyed by field and handed to the matching `Field`, which owns the message
+  // slot, the red border and the aria wiring.
 
   function currentInput(): ProductInput {
     return {
@@ -111,153 +111,124 @@ export default function ProductModal({
               so it is asked for before the paperwork. */}
           <ProductImageUpload storeId={storeId} value={imageUrl} onChange={setImageUrl} />
 
-          {(error || fieldErrors.length > 0) && (
+          {/* Only the failure with no field of its own stays up here. The
+              per-field messages moved onto their controls: a summary list at
+              the top of a nine-field form makes the reader match prose against
+              inputs by eye, and left every offending box looking untouched. */}
+          {error && (
             <div role="alert" className="rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">
               {error}
-              {fieldErrors.length > 0 && (
-                <ul className={error ? 'mt-1.5 list-disc pl-4' : 'list-disc pl-4'}>
-                  {fieldErrors.map(([field, message]) => (
-                    <li key={field}>{message}</li>
-                  ))}
-                </ul>
-              )}
             </div>
           )}
 
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-              Product Name
-            </label>
-            <input
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
-            />
-          </div>
+          <Field label="Product Name" error={errors.name} required>
+            {(p) => <Input {...p} required value={name} onChange={(e) => setName(e.target.value)} />}
+          </Field>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-                Brand
-              </label>
-              <input
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-                SKU
-              </label>
-              <input
-                value={sku}
-                onChange={(e) => setSku(e.target.value)}
-                className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
-              />
-            </div>
+            <Field label="Brand" error={errors.brand}>
+              {(p) => <Input {...p} value={brand} onChange={(e) => setBrand(e.target.value)} />}
+            </Field>
+            <Field label="SKU" error={errors.sku}>
+              {(p) => <Input {...p} value={sku} onChange={(e) => setSku(e.target.value)} />}
+            </Field>
           </div>
 
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-              Category
-            </label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as Category)}
-              className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
-            >
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {CATEGORY_LABELS[c]}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Field label="Category" error={errors.category}>
+            {(p) => (
+              <Select
+                {...p}
+                value={category}
+                onChange={(e) => setCategory(e.target.value as Category)}
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {CATEGORY_LABELS[c]}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
 
           <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-                Price ($)
-              </label>
-              <input
-                required
-                type="number"
-                step="0.01"
-                min="0"
-                value={unitPrice}
-                onChange={(e) => setUnitPrice(e.target.value)}
-                className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-                Unit
-              </label>
-              <input
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                placeholder="ea, lb, gal"
-                className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-                Quantity
-              </label>
-              <input
-                required
-                type="number"
-                min="0"
-                value={stock}
-                onChange={(e) => setStock(e.target.value)}
-                className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
-              />
-            </div>
+            <Field label="Price ($)" error={errors.unitPrice} required>
+              {(p) => (
+                <Input
+                  {...p}
+                  required
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="sp-num"
+                  value={unitPrice}
+                  onChange={(e) => setUnitPrice(e.target.value)}
+                />
+              )}
+            </Field>
+            <Field label="Unit" error={errors.unit}>
+              {(p) => (
+                <Input
+                  {...p}
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  placeholder="ea, lb, gal"
+                />
+              )}
+            </Field>
+            <Field label="Quantity" error={errors.stock} required>
+              {(p) => (
+                <Input
+                  {...p}
+                  required
+                  type="number"
+                  min="0"
+                  className="sp-num"
+                  value={stock}
+                  onChange={(e) => setStock(e.target.value)}
+                />
+              )}
+            </Field>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-                Low Stock Threshold
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={threshold}
-                onChange={(e) => setThreshold(e.target.value)}
-                className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-                Expiry Date (optional)
-              </label>
-              <input
-                type="date"
-                value={expiryDate}
-                onChange={(e) => setExpiryDate(e.target.value)}
-                className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
-              />
-            </div>
+            <Field label="Low Stock Threshold" error={errors.lowStockThreshold}>
+              {(p) => (
+                <Input
+                  {...p}
+                  type="number"
+                  min="0"
+                  className="sp-num"
+                  value={threshold}
+                  onChange={(e) => setThreshold(e.target.value)}
+                />
+              )}
+            </Field>
+            {/* "(optional)" moves out of the label and into the hint slot —
+                the label should name the field, not carry parenthetical
+                instructions the hint row already has a place for. */}
+            <Field label="Expiry Date" hint="Optional" error={errors.expiryDate}>
+              {(p) => (
+                <Input
+                  {...p}
+                  type="date"
+                  value={expiryDate}
+                  onChange={(e) => setExpiryDate(e.target.value)}
+                />
+              )}
+            </Field>
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="control-h flex-1 rounded-lg border border-border text-sm font-semibold text-muted-strong hover:bg-surface-muted"
-            >
+            {/* The ladder, not two hand-rolled buttons: secondary for the way
+                out, one primary for the commit. `loading` carries the saving
+                state, so the label no longer swaps to "Saving…" and the
+                button cannot change width mid-click. */}
+            <Button type="button" variant="secondary" fullWidth onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="control-h flex-1 rounded-lg bg-foreground text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-60"
-            >
-              {saving ? 'Saving…' : product ? 'Save Changes' : 'Add Product'}
-            </button>
+            </Button>
+            <Button type="submit" fullWidth loading={saving}>
+              {product ? 'Save Changes' : 'Add Product'}
+            </Button>
           </div>
         </form>
     </Modal>

@@ -176,7 +176,9 @@ export default function SalesClient({
             <SalesTrendChart data={trendData} />
           </div>
 
-          <div className="rounded-2xl bg-foreground p-6 shadow-sm">
+          {/* sp-rise without sp-e1: see the note on the inventory stat cards —
+              sp-e1 would repaint this panel's `bg-foreground` fill. */}
+          <div className="sp-rise sp-delay-1 rounded-2xl bg-foreground p-6 shadow-sm">
             <h2 className="sp-heading-invert">Popular Categories</h2>
             <div className="mt-5 space-y-4">
               {categoryBreakdown.map((c) => (
@@ -307,7 +309,7 @@ export default function SalesClient({
                 <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
                   <SortableTh label="Date / Time" sortKey="created_at" sort={table.sort} onSort={table.toggleSort} className="pr-4" />
                   <SortableTh label="Order ID" sortKey="id" sort={table.sort} onSort={table.toggleSort} className="pr-4" />
-                  <SortableTh label="Amount" sortKey="total" sort={table.sort} onSort={table.toggleSort} className="pr-4" />
+                  <SortableTh label="Amount" sortKey="total" sort={table.sort} onSort={table.toggleSort} align="right" className="pr-4" />
                   <SortableTh label="Method" sortKey="payment_method" sort={table.sort} onSort={table.toggleSort} className="pr-4" />
                   <SortableTh label="Sold By" sortKey="sold_by" sort={table.sort} onSort={table.toggleSort} />
                 </tr>
@@ -328,6 +330,11 @@ export default function SalesClient({
                           icon={Search}
                           title="No transactions match your filters"
                           description="Try a different search term or date range."
+                          action={
+                            <Button variant="secondary" onClick={clearFilters}>
+                              Clear filters
+                            </Button>
+                          }
                         />
                       )}
                     </td>
@@ -349,7 +356,7 @@ export default function SalesClient({
                     <td className="hidden font-semibold text-foreground lg:table-cell lg:pr-4">
                       #{s.id.slice(0, 6).toUpperCase()}
                     </td>
-                    <td className="mt-2 flex items-center justify-between gap-3 font-semibold text-foreground lg:mt-0 lg:table-cell lg:pr-4">
+                    <td className="sp-num mt-2 flex items-center justify-between gap-3 font-semibold text-foreground lg:mt-0 lg:table-cell lg:pr-4">
                       <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
                         Amount
                       </span>

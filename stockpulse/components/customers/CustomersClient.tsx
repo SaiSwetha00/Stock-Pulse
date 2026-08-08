@@ -142,6 +142,15 @@ export default function CustomersClient({
   })
   const pageItems = table.rows
 
+  // The other three lists offer a way out of a filtered dead end; this one
+  // left you staring at "no matches" with three filters to undo by hand.
+  function clearFilters() {
+    setSearch('')
+    setTier('all')
+    setActivity('all')
+    table.setPage(1)
+  }
+
   const totalRevenue = initialCustomers.reduce((sum, c) => sum + Number(c.total_spent), 0)
   const repeatCustomers = initialCustomers.filter((c) => c.visits > 1).length
 
@@ -249,7 +258,7 @@ export default function CustomersClient({
           </div>
           <p className="mt-2 text-2xl font-bold text-foreground">{initialCustomers.length}</p>
         </div>
-        <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+        <div className="sp-rise sp-e1 sp-delay-2 sp-delay-1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">
               Lifetime Revenue
@@ -279,8 +288,8 @@ export default function CustomersClient({
                 <SortableTh label="Customer" sortKey="full_name" sort={table.sort} onSort={table.toggleSort} className="px-6" />
                 <SortableTh label="Contact" sortKey="email" sort={table.sort} onSort={table.toggleSort} className="px-4" />
                 <SortableTh label="Tier" sortKey="loyalty_tier" sort={table.sort} onSort={table.toggleSort} className="px-4" />
-                <SortableTh label="Visits" sortKey="visits" sort={table.sort} onSort={table.toggleSort} className="px-4" />
-                <SortableTh label="Total Spent" sortKey="total_spent" sort={table.sort} onSort={table.toggleSort} className="px-4" />
+                <SortableTh label="Visits" sortKey="visits" sort={table.sort} onSort={table.toggleSort} align="right" className="px-4" />
+                <SortableTh label="Total Spent" sortKey="total_spent" sort={table.sort} onSort={table.toggleSort} align="right" className="px-4" />
                 <SortableTh label="Last Visit" sortKey="last_visit_at" sort={table.sort} onSort={table.toggleSort} className="px-4" />
                 <th scope="col" className="px-4 py-3.5 text-right">
                   Actions
@@ -311,6 +320,11 @@ export default function CustomersClient({
                         icon={Search}
                         title="No customers match these filters"
                         description="Try a different search term or tier."
+                        action={
+                          <Button variant="secondary" onClick={clearFilters}>
+                            Clear filters
+                          </Button>
+                        }
                       />
                     )}
                   </td>
@@ -351,13 +365,13 @@ export default function CustomersClient({
                       {LOYALTY_TIER_LABELS[c.loyalty_tier]}
                     </span>
                   </td>
-                  <td className="mt-2 flex items-center justify-between gap-3 text-muted-strong lg:mt-0 lg:table-cell lg:px-4">
+                  <td className="sp-num mt-2 flex items-center justify-between gap-3 text-muted-strong lg:mt-0 lg:table-cell lg:px-4">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
                       Visits
                     </span>
                     {c.visits}
                   </td>
-                  <td className="mt-2 flex items-center justify-between gap-3 font-semibold text-foreground lg:mt-0 lg:table-cell lg:px-4">
+                  <td className="sp-num mt-2 flex items-center justify-between gap-3 font-semibold text-foreground lg:mt-0 lg:table-cell lg:px-4">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
                       Total Spent
                     </span>

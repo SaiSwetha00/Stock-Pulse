@@ -294,6 +294,11 @@ export default function SuppliersClient({
                             icon={Search}
                             title="No suppliers match your filters"
                             description="Try a different search term or category."
+                            action={
+                              <Button variant="secondary" onClick={clearFilters}>
+                                Clear filters
+                              </Button>
+                            }
                           />
                         )}
                       </td>
@@ -328,7 +333,7 @@ export default function SuppliersClient({
                           {SUPPLIER_CATEGORY_LABELS[s.category]}
                         </span>
                       </td>
-                      <td className="mt-2 flex items-center justify-between gap-3 text-muted-strong lg:mt-0 lg:table-cell lg:px-4 lg:text-right">
+                      <td className="sp-num mt-2 flex items-center justify-between gap-3 text-muted-strong lg:mt-0 lg:table-cell lg:px-4 lg:text-right">
                         <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
                           Active Orders
                         </span>
@@ -468,7 +473,7 @@ export default function SuppliersClient({
 
           </div>
 
-          <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+          <div className="sp-rise sp-e1 sp-delay-1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <h2 className="sp-heading">Recent Supplier Activity</h2>
             <div className="mt-4 space-y-4">
               {activity.length === 0 && (
