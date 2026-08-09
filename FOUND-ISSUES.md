@@ -428,3 +428,121 @@ a product decision about what belongs on a phone header, not a focus bug.
 and the button list confirms it is genuinely absent: the control needs at least
 one supplier to exist. The probe is reporting correctly. It needs a fixture
 with a supplier row before that overlay can be checked.
+
+---
+
+# Phase 3C-ii — Settings, Support, Help Centre (2026-08-09)
+
+All fixed on `ui/palette-round`. As with every previous round, `tsc`, `eslint`
+and `next build` were green through all of them.
+
+## S2 — Settings' three labels pointed at no control · FIXED
+
+`stockpulse/components/settings/SettingsClient.tsx` (Store Details card)
+
+Store Name, Primary Address and Contact Phone were hand-rolled `<label>`
+elements with no `htmlFor`, over inputs with no `id`. Clicking a label did
+nothing, and a screen reader user landed on three unnamed fields — on the one
+screen in the app that is entirely a form.
+
+The markup *looked* right, which is why it survived four rounds of styling
+work: the label was correctly positioned, correctly sized and correctly
+coloured. Nothing about a label is visibly broken when it is not associated.
+
+**Found by** converting to `Field` for the radius/height/error requirements and
+noticing that `Field` supplies `htmlFor`+`id` via `useId` — i.e. by moving to
+the shared component, not by auditing accessibility. Worth stating: the
+component was already correct and the drift was entirely in the call sites that
+did not use it.
+
+## S2 — The address textarea was clamped to one row · FIXED
+
+Same file. The `<textarea rows={2}>` also carried `control-h`, which is
+`height: var(--control-h)` — a fixed 40px. The fixed height wins over `rows`,
+so a two-row field rendered as one and a shop address scrolled inside a
+single line.
+
+`control-h` is correct on an input and wrong on a textarea; `Field`'s
+`Textarea` uses `min-h-24 resize-y`. Same class of error as the toggle knob:
+a value that is right for one member of a family applied to a member it does
+not fit.
+
+## S1 — An empty store name saved successfully · FIXED
+
+Same file, `handleSave`.
+
+`stores.name` is `not null`. `not null` is not `not blank` — clearing the field
+and clicking Save wrote `''`, returned no error, and showed a success toast.
+The page header then rendered "Configuration and operational parameters for ."
+and every other surface that prints the shop's name went blank with it.
+
+There was no validation on this screen at all. `lib/validation/storeSettings.ts`
+adds it: name required and bounded, address and phone optional and bounded,
+phone deliberately permissive in shape (a validator that refuses a real
+international number is worse than none). Values are trimmed on the way out, so
+`" "` cannot pass a check that ran against `""`.
+
+## S2 — The last two raw palette classes did not follow the theme · FIXED
+
+Same file, both `<input type="range">` sliders. Both took their accent from a
+raw zinc-900 palette class — the only two left in the app outside the fourteen
+intentional alpha scrims and gradient stops.
+
+Near-black does not invert. In dark mode the filled track and the thumb were
+near-black on a near-black card, so the slider read as an empty groove with
+nothing in it — the same disappearance the toggle's OFF state had before
+Phase 1 fixed it, and for the same reason.
+
+Now `--accent-fill`, the surface-grade gold from D22. Verified in the built CSS
+by the D9 recipe: `accent-color:var(--accent-fill)` present,
+`accent-color:var(--color-zinc-900)` absent after a rebuild.
+
+## Note — a comment regenerated the class it documented
+
+The first attempt at the comment above spelled the removed class name out.
+Tailwind scans file content rather than parsing it, so the dead rule came back
+from the comment and the built CSS still contained it after both uses were
+gone. See D33. The audit greps this project runs cannot tell a use from a
+mention, which is why this matters beyond the few bytes.
+
+## Note — the Support filters wore the primary skin
+
+`stockpulse/components/support/SupportClient.tsx`
+
+Selected meant `bg-foreground text-surface`, the same near-black as a Save
+button, so the highest-emphasis control on a triage screen was a filter. Not a
+bug in the sense of anything failing — a meaning applied to a control that does
+not have it. See D32.
+
+## Harness — the overflow probe reported a control as its own card · FIXED
+
+`scratchpad/harness.js`, `OVERFLOW_PROBE`
+
+`/settings` reported `offenders=1` in all four states: `button: right +12px
+left +12px`. The symmetry is the tell — 12px is the button's own `px-3`.
+
+The probe locates a control's card with `el.closest('.sp-e1')`, and `closest()`
+matches the element *itself*. The theme segmented control's active segment
+legitimately carries `sp-e1` (it is a raised thing, which is what the rung is
+for), so it became its own card and was measured against its own padding box.
+
+Now `el.parentElement.closest('.sp-e1')`; re-run gives 0 offenders in all four.
+Third consecutive round in which something the probe flagged was the probe —
+D31's habit exists for this.
+
+## Harness — a build swapped underneath a running server · FIXED (procedure)
+
+The first 16-state run of this phase is void. `npm run build` was run while
+`next start` was already serving, so chunk hashes moved under the running
+process: 500s and 404s on `_next/static/chunks/*.js`, and on `/help/[slug]` the
+stylesheet itself failed to load.
+
+That run reported `gold=0 nonGoldRing=22` and CLS 0.0214 on `/help/[slug]` —
+which reads exactly like a route that lost its focus-ring styling, and was
+actually a page rendering with no CSS at all. It would have been entirely
+believable as an app defect on that one route.
+
+Not a code fix: restart the server after any rebuild, before measuring. Logged
+because the symptom impersonates a design-system regression, and because this
+is the same family as D26 — the report named a build the server was not
+serving.

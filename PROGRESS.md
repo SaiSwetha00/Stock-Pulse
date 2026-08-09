@@ -664,3 +664,145 @@ Two of the four things the probe flagged were the probe.
   being correct. Needs a seeded supplier before it can be checked.
 - **`nonGoldRing` under parallelism** — instrument limitation, recorded in D30,
   not an app defect.
+
+## Phase 3C-ii — Settings, Support, Help Centre (2026-08-09, branch `ui/palette-round`)
+
+The last batch of Phase 3. Three routes, four paths (`/help/[slug]` shares
+`SupportRequestForm`, so it is measured too), 16 harness states.
+
+### Three app defects, none of which tsc/eslint/build could see
+
+1. **Settings' three labels pointed at nothing.** Store Name, Primary Address
+   and Contact Phone were hand-rolled `<label>` elements with no `htmlFor` and
+   inputs with no `id`. Clicking a label did nothing and a screen reader landed
+   on three unnamed fields — on the one screen in the app that is entirely a
+   form. `Field` wires label, control, hint and error by `useId`, so this class
+   of drift cannot recur at a call site that uses it.
+
+2. **The address textarea could not show two rows.** It carried `control-h`,
+   which is `height: var(--control-h)` — a fixed 40px — alongside `rows={2}`.
+   The height won. `Field`'s `Textarea` uses `min-h-24 resize-y` instead.
+
+3. **An empty store name saved successfully.** `stores.name` is `not null`, and
+   `not null` is not `not blank`: clearing the field wrote `''`, the header
+   then rendered "Configuration and operational parameters for ." and every
+   other surface printing the shop's name went blank with it. New
+   `lib/validation/storeSettings.ts` — required name, optional address and
+   phone with length bounds and a deliberately permissive phone shape — plus
+   trimming on the way out so `" "` cannot pass a check that ran against `""`.
+
+Also: **the last two raw palette classes in the app.** Both range sliders were
+a zinc-900 accent, which does not follow the theme — in dark mode the filled
+track and thumb were near-black on a near-black card, the same disappearance
+the toggle's OFF state had before Phase 1. Now `--accent-fill` (D22's
+surface-grade gold). Verified in the built CSS: `accent-color:var(--accent-fill)`
+present, `accent-color:var(--color-zinc-900)` gone.
+
+The gone half needed a second look. Tailwind scans **comments** too, so the
+first draft of the comment explaining the removal spelled the class name out
+and regenerated the very rule it documented. Spelled around now, and the
+rebuild confirms the rule is absent.
+
+### What landed, per route
+
+| Route | Change |
+|---|---|
+| `/settings` | 3 fields → `Field`/`Input`/`Textarea` with inline errors and `aria-invalid`; Discard/Save → `Button` secondary + primary; theme control → a real segmented control (`rounded-sm` inside a `rounded-lg` track — matching the outer radius leaves a sliver of track at each corner); 2 × `rounded-xl` inner panels → 10px; stagger on 4 cards; "Manage team" onto Button's secondary skin |
+| `/support` | filter pills → `Button` ghost/secondary; row action → `Button` secondary with `loading`; stagger on request cards |
+| `/help` | the search control onto the `Field` skin; category cards → card radius + `sp-e1` + stagger; result rows the same |
+| `/help/[slug]` | inherits `SupportRequestForm`'s two `rounded-xl` → 10px |
+
+**The Support filters were wearing the primary skin.** Selected meant
+`bg-foreground text-surface` — the same near-black as a Save button — so the
+loudest control on a triage screen was the one that only changes what is
+listed. Secondary-when-selected, ghost-when-not, `aria-pressed` unchanged.
+
+**One high-emphasis button per screen is read as a ceiling, not a floor.**
+`/settings` has Save. `/help` has Send request. `/support` has none, and that
+is correct: it is a triage list with no create action, and its one real action
+(`Mark resolved`) appears once per row — N primary buttons is the same as none.
+See D32.
+
+### The 16-state matrix — /settings /support /help /help/[slug] × light,dark × 390,1440
+
+Run serially, per D30.
+
+| Dimension | Result |
+|---|---|
+| CLS | **0** in all 16 |
+| Console errors | **0** in all 16 |
+| Horizontal page overflow | none at 390 or 1440 |
+| Card-overflow offenders | 0 in all 16 (after a harness fix — below) |
+| Focus rings | `gold == tabStops` in all 16 (20–22 stops), `nonGoldRing` 0, `ringless` 0 |
+| Requested vs landed | 16/16 exact — `/settings`×4, `/support`×4, `/help`×4, `/help/setting-up-your-store`×4 |
+| Network failures | 0 real; all 36–38 per run are `ERR_ABORTED` on `?_rsc=` prefetches, classified rather than assumed |
+
+**Phase 2's notification toggles re-confirmed**, by the harness's own knob
+probe rather than by eye: ON `leftInset 22 / rightOverflow −2` in a 44px track,
+OFF `leftInset 3 / rightOverflow −21`, every toggle `−1px` inside its card at
+both widths and both themes. Identical to the Phase 2 post-fix figures.
+
+### Two harness defects, one of them mine
+
+1. **The first 16-state run was void and its numbers are not reported.** I ran
+   `npm run build` while `next start` was already serving, so chunk hashes moved
+   under the running server: 500s and 404s on `_next/static/chunks/*.js`, and on
+   `/help/[slug]` the **stylesheet** failed to load. That run reported
+   `gold=0 nonGoldRing=22` and CLS 0.0214 on that route — which is not an app
+   defect, it is a page with no CSS painting Chrome's default black ring on
+   every control. Server restarted against the current build, matrix re-run.
+   D26 again: the instrument must not be measuring one build while the report
+   names another.
+
+2. **`offenders=1` on /settings in all four states was the probe.** It reported
+   `button: right +12px left +12px` — a perfectly symmetrical 12px, which is
+   the button's own `px-3`. The overflow probe finds a control's card with
+   `el.closest('.sp-e1')`, and `closest()` matches the element *itself*; the
+   theme control's active segment legitimately carries `sp-e1`, so it became
+   its own card and was measured against its own padding box. Now
+   `el.parentElement.closest('.sp-e1')`. Re-run: 0 offenders in all four.
+   That is the third round running in which something the probe flagged was the
+   probe — see D31.
+
+`toggle-check.js` was written for the toggle re-confirmation and then not
+needed: `harness.js` already measures knob-against-track and control-against-
+card. Left in the scratchpad, unused.
+
+### Open-state traversal on the three routes
+
+These routes introduce **no overlay of their own** — no `Modal`, no
+`role="dialog"`, nothing that mounts on interaction. Verified by grep, not
+assumed. So there was nothing new to add to `overlay-probe.js`'s `OVERLAYS`
+array.
+
+The probe was run anyway, because FOUND-ISSUES named `/settings`, `/support`
+and `/help` as the routes where the four *global* overlays had never been
+measured in their open state. Light, 1440, serially:
+
+| | command palette | AI panel | notification popover |
+|---|---|---|---|
+| `/settings` | trapped · closed · trigger | trapped · closed · trigger | n/a · closed · trigger |
+| `/support` | trapped · closed · trigger | trapped · closed · trigger | n/a · closed · trigger |
+| `/help` | trapped · closed · trigger | trapped · closed · trigger | n/a · closed · trigger |
+
+**9 of 9 correct on trap, escape and return; `ringless` 0 and `nonGoldRing` 0
+in all nine.** The popover's `trap=n/a` is by declaration — it is not a modal
+dialog and must not trap, but it must still close on Escape and return focus,
+and it does. The mobile drawer is bounded to widths below 1024 and so is
+correctly absent from a 1440 run.
+
+That closes the "not yet measured" list in FOUND-ISSUES for these three routes.
+
+### Still open, carried forward deliberately
+
+- **`Add Shipment` on `/suppliers`** needs a seeded supplier row before it can
+  be measured. Phase 8, unchanged from 3C-i.
+- **No notifications affordance below 1024px.** A product decision about what
+  belongs on a phone header, not a focus bug. Phase 7, unchanged from 3C-i.
+- **`nonGoldRing` under parallelism** — instrument limitation, D30.
+
+### Phase 3 is complete
+
+3A (Inventory, Sales, Suppliers, Customers), 3B (Reports, Staff, Activity,
+Monitoring), 3C-i (overlay focus, 104 instances) and 3C-ii (Settings, Support,
+Help Centre) between them cover every route in the app.

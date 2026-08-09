@@ -616,3 +616,53 @@ the hidden notification bell and the `Change Password` trigger declared by the
 modal's title rather than the button's label ("Update"). Neither was an app
 defect, and both would have been "fixed" in the app by anyone who trusted the
 report.
+
+## D32 — "One high-emphasis button per screen" is a ceiling, not a floor
+
+Phase 3C-ii applied the button ladder to three screens and only two of them
+ended up with a primary button. That is deliberate.
+
+`/settings` has Save. `/help` has Send request. `/support` has none.
+
+The tempting reading of the rule is that every screen must *have* one, which on
+`/support` would mean promoting `Mark resolved` — and there is one of those per
+row. Ten open requests would put ten near-black buttons on screen, which is
+visually identical to having none: emphasis is a comparison, and everything
+emphasised is nothing emphasised.
+
+What the rule is actually protecting against is two controls competing to be
+the obvious next action. A triage list whose only actions are per-row and
+equal in weight has no competition to resolve, so the honest answer is a screen
+of secondary buttons.
+
+The same reasoning demoted the Open/All filters. They were `bg-foreground
+text-surface` when selected — the primary skin — so the loudest thing on the
+page was a control that changes what is *listed*, not what is *done*. A filter
+is never a screen's high-emphasis action.
+
+Corollary, and it is D27's shape again: the design system describes what a
+control means, and a control must not wear a meaning it does not have. D27
+refused a hover lift on things that are not clickable; this refuses primary
+weight on things that are not the primary action.
+
+## D33 — Tailwind scans comments, so a comment can resurrect what it documents
+
+While removing the last two raw palette classes from the app (the two range
+sliders' zinc-900 accent), the comment explaining the removal spelled the class
+name out. Tailwind v4 scans file *content*, not JSX semantics, so the class was
+regenerated from the comment and `accent-color:var(--color-zinc-900)` was still
+in the built CSS after the only two uses were gone.
+
+Harmless in itself — a dead rule of a few bytes. It matters because the
+project's own audit greps source for palette classes and counts hits, and
+because PROGRESS already carries a line reading "the 2 remaining grep hits are
+a comment describing what was removed". That precedent normalised exactly this,
+and it means the audit number cannot distinguish a real use from a mention.
+
+Rule: **when documenting the removal of a class, do not write the class.**
+Describe it — "a raw zinc-900 palette accent" — or the comment becomes a use.
+
+Generalises past Tailwind: any tool that greps source rather than parsing it
+will treat prose about code as code. The verification recipe in D9 is the check
+that catches it, and it only catches it if you actually run it after the change
+rather than before.
