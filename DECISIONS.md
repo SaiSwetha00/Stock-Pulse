@@ -1089,3 +1089,72 @@ says so in its first line.
 What D23 forbids is unlabelled invention. What this is, is a labelled demo that
 a reviewer can tell apart from real data in one glance at a SKU column. The
 teardown exists, dry-runs by default, and has deliberately never been run.
+
+## D49 — Correcting D39: the landing hero has been three.js all along
+
+D39 says "WebGL was not required and nothing was installed." Read today, that
+sentence describes the whole application. It does not, and anyone trusting it
+would be wrong about what this app ships.
+
+**What D39 is actually about:** `CrateMark`, the ONE decorative element on the
+dashboard that Phase 5 approved. That element is pure CSS `preserve-3d`, no
+library, and the reasoning in D39 stands unchanged for it.
+
+**What was true at the same time and went unrecorded:** the marketing landing
+page's hero shelf, `components/marketing/ThreeGroceryVisual.tsx`, is a
+`THREE.WebGLRenderer` scene, and `"three": "^0.185.1"` is a real dependency in
+`stockpulse/package.json`. Measured: the emitted three.js chunk is 548,102
+bytes raw, 135,992 gzipped — 133 KB gz, which is close to the "~150 KB gz"
+D39 used as its argument against installing it.
+
+So the honest summary is: the dashboard decoration avoided WebGL on purpose,
+and the landing hero uses WebGL. Both are true; only the first was written
+down, and the way it was written implied the second could not exist.
+
+Two things follow, and both are done:
+
+1. The record is corrected here and in PROGRESS.md rather than left for a
+   reader to trip over.
+2. The gap D39's reasoning would have caught is now closed — see D50. The
+   landing hero was doing exactly what D39 warned about: paying a rendering
+   library's cost on every visit, for a decoration.
+
+The general lesson is the one D38 already states about stale artefacts: a
+decision document is an instrument, and an instrument that was accurate about
+a narrow thing will be read as a claim about a broad one.
+
+## D50 — A hero decoration must not cost every visitor a rendering library
+
+The hero shelf imported three.js statically and started a
+`requestAnimationFrame` loop for every visitor. No `prefers-reduced-motion`
+check, no Data Saver check, no core-count check, and no static version to fall
+back to — while `CrateMark`, a far cheaper element, had all four.
+
+Measured before the fix: the three.js chunk was in the landing page's initial
+JavaScript. After: it is in its own chunk, absent from the initial HTML
+(`grep -c` on the served document returns 0), and fetched only after
+`requestIdleCallback` on a machine that opted in.
+
+**The triggers, and why each one.** All are read once, on mount, biased
+towards NOT animating — being wrong cautiously costs a drawing nobody notices,
+being wrong the other way spends a stranger's battery and data on decoration:
+
+| Trigger | Falls back when |
+|---|---|
+| `prefers-reduced-motion: reduce` | the user asked the OS for less motion |
+| `navigator.connection.saveData` | Data Saver is an explicit request to transfer less |
+| `navigator.deviceMemory <= 4` | 4 GB or less |
+| `navigator.hardwareConcurrency <= 4` | 4 cores or less |
+| no WebGL context | asking is cheap; a scene that silently renders nothing is not |
+| SSR (`typeof window === 'undefined'`) | the server cannot know, so it assumes less |
+
+The static state is the DEFAULT and not a spinner: an inline SVG of the same
+shelf with the same products, rendered on first paint for everyone, replaced
+only after idle. That is D18 and CrateMark's shape reused rather than a second
+pattern invented.
+
+Verified with a control (D38): the same build, twice, differing only in the
+emulated media feature.
+
+    normal   early{svg} late{canvas}  CLS=0  threeChunkFetched=true
+    reduced  early{svg} late{svg}     CLS=0  threeChunkFetched=false

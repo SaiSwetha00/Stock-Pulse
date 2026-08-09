@@ -119,260 +119,6 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
     }
     // Every texture in this scene is generated locally — no loader needed.
 
-    /**
-     * GROCERY SILHOUETTES — locally drawn product panels.
-     *
-     * These first replaced six `images.unsplash.com` texture loads, for three
-     * reasons any one of which is sufficient: remote stock photography carries
-     * licensing, it made the landing page depend on a third-party CDN at
-     * render time, and all six URLs had already gone 404 — so the scene was
-     * fetching, failing, and rendering untextured anyway.
-     *
-     * That first replacement drew a circle above a horizontal line on every
-     * panel. Which is, almost exactly, the glyph browsers and design tools use
-     * for a MISSING IMAGE — so six identical broken-image placeholders ended
-     * up sitting on a shelf meant to be selling the product. It read as a
-     * failure state, not as groceries. This is the second attempt, and the
-     * lesson is that "restrained" and "unfinished" can look identical.
-     *
-     * These are flat line-and-fill shapes: a filled body in one palette colour
-     * and a single ink outline, no gradients inside the shape, no shading, no
-     * photographs. At the size these render — roughly 90px across in the
-     * hero — anything more detailed turns to mush, and anything less is the
-     * circle-and-line again.
-     *
-     * Canvas-drawn for the same reason the rest of this file is: it adds no
-     * asset to the repo, no network request, and no dependency.
-     */
-    type ItemKind = 'leaves' | 'tomato' | 'carrot' | 'onion' | 'bottle' | 'carton' | 'bag' | 'jar'
-
-    function drawItem(
-      g: CanvasRenderingContext2D,
-      kind: ItemKind,
-      cx: number,
-      cy: number,
-      s: number,
-      fill: string,
-      ink: string,
-    ) {
-      g.save()
-      g.translate(cx, cy)
-      g.scale(s, s)
-      g.lineJoin = 'round'
-      g.lineCap = 'round'
-      g.strokeStyle = ink
-      g.lineWidth = 5
-      g.fillStyle = fill
-
-      const leaf = (ang: number, len: number, wide: number) => {
-        g.save()
-        g.rotate(ang)
-        g.beginPath()
-        g.moveTo(0, 0)
-        g.quadraticCurveTo(-wide, -len * 0.55, 0, -len)
-        g.quadraticCurveTo(wide, -len * 0.55, 0, 0)
-        g.closePath()
-        g.fill()
-        g.stroke()
-        g.restore()
-      }
-
-      if (kind === 'leaves') {
-        // A tied bunch of greens: three blades from one stem.
-        leaf(-0.5, 82, 26)
-        leaf(0, 96, 28)
-        leaf(0.5, 82, 26)
-        g.beginPath()
-        g.moveTo(0, 0)
-        g.lineTo(0, 34)
-        g.stroke()
-      } else if (kind === 'tomato') {
-        g.beginPath()
-        g.arc(0, 6, 44, 0, Math.PI * 2)
-        g.fill()
-        g.stroke()
-        // Calyx — the detail that stops it reading as a plain ball.
-        g.beginPath()
-        for (let i = 0; i < 5; i++) {
-          const a = (i / 5) * Math.PI * 2 - Math.PI / 2
-          g.moveTo(0, -38)
-          g.lineTo(Math.cos(a) * 22, -38 + Math.sin(a) * 16)
-        }
-        g.stroke()
-        g.beginPath()
-        g.moveTo(0, -38)
-        g.lineTo(0, -56)
-        g.stroke()
-      } else if (kind === 'carrot') {
-        g.beginPath()
-        g.moveTo(-26, -22)
-        g.lineTo(26, -22)
-        g.lineTo(0, 74)
-        g.closePath()
-        g.fill()
-        g.stroke()
-        g.beginPath()
-        g.moveTo(-16, -24)
-        g.lineTo(-26, -60)
-        g.moveTo(0, -24)
-        g.lineTo(0, -66)
-        g.moveTo(16, -24)
-        g.lineTo(26, -60)
-        g.stroke()
-      } else if (kind === 'onion') {
-        g.beginPath()
-        g.moveTo(0, -26)
-        g.bezierCurveTo(46, -20, 46, 62, 0, 62)
-        g.bezierCurveTo(-46, 62, -46, -20, 0, -26)
-        g.closePath()
-        g.fill()
-        g.stroke()
-        g.beginPath()
-        g.moveTo(0, -26)
-        g.lineTo(-8, -58)
-        g.moveTo(0, -26)
-        g.lineTo(10, -56)
-        g.stroke()
-        // Two seams, which is what makes an onion an onion and not a potato.
-        g.beginPath()
-        g.moveTo(-18, -14)
-        g.quadraticCurveTo(-26, 24, -14, 54)
-        g.moveTo(18, -14)
-        g.quadraticCurveTo(26, 24, 14, 54)
-        g.stroke()
-      } else if (kind === 'bottle') {
-        g.beginPath()
-        g.moveTo(-12, -74)
-        g.lineTo(12, -74)
-        g.lineTo(12, -40)
-        g.quadraticCurveTo(30, -20, 30, 10)
-        g.lineTo(30, 66)
-        g.quadraticCurveTo(30, 76, 20, 76)
-        g.lineTo(-20, 76)
-        g.quadraticCurveTo(-30, 76, -30, 66)
-        g.lineTo(-30, 10)
-        g.quadraticCurveTo(-30, -20, -12, -40)
-        g.closePath()
-        g.fill()
-        g.stroke()
-        g.beginPath()
-        g.moveTo(-14, -74)
-        g.lineTo(14, -74)
-        g.stroke()
-        g.beginPath()
-        g.moveTo(-24, 14)
-        g.lineTo(24, 14)
-        g.stroke()
-      } else if (kind === 'carton') {
-        // Gable top — the shape that says "milk" without a label.
-        g.beginPath()
-        g.moveTo(-34, -34)
-        g.lineTo(0, -74)
-        g.lineTo(34, -34)
-        g.lineTo(34, 70)
-        g.lineTo(-34, 70)
-        g.closePath()
-        g.fill()
-        g.stroke()
-        g.beginPath()
-        g.moveTo(-34, -34)
-        g.lineTo(34, -34)
-        g.moveTo(0, -74)
-        g.lineTo(0, -34)
-        g.stroke()
-      } else if (kind === 'bag') {
-        g.beginPath()
-        g.moveTo(-30, -46)
-        g.lineTo(30, -46)
-        g.lineTo(40, 70)
-        g.lineTo(-40, 70)
-        g.closePath()
-        g.fill()
-        g.stroke()
-        // Folded-over top.
-        g.beginPath()
-        g.moveTo(-30, -46)
-        g.quadraticCurveTo(0, -66, 30, -46)
-        g.stroke()
-        g.beginPath()
-        g.moveTo(-34, 16)
-        g.lineTo(34, 16)
-        g.stroke()
-      } else if (kind === 'jar') {
-        g.beginPath()
-        g.moveTo(-34, -34)
-        g.lineTo(34, -34)
-        g.lineTo(38, 58)
-        g.quadraticCurveTo(38, 72, 24, 72)
-        g.lineTo(-24, 72)
-        g.quadraticCurveTo(-38, 72, -38, 58)
-        g.closePath()
-        g.fill()
-        g.stroke()
-        // Lid.
-        g.beginPath()
-        g.rect(-40, -62, 80, 28)
-        g.fill()
-        g.stroke()
-      }
-      g.restore()
-    }
-
-    /**
-     * One panel face. `kinds` may hold two items — a produce face reads more
-     * like a grocery shelf as a small grouping than as one lonely vegetable,
-     * and it is how all eight requested items fit across six shelf faces
-     * without adding or moving a single panel.
-     */
-    function createProductPanel(top: string, bottom: string, ink: string, kinds: ItemKind[], fill: string) {
-      const c = document.createElement('canvas')
-      c.width = 256
-      c.height = 256
-      const g = c.getContext('2d')
-      if (g) {
-        const grad = g.createLinearGradient(0, 0, 0, 256)
-        grad.addColorStop(0, top)
-        grad.addColorStop(1, bottom)
-        g.fillStyle = grad
-        g.fillRect(0, 0, 256, 256)
-
-        // Sized from the rendered screenshot, not from how it looks in the
-        // 256px texture. The panel is ~90px wide on screen and tilted away
-        // from camera, so a shape that fills a comfortable half of the canvas
-        // ends up reading as a small mark on the shelf.
-        if (kinds.length === 1) {
-          drawItem(g, kinds[0], 128, 116, 1.3, fill, ink)
-        } else {
-          drawItem(g, kinds[0], 84, 120, 0.92, fill, ink)
-          drawItem(g, kinds[1], 174, 124, 0.92, fill, ink)
-        }
-
-        // Shelf-edge rule, so the face reads as packaging rather than a sticker.
-        g.strokeStyle = ink
-        g.globalAlpha = 0.35
-        g.lineWidth = 4
-        g.beginPath()
-        g.moveTo(38, 214)
-        g.lineTo(218, 214)
-        g.stroke()
-      }
-      return new THREE.CanvasTexture(c)
-    }
-
-    // Palette only: gold, deep red, coffee-brown, cream, near-black.
-    // Fills are chosen for contrast against their own panel, not for realism —
-    // a red tomato on a red panel is a silhouette nobody can see.
-    const greensTex = createProductPanel('#4a3524', '#2b1f16', '#14100c', ['leaves', 'tomato'], '#c9a227')
-    const rootsTex = createProductPanel('#8f2a1c', '#5c1a11', '#14100c', ['carrot', 'onion'], '#f4e8d4')
-    const oliveOilTex = createProductPanel('#c9a227', '#8a6206', '#14100c', ['bottle'], '#f4e8d4')
-    const honeyJarTex = createProductPanel('#e3b341', '#a8822c', '#14100c', ['jar'], '#5c1a11')
-    const organicMilkTex = createProductPanel('#f4e8d4', '#d6c3a3', '#4a3524', ['carton'], '#8f2a1c')
-    const riceBagTex = createProductPanel('#edc155', '#c9a227', '#14100c', ['bag'], '#4a3524')
-
-    ;[greensTex, rootsTex, oliveOilTex, honeyJarTex, organicMilkTex, riceBagTex].forEach((tex) => {
-      tex.colorSpace = THREE.SRGBColorSpace
-      tex.anisotropy = 16
-    })
 
     // -------------------------------------------------------------
     // REALISTIC PBR MATERIALS
@@ -411,16 +157,6 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
       metalness: 0.7,
       roughness: 0.3,
     })
-
-    // Studio Photo Card PBR Material Generator
-    const createStudioPhotoMat = (texture: THREE.Texture, roughness = 0.25, metalness = 0.05) => {
-      return new THREE.MeshStandardMaterial({
-        map: texture,
-        roughness,
-        metalness,
-        side: THREE.DoubleSide,
-      })
-    }
 
     // -------------------------------------------------------------
     // 1. SMART GROCERY SHELF STRUCTURE
@@ -512,73 +248,211 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
     // -------------------------------------------------------------
     const itemsGroup = new THREE.Group()
 
-    // Helper: Create a 3D Product Display Stand with realistic studio photo texture & metallic frame
-    const createPhotorealisticProductDisplay = (
-      texture: THREE.Texture,
-      x: number,
-      y: number,
-      z: number,
-      w: number,
-      h: number,
-      d: number,
-      rotationY = 0
-    ) => {
-      const prodGroup = new THREE.Group()
+    /**
+     * REAL 3D PRODUCTS, not pictures of products.
+     *
+     * What was here built a flat panel per product: a thin box whose front
+     * face carried a canvas drawing. That is a photograph standing on a shelf,
+     * and it read as one — cutout paper shapes with no side faces and no
+     * volume, and the giveaway only became obvious as the scene rotated and
+     * they stayed card-thin.
+     *
+     * Each product below is built from actual geometry, so it has real side
+     * and top faces, occupies real depth, sits ON the deck rather than against
+     * it, casts into the same shadow pass as the shelf, and turns with the
+     * scene because it lives in the same group.
+     *
+     * Palette only: gold, deep red, coffee-brown, cream, near-black. Every
+     * material is flat standard PBR — no textures, no images, nothing fetched.
+     */
+    const mat = (color: number, roughness = 0.55, metalness = 0.05) =>
+      new THREE.MeshStandardMaterial({ color, roughness, metalness })
 
-      // Main product panel
-      const boxGeo = new THREE.BoxGeometry(w, h, d)
-      const photoMat = createStudioPhotoMat(texture, 0.15, 0.1)
+    const cardboardMat = mat(0x4a3524, 0.85)  // coffee-brown crate
+    const cartonMat = mat(0xf4e8d4, 0.7)      // cream milk carton
+    const cartonCapMat = mat(0x8f2a1c, 0.6)   // deep red gable panel
+    const sackMat = mat(0xd6c3a3, 0.9)        // cream hessian sack
+    const bottleGlassMat = mat(0x8a6206, 0.25, 0.1)
+    const jarGlassMat = mat(0x5c1a11, 0.3, 0.1)
+    const tomatoMat = mat(0x8f2a1c, 0.45)
+    const onionMat = mat(0xe3b341, 0.5)
+    const carrotMat = mat(0xc9a227, 0.5)
+    const leafMat = mat(0x6f5006, 0.75)
 
-      // Titanium back panel / border frame
-      const borderGeo = new THREE.BoxGeometry(w + 0.04, h + 0.04, d * 0.8)
-      const borderMesh = new THREE.Mesh(borderGeo, titaniumMat)
-      borderMesh.castShadow = true
-      borderMesh.receiveShadow = true
-      prodGroup.add(borderMesh)
-
-      // Photo Mesh on front face
-      const photoMesh = new THREE.Mesh(boxGeo, [
-        titaniumMat, titaniumMat, titaniumMat, titaniumMat, photoMat, titaniumMat,
-      ])
-      photoMesh.position.z = 0.02
-      photoMesh.castShadow = true
-      photoMesh.receiveShadow = true
-      prodGroup.add(photoMesh)
-
-      // Glass protective shield in front
-      const shieldGeo = new THREE.BoxGeometry(w + 0.02, h + 0.02, 0.02)
-      const shieldMesh = new THREE.Mesh(shieldGeo, temperedGlassMat)
-      shieldMesh.position.z = 0.04
-      prodGroup.add(shieldMesh)
-
-      prodGroup.position.set(x, y + h / 2 + 0.03, z)
-      prodGroup.rotation.y = rotationY
-      return prodGroup
+    /** Everything inside a product casts and receives, exactly as the shelf does. */
+    const shade = (o: THREE.Object3D) => {
+      o.traverse((n) => {
+        const m = n as THREE.Mesh
+        if (m.isMesh) {
+          m.castShadow = true
+          m.receiveShadow = true
+        }
+      })
+      return o
     }
 
-    // --- TOP SHELF: cooking oil bottle & preserve jar ---
+    /** Cylindrical body plus a distinctly narrower neck and wider cap, which
+     *  is what makes a bottle read as a bottle rather than as a post. */
+    function makeBottle() {
+      const g = new THREE.Group()
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.19, 0.42, 24), bottleGlassMat)
+      body.position.y = 0.21
+      const shoulder = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.17, 0.16, 24), bottleGlassMat)
+      shoulder.position.y = 0.5
+      const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.16, 20), bottleGlassMat)
+      neck.position.y = 0.66
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.09, 20), goldBrassMat)
+      cap.position.y = 0.78
+      const label = new THREE.Mesh(new THREE.CylinderGeometry(0.175, 0.192, 0.17, 24), cartonMat)
+      label.position.y = 0.2
+      g.add(body, shoulder, neck, cap, label)
+      return shade(g)
+    }
+
+    /** Squat body, wide screw lid. */
+    function makeJar() {
+      const g = new THREE.Group()
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.22, 0.34, 24), jarGlassMat)
+      body.position.y = 0.17
+      const shoulder = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.21, 0.08, 24), jarGlassMat)
+      shoulder.position.y = 0.38
+      const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.1, 24), goldBrassMat)
+      lid.position.y = 0.47
+      g.add(body, shoulder, lid)
+      return shade(g)
+    }
+
+    /** Gable-top carton: a box plus two slanted roof panels and a ridge. The
+     *  roof is the whole reason it reads as milk with no label on it. */
+    function makeCarton() {
+      const g = new THREE.Group()
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.5, 0.36), cartonMat)
+      body.position.y = 0.25
+      const roofL = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.24, 0.03), cartonCapMat)
+      roofL.position.set(0, 0.62, 0.09)
+      roofL.rotation.x = -Math.PI * 0.18
+      const roofR = roofL.clone()
+      roofR.position.z = -0.09
+      roofR.rotation.x = Math.PI * 0.18
+      const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.05, 0.05), cartonCapMat)
+      ridge.position.y = 0.73
+      g.add(body, roofL, roofR, ridge)
+      return shade(g)
+    }
+
+    /** Tapered body — wide at the base, gathered at the neck, tied off. */
+    function makeSack() {
+      const g = new THREE.Group()
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.28, 0.46, 9), sackMat)
+      body.position.y = 0.23
+      const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.17, 0.1, 9), sackMat)
+      neck.position.y = 0.51
+      const tie = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.022, 8, 16), goldBrassMat)
+      tie.position.y = 0.56
+      tie.rotation.x = Math.PI / 2
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(0.235, 0.247, 0.11, 9), cardboardMat)
+      band.position.y = 0.2
+      g.add(body, neck, tie, band)
+      return shade(g)
+    }
+
+    /**
+     * A low open crate with produce standing proud of the rim.
+     *
+     * Four walls and a base rather than a solid box, because the open top is
+     * what makes it a crate — and the produce has to break the rim line, or
+     * the whole thing reads as a closed carton with lumps resting on it.
+     */
+    function makeCrate(fill: 'greens' | 'roots') {
+      const g = new THREE.Group()
+      const W = 0.62
+      const D = 0.44
+      const H = 0.2
+      const T = 0.03
+
+      const base = new THREE.Mesh(new THREE.BoxGeometry(W, T, D), cardboardMat)
+      base.position.y = T / 2
+      g.add(base)
+
+      const side = (w: number, d: number, x: number, z: number) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, H, d), cardboardMat)
+        m.position.set(x, H / 2, z)
+        g.add(m)
+      }
+      side(W, T, 0, D / 2 - T / 2)
+      side(W, T, 0, -D / 2 + T / 2)
+      side(T, D, W / 2 - T / 2, 0)
+      side(T, D, -W / 2 + T / 2, 0)
+
+      if (fill === 'roots') {
+        // Onions: squashed spheres. The squash is the shape difference that
+        // stops them reading as generic balls.
+        const onionGeo = new THREE.SphereGeometry(0.11, 16, 12)
+        const onionAt: [number, number][] = [[-0.17, 0.03], [0.05, -0.06], [0.2, 0.06]]
+        onionAt.forEach(([x, z], i) => {
+          const o = new THREE.Mesh(onionGeo, onionMat)
+          o.scale.set(1, 0.85, 1)
+          o.position.set(x, H + 0.07 + (i % 2) * 0.01, z)
+          g.add(o)
+        })
+        // Carrots: cones laid over at an angle, tips inward.
+        const carrotGeo = new THREE.ConeGeometry(0.055, 0.34, 12)
+        ;[-0.12, 0.14].forEach((x, i) => {
+          const c = new THREE.Mesh(carrotGeo, carrotMat)
+          c.rotation.z = Math.PI / 2
+          c.rotation.y = i ? 0.3 : -0.35
+          c.position.set(x, H + 0.06, -0.11 + i * 0.05)
+          g.add(c)
+        })
+      } else {
+        const tomGeo = new THREE.SphereGeometry(0.1, 16, 12)
+        const tomAt: [number, number][] = [[-0.18, 0.02], [0.02, -0.05], [0.19, 0.05]]
+        tomAt.forEach(([x, z]) => {
+          const t = new THREE.Mesh(tomGeo, tomatoMat)
+          t.scale.set(1, 0.88, 1)
+          t.position.set(x, H + 0.07, z)
+          g.add(t)
+        })
+        // A leafy bunch: flattened blades splayed out of the back of the crate.
+        const bladeGeo = new THREE.BoxGeometry(0.05, 0.26, 0.012)
+        for (let i = 0; i < 5; i++) {
+          const b = new THREE.Mesh(bladeGeo, leafMat)
+          b.position.set(-0.05 + i * 0.045, H + 0.16, -0.13)
+          b.rotation.z = (i - 2) * 0.16
+          b.rotation.x = -0.18
+          g.add(b)
+        }
+      }
+      return shade(g)
+    }
+
+    /** Sit a product ON a deck. The deck is 0.06 thick, so its surface is
+     *  sy + 0.03, and every model above is built upwards from y = 0. */
+    const place = (obj: THREE.Object3D, x: number, sy: number, z: number, rotY: number) => {
+      obj.position.set(x, sy + 0.03, z)
+      obj.rotation.y = rotY
+      itemsGroup.add(obj)
+      return obj
+    }
+
     const topY = 1.15
-    const oliveOilDisplay = createPhotorealisticProductDisplay(oliveOilTex, -0.9, topY, 0.1, 1.1, 0.85, 0.1, Math.PI * 0.04)
-    itemsGroup.add(oliveOilDisplay)
-
-    const honeyDisplay = createPhotorealisticProductDisplay(honeyJarTex, 0.9, topY, 0.1, 1.1, 0.85, 0.1, -Math.PI * 0.04)
-    itemsGroup.add(honeyDisplay)
-
-    // --- MIDDLE SHELF: fresh produce — leafy greens, tomato, carrot, onion ---
     const midY = 0
-    const greensDisplay = createPhotorealisticProductDisplay(greensTex, -0.9, midY, 0.1, 1.25, 0.9, 0.1, Math.PI * 0.03)
-    itemsGroup.add(greensDisplay)
-
-    const rootsDisplay = createPhotorealisticProductDisplay(rootsTex, 0.9, midY, 0.1, 1.25, 0.9, 0.1, -Math.PI * 0.03)
-    itemsGroup.add(rootsDisplay)
-
-    // --- BOTTOM SHELF: milk carton & staples bag ---
     const botY = -1.15
-    const milkDisplay = createPhotorealisticProductDisplay(organicMilkTex, -0.9, botY, 0.1, 1.1, 0.85, 0.1, Math.PI * 0.05)
-    itemsGroup.add(milkDisplay)
 
-    const riceBagDisplay = createPhotorealisticProductDisplay(riceBagTex, 0.9, botY, 0.1, 1.1, 0.85, 0.1, -Math.PI * 0.05)
-    itemsGroup.add(riceBagDisplay)
+    // --- TOP SHELF: cooking-oil bottles & preserve jars ---
+    place(makeBottle(), -1.05, topY, 0.05, Math.PI * 0.05)
+    place(makeBottle(), -0.62, topY, -0.14, -Math.PI * 0.12)
+    place(makeJar(), 0.72, topY, 0.02, Math.PI * 0.08)
+    place(makeJar(), 1.14, topY, -0.15, -Math.PI * 0.05)
+
+    // --- MIDDLE SHELF: fresh produce in open crates ---
+    place(makeCrate('greens'), -0.85, midY, 0.06, Math.PI * 0.06)
+    place(makeCrate('roots'), 0.85, midY, 0.06, -Math.PI * 0.06)
+
+    // --- BOTTOM SHELF: milk cartons & a staples sack ---
+    place(makeCarton(), -1.1, botY, 0.02, Math.PI * 0.07)
+    place(makeCarton(), -0.66, botY, -0.15, -Math.PI * 0.04)
+    place(makeSack(), 0.85, botY, 0.0, Math.PI * 0.1)
 
     mainGroup.add(itemsGroup)
 

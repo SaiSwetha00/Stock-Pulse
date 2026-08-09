@@ -1839,3 +1839,69 @@ rest ran out of scope. They are listed so that no reader has to infer them.
 | `palette via drawer` focus return | **Open, measured.** `return=LOST -> BODY`: the palette remembers the search row, which lives in a drawer that unmounts, so `.focus()` hits a detached node. |
 | Journey steps not exercised | Export files actually downloading; invite staff; assign shift through the UI; approve leave; raise a support request. |
 | Supabase backups, rate limiting, auth edge cases, HANDOVER.md | **Out of scope by decision**, not attempted. |
+
+---
+
+# LANDING HERO — real 3D products, and a correction to the record (2026-08-10)
+
+## The correction, first
+
+**Phase 5's "no WebGL, nothing installed" was about `CrateMark` on the
+dashboard. It was never true of the landing hero.**
+
+`components/marketing/ThreeGroceryVisual.tsx` is a `THREE.WebGLRenderer`
+scene and `"three": "^0.185.1"` is a real dependency. Anyone reading D39 today
+would conclude this app ships no WebGL, and that is wrong. D49 records the
+correction; D50 records what was done about the gap it hid.
+
+The landing page also uses CSS `preserve-3d` in nine OTHER components — the
+card tilts on features, pricing, FAQ, testimonials and so on — which is why
+the hero looks like part of the same CSS system. It is not.
+
+## Products are now real geometry
+
+The panels were flat: a thin box whose front face carried a canvas drawing.
+They read as cutout paper, and the giveaway was that they stayed card-thin as
+the scene rotated. Each product is now built from actual geometry with real
+side and top faces, sitting ON the deck, in the same shadow pass and the same
+group, so it turns with the scene:
+
+| Product | Built from |
+|---|---|
+| Bottle x2 | cylinder body, tapered shoulder, narrow neck, wider brass cap, cream label band |
+| Jar x2 | squat body, tapered shoulder, wide brass screw lid |
+| Produce crate x2 | four walls and a base, open top, with tomatoes / onions / carrots / leaf blades standing proud of the rim |
+| Carton x2 | box plus two slanted roof panels and a ridge — the gable is what makes it read as milk |
+| Sack | tapered 9-sided body, gathered neck, brass tie, cardboard band |
+
+Palette only, flat standard PBR, no textures, no images, nothing fetched.
+
+## Weight
+
+| | |
+|---|---|
+| three.js chunk | 548,102 bytes raw, **135,992 gz (133 KB)** |
+| In the landing page's initial HTML | **No** — `grep -c` on the served document returns 0 |
+| Fetched | only after `requestIdleCallback`, only on a machine that opted in |
+| Total emitted JS | 4,097,861 -> 4,105,578 bytes (+7,717) for the product geometry and the static SVG |
+
+The +7.7 KB is the honest total-bundle number. The number that matters to a
+visitor is the other one: 133 KB gz left the critical path entirely, and a
+reduced-motion or Data Saver visitor never downloads it at all.
+
+## Gate verified with a control
+
+Same production build, twice, differing only in the emulated media feature:
+
+    normal   early{svg:true shelfCanvas:false} late{svg:false shelfCanvas:true} CLS=0 threeChunkFetched=true
+    reduced  early{svg:true shelfCanvas:false} late{svg:true  shelfCanvas:false} CLS=0 threeChunkFetched=false
+
+**CLS 0 in both.** An earlier reading of 0.0939 came from the dev server's HMR
+and on-demand chunk compilation and does not exist in the production build —
+worth recording because it looked exactly like a regression this work had
+introduced.
+
+Two probe artefacts, both mine, both caught before they became conclusions:
+a canvas check that matched the shader-background canvas rather than the
+shelf's, and an 11-second wait against a dev server that needed ~16 seconds to
+compile the lazy chunk on demand. Neither was an app fault.

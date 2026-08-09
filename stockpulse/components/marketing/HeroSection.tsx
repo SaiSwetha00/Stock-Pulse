@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { ArrowRight, Activity, Sparkles } from 'lucide-react'
-import ThreeGroceryVisual from './ThreeGroceryVisual'
+import HeroShelf from './HeroShelf'
 
 export default function HeroSection() {
   return (
@@ -97,7 +97,7 @@ export default function HeroSection() {
 
           {/* Floating interactive 3D visual */}
           <div className="relative w-full h-[450px] md:h-[540px] z-10">
-            <ThreeGroceryVisual interactive={true} />
+            <HeroShelf interactive={true} />
           </div>
 
           {/* Floating Telemetry Glass Card Overlay — quieter border, no colored glow */}
