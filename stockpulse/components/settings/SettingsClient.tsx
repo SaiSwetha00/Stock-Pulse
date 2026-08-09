@@ -7,7 +7,13 @@ import { Store, SlidersHorizontal, Palette, Users, ArrowRight } from 'lucide-rea
 import { createClient } from '@/lib/supabase/client'
 import type { Store as StoreType } from '@/types'
 import Toggle from '@/components/ui/Toggle'
+import Button from '@/components/ui/Button'
+import { Field, Input, Textarea } from '@/components/ui/Field'
 import { useToast } from '@/components/ui/Toast'
+import {
+  validateStoreSettings,
+  type StoreSettingsErrors,
+} from '@/lib/validation/storeSettings'
 
 /**
  * Store configuration, and nothing else.
@@ -33,6 +39,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [errors, setErrors] = useState<StoreSettingsErrors>({})
 
   /**
    * The theme actually in effect comes from localStorage — app/layout.tsx reads
@@ -86,6 +93,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
     // resolves to light rather than being passed through unchecked.
     applyTheme(store.theme === 'dark' ? 'dark' : 'light')
     setSaveError('')
+    setErrors({})
   }
 
   // Closing the tab is the one exit this component cannot intercept, and the
@@ -101,16 +109,29 @@ export default function SettingsClient({ store }: { store: StoreType }) {
   }, [dirty])
 
   async function handleSave() {
+    setSaveError('')
+
+    // Validate before the round trip. `stores.name` is `not null` but not
+    // `not blank`, so an empty name used to save successfully and leave the
+    // shop nameless everywhere it is printed.
+    const found = validateStoreSettings({ name, address, phone })
+    if (Object.keys(found).length > 0) {
+      setErrors(found)
+      return
+    }
+    setErrors({})
+
     setSaving(true)
     setSaved(false)
-    setSaveError('')
     const supabase = createClient()
     const { error } = await supabase
       .from('stores')
       .update({
-        name,
-        address,
-        contact_phone: phone,
+        // Trimmed on the way out, matching what was validated. Untrimmed
+        // values would let " " past a check that ran against "".
+        name: name.trim(),
+        address: address.trim(),
+        contact_phone: phone.trim(),
         low_stock_threshold_units: threshold,
         perishables_warning_hours: perishableHours,
         critical_stock_alerts: criticalAlerts,
@@ -149,24 +170,16 @@ export default function SettingsClient({ store }: { store: StoreType }) {
               Unsaved changes
             </span>
           )}
-          <button
-            type="button"
-            onClick={discard}
-            disabled={!dirty || saving}
-            className="control-h rounded-lg border border-border px-4 text-sm font-semibold text-muted-strong hover:bg-surface-muted disabled:pointer-events-none disabled:opacity-40"
-          >
+          <Button variant="secondary" onClick={discard} disabled={!dirty || saving}>
             Discard
-          </button>
-          {/* Disabled when nothing has changed: a Save that is always
-              available invites clicking it to check whether anything was
-              missed, and every one of those is a pointless write. */}
-          <button
-            onClick={handleSave}
-            disabled={saving || !dirty}
-            className="control-h rounded-lg bg-foreground px-5 text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-60"
-          >
+          </Button>
+          {/* The one high-emphasis button on this screen. Disabled when
+              nothing has changed: a Save that is always available invites
+              clicking it to check whether anything was missed, and every one
+              of those is a pointless write. */}
+          <Button onClick={handleSave} loading={saving} disabled={!dirty}>
             {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save Changes'}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -192,47 +205,57 @@ export default function SettingsClient({ store }: { store: StoreType }) {
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="space-y-6">
-          <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+          <div className="sp-rise sp-delay-1 sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <Store className="h-4.5 w-4.5 text-muted-strong" />
               <h2 className="sp-heading">Store Details</h2>
             </div>
+            {/* Was three hand-rolled label+input pairs. Each label was a bare
+                <label> with no htmlFor, so none of them pointed at its own
+                control — clicking the label did nothing and a screen reader
+                got an unnamed field. The address textarea also carried
+                `control-h`, a fixed 40px height, which clamped its rows={2}
+                to a single line. Field/Input/Textarea fix all of that and
+                bring the error state with them. */}
             <div className="mt-4 space-y-4">
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-                  Store Name
-                </label>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-                  Primary Address
-                </label>
-                <textarea
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  rows={2}
-                  className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-                  Contact Phone
-                </label>
-                <input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
-                />
-              </div>
+              <Field label="Store Name" error={errors.name} required>
+                {(props) => (
+                  <Input
+                    {...props}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    autoComplete="organization"
+                  />
+                )}
+              </Field>
+
+              <Field label="Primary Address" error={errors.address}>
+                {(props) => (
+                  <Textarea
+                    {...props}
+                    rows={2}
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    autoComplete="street-address"
+                  />
+                )}
+              </Field>
+
+              <Field label="Contact Phone" error={errors.phone}>
+                {(props) => (
+                  <Input
+                    {...props}
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    autoComplete="tel"
+                  />
+                )}
+              </Field>
             </div>
           </div>
 
-          <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+          <div className="sp-rise sp-delay-2 sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <Palette className="h-4.5 w-4.5 text-muted-strong" />
               <h2 className="sp-heading">Appearance</h2>
@@ -242,33 +265,34 @@ export default function SettingsClient({ store }: { store: StoreType }) {
                 <p className="text-sm font-semibold text-foreground">Interface Theme</p>
                 <p className="text-xs text-muted">Toggle light/dark mode</p>
               </div>
+              {/* A segmented control, not two buttons. `rounded-sm` (6px)
+                  inside a `rounded-lg` (10px) track with 4px of padding is
+                  the radius that actually nests — matching the outer 10px
+                  leaves a visible sliver of track at each corner. The active
+                  segment is `sp-e1`, which paints; the `shadow-sm` it used to
+                  carry computes to transparent in this setup (see the
+                  elevation-ladder note in globals.css), so the selected side
+                  was distinguished by background alone. */}
               <div className="flex shrink-0 rounded-lg bg-surface-muted p-1">
-                <button
-                  type="button"
-                  onClick={() => applyTheme('light')}
-                  aria-pressed={theme === 'light'}
-                  className={`control-h rounded-md px-3 text-sm font-semibold ${
-                    theme === 'light' ? 'bg-surface shadow-sm' : 'text-muted'
-                  }`}
-                >
-                  Light
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyTheme('dark')}
-                  aria-pressed={theme === 'dark'}
-                  className={`control-h rounded-md px-3 text-sm font-semibold ${
-                    theme === 'dark' ? 'bg-surface shadow-sm' : 'text-muted'
-                  }`}
-                >
-                  Dark
-                </button>
+                {(['light', 'dark'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => applyTheme(t)}
+                    aria-pressed={theme === t}
+                    className={`control-h rounded-sm px-3 text-sm font-semibold transition-[background-color,color] duration-150 ${
+                      theme === t ? 'sp-e1 text-foreground' : 'text-muted hover:text-foreground'
+                    }`}
+                  >
+                    {t === 'light' ? 'Light' : 'Dark'}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
         </div>
 
-        <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+        <div className="sp-rise sp-delay-3 sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border pb-4">
             <SlidersHorizontal className="h-4.5 w-4.5 text-muted-strong" />
             <h2 className="sp-heading">Operational Controls</h2>
@@ -276,10 +300,24 @@ export default function SettingsClient({ store }: { store: StoreType }) {
 
           <div className="mt-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">Inventory Thresholds</p>
-            <div className="mt-3 rounded-xl bg-surface-muted p-4">
+            {/* `rounded-xl` is 16px — the modal/panel/drawer rung. These are
+                inner panels inside a 10px card, so they were the one radius
+                on the page that belonged to a different family. `rounded-lg`
+                puts them back on 10px.
+
+                The sliders took their accent from a raw zinc-900 palette
+                class — the last two such classes in the app outside the
+                fourteen intentional alpha scrims. (Spelled around here on
+                purpose: Tailwind scans comments too, so writing the class
+                name out would regenerate the dead rule this removes.) Near-black does not follow the
+                theme, so in dark mode the filled track and thumb were
+                near-black on a near-black card — the same way the toggle's
+                OFF state disappeared before Phase 1 fixed it. `--accent-fill`
+                is the surface-grade gold per D22 and inverts correctly. */}
+            <div className="mt-3 rounded-lg bg-surface-muted p-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="font-medium text-muted-strong">Global Low-Stock Alert</span>
-                <span className="rounded-md bg-surface px-2 py-1 text-xs font-semibold text-muted-strong shadow-sm">
+                <span className="sp-e1 rounded-sm px-2 py-1 text-xs font-semibold text-muted-strong">
                   {threshold} Units
                 </span>
               </div>
@@ -289,7 +327,8 @@ export default function SettingsClient({ store }: { store: StoreType }) {
                 max={50}
                 value={threshold}
                 onChange={(e) => setThreshold(Number(e.target.value))}
-                className="mt-3 w-full accent-zinc-900"
+                aria-label="Global low-stock alert, in units"
+                className="mt-3 w-full accent-[var(--accent-fill)]"
               />
               <div className="mt-1 flex justify-between text-xs text-muted">
                 <span>0</span>
@@ -297,10 +336,10 @@ export default function SettingsClient({ store }: { store: StoreType }) {
               </div>
             </div>
 
-            <div className="mt-3 rounded-xl bg-surface-muted p-4">
+            <div className="mt-3 rounded-lg bg-surface-muted p-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="font-medium text-muted-strong">Perishables Warning</span>
-                <span className="rounded-md bg-warning-bg px-2 py-1 text-xs font-semibold text-warning">
+                <span className="rounded-sm bg-warning-bg px-2 py-1 text-xs font-semibold text-warning">
                   {perishableHours} Hours
                 </span>
               </div>
@@ -310,7 +349,8 @@ export default function SettingsClient({ store }: { store: StoreType }) {
                 max={168}
                 value={perishableHours}
                 onChange={(e) => setPerishableHours(Number(e.target.value))}
-                className="mt-3 w-full accent-zinc-900"
+                aria-label="Perishables warning, in hours"
+                className="mt-3 w-full accent-[var(--accent-fill)]"
               />
               <div className="mt-1 flex justify-between text-xs text-muted">
                 <span>12h</span>
@@ -363,7 +403,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
           the rota. This line exists because an owner who has been using the app
           will look here first, and a screen that silently loses a feature reads
           as a broken screen. */}
-      <div className="sp-card-p mt-6 flex flex-wrap items-center justify-between gap-4 sp-e1 rounded-2xl border border-border bg-surface shadow-sm">
+      <div className="sp-card-p sp-rise sp-delay-4 mt-6 flex flex-wrap items-center justify-between gap-4 sp-e1 rounded-2xl border border-border bg-surface shadow-sm">
         <div className="flex min-w-0 items-start gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-muted">
             <Users className="h-4.5 w-4.5 text-muted-strong" aria-hidden="true" />
@@ -377,7 +417,10 @@ export default function SettingsClient({ store }: { store: StoreType }) {
         </div>
         <Link
           href="/staff/team"
-          className="control-h inline-flex shrink-0 items-center gap-2 rounded-lg border border-border px-4 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted"
+          // A Link, so it cannot be <Button> — but it wears Button's secondary
+          // skin verbatim so a navigation and an action of the same weight are
+          // not two different-looking controls on one card.
+          className="control-h relative inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground shadow-xs transition-[background-color,box-shadow,filter] duration-150 hover:bg-surface-muted active:brightness-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong"
         >
           Manage team
           <ArrowRight className="h-4 w-4" aria-hidden="true" />

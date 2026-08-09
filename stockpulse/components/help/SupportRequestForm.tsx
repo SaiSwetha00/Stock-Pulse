@@ -69,7 +69,11 @@ export default function SupportRequestForm({
 
   if (reference) {
     return (
-      <div className="rounded-xl border border-border bg-surface p-6">
+      /* `rounded-xl` is 16px — the modal, panel and drawer rung. This is a
+         card in the document flow and nothing about it is an overlay, so it
+         was wearing a dialog's radius. 10px and `sp-e1` put it on the same
+         rung as every other card. */
+      <div className="sp-card-p sp-rise sp-e1 rounded-2xl border border-border bg-surface">
         <div className="flex items-center gap-2 text-accent">
           <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
           <h3 className="sp-heading">Request sent</h3>
@@ -100,7 +104,8 @@ export default function SupportRequestForm({
     <form
       onSubmit={handleSubmit}
       noValidate
-      className="rounded-xl border border-border bg-surface p-6"
+      /* Same 16px -> 10px correction as the sent-confirmation panel above. */
+      className="sp-card-p sp-rise sp-e1 rounded-2xl border border-border bg-surface"
     >
       <h3 className="sp-heading">Need more help?</h3>
       <p className="mt-1.5 text-sm leading-relaxed text-muted">

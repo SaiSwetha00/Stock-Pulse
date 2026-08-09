@@ -63,7 +63,15 @@ export default function HelpCenterClient() {
             type="search"
             aria-label="Search help articles"
             placeholder="Search help articles…"
-            className="control-h w-full rounded-lg border border-border bg-surface pl-11 pr-12 text-sm text-foreground placeholder:text-muted focus:border-border-strong focus:outline-none"
+            // The last toolbar control still off-family, and it disagreed on
+            // the one thing D28 says these must share: it rested on
+            // `bg-surface` where the other eight rest on `bg-surface-muted`,
+            // so it read as a panel rather than a field, and it never changed
+            // fill on focus. Same skin as Field's CONTROL now — resting
+            // muted, `focus:bg-surface`, 150ms on both properties — while the
+            // layout stays a toolbar: icon inside the box, placeholder doing
+            // the labelling, clear button on the right.
+            className="control-h w-full rounded-lg border border-border bg-surface-muted pl-11 pr-12 text-sm text-foreground transition-[border-color,background-color] duration-150 placeholder:text-muted focus:border-border-strong focus:bg-surface focus:outline-none"
           />
           {search && (
             <button
@@ -103,11 +111,16 @@ export default function HelpCenterClient() {
             />
           ) : (
             <ul className="mt-4 space-y-2">
-              {results.map((a) => (
+              {results.map((a, i) => (
                 <li key={a.slug}>
+                  {/* These ARE links, so a hover response is honest here in a
+                      way it is not on the category cards. Kept as the border
+                      and tint it already had rather than promoted to
+                      `sp-lift` — a result row lifting off the page competes
+                      with the search box above it. */}
                   <Link
                     href={`/help/${a.slug}`}
-                    className="block rounded-lg border border-border bg-surface p-4 transition hover:border-border-strong hover:bg-surface-muted"
+                    className={`sp-rise sp-delay-${Math.min(i + 1, 6)} sp-e1 block rounded-2xl border border-border bg-surface p-4 transition hover:border-border-strong hover:bg-surface-muted`}
                   >
                     <p className="font-semibold text-foreground">{a.title}</p>
                     <p className="mt-1 text-sm leading-relaxed text-muted">{a.summary}</p>
@@ -121,13 +134,22 @@ export default function HelpCenterClient() {
         <section className="mt-10">
           <h2 className="sp-heading">Browse topics</h2>
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {HELP_CATEGORIES.map((category) => {
+            {HELP_CATEGORIES.map((category, i) => {
               const Icon = category.icon
               const articles = articlesInCategory(category.key)
               if (articles.length === 0) return null
 
               return (
-                <div key={category.key} className="rounded-lg border border-border bg-surface p-5">
+                // Was `rounded-lg border bg-surface p-5` with no elevation and
+                // no entrance — the only cards in the app sitting flat on the
+                // page. `sp-e1` and the card radius put them on the same rung
+                // as every other module; `sp-card-p` replaces the one-off p-5.
+                // No `sp-lift`: the card is not a link (D27) — the article
+                // titles inside it are.
+                <div
+                  key={category.key}
+                  className={`sp-card-p sp-rise sp-delay-${Math.min(i + 1, 6)} sp-e1 rounded-2xl border border-border bg-surface`}
+                >
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-muted">
                     <Icon className="h-5 w-5 text-muted-strong" aria-hidden="true" />
                   </div>

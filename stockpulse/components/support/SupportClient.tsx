@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { CheckCircle2, RotateCcw, Mail, Loader2 } from 'lucide-react'
+import { CheckCircle2, RotateCcw, Mail } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
+import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
 import { LocalDateTime } from '@/components/ui/LocalTime'
 import { useToast } from '@/components/ui/Toast'
@@ -53,21 +54,25 @@ export default function SupportClient({ requests }: { requests: SupportRequestRo
 
   return (
     <div className="sp-stack">
+      {/* A filter, not the page's action.
+
+          These two wore the primary skin when selected — `bg-foreground
+          text-surface`, the same near-black as a Save button — which made the
+          loudest control on a triage screen a thing that only changes what is
+          listed. Secondary when selected and ghost when not keeps the emphasis
+          where the work is, and `aria-pressed` still says which is on. */}
       <div className="flex flex-wrap items-center gap-2">
         {(['open', 'all'] as const).map((f) => (
-          <button
+          <Button
             key={f}
-            type="button"
+            size="sm"
+            variant={filter === f ? 'secondary' : 'ghost'}
             onClick={() => setFilter(f)}
             aria-pressed={filter === f}
-            className={`control-h-sm rounded-lg px-3 text-xs font-semibold transition-colors ${
-              filter === f
-                ? 'bg-foreground text-surface'
-                : 'border border-border text-muted-strong hover:bg-surface-muted'
-            }`}
+            className={filter === f ? 'border-border-strong text-foreground' : undefined}
           >
             {f === 'open' ? `Open (${openCount})` : `All (${requests.length})`}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -83,8 +88,14 @@ export default function SupportClient({ requests }: { requests: SupportRequestRo
         />
       ) : (
         <ul className="sp-stack">
-          {visible.map((r) => (
-            <li key={r.id} className="sp-card-p sp-e1 rounded-2xl border border-border bg-surface shadow-sm">
+          {visible.map((r, i) => (
+            // Stagger capped at 6: sp-delay only defines six rungs, and past
+            // half a second an entrance stops reading as one movement and
+            // starts reading as a list loading slowly.
+            <li
+              key={r.id}
+              className={`sp-card-p sp-rise sp-delay-${Math.min(i + 1, 6)} sp-e1 rounded-2xl border border-border bg-surface shadow-sm`}
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -112,21 +123,25 @@ export default function SupportClient({ requests }: { requests: SupportRequestRo
                   </p>
                 </div>
 
-                <button
-                  type="button"
+                {/* Secondary, not primary, and deliberately so: there is one
+                    of these per row, and N high-emphasis buttons is the same
+                    as none. `loading` replaces the hand-rolled spinner
+                    branch — Button keeps the label in place while it spins,
+                    so the row does not reflow mid-click. */}
+                <Button
+                  size="sm"
+                  variant="secondary"
                   onClick={() => toggle(r)}
-                  disabled={pending && busyId === r.id}
-                  className="control-h-sm inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-semibold text-muted-strong transition-colors hover:bg-surface-muted disabled:opacity-60"
+                  loading={pending && busyId === r.id}
                 >
-                  {pending && busyId === r.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                  ) : r.status === 'open' ? (
-                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  ) : (
-                    <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                  )}
+                  {!(pending && busyId === r.id) &&
+                    (r.status === 'open' ? (
+                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    ) : (
+                      <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                    ))}
                   {r.status === 'open' ? 'Mark resolved' : 'Reopen'}
-                </button>
+                </Button>
               </div>
 
               <p className="sp-body mt-3 whitespace-pre-wrap border-l-2 border-border pl-3">
