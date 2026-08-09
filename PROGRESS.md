@@ -987,3 +987,122 @@ and 0012 — it needs the Supabase SQL editor.
 - the functional pass: create three, rename one, reorder, assign a product,
   and confirm the delete refusal is readable. All four actions currently return
   "Categories are not set up on this database yet".
+
+### Migration 0013 applied — 2026-08-09, and everything it blocked now measured
+
+The owner applied it in the SQL editor. `category_count = 20`, `product_fks = 2`,
+`old_check_remaining = 0`, all four policies present.
+
+**20 is 4 stores x 5 defaults, which is exactly right.** Checked per store
+before anything else, because a backfill that ran twice would also produce a
+number larger than expected:
+
+| Store | Categories | Dup slug | Dup name |
+|---|---|---|---|
+| Neighborhood Market | 5 | 0 | 0 |
+| corner grocer | 5 | 0 | 0 |
+| sital | 5 | 0 | 0 |
+| sandal local store (harness) | 5 | 0 | 0 |
+
+The backfill's second, defensive pass inserted nothing — correct, since the old
+CHECK guaranteed every product already used one of the five.
+
+#### Functional pass — 28 assertions, 28 passed
+
+Driven through the **real Server Actions** over HTTP with a live session
+(`cat-actions.js` / `cat-functional.js`), with every assertion checked against
+PostgREST read using the service role rather than against what the action
+returned. An action reporting success and a database that changed are two
+different claims.
+
+The four action ids are unlabelled in `server-reference-manifest.json`, so they
+were identified **by behaviour** against a disposable row rather than guessed —
+a wrong guess would have deleted a real category.
+
+| Step | Result |
+|---|---|
+| Create three | `Frozen Foods` / `Bakery` / `Pet Supplies`, appended to the end, not inserted mid-list |
+| Validation, server-side | blank · whitespace-only · duplicate · duplicate-different-case · punctuation-only · 41 chars — all six refused with the right message, zero rows created |
+| Rename | name changed, **slug unchanged**, sort_order untouched |
+| Reorder | moved up one place; sort_order renumbered `1..8` with no ties; moving the first row up is a no-op, not an error |
+| Assign a product | inserted into a shop-created category, HTTP 201 |
+| FK negative | unknown category refused `HTTP 409 · 23503` |
+| **Delete with products** | refused, HTTP 200 `ok:false`, row still in the database, message: *"1 product still use this category. Move it to another category first, then delete this one."* |
+| Delete empty | removed |
+| Cleanup | back to the 5 seeded categories, 0 test products left |
+
+#### RLS — the database half of the pairing, which the app-layer test could not reach
+
+Asked directly with the anon key and a real user session, so the Server Action
+is not in the path at all:
+
+| | staff | manager | owner |
+|---|---|---|---|
+| SELECT | 200 · 5 rows | 200 · 5 rows | 200 · 5 rows |
+| INSERT | **403 · 42501** | 201 | 201 |
+| UPDATE | **200 · 0 rows** | 200 · 1 row | 200 · 1 row |
+| DELETE | **200 · 0 rows** | 200 · 1 row | 200 · 1 row |
+
+Staff read and cannot write — read access is deliberate, since they render
+category names on `/inventory`, `/dashboard` and `/sales`. `lib/permissions.ts`
+and the policies agree.
+
+**This is D24 demonstrated rather than cited.** A refused UPDATE and a refused
+DELETE are both **HTTP 200 with zero rows** — no error object, nothing to
+branch on. That is precisely why every write in the actions asks for its rows
+back with `.select('id')`.
+
+`scope-check.js` gained `categories` in its table list: a new RLS-protected
+table that is not measured means the blast radius silently stops covering the
+schema. Re-run as owner — `categories 20 total, 5 visible, 0 outside own store`.
+
+#### The manager's route through the product form
+
+Driven in a real browser as a **manager**, not inferred:
+
+```
+/inventory landed on: /inventory     react hydrated: true
+Add Product: clicked "Add Product"
+link: href="/settings/categories" visible=true
+      categoryOptions=[Produce, Dairy & Eggs, Packaged Goods, Beverages, Household]
+after click: path=/settings/categories  h1="Product Categories"
+             addCard=true  migrationWarning=false
+```
+
+No bounce to `/dashboard`. The dropdown options came from the database and the
+migration banner is absent, which is the data-driven claim confirmed at the
+form itself rather than at the layer above it.
+
+The first run of this reported the modal never opening. That was the probe:
+React had not hydrated, so a CDP click landed on a button with no handler
+attached. Fifth consecutive round in which something a probe flagged was the
+probe — logged in FOUND-ISSUES, along with the fact that the CDP harness *does*
+hydrate React, contradicting an older note that said this environment never
+does.
+
+#### Still open
+
+- **CLS 0.0006 on `/dashboard` at 1440**, both themes, versus 0 at the Phase 2
+  baseline. 1.2% of budget, not isolated, logged for Phase 7's performance
+  sweep rather than left to become the new baseline.
+- `0009_product_images_bucket.sql` remains unapplied — unrelated to Phase 4.
+
+#### `/settings/categories` re-measured post-migration
+
+The Phase 4 harness pass measured this route in its **fallback** state — the
+warning banner up, every control disabled — because 0013 had not been applied
+yet. That page no longer exists, so the numbers were re-taken against the real
+one, serially, both themes, 390 and 1440:
+
+| | 390 light | 1440 light | 390 dark | 1440 dark |
+|---|---|---|---|---|
+| CLS | 0 | 0 | 0 | 0 |
+| console errors | 0 | 0 | 0 | 0 |
+| overflow offenders | 0 | 0 | 0 | 0 |
+| tabStops = gold | 22 = 22 | 22 = 22 | 22 = 22 | 22 = 22 |
+| nonGoldRing / ringless | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+
+`tabStops` rose from 20–21 to 22 in every state. That is the point: the rename,
+move and delete controls are enabled now, so they are tab stops, and all of
+them carry the gold ring. A measurement of the disabled page would have
+reported a clean result about a screen nobody can use.

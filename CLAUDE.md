@@ -2,16 +2,35 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Repository layout — two separate projects
+## Repository layout — one repository, two projects
 
-This folder is not itself a git repository. It bundles two independently-versioned projects; know which one you're in before running any command:
+**This folder IS the git repository**, and `stockpulse/` is a subdirectory of
+it — there is no `stockpulse/.git`. Verify with `git rev-parse --show-toplevel`
+from anywhere in the tree; it answers with this folder. A commit made from
+inside `stockpulse/` lands here, on this branch, and `git status` run there
+shows paths relative to `stockpulse/` while still being the same working tree.
+
+(This section previously said the root was not a repository and that
+`stockpulse/` was its own. That was wrong, and it mattered: it invites a second
+`git push` for a subfolder that has nothing to push, and it makes the planning
+docs at the root look like they sit outside version control when they are
+tracked here alongside the app.)
+
+It holds two projects. Know which one you're in before running any command:
 
 1. **Root (this directory)** — a static marketing/landing-page prototype (`react-example`, Vite + React 19), generated in Google AI Studio to mock up the "Stock Pulse" visual design (`src/App.tsx` renders the whole single-page site: hero, features, pricing, testimonials, an in-page `FullDashboardView` mock, etc., all from static/hardcoded data in `src/types.ts`-typed components). It is not wired to any backend — the `@google/genai` and `express` deps in its `package.json` are unused scaffolding from the AI Studio template.
-2. **`stockpulse/`** — the real product: a Next.js 16 App Router application with a Supabase backend. It is **its own git repository** (`stockpulse/.git`), with its own `stockpulse/CLAUDE.md` (which imports `stockpulse/AGENTS.md`). `.claude/launch.json` at the root points `npm run dev` at this subfolder, confirming it's the primary app for day-to-day development, not the root prototype.
+2. **`stockpulse/`** — the real product: a Next.js 16 App Router application with a Supabase backend. A plain subdirectory of this repository, not a nested one, with its own `stockpulse/CLAUDE.md` (which imports `stockpulse/AGENTS.md`). `.claude/launch.json` at the root points `npm run dev` at this subfolder, confirming it's the primary app for day-to-day development, not the root prototype.
 
 Nearly all feature work happens inside `stockpulse/`. The root prototype is a frozen design reference; `designs/*.png` holds the original mockups it was built from.
 
-**Current working-tree caveat:** as of this writing, `stockpulse/` has uncommitted local changes where `package.json`, `tsconfig.json`, `README.md`, and `.gitignore` were overwritten with the root prototype's versions (`git status`/`git diff` inside `stockpulse/` shows this), and copies of the root prototype's own files (`src/`, `index.html`, `vite.config.ts`, `metadata.json`, `bun.lock`) landed inside `stockpulse/` as untracked files. The commands below reflect the **real, git-committed** Next.js app (`git show HEAD:package.json` in `stockpulse/`). If `npm run dev` in `stockpulse/` unexpectedly launches Vite instead of Next, run `git status` there — the fix is restoring the tracked files and removing the stray untracked ones (confirm with the user before discarding anything).
+**The working-tree caveat that used to be here is resolved and has been
+removed.** It described `stockpulse/package.json`, `tsconfig.json`, `README.md`
+and `.gitignore` having been overwritten with the root prototype's versions,
+plus stray copies of `src/`, `index.html`, `vite.config.ts`, `metadata.json`
+and `bun.lock` sitting inside `stockpulse/`. Checked 2026-08-09: every one of
+those files is absent, `stockpulse/package.json` carries the Next.js `dev`
+script, and the tree is clean. If `npm run dev` in `stockpulse/` ever launches
+Vite instead of Next, that is the symptom to look for again.
 
 ## Commands — `stockpulse/` (the real app)
 
@@ -27,7 +46,7 @@ npm run lint      # eslint
 
 - `NODE_EXTRA_CA_CERTS=./avast-root.pem` in `dev` is machine-specific (Avast antivirus TLS interception); if not needed on your machine, run `next dev` directly.
 - No test suite is configured in this project.
-- Database schema/migrations live in `stockpulse/supabase/` (`schema.sql` + `schema_phase2-4.sql` for the base schema, `migrations/0001`–`0005` applied afterward) — run these in the Supabase SQL editor, there's no migration CLI wired up.
+- Database schema/migrations live in `stockpulse/supabase/` (`schema.sql` + `schema_phase2-4.sql` for the base schema, then `migrations/0001`–`0013`) — run these in the Supabase SQL editor, there's no migration CLI wired up. There is also **no DDL path from an agent**: no `psql` on this machine, no `pg`/`postgres` driver in the project, and the service-role key reaches PostgREST, which is the data plane only. Applying a migration is always a request to the owner. `0009_product_images_bucket.sql` is the one still outstanding.
 
 ### Environment variables (`stockpulse/.env.local`)
 

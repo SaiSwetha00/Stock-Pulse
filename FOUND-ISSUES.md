@@ -674,3 +674,56 @@ deploy. What it does mean is that **0013's RLS policies are unexercised**: the
 layer, and the `can_manage()` half in the database has never been asked a
 question. CLAUDE.md's warning about those two drifting is exactly why that gap
 is written down rather than assumed closed.
+
+## S3 — CLS 0.0006 on /dashboard at 1440, both themes · SWEEP IN PHASE 7
+
+Measured during the Phase 4 harness pass, 2026-08-09. `/dashboard` at 1440px
+reports **CLS 0.0006** in light and dark; at 390px it is 0, and every other
+route measured 0 at both widths.
+
+It is 1.2% of the 0.05 budget, which is exactly why it is written down. Phase 2
+measured **CLS 0 in all 16** dashboard states, so this is a change from a known
+baseline, and a number that drifts upward one harness run at a time is
+indistinguishable from a number that was always slightly above zero — unless
+somebody records the day it moved.
+
+**Not caused by Phase 4, on the evidence available.** The harness store has
+zero products, so `lowStockItems` is empty and the low-stock table — the only
+place on this route that renders a category name — never renders at all. The
+plausible candidates are `CountUp`'s width reservation and the sparkline, both
+of which are 1440-only geometry, and neither of which was touched.
+
+**Not isolated.** Doing it properly means the Layout Instability API's
+`sources` array, attributing the shift to the specific node, rather than
+guessing from a total. That is Phase 7's performance sweep, alongside the
+Lighthouse/LCP/INP work that has been deferred for the same reason — it needs a
+real browser run against authenticated routes.
+
+Recorded so it cannot quietly become the new baseline.
+
+## Harness — a click before hydration is a no-op that looks like a broken control · FIXED (probe)
+
+`link-probe.js` clicked "Add Product" on `/inventory`, reported
+`clicked`, and then found no dialog: `{"found":false,"why":"no dialog mounted"}`.
+Read literally, the product form does not open.
+
+The button is in the server-rendered HTML long before React attaches its
+handler. A CDP `el.click()` on it therefore does nothing at all, and does it
+silently — `dispatchEvent` returns true, the probe carries on, and the missing
+dialog reads as an application defect.
+
+Fixed by waiting for a real React root (`Object.keys(node).some(k =>
+k.startsWith('__react'))`) before clicking, rather than sleeping and hoping.
+With that in place the same script opened the modal, read the link, clicked it
+and landed on `/settings/categories`.
+
+**Fifth consecutive round in which something a probe flagged was the probe**
+(D31). It is also the same family as D30: an instrument that could not tell it
+was *early*. A fixed sleep is a bet about how fast the machine is; waiting for
+the condition is not.
+
+Worth keeping for the next round: this contradicts the older note that "the
+Browser pane in this environment never hydrates React". That was true of the
+Browser pane MCP surface, and is **not** true of the CDP harness — this run
+measured `react hydrated: true` and drove a real modal. Interaction tests are
+available here; they just have to wait for hydration first.
