@@ -999,3 +999,49 @@ tempted to delete it: the greeting cannot be computed on the server, because
 the server does not know the reader's clock. `useSyncExternalStore` with a
 neutral server snapshot is the correct pattern. The bug was never the
 correction — it was that the two strings had different line counts.
+
+## D45 - Reproducible is not correct
+
+The Phase 7B axe sweep reported 87 violations twice, byte-identical. A
+single-route run on the same build reported a different answer, also twice.
+Both were reproducible; one was wrong.
+
+The sweep reused a named Chrome --user-data-dir, so localStorage - theme
+included - survived between runs. Deleting the profile changed the total from
+87 to 12 with no code change.
+
+A stale instrument gives the same wrong answer every time, and the second run
+reads as confirmation. Repeating a measurement tests its determinism, not its
+truth. What separates them is a claim the data itself can contradict: here,
+fgColor #6b6157 on bgColor #14100c is a foreground from one theme on a
+background from the other, which cannot occur in a correctly rendered page.
+That was visible in the first output and should have been the first question.
+
+Two cheap rules follow: use a throwaway browser profile per run, and assert on
+the data rather than the count. A count can only be compared with another
+count; values carry their own plausibility.
+
+Sits alongside D38 - that rule says confirm the probe before believing a
+defect. This one says a probe agreeing with itself is not that confirmation.
+
+## D46 - Report an instrument's variance before reporting its numbers
+
+Lighthouse mobile on this machine returned perf 0, 30 and 33 for the same build
+and route - a 7x spread on LCP. Desktop returned 96, 92, 94 with LCP inside
+100ms. Same tool, same session; one half is evidence and the other is noise.
+
+So Phase 7B reports desktop Lighthouse as measurement and mobile as indicative
+only, and makes no before/after claim from the mobile figures. The greeting
+improvement is evidenced structurally instead - H1.sp-title is no longer an LCP
+candidate, and "Welcome back" is absent from the served HTML - because a
+structural fact does not need a stable machine to be true.
+
+The rule: measure an instrument's spread before quoting its output, whenever a
+number will justify a change. Three runs is enough to tell evidence from noise,
+and costs less than defending a fabricated improvement later. A single
+Lighthouse score quoted without its variance is an anecdote wearing a number's
+clothes.
+
+Corollary: prefer facts a slow machine cannot distort - which element is the
+LCP, which node shifted, whether an attribute is present - over composite
+scores computed under simulated throttling.

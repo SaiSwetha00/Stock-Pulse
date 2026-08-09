@@ -1031,3 +1031,90 @@ The probe still only exercises the desktop one. Adding a `maxWidth: 1023`
 entry for the mobile bell is a data change to the `OVERLAYS` array, not code,
 and belongs in 7B's accessibility pass alongside the rest of the traversal
 work. Recorded so the coverage gap is not mistaken for coverage.
+
+---
+
+# Phase 7B — measurement and cross-browser (2026-08-09)
+
+## S2 — CONFIRMED, NOT FIXED: muted text on the dark stat tiles is 3.13:1
+
+12 nodes across 8 surfaces, every one the identical pair:
+
+    fgColor #6b6157   bgColor #14100c   ratio 3.13:1   required 4.5:1
+
+`#6b6157` is the LIGHT theme's `--muted`. `#14100c` is `--foreground`, used as
+a *background* by the inverted stat tiles (`rounded-2xl bg-foreground p-4`).
+So a label styled for a light card is sitting on a deliberately dark one.
+
+Affected: `/inventory`, `/sales`, `/customers`, `/suppliers`, `/staff`,
+`/reports`, `/profile`, and the Add Product / Add Customer modals (which show
+the same tiles behind them).
+
+**Reproduced in Chrome AND Edge**, and reproduced in isolation on a single
+route with a clean browser profile, with `document.documentElement.className`
+confirming no `dark` class. That rules out the theme-emulation artifact
+described below.
+
+**Why it is not fixed here.** The correct fix is a token — a muted tone that
+means "muted ON an inverted surface" — and then swapping it in at each site.
+D9 rules out the obvious shortcut, `text-surface/70`, because `/opacity` on
+these tokens compiles and emits nothing. D12 is the precedent: a tone with its
+own meaning gets its own token rather than borrowing one. That is a change
+across eight components plus a new token plus re-verification, and I ran out of
+context to do it and prove it. Doing it half-verified would be worse than
+leaving it measured and named.
+
+**The recipe, for whoever picks it up:** add `--muted-on-dark` (light theme:
+something around `#a8a099` gives ~4.6:1 on `#14100c`; dark theme: reuse
+`--muted-strong`), expose it as `text-muted-on-dark`, and replace `text-muted`
+only inside `bg-foreground` blocks. Then re-run `axe-sweep.js` — the count
+should go 12 -> 0.
+
+## Harness — axe results are corrupted by a reused browser profile
+
+The first sweep reported **87 nodes including 34 color-contrast on /settings**,
+reproducibly — byte-identical across two runs. A single-route run on the same
+build reported **zero** contrast violations on /settings, also reproducibly.
+
+Both were "reproducible". Only one was right.
+
+The sweep reuses a named `--user-data-dir` per width/theme, so `localStorage`
+persisted between runs — including `sp-theme`. Deleting the profile directory
+dropped /settings from 36 nodes to 0 and the total from 87 to 12, with no code
+change at all.
+
+**Reproducibility is not correctness.** Two identical runs of an instrument
+carrying the same stale state produce the same wrong answer twice, and the
+second run reads as confirmation. The tell was the data, not the count: a
+foreground from one theme on a background from the other is a combination that
+cannot occur in a correctly rendered page, and it should have been the first
+thing questioned rather than the fifth.
+
+Fix: delete the profile directory before a sweep, or use a fresh one per run.
+
+## Lighthouse mobile is not reproducible on this machine
+
+Three runs, same build, same route (`/dashboard`, mobile preset):
+
+    run 1   perf   0   FCP 14937   LCP 20838   TBT   NaN
+    run 2   perf  30   FCP  3870   LCP 13964   TBT  4928
+    run 3   perf  33   FCP  2825   LCP 13925   TBT  6817
+
+A 7x spread with nothing changing. Lighthouse's mobile preset applies 4x CPU
+throttling, which multiplies whatever contention already exists — and this
+machine was running `next start`, several headless Chromes and a build.
+
+Desktop, by contrast, is steady: perf 96 / 92 / 94, LCP 1222 / 1314 / 1258,
+CLS 0.0000 across three runs.
+
+**So: desktop Lighthouse numbers are reported as measurements. Mobile numbers
+are reported as indicative only, and no before/after claim is made from them.**
+The greeting fix is evidenced structurally instead — `H1.sp-title` is no longer
+an LCP candidate and "Welcome back" is absent from the served HTML.
+
+## Note — voice input has still never been exercised with a real microphone
+
+Unchanged since it was built. Headless Chrome has no microphone, and
+`SpeechRecognition` in Chrome sends audio to a Google speech service, so there
+is nothing here to fake that would prove anything. The owner is testing it;
+steps and expected failure modes are in PROGRESS.

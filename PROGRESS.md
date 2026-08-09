@@ -1552,3 +1552,127 @@ offenders 0, no horizontal overflow, `gold == tabStops`, `nonGoldRing` 0,
 - Verify a Resend domain and set `RESEND_FROM`.
 - Configure custom SMTP, then decide on **Confirm email** — and tell me, so I
   can add the "check your email" screen signup will need.
+
+---
+
+# PHASE 7B - measurement and cross-browser (2026-08-09, ui/palette-round)
+
+Commit 9f7b1c0. Not merged to main.
+
+## Blockers for Phase 9 handover - owner config, both waiting on a domain
+
+**1. Resend - no verified sending domain.** Until one exists, support
+confirmation replies NEVER reach the person who submitted the request; only
+the operator notification works. sendEmail now refuses rather than sending from
+the shared onboarding@resend.dev, so the failure is loud in the server log
+instead of silent.
+Needed: Resend -> Domains -> Add Domain; add the MX + SPF/DKIM TXT records;
+wait for Verified; then set RESEND_FROM="StockPulse <you@yourdomain.com>" in
+Vercel (Production + Preview) and .env.local. Optionally
+SUPPORT_CONFIRMATION_EMAILS=1 afterwards.
+
+**2. Supabase - email addresses are never verified** (mailer_autoconfirm true).
+The privacy policy promises breach notification by email, and that promise is
+only as good as the address. Needed in order: custom SMTP (Project Settings ->
+Authentication -> SMTP Settings, pointed at Resend on the verified domain),
+THEN Authentication -> Sign In / Providers -> Email -> Confirm email. Turning
+confirmation on first throttles signups into an opaque 429. Signup will then
+need a "check your email" screen - signUpOwner currently redirects to
+/dashboard before a session exists. Invites and resets are unaffected.
+
+## Lighthouse - authenticated routes
+
+Desktop, three runs on /dashboard for variance: perf 96 / 92 / 94, LCP
+1222 / 1314 / 1258 ms, CLS 0.0000. Steady, so these are measurements.
+
+| Route | desktop perf | FCP | LCP | TBT | CLS |
+|---|---|---|---|---|---|
+| /dashboard | 97 | 464 | 1177 | 31 | 0.0000 |
+| /inventory | 87 | 705 | 1463 | 155 | 0.0000 |
+| /reports | 97 | 449 | 1133 | 40 | 0.0000 |
+| /settings | 94 | 489 | 1407 | 40 | 0.0000 |
+
+Mobile is NOT reproducible on this machine - perf 0 / 30 / 33 on the same
+build, LCP 20838 / 13964 / 13925. Reported as indicative only; no before/after
+claim drawn from it (D46). Indicative mobile: perf 36-62, LCP 2384-8187 ms,
+TBT 1426-2169 ms, dominated by 2-3s of script evaluation under 4x CPU
+throttling. No polyfill chunk is requested at all, so the long-standing
+polyfill note earlier in this file is stale.
+
+**Lighthouse vs the harness.** They measure different things rather than
+disagreeing. The harness runs unthrottled on localhost and reports specific
+facts; Lighthouse desktop agrees with it - both say CLS 0. The apparent
+mobile gap is throttling plus machine contention. For regression work I trust
+the harness and the direct probes, because "which element is the LCP" and
+"which node moved" are facts a slow machine cannot distort.
+
+## The dashboard LCP, isolated
+
+vitals-probe.js reads entry.element, not a total. At 390 with 4x CPU the LCP
+element was H1.sp-title - "Good evening, Harness" - at 5440ms: the greeting
+arriving as a fresh LCP candidate AFTER hydration rewrote it.
+
+Fixed by computing the greeting server-side from STORE_TIMEZONE
+(storeGreeting()), the clock every other date in the app already uses. Verified
+structurally: "Welcome back" absent from the served HTML, H1.sp-title no longer
+among the LCP candidates.
+
+## Accessibility - axe-core 4.12.1, 17 routes + 4 overlays
+
+Injected from node_modules; no CDN, no new dependency. Overlays driven open
+with 3C-i's traversal.
+
+| Rule | before | after |
+|---|---|---|
+| aria-prohibited-attr | 19 | **0** |
+| region | 19 | **0** |
+| heading-order | 2 | **0** |
+| label (critical) | 1 | **0** |
+| color-contrast | 46 | **12** |
+| total nodes | 87 | **12** |
+
+The first two were one element: the toast container had aria-label on a
+roleless div, so the name was ignored AND its content sat outside every
+landmark. role="region" fixed both on all 17 routes - 38 of 87 findings from
+one missing attribute.
+
+Of the 46 contrast findings, 34 were the harness (reused Chrome profile
+carrying stale localStorage; D45). The remaining 12 are REAL, reproduce in
+Chrome and Edge, and are NOT FIXED: text-muted on the inverted bg-foreground
+stat tiles, 3.13:1 against 4.5 required. Fix recipe in FOUND-ISSUES.
+
+Focus traps, keyboard traversal and focus restore were measured in 3C-i (104
+overlay instances) and re-confirmed here by every overlay opening, auditing and
+closing cleanly.
+
+## Cross-browser
+
+| | tested | result |
+|---|---|---|
+| Chrome headless | yes | harness clean at 390 and 1440; axe as above |
+| Edge headless | yes | IDENTICAL - CLS 0, console 0, no overflow, gold == tabStops, nonGoldRing 0, ringless 0; reproduces the same 1 contrast rule |
+| Mobile widths 390 | yes | both engines, no horizontal overflow |
+| Safari / iOS | NO | not installed, not installable on Windows. No Safari claim is made. WebKit behaviour for :focus-visible, lh units and preserve-3d is unverified. |
+| Firefox | no | not attempted |
+
+## Voice input - owner test steps
+
+Open the AI assistant -> click the microphone, labelled "Ask by voice" -> allow
+the permission prompt -> speak -> transcript fills live -> button becomes "Stop
+recording". Chrome and Edge ask once per origin and remember; on the https
+preview URL the prompt appears normally.
+
+Every failure shows a VISIBLE message (rendered at VoiceInput.tsx:294, not
+swallowed):
+
+| Situation | Expected |
+|---|---|
+| Permission denied or dismissed | "Microphone access is blocked..." naming how to re-enable in site settings |
+| Insecure origin (plain http) | "Voice input needs a secure connection..." - checked BEFORE asking, because the browser reports it as not-allowed, indistinguishable from a denial |
+| No SpeechRecognition (Firefox, most Safari) | control renders as unsupported rather than failing on click |
+| Nothing heard | "Didn't catch that - try again, a little closer to the microphone." |
+| Service disabled | "Speech recognition is turned off in this browser's settings." |
+
+Confirmed by reading the code, NOT by speaking into it. Headless Chrome has no
+microphone and Chrome's SpeechRecognition sends audio to a Google service, so
+nothing here could be faked into proving it works.
