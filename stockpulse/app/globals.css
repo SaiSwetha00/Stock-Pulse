@@ -245,7 +245,18 @@ textarea:focus-visible,
 summary:focus-visible,
 [role='button']:focus-visible,
 [role='menuitem']:focus-visible,
-[tabindex]:focus-visible {
+[tabindex]:focus-visible,
+/* Plain <div>, and it is not redundant with [tabindex] above.
+   Chrome makes an OVERFLOWING scroll container keyboard-focusable on
+   its own — deliberately, so a keyboard user can scroll a region they
+   cannot drag — and it does so WITHOUT adding a tabindex attribute, so
+   the selector above never matched it. Measured on /reports at 390,
+   where the revenue table's `overflow-auto` wrapper became a tab stop
+   and painted the browser default outline, rgb(16,16,16), instead of
+   the gold token. It appeared only at 390 because that is the only
+   width where the table actually overflows — which is exactly why it
+   survived every desktop sweep. */
+div:focus-visible {
   /* Gold, not foreground. The focus ring is the single most-seen
      accent surface in a keyboard-driven admin app, and it was
      near-black on a cream page — invisible as an accent and

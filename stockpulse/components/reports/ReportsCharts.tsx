@@ -69,10 +69,24 @@ export default function ReportsCharts({
   daily,
   categories,
   products,
+  topProductsExtra,
 }: {
   daily: { label: string; value: number; iso: string }[]
   categories: { label: string; revenue: number; pct: number }[]
   products: { name: string; units: number; revenue: number }[]
+  /**
+   * The full ranked list and its CSV export, rendered inside this card.
+   *
+   * A slot rather than a second section, because the page previously carried
+   * two cards both headed "Top products" — a chart of the best five and a
+   * table of all ten — and a reader comparing them had no way to tell which
+   * was authoritative or why the numbers stopped at different places. One
+   * card, chart first, the full list behind a disclosure.
+   *
+   * Passed in from ReportsClient rather than built here so every CSV export
+   * on the page stays defined next to its siblings.
+   */
+  topProductsExtra?: React.ReactNode
 }) {
   const prefersReduced = useReducedMotion()
   const animate = !prefersReduced
@@ -166,7 +180,9 @@ export default function ReportsCharts({
       {/* ---- Top products ---- */}
       <section className="sp-rise sp-delay-2 sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
         <h2 className="sp-heading">Top products</h2>
-        <p className="sp-body mt-1 text-sm">Highest revenue, best five</p>
+        <p className="sp-body mt-1 text-sm">
+          Highest revenue, best five of {products.length}
+        </p>
         <div className="mt-4 h-[240px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={topFive} layout="vertical" margin={{ top: 4, right: 12, left: 4, bottom: 0 }}>
@@ -200,6 +216,7 @@ export default function ReportsCharts({
             </BarChart>
           </ResponsiveContainer>
         </div>
+        {topProductsExtra}
       </section>
     </div>
   )

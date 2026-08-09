@@ -16,6 +16,18 @@ import {
 } from '@/components/auth/AuthUI'
 import { fadeUp } from '@/lib/motion'
 
+/**
+ * Published on purpose — the same pair is in the repo README and in
+ * scripts/acceptance/ensure-demo-user.cjs, which is what creates the account
+ * and resets this password on every run so the three cannot drift apart.
+ *
+ * It signs in as an OWNER of the seeded demo store and nothing else: RLS scopes
+ * it to that one store, everything in it is generated acceptance data, and
+ * re-running the seed restores it. See the script for the full reasoning.
+ */
+const DEMO_EMAIL = 'demo@stockpulse.test'
+const DEMO_PASSWORD = 'StockPulseDemo2026!'
+
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -50,6 +62,31 @@ export default function LoginPage() {
     }
   }
 
+  /**
+   * One click into the seeded demo store.
+   *
+   * This exists because the alternative is a reviewer meeting a sign-up form,
+   * deciding it is not worth inventing a store to look at somebody's project,
+   * and closing the tab having seen nothing. The credentials are printed above
+   * the button rather than only injected by it, so it is obvious what the
+   * click does and they can be typed by hand or reused later.
+   *
+   * `login()` is called with the demo values directly instead of setting state
+   * and submitting: setState is asynchronous, so submitting in the same tick
+   * would post whatever was in the fields BEFORE the click — usually nothing.
+   */
+  async function handleDemoLogin() {
+    setEmail(DEMO_EMAIL)
+    setPassword(DEMO_PASSWORD)
+    setError('')
+    setLoading(true)
+    const result = await login({ email: DEMO_EMAIL, password: DEMO_PASSWORD })
+    if (result?.error) {
+      setError(result.error)
+      setLoading(false)
+    }
+  }
+
   return (
     <AuthShell
       hero={
@@ -73,7 +110,34 @@ export default function LoginPage() {
           </motion.p>
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+        {/* Reviewer shortcut, above the form because below it is where nobody
+            scrolls on a sign-in page. */}
+        <motion.div
+          variants={fadeUp}
+          className="mt-6 rounded-xl border border-[var(--sp-gold)]/40 bg-[var(--sp-gold)]/[0.07] p-4"
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--sp-gold)]">
+            Reviewing this project?
+          </p>
+          <p className="mt-1.5 text-sm text-muted-strong">
+            Sign in to a demo store with 40 products and 30 days of sales already in it.
+          </p>
+          <p className="mt-2 font-mono text-xs text-muted-strong">
+            {DEMO_EMAIL}
+            <span className="mx-1.5 text-muted">/</span>
+            {DEMO_PASSWORD}
+          </p>
+          <button
+            type="button"
+            onClick={handleDemoLogin}
+            disabled={loading}
+            className="mt-3 w-full rounded-lg border border-[var(--sp-gold)]/60 bg-[var(--sp-gold)]/15 px-4 py-2.5 text-sm font-semibold text-[#e0e2ed] transition-colors hover:bg-[var(--sp-gold)]/25 disabled:opacity-60"
+          >
+            {loading ? 'Signing in…' : 'Explore the demo store'}
+          </button>
+        </motion.div>
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           {shownError && <AuthError message={shownError} />}
 
           <AuthField

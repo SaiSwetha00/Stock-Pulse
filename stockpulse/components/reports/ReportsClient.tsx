@@ -379,7 +379,62 @@ export default function ReportsClient({
         {/* Charts first, tables under them. The tables are the record and stay
             exactly as they were — these read the SAME memoised series, so the
             picture and the numbers cannot drift apart. */}
-        <ReportsCharts daily={daily} categories={categories} products={products} />
+        <ReportsCharts
+          daily={daily}
+          categories={categories}
+          products={products}
+          topProductsExtra={
+            // The full ranked list, folded into the chart's own card. It used
+            // to be a second card with the same "Top products" heading, so the
+            // page said the same thing twice and disagreed with itself about
+            // how many rows that meant.
+            <details className="group mt-4 border-t border-border pt-4">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-accent-ink hover:underline">
+                View all {products.length} products
+              </summary>
+              <div className="mt-3 flex justify-end">
+                <ExportCsvButton
+                  columns={[
+                    { header: 'Product', value: (p: (typeof products)[number]) => p.name },
+                    { header: 'Units', value: (p: (typeof products)[number]) => p.units },
+                    { header: 'Revenue', value: (p: (typeof products)[number]) => p.revenue },
+                  ]}
+                  rows={products}
+                  filenameBase="top-products"
+                  itemLabel="products"
+                />
+              </div>
+              <div className="mt-3 overflow-x-auto">
+                <table className="sp-table w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
+                      <th scope="col" className="pb-3 pr-4">
+                        Product
+                      </th>
+                      <th scope="col" className="pb-3 pr-4 text-right">
+                        Units
+                      </th>
+                      <th scope="col" className="pb-3 text-right">
+                        Revenue
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {products.map((p) => (
+                      <tr key={p.name} className="border-b border-border last:border-0">
+                        <td className="py-2.5 pr-4 text-muted-strong">{p.name}</td>
+                        <td className="sp-num py-2.5 pr-4 text-right text-muted-strong">{p.units}</td>
+                        <td className="sp-num py-2.5 text-right font-semibold text-foreground">
+                          {formatCurrency(p.revenue)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          }
+        />
 
         <div className="mt-6 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
           {/* Revenue by day */}
@@ -418,51 +473,6 @@ export default function ReportsClient({
                       <td className="py-2.5 pr-4 text-muted-strong">{d.label}</td>
                       <td className="sp-num py-2.5 text-right font-semibold text-foreground">
                         {formatCurrency(d.value)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* Top products */}
-          <section className="sp-rise sp-delay-2 sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="sp-heading">Top products</h2>
-              <ExportCsvButton
-                columns={[
-                  { header: 'Product', value: (p: (typeof products)[number]) => p.name },
-                  { header: 'Units', value: (p: (typeof products)[number]) => p.units },
-                  { header: 'Revenue', value: (p: (typeof products)[number]) => p.revenue },
-                ]}
-                rows={products}
-                filenameBase="top-products"
-                itemLabel="products"
-              />
-            </div>
-            <div className="mt-4 overflow-x-auto">
-              <table className="sp-table w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
-                    <th scope="col" className="pb-3 pr-4">
-                      Product
-                    </th>
-                    <th scope="col" className="pb-3 pr-4 text-right">
-                      Units
-                    </th>
-                    <th scope="col" className="pb-3 text-right">
-                      Revenue
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.map((p) => (
-                    <tr key={p.name} className="border-b border-border last:border-0">
-                      <td className="py-2.5 pr-4 text-muted-strong">{p.name}</td>
-                      <td className="sp-num py-2.5 pr-4 text-right text-muted-strong">{p.units}</td>
-                      <td className="sp-num py-2.5 text-right font-semibold text-foreground">
-                        {formatCurrency(p.revenue)}
                       </td>
                     </tr>
                   ))}

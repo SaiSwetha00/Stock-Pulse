@@ -1754,3 +1754,88 @@ re-run scope-check.js per D25.
   (minWidth 1024 bound, and there are now two bells in the DOM).
 - EditProfileModal writes profiles straight from the browser, so its
   trim/reject check is the only one.
+
+---
+
+# PHASE 9 — final, reduced scope (2026-08-09)
+
+Scope was cut deliberately: this build goes to a recruiter, not a paying
+client. Four items were dropped by name rather than quietly skipped —
+**Supabase backup procedures, rate-limiting hardening, auth edge-case testing,
+and HANDOVER.md**. None of them was attempted. None should be assumed.
+
+## Done
+
+**Seed data is KEPT, not torn down.** 41 products (40 seeded + 1 from the
+owner journey), 5 suppliers, 3 staff, 379 sales over 30 days, 14 shifts, 1
+shipment. The teardown script exists, dry-runs by default and has never been
+run. An empty dashboard shows a reviewer nothing; this shows the app working.
+
+Per D23 the data stays labelled: every seeded product carries an `ACC-` SKU,
+visible in the UI and in every export, and `scripts/acceptance/README.md` says
+in its first line that the folder writes real rows. Staff are
+`@stockpulse.test` addresses, which RFC 2606 guarantees can never receive mail.
+
+**Error boundaries** exist at three levels — `app/global-error.tsx`,
+`app/error.tsx`, `app/(dashboard)/error.tsx` — which between them cover every
+route, since Next resolves the nearest boundary up the tree. Verified by
+deliberately throwing from `/customers`: the page rendered "Something went
+wrong" with the error text, a Try again button and the sidebar still intact,
+rather than a white screen. The throw was then reverted.
+
+**Secrets audit, measured against the built bundle rather than the source.**
+Grepping source for `SUPABASE_SERVICE_ROLE_KEY` only proves where the *name*
+appears; what matters is whether the *value* reaches a file a browser
+downloads. All five non-public values were searched for across 91 emitted
+client assets:
+
+| variable | in `.next/static` |
+|---|---|
+| `SUPABASE_SERVICE_ROLE_KEY` | ABSENT |
+| `GEMINI_API_KEY` | ABSENT |
+| `RESEND_API_KEY` | ABSENT |
+| `SUPPORT_NOTIFY_EMAIL` | ABSENT |
+| `VERCEL_OIDC_TOKEN` | ABSENT |
+
+`git ls-files` shows only `.env.example` tracked. The three `NEXT_PUBLIC_`
+variables are safe to be public by design: the Supabase URL and anon key are
+meant to be shipped and are useless without RLS being wrong, and the site URL
+is the public address.
+
+**One hardening NOT done, and worth doing:** `lib/supabase/admin.ts` has no
+`import 'server-only'` guard, so nothing but discipline stops a future edit
+importing it into a Client Component and inlining the service key. The
+`server-only` package is not installed and adding it is a new dependency, so it
+was left out and recorded here instead.
+
+**Demo account** — `demo@stockpulse.test`, owner of the seeded store, created
+by `scripts/acceptance/ensure-demo-user.cjs` which resets the published
+password on every run so the README, the login screen and the database cannot
+drift apart. Owner was chosen because a lesser role hides half the product from
+someone who only visits once; the cost is that the credentials are public and
+that store's data is editable by anyone. Verified end to end from a browser
+with cookies cleared: `/login` -> one click -> `/dashboard`, greeting
+"Good afternoon, Demo", seed data rendering, 0 console messages.
+
+**Root README** replaced. It was not missing — it was the Google AI Studio
+boilerplate describing the frozen Vite prototype, which is arguably worse than
+nothing for a reviewer.
+
+## NOT VERIFIED — the honest list
+
+Nothing below has been confirmed. Several are impossible on this machine; the
+rest ran out of scope. They are listed so that no reader has to infer them.
+
+| | Status |
+|---|---|
+| Safari / iOS | **Never tested.** Not installed and not installable on Windows. No claim is made about WebKit's `:focus-visible`, `lh` units or `preserve-3d`. |
+| Real-device performance | **Never measured.** The owner confirmed the preview renders on a real phone; that is a signal, not a measurement. |
+| Email delivery end to end | **Never confirmed.** Configuration is loud on failure; no mail has been observed arriving. |
+| First-run onboarding | **Not built.** Needs an empty store, and this store is deliberately seeded. |
+| Role walkthrough (owner/manager/staff) | **Not re-run** this phase. |
+| `scope-check.js` re-run per D25 | **Not re-run** this phase. The last run was before the seed. |
+| 12 colour-contrast nodes | **Open.** `text-muted` on inverted `bg-foreground` tiles, 3.13:1 against 4.5 required. Recipe in FOUND-ISSUES.md. |
+| `EditProfileModal` | **Open.** Writes profiles straight from the browser, so its trim/reject check is the only one. |
+| `palette via drawer` focus return | **Open, measured.** `return=LOST -> BODY`: the palette remembers the search row, which lives in a drawer that unmounts, so `.focus()` hits a detached node. |
+| Journey steps not exercised | Export files actually downloading; invite staff; assign shift through the UI; approve leave; raise a support request. |
+| Supabase backups, rate limiting, auth edge cases, HANDOVER.md | **Out of scope by decision**, not attempted. |

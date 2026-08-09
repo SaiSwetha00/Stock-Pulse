@@ -1045,3 +1045,47 @@ clothes.
 Corollary: prefer facts a slow machine cannot distort - which element is the
 LCP, which node shifted, whether an attribute is present - over composite
 scores computed under simulated throttling.
+
+## D47 — The demo account is an owner, and the trade-off is published
+
+A recruiter visits once. `staff` renders four sidebar entries and bounces off
+/settings, /audit, /reports, /customers and /suppliers; `manager` still loses
+/settings and /audit. Either shows a reviewer a smaller product than the one
+that was built, and — the part that decides it — leaves them with no way to
+know what they were not shown.
+
+So the public demo is an owner, and the cost is stated rather than hidden:
+anyone who reads the README can edit that store's data. Three things bound it,
+and "nobody will bother" is not one of them:
+
+1. RLS scopes the account to one store. Measured, not asserted: the same
+   role in the same store sees 1 store of 4 and zero rows belonging to any
+   other (D25's `scope-check.js`).
+2. Nothing in it is real. Every row came from the acceptance seed; the staff
+   are `@stockpulse.test` addresses that cannot receive mail.
+3. Damage is one command from undone, because the seed is idempotent on
+   derived ids.
+
+If this ever holds anything real, the answer is a read-only role enforced in
+RLS — not a longer password on an owner account.
+
+The credentials live in exactly one script, which resets them on every run, so
+the README, the login screen and the database cannot drift apart. A README that
+lies about how to sign in is worse than no README.
+
+## D48 — Seed data stays, and stays labelled
+
+D23 said a setup action creates the thing empty and only a clearly-labelled
+seed may invent trade. Phase 9 keeps that seed in place rather than tearing it
+down, which looks like a reversal and is not.
+
+The reason D23 exists is that fabricated rows became indistinguishable from
+real trading history in a live client store. Neither half of that applies here:
+this store is not a client's, and the rows are not indistinguishable — every
+seeded product carries an `ACC-` SKU that survives into the UI and every
+export, the staff addresses cannot receive mail, and the folder that wrote them
+says so in its first line.
+
+What D23 forbids is unlabelled invention. What this is, is a labelled demo that
+a reviewer can tell apart from real data in one glance at a SKU column. The
+teardown exists, dry-runs by default, and has deliberately never been run.
