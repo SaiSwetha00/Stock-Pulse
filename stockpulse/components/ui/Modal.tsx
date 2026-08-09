@@ -179,9 +179,13 @@ export default function Modal({
             )}
           >
             <div className="flex shrink-0 items-center justify-between border-b border-border px-6 py-4">
-              <h3 id={titleId} className="sp-heading">
+              {/* h2, not h3. Every page's own heading is the h1, so a dialog
+                  titled h3 skipped a level and axe flagged heading-order on
+                  each call site. A dialog is a sibling of the page's sections,
+                  not a child of one. */}
+              <h2 id={titleId} className="sp-heading">
                 {title}
-              </h3>
+              </h2>
               <button
                 type="button"
                 onClick={requestClose}

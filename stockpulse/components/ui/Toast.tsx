@@ -128,7 +128,21 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
       {/* Sits above the modal overlay (z-50) so a failed save inside a dialog
           is still visible, and clears the mobile tab bar (z-40, ~64px) rather
           than hiding behind it. */}
+      {/* `role="region"` is what makes the aria-label legal and the content
+          reachable, and it fixes two axe rules with one attribute:
+
+            aria-prohibited-attr — `aria-label` on a plain <div> names an
+              element with no role to carry the name, so assistive tech is
+              told to ignore it. The label was doing nothing.
+            region — with no landmark role the toasts sat outside every
+              landmark, so a screen-reader user navigating by region could
+              not reach them at all.
+
+          Both appeared on all 17 routes and every overlay, because this
+          container is mounted by the dashboard layout — so one missing
+          attribute accounted for 38 of the 87 findings. */}
       <div
+        role="region"
         aria-label="Notifications"
         className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex flex-col items-center gap-2 px-4 sm:items-end lg:bottom-6 lg:px-6"
       >

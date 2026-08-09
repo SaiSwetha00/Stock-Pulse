@@ -211,6 +211,7 @@ const OWNER_QUICK_ACTIONS: QuickAction[] = [
  */
 export default function DashboardView({
   isOwner,
+  greeting,
   fullName,
   nowIso,
   todayTotal,
@@ -227,6 +228,9 @@ export default function DashboardView({
   alerts,
 }: {
   isOwner: boolean
+  /** Resolved on the shop's clock by `storeGreeting()`, so the heading is
+   *  final at first paint. See the note in Greeting.tsx. */
+  greeting: string
   fullName: string
   nowIso: string
   todayTotal: number
@@ -250,6 +254,7 @@ export default function DashboardView({
           A page titled after itself tells you nothing the sidebar did not
           already say; a greeting that names what needs attention does. */}
       <Greeting
+        greeting={greeting}
         fullName={fullName}
         lowStockCount={lowStockItems.length}
         pendingCount={pendingCount}

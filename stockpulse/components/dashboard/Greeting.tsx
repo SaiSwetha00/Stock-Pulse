@@ -1,6 +1,5 @@
 'use client'
 
-import { useSyncExternalStore } from 'react'
 import CrateMark from './CrateMark'
 
 /**
@@ -13,24 +12,26 @@ import CrateMark from './CrateMark'
  */
 
 /**
- * The greeting depends on the reader's clock, which the server cannot know.
- * useSyncExternalStore with an explicit server snapshot is how to read a
- * browser-only value without the two disagreeing at hydration: the server
- * renders the neutral "Welcome back" and the client corrects it in the same
- * commit rather than flashing.
+ * THE GREETING IS NOW A PROP, COMPUTED ON THE SERVER.
  *
- * Nothing to subscribe to — the greeting does not need to flip live at noon.
+ * It used to be read from the browser's clock via `useSyncExternalStore`, with
+ * the server rendering a neutral "Welcome back" and the client correcting it.
+ * That was a reasonable answer to "the server does not know the reader's
+ * timezone", and it cost more than it looked:
+ *
+ *   - the rewrite made this `<h1>` — the dashboard's largest text element — a
+ *     fresh LCP candidate at 5440ms on a 4x-throttled phone (Phase 7B);
+ *   - the same rewrite wrapped the heading at 390 and moved the whole page
+ *     down 31px, measured at CLS 0.21 (Phase 7A).
+ *
+ * `storeGreeting()` reads `STORE_TIMEZONE`, the clock every other date in this
+ * app already uses. The string is final at first paint, so there is nothing to
+ * correct, nothing to re-measure and nothing to shift.
+ *
+ * The 7A fix — the name on its own line below `sm` — is kept. It costs
+ * nothing, it still reads better on a phone, and it means a future change to
+ * the greeting string cannot reintroduce the wrap.
  */
-function subscribeNever(): () => void {
-  return () => {}
-}
-
-function localGreeting(): string {
-  const h = new Date().getHours()
-  if (h < 12) return 'Good morning'
-  if (h < 18) return 'Good afternoon'
-  return 'Good evening'
-}
 
 /** First word of the stored name. Falls back to the whole string rather than
  *  an empty greeting if someone registered a single-word name. */
@@ -55,18 +56,21 @@ function contextLine(lowStock: number, busyCounters: number, totalCounters: numb
 }
 
 export default function Greeting({
+  greeting,
   fullName,
   lowStockCount,
   pendingCount,
   counterCount,
 }: {
+  /** "Good morning" / "Good afternoon" / "Good evening", already resolved on
+   *  the shop's clock by `storeGreeting()`. */
+  greeting: string
   fullName: string
   lowStockCount: number
   pendingCount: number
   /** Total configured counters. 0 means none, and the clause is dropped. */
   counterCount: number
 }) {
-  const greeting = useSyncExternalStore(subscribeNever, localGreeting, () => 'Welcome back')
   const needsAttention = lowStockCount > 0 || (counterCount > 0 && pendingCount > 0)
 
   return (

@@ -3,7 +3,13 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import { canViewReports } from '@/lib/permissions'
 import { DAY_LABELS } from '@/lib/format'
-import { REPORTING_TIMEZONE, reportingDate, shiftDays, weekdayIndex } from '@/lib/reportingTimezone'
+import {
+  REPORTING_TIMEZONE,
+  reportingDate,
+  shiftDays,
+  storeGreeting,
+  weekdayIndex,
+} from '@/lib/reportingTimezone'
 import type { Product, Sale } from '@/types'
 import { categoryLabel, getStoreCategories, labelMap } from '@/lib/categories'
 import DashboardView, { type DashboardAlert } from '@/components/dashboard/DashboardView'
@@ -143,6 +149,7 @@ export default async function DashboardPage() {
   return (
     <DashboardView
       isOwner={isOwner}
+      greeting={storeGreeting()}
       fullName={profile.full_name}
       nowIso={now.toISOString()}
       todayTotal={todayTotal}

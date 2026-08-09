@@ -140,6 +140,10 @@ export default function ProductImageUpload({
             ref={inputRef}
             type="file"
             accept={ACCEPTED.join(',')}
+            // sr-only, not hidden — it is still in the accessibility tree and
+            // still focusable, so it needs a name. axe rated this `critical`:
+            // a screen-reader user reaching it heard an unlabelled file input.
+            aria-label="Choose a product photo"
             className="sr-only"
             onChange={(e) => {
               const file = e.target.files?.[0]

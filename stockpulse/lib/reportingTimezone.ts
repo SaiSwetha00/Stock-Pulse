@@ -28,6 +28,39 @@ const DATE_FORMAT = new Intl.DateTimeFormat('en-CA', {
 })
 
 /** The calendar date in the reporting zone, as YYYY-MM-DD. */
+/**
+ * The time-of-day greeting, on the SHOP's clock rather than the reader's.
+ *
+ * This used to be computed in the browser, because the server cannot know the
+ * reader's timezone. Measuring Phase 7B showed what that cost: the greeting
+ * `<h1>` is the dashboard's largest text element, so rewriting it at hydration
+ * made it a fresh LCP candidate at 5440ms on a 4x-throttled phone — the page's
+ * headline arriving seconds after it was first painted. The same rewrite was
+ * also the CLS source 7A fixed.
+ *
+ * Reading the store timezone removes the rewrite entirely, and is the more
+ * defensible answer anyway: every other time in this app — reporting periods,
+ * rota days, sales days — is already on `STORE_TIMEZONE`. A manager checking
+ * in from another country should be greeted by their shop's morning, not their
+ * own evening, for the same reason their sales figures are the shop's day.
+ *
+ * If `STORE_TIMEZONE` is unset this follows UTC, exactly as every other
+ * reporting boundary already does — so an unset value is a pre-existing
+ * problem this makes visible rather than a new one it creates.
+ */
+export function storeGreeting(at: Date = new Date()): string {
+  const hour = Number(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: REPORTING_TIMEZONE,
+      hour: '2-digit',
+      hour12: false,
+    }).format(at),
+  )
+  if (hour < 12) return 'Good morning'
+  if (hour < 18) return 'Good afternoon'
+  return 'Good evening'
+}
+
 export function reportingDate(at: Date = new Date()): string {
   return DATE_FORMAT.format(at)
 }
