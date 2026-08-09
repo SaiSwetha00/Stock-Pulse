@@ -35,7 +35,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <div className="hidden lg:block">
               <Topbar store={store} profile={profile} initialUnread={Number(unread ?? 0)} />
             </div>
-            <MobileHeader profile={profile} role={profile.role} store={store} />
+            <MobileHeader
+              profile={profile}
+              role={profile.role}
+              store={store}
+              initialUnread={Number(unread ?? 0)}
+            />
             {/* tabIndex={-1} so the skip link can actually move focus here;
                 without it the browser scrolls but focus stays behind, and the
                 next Tab returns to the navigation. */}

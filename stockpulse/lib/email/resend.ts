@@ -18,11 +18,27 @@ import 'server-only'
 const ENDPOINT = 'https://api.resend.com/emails'
 
 /**
- * `onboarding@resend.dev` is Resend's shared sender and only delivers to the
- * account owner's own address. Fine for notifying the operator, and exactly why
- * submitter confirmations sit behind a flag — see sendSupportEmails.
+ * THE SHARED-SENDER FALLBACK WAS REMOVED, ON PURPOSE.
+ *
+ * This used to default to `StockPulse <onboarding@resend.dev>` when
+ * `RESEND_FROM` was unset. That address is Resend's shared sender and by design
+ * **only delivers to the Resend account owner's own address** — so every email
+ * to anyone else was accepted by the API, reported as sent, and silently went
+ * nowhere. Phase 6 found it: the key authenticates, `GET /domains` returns zero
+ * verified domains, and `RESEND_FROM` is unset, so support confirmations could
+ * never reach the person who submitted the request.
+ *
+ * A misconfiguration that returns success is worse than one that fails. This
+ * now refuses to send rather than sending somewhere that resembles delivery,
+ * and the refusal names the variable to set.
+ *
+ * To configure: verify a domain in the Resend dashboard, then set
+ * `RESEND_FROM="StockPulse <support@yourdomain.com>"` on that same domain.
  */
-const DEFAULT_FROM = 'StockPulse <onboarding@resend.dev>'
+const MISSING_FROM =
+  'RESEND_FROM is not set. Verify a sending domain in Resend and set ' +
+  'RESEND_FROM="StockPulse <you@yourdomain.com>". Refusing to send from the ' +
+  'shared onboarding@resend.dev sender, which only reaches the Resend account owner.'
 
 export type EmailResult =
   | { ok: true; id: string | null }
@@ -41,12 +57,21 @@ export async function sendEmail(input: {
     return { ok: false, reason: 'not-configured', detail: 'RESEND_API_KEY is not set' }
   }
 
+  const from = process.env.RESEND_FROM
+  if (!from) {
+    // Loud in the server log as well as in the return value. The return value
+    // reaches the caller, which degrades gracefully; the log is what an
+    // operator reads when they wonder why nobody got an email.
+    console.error('[email] ' + MISSING_FROM)
+    return { ok: false, reason: 'not-configured', detail: MISSING_FROM }
+  }
+
   try {
     const res = await fetch(ENDPOINT, {
       method: 'POST',
       headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM || DEFAULT_FROM,
+        from,
         to: [input.to],
         subject: input.subject,
         html: input.html,
@@ -99,11 +124,15 @@ export type SupportEmailInput = {
  * Sends the operator notification, and optionally a confirmation to whoever
  * raised the request.
  *
- * The confirmation is behind SUPPORT_CONFIRMATION_EMAILS because the shared
- * `onboarding@resend.dev` sender only delivers to the Resend account owner.
- * Enabling it before a domain is verified would deliver nothing to anyone else
- * while reporting success — worse than not offering it at all. Turn it on once
- * a domain is verified and RESEND_FROM points at it.
+ * The confirmation stays behind SUPPORT_CONFIRMATION_EMAILS. The original
+ * reason — the shared `onboarding@resend.dev` sender reaching only the Resend
+ * account owner — no longer applies, because `sendEmail` now refuses to send
+ * at all without `RESEND_FROM`. The flag remains for a different reason: this
+ * is the one place the app emails a member of the public, and starting to do
+ * that is the operator's decision, not a side effect of setting an env var.
+ *
+ * Safe to enable once a domain is verified in Resend and RESEND_FROM points at
+ * it. Before that, `sendEmail` returns `not-configured` and nothing is sent.
  *
  * Returns both outcomes rather than throwing: the request is already saved by
  * the time this runs, and a failed notification must never fail the save.

@@ -13,10 +13,24 @@ export async function signUpOwner(formData: {
   email: string
   password: string
 }) {
+  // `not null` is not `not blank`. The signup form checks these, but a client
+  // check is a convenience and a crafted request skips it entirely — and this
+  // is the action that CREATES the store, so an unguarded blank here births a
+  // nameless shop rather than merely blanking an existing one. Same defect
+  // Settings carried until Phase 3C-ii; this is where the row starts.
+  const storeName = formData.storeName.trim()
+  const fullName = formData.fullName.trim()
+  const email = formData.email.trim()
+
+  if (!storeName) return { error: 'Your store needs a name.' }
+  if (storeName.length > 120) return { error: 'Keep the store name to 120 characters or fewer.' }
+  if (!fullName) return { error: 'Please enter your name.' }
+  if (fullName.length > 120) return { error: 'Keep your name to 120 characters or fewer.' }
+
   const supabase = await createClient()
 
   const { data: authData, error: authError } = await supabase.auth.signUp({
-    email: formData.email,
+    email,
     password: formData.password,
   })
 
@@ -27,7 +41,7 @@ export async function signUpOwner(formData: {
 
   const { data: store, error: storeError } = await admin
     .from('stores')
-    .insert({ name: formData.storeName })
+    .insert({ name: storeName })
     .select()
     .single()
 
@@ -36,8 +50,8 @@ export async function signUpOwner(formData: {
   const { error: profileError } = await admin.from('profiles').insert({
     id: authData.user.id,
     store_id: store.id,
-    full_name: formData.fullName,
-    email: formData.email,
+    full_name: fullName,
+    email,
     role: 'owner',
     job_title: 'Store Owner',
   })
@@ -226,6 +240,14 @@ export async function inviteStaff(formData: {
     return { error: 'Only the store owner can add staff.' }
   }
 
+  // Same reason as signUpOwner: the insert below goes through the admin client
+  // and bypasses RLS, so nothing downstream will catch a blank name. An invited
+  // colleague with `full_name: ''` renders as a nameless row in the roster, the
+  // rota and every audit entry that names them.
+  const inviteName = formData.fullName.trim()
+  if (!inviteName) return { error: 'Enter the person’s name.' }
+  if (inviteName.length > 120) return { error: 'Keep the name to 120 characters or fewer.' }
+
   // Re-checked on the server even though the form offers only two options: the
   // parameter is whatever the caller sent, and the insert below goes through
   // the admin client, which bypasses RLS. 'owner' must never pass here — see
@@ -256,8 +278,8 @@ export async function inviteStaff(formData: {
   const { error: profileError } = await admin.from('profiles').insert({
     id: invited.user.id,
     store_id: formData.storeId,
-    full_name: formData.fullName,
-    email: formData.email,
+    full_name: inviteName,
+    email: formData.email.trim(),
     role: formData.role,
     // Falls back to the role's own label rather than a hardcoded 'Staff', so
     // an invited manager whose job title was left blank does not read as staff

@@ -72,8 +72,28 @@ export default function Greeting({
   return (
     <div className="mb-6 flex items-center justify-between gap-4 lg:mb-8">
       <div className="min-w-0">
+        {/* The name is on its own line below `sm`, and that is a CLS fix, not
+            a typographic preference.
+
+            The greeting is server-rendered as "Welcome back" and corrected to
+            "Good afternoon" at hydration, because only the browser knows the
+            reader's clock. At 1440 that just makes the line 48px wider. At 390
+            it made the heading WRAP TO A SECOND LINE, so the stat tiles, the
+            date row, "Quick Actions" and the quick-action grid all moved down
+            31px after first paint — measured at CLS 0.21, four times the 0.05
+            budget, on the page people open first.
+
+            Forcing the name onto its own line below `sm` makes the heading two
+            lines whatever the greeting says, so the correction can change the
+            words without changing the geometry. Reserving a min-height would
+            have worked too and would have left a gap under every short name.
+
+            The harness had been reporting CLS 0 here for several phases: its
+            observer attaches after navigation and intermittently missed the
+            correction. cls-probe.js installs one before document start. */}
         <h1 className="sp-title">
-          {greeting}, {firstNameOf(fullName)}
+          {greeting},{' '}
+          <span className="block sm:inline">{firstNameOf(fullName)}</span>
         </h1>
         <p className="sp-body mt-1.5">
           {needsAttention ? (
