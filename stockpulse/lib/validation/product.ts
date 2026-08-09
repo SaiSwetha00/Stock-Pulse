@@ -1,6 +1,10 @@
 import type { Category } from '@/types'
 
-export const CATEGORIES: Category[] = ['produce', 'dairy', 'packaged', 'beverages', 'household']
+// The `CATEGORIES` constant was here — a second copy of the same five slugs
+// ProductModal also carried, and the CHECK constraint carried a third time.
+// Since migration 0013 the allowed set is per-store data, so it arrives as an
+// argument instead. Deleted rather than defaulted: a default would let a call
+// site validate against yesterday's list and still compile.
 
 /** Raw form values, as the inputs hold them: strings, possibly blank. */
 export type ProductInput = {
@@ -45,7 +49,16 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
  * Blank numeric inputs are normalised to '0' rather than becoming NaN, matching
  * the convention validateCustomerForm already uses.
  */
-export function validateProduct(values: ProductInput): ProductErrors {
+export function validateProduct(
+  values: ProductInput,
+  /**
+   * The slugs this store actually has, from `lib/categories.ts`. Required, not
+   * optional: an optional list would silently skip the membership check at any
+   * call site that forgot it, and "the category was never validated" is
+   * exactly the kind of hole that compiles.
+   */
+  allowedCategories: readonly string[],
+): ProductErrors {
   const errors: ProductErrors = {}
 
   const name = values.name.trim()
@@ -55,7 +68,7 @@ export function validateProduct(values: ProductInput): ProductErrors {
   if (values.sku.trim().length > 40) errors.sku = 'SKU must be 40 characters or fewer.'
   if (values.brand.trim().length > 80) errors.brand = 'Brand must be 80 characters or fewer.'
 
-  if (!CATEGORIES.includes(values.category as Category)) {
+  if (!allowedCategories.includes(values.category)) {
     errors.category = 'Choose a valid category.'
   }
 

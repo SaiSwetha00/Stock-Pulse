@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import { canManage } from '@/lib/permissions'
+import { getStoreCategories } from '@/lib/categories'
 import { notify } from '@/app/(dashboard)/notifications/actions'
 import {
   validateProduct,
@@ -15,6 +16,22 @@ import {
 export type ActionResult =
   | { ok: true }
   | { ok: false; message?: string; errors?: ProductErrors }
+
+/**
+ * The category slugs this store actually has, read server-side.
+ *
+ * Never taken from the caller. The category is a foreign key now, and a
+ * crafted request naming another store's category would otherwise get as far
+ * as the database — where `products_category_fkey` would refuse it as an
+ * opaque 23503 rather than as "Choose a valid category."
+ */
+async function allowedCategorySlugs(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  storeId: string,
+): Promise<string[]> {
+  const { categories } = await getStoreCategories(supabase, storeId)
+  return categories.map((c) => c.slug)
+}
 
 /** Postgres foreign_key_violation — product still referenced by sale_items. */
 const FK_VIOLATION = '23503'
@@ -48,12 +65,13 @@ export async function saveProduct(
     return { ok: false, message: 'You do not have permission to change inventory.' }
   }
 
-  const errors = validateProduct(input)
+  const supabase = await createClient()
+
+  const errors = validateProduct(input, await allowedCategorySlugs(supabase, store.id))
   if (Object.keys(errors).length > 0) {
     return { ok: false, errors, message: 'Please correct the highlighted fields.' }
   }
 
-  const supabase = await createClient()
   const payload = toProductPayload(input)
 
   const { error } = productId
@@ -191,8 +209,12 @@ export async function importProducts(
   let created = 0
   let updated = 0
 
+  // Hoisted: the list is the same for every row, and reading it per row would
+  // be one round trip per line of the CSV.
+  const allowed = await allowedCategorySlugs(supabase, store.id)
+
   for (const { line, input } of rows) {
-    const errors = validateProduct(input)
+    const errors = validateProduct(input, allowed)
     if (Object.keys(errors).length > 0) {
       failed.push({ line, reason: Object.values(errors).filter(Boolean).join(' ') })
       continue

@@ -105,6 +105,7 @@ export default function ReportsClient({
   sales,
   items,
   productCategories,
+  categoryLabels,
   storeName,
   defaultFrom,
   defaultTo,
@@ -129,6 +130,9 @@ export default function ReportsClient({
    * data. The KPI cards say "outside compared window" instead.
    */
   windowStartIso: string
+  /** slug -> display name, from the store's own categories. The category mix
+   *  panel and its CSV/PDF exports all label from this. */
+  categoryLabels: Record<string, string>
 }) {
   const toast = useToast()
   const router = useRouter()
@@ -184,7 +188,10 @@ export default function ReportsClient({
   const kpis = useMemo(() => summarize(rangeSales, rangeItems), [rangeSales, rangeItems])
   const daily = useMemo(() => revenueByDay(rangeSales, from, to), [rangeSales, from, to])
   const products = useMemo(() => topProducts(rangeItems), [rangeItems])
-  const categories = useMemo(() => categoryMix(rangeItems, categoryOf), [rangeItems, categoryOf])
+  const categories = useMemo(
+    () => categoryMix(rangeItems, categoryOf, categoryLabels),
+    [rangeItems, categoryOf, categoryLabels]
+  )
   const payments = useMemo(() => paymentMix(rangeSales), [rangeSales])
 
   const rangeLabel = from && to ? `${from} to ${to}` : 'All time'

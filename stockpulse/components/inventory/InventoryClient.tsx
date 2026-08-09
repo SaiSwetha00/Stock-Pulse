@@ -5,7 +5,8 @@ import { canManage } from '@/lib/permissions'
 import { Search, Plus, Pencil, Trash2, Wallet, AlertTriangle, PackageX, X, Upload } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { deleteProduct } from '@/app/(dashboard)/inventory/actions'
-import { CATEGORY_LABELS, type Category, type Product, type Role } from '@/types'
+import type { Product, Role } from '@/types'
+import { categoryLabel, labelMap, type CategoryOption } from '@/lib/categories'
 import { formatCurrency } from '@/lib/format'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
@@ -21,14 +22,13 @@ import ProductModal from './ProductModal'
 import ProductThumb from '@/components/ui/ProductThumb'
 import ImportProductsModal from './ImportProductsModal'
 
-const CATEGORY_FILTERS: { value: Category | 'all'; label: string }[] = [
-  { value: 'all', label: 'All Categories' },
-  { value: 'produce', label: 'Produce' },
-  { value: 'dairy', label: 'Dairy & Eggs' },
-  { value: 'packaged', label: 'Packaged Goods' },
-  { value: 'beverages', label: 'Beverages' },
-  { value: 'household', label: 'Household' },
-]
+// `CATEGORY_FILTERS` was a fourth hardcoded copy of the list — and the labels
+// were re-typed by hand here, so it could disagree with the product form's
+// spelling without anything failing. Built from the store's own categories
+// now; "All Categories" is the only entry this file still owns.
+function categoryFilters(categories: CategoryOption[]): { value: string; label: string }[] {
+  return [{ value: 'all', label: 'All Categories' }, ...categories.map((c) => ({ value: c.slug, label: c.name }))]
+}
 
 type StockStatus = 'in' | 'low' | 'out'
 
@@ -74,11 +74,13 @@ const SORT_DEFAULT_DIRS: Partial<Record<SortKey, 'asc' | 'desc'>> = {
 
 // Mirrors the table's columns, with the two values the row shows as secondary
 // text (brand, min stock) promoted to columns of their own.
-const CSV_COLUMNS: CsvColumn<Product>[] = [
+// Takes the label map rather than closing over a constant: the export must
+// carry the shop's own category names, and those are only known at render.
+const csvColumns = (labels: Record<string, string>): CsvColumn<Product>[] => [
   { header: 'Name', value: (p) => p.name },
   { header: 'Brand', value: (p) => p.brand },
   { header: 'SKU', value: (p) => p.sku },
-  { header: 'Category', value: (p) => CATEGORY_LABELS[p.category] },
+  { header: 'Category', value: (p) => categoryLabel(p.category, labels) },
   // Raw numbers, not formatCurrency: "$1,234.00" reaches Excel as text and
   // will not sum. Formatting is the spreadsheet's job.
   { header: 'Unit Price', value: (p) => p.unit_price },
@@ -103,16 +105,23 @@ export default function InventoryClient({
   role,
   storeId,
   initialProducts,
+  categories,
 }: {
   // storeId is no longer needed: mutations go through Server Actions that read
   // the store from the session.
   role: Role
   storeId: string
   initialProducts: Product[]
+  /** This store's categories, ordered — the filter row, the CSV export and
+   *  the product form all read their labels from here. */
+  categories: CategoryOption[]
 }) {
   const router = useRouter()
   const toast = useToast()
   const canWrite = canManage(role)
+  const labels = useMemo(() => labelMap(categories), [categories])
+  const filters = useMemo(() => categoryFilters(categories), [categories])
+  const csvCols = useMemo(() => csvColumns(labels), [labels])
   // Rows removed in this session. Revalidation can land a beat after the
   // delete resolves, so hide them locally and let the server data confirm.
   const [removedIds, setRemovedIds] = useState<string[]>([])
@@ -121,7 +130,7 @@ export default function InventoryClient({
     [initialProducts, removedIds]
   )
   const [search, setSearch] = useState('')
-  const [category, setCategory] = useState<Category | 'all'>('all')
+  const [category, setCategory] = useState<string>('all')
   const [status, setStatus] = useState<StockStatus | 'all'>('all')
   const [modalOpen, setModalOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -141,13 +150,13 @@ export default function InventoryClient({
         p.brand?.toLowerCase().includes(q) ||
         // Searching "dairy" or "kg" was a dead end before; both are visible
         // in the row, so both should be findable.
-        CATEGORY_LABELS[p.category].toLowerCase().includes(q) ||
+        categoryLabel(p.category, labels).toLowerCase().includes(q) ||
         p.unit.toLowerCase().includes(q)
       const matchesCategory = category === 'all' || p.category === category
       const matchesStatus = status === 'all' || stockStatus(p) === status
       return matchesSearch && matchesCategory && matchesStatus
     })
-  }, [products, search, category, status])
+  }, [products, search, category, status, labels])
 
   const table = useTable<Product, SortKey>({
     items: filtered,
@@ -217,7 +226,7 @@ export default function InventoryClient({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ExportCsvButton
-            columns={CSV_COLUMNS}
+            columns={csvCols}
             rows={table.allRows}
             filenameBase="products"
             itemLabel="products"
@@ -306,7 +315,7 @@ export default function InventoryClient({
         </div>
         {/* Scrolls sideways where the row cannot fit, wraps once it can. */}
         <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 [&::-webkit-scrollbar]:hidden">
-          {CATEGORY_FILTERS.map((f) => (
+          {filters.map((f) => (
             <button
               key={f.value}
               onClick={() => {
@@ -434,7 +443,7 @@ export default function InventoryClient({
                   <td className="mt-3 flex items-center justify-between gap-2 lg:mt-0 lg:table-cell lg:px-4 lg:py-4">
                     <p className="text-muted-strong">SKU: {p.sku || '—'}</p>
                     <span className="inline-block rounded bg-surface-muted px-2 py-0.5 text-xs font-medium uppercase text-muted lg:mt-1">
-                      {CATEGORY_LABELS[p.category]}
+                      {categoryLabel(p.category, labels)}
                     </span>
                   </td>
                   <td className="sp-num mt-2 flex items-center justify-between gap-2 text-muted-strong lg:mt-0 lg:table-cell lg:px-4 lg:py-4">
@@ -510,13 +519,18 @@ export default function InventoryClient({
       </div>
 
       {importOpen && (
-        <ImportProductsModal products={products} onClose={() => setImportOpen(false)} />
+        <ImportProductsModal
+          products={products}
+          categories={categories}
+          onClose={() => setImportOpen(false)}
+        />
       )}
 
       {modalOpen && (
         <ProductModal
           product={editing}
           storeId={storeId}
+          categories={categories}
           onClose={() => {
             setModalOpen(false)
             setEditing(null)

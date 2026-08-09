@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { ArrowUpRight } from 'lucide-react'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Field'
@@ -9,14 +11,18 @@ import { useToast } from '@/components/ui/Toast'
 import { saveProduct } from '@/app/(dashboard)/inventory/actions'
 import { validateProduct, type ProductErrors, type ProductInput } from '@/lib/validation/product'
 import ProductImageUpload from './ProductImageUpload'
-import type { Category, Product } from '@/types'
-import { CATEGORY_LABELS } from '@/types'
+import type { Product } from '@/types'
+import type { CategoryOption } from '@/lib/categories'
 
-const CATEGORIES: Category[] = ['produce', 'dairy', 'packaged', 'beverages', 'household']
+// The local `CATEGORIES` array was here — a duplicate of the one in
+// lib/validation/product.ts, so the form and its validator each held their own
+// copy of the same five slugs. Both are gone; the list arrives as a prop from
+// the page, which reads it from the store's own rows.
 
 export default function ProductModal({
   product,
   storeId,
+  categories,
   onClose,
   onSaved,
 }: {
@@ -26,13 +32,20 @@ export default function ProductModal({
   // storeId is intentionally absent: the Server Action reads it from the
   // session, so the browser can no longer choose which store it writes to.
   product: Product | null
+  /** This store's categories, ordered. The Server Action re-reads them and
+   *  re-validates against its own copy — this one is for the dropdown. */
+  categories: CategoryOption[]
   onClose: () => void
   onSaved: () => void
 }) {
   const [name, setName] = useState(product?.name ?? '')
   const [brand, setBrand] = useState(product?.brand ?? '')
   const [sku, setSku] = useState(product?.sku ?? '')
-  const [category, setCategory] = useState<Category>(product?.category ?? 'produce')
+  // Defaults to the store's first category rather than a hardcoded 'produce',
+  // which would not exist in a shop that renamed or removed it.
+  const [category, setCategory] = useState<string>(
+    product?.category ?? categories[0]?.slug ?? '',
+  )
   const [unitPrice, setUnitPrice] = useState(product?.unit_price?.toString() ?? '')
   const [unit, setUnit] = useState(product?.unit ?? 'ea')
   const [stock, setStock] = useState(product?.stock?.toString() ?? '')
@@ -76,7 +89,7 @@ export default function ProductModal({
     const input = currentInput()
 
     // Client-side pass for instant feedback; the action re-checks regardless.
-    const found = validateProduct(input)
+    const found = validateProduct(input, categories.map((c) => c.slug))
     setErrors(found)
     if (Object.keys(found).length > 0) return
 
@@ -134,21 +147,32 @@ export default function ProductModal({
             </Field>
           </div>
 
-          <Field label="Category" error={errors.category}>
-            {(p) => (
-              <Select
-                {...p}
-                value={category}
-                onChange={(e) => setCategory(e.target.value as Category)}
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {CATEGORY_LABELS[c]}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
+          <div>
+            <Field label="Category" error={errors.category}>
+              {(p) => (
+                <Select {...p} value={category} onChange={(e) => setCategory(e.target.value)}>
+                  {categories.map((c) => (
+                    <option key={c.slug} value={c.slug}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            {/* The moment somebody discovers they need a category is the
+                moment they are filling this in, and hunting for it through
+                Settings is how a shopkeeper concludes the feature is not
+                there. Reachable by managers as well as owners, which is why
+                /settings/categories carries its own canManage() guard rather
+                than living on the owner-only /settings page. */}
+            <Link
+              href="/settings/categories"
+              className="mt-1.5 inline-flex items-center gap-1 rounded-sm text-xs font-medium text-muted transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong"
+            >
+              Manage categories
+              <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+            </Link>
+          </div>
 
           <div className="grid grid-cols-3 gap-4">
             <Field label="Price ($)" error={errors.unitPrice} required>

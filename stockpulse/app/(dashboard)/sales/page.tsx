@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import { DAY_LABELS } from '@/lib/format'
 import { REPORTING_TIMEZONE, reportingDate, shiftDays, weekdayIndex } from '@/lib/reportingTimezone'
-import { CATEGORY_LABELS, type Product, type Sale } from '@/types'
+import type { Product, Sale } from '@/types'
+import { categoryLabel, getStoreCategories, labelMap } from '@/lib/categories'
 import SalesClient from '@/components/sales/SalesClient'
 
 export const metadata: Metadata = {
@@ -79,8 +80,12 @@ export default async function SalesPage() {
   // taking the percentage after the cut would report shares of a subtotal.
   const categoryTotals = (categories ?? []) as CategoryTotal[]
   const grandTotal = categoryTotals.reduce((sum, c) => sum + Number(c.total), 0)
+  // The RPC still groups by products.category and returns the slug, which is
+  // why 0013 kept that column as text. Naming it is this page's job.
+  const { categories: storeCategories } = await getStoreCategories(supabase, store.id)
+  const categoryLabels = labelMap(storeCategories)
   const categoryBreakdown = categoryTotals.slice(0, BREAKDOWN_LIMIT).map((c) => ({
-    label: CATEGORY_LABELS[c.category as keyof typeof CATEGORY_LABELS] ?? c.category,
+    label: categoryLabel(c.category, categoryLabels),
     pct: grandTotal ? Math.round((Number(c.total) / grandTotal) * 100) : 0,
   }))
 

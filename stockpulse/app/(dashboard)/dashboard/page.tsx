@@ -4,7 +4,8 @@ import { getCurrentUser } from '@/lib/data'
 import { canViewReports } from '@/lib/permissions'
 import { DAY_LABELS } from '@/lib/format'
 import { REPORTING_TIMEZONE, reportingDate, shiftDays, weekdayIndex } from '@/lib/reportingTimezone'
-import { CATEGORY_LABELS, type Product, type Sale } from '@/types'
+import type { Product, Sale } from '@/types'
+import { categoryLabel, getStoreCategories, labelMap } from '@/lib/categories'
 import DashboardView, { type DashboardAlert } from '@/components/dashboard/DashboardView'
 
 export const metadata: Metadata = {
@@ -90,10 +91,16 @@ export default async function DashboardPage() {
   const weekTotal = days.reduce((sum, d) => sum + Number(d.total), 0)
   const weekCount = days.reduce((sum, d) => sum + Number(d.sale_count), 0)
 
+  // Category display names, for the low-stock table and the alert headline.
+  // Read here rather than baked in, so a shop that renamed "Packaged Goods"
+  // sees its own word on the dashboard too.
+  const { categories } = await getStoreCategories(supabase, store.id)
+  const categoryLabels = labelMap(categories)
+
   const alerts: DashboardAlert[] = []
 
   if (lowStockItems.length > 0) {
-    const topCategory = CATEGORY_LABELS[lowStockItems[0].category]
+    const topCategory = categoryLabel(lowStockItems[0].category, categoryLabels)
     alerts.push({
       id: 'low-stock',
       kind: 'stock',
@@ -148,6 +155,7 @@ export default async function DashboardPage() {
       trendData={trendData}
       recentSales={(recentSales ?? []) as Sale[]}
       lowStockItems={lowStockItems}
+      categoryLabels={categoryLabels}
       alerts={alerts}
     />
   )

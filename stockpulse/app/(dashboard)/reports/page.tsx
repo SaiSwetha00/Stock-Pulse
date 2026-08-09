@@ -5,6 +5,7 @@ import { getCurrentUser } from '@/lib/data'
 import { canViewReports } from '@/lib/permissions'
 import { toLocalISODate } from '@/lib/format'
 import type { Category, Product } from '@/types'
+import { getStoreCategories, labelMap } from '@/lib/categories'
 import type { ReportItem, ReportSale } from '@/lib/reports'
 import ReportsClient from '@/components/reports/ReportsClient'
 
@@ -87,6 +88,12 @@ export default async function ReportsPage() {
     ]
   })
 
+  // Category names for the mix panel. The map above is name -> slug; this is
+  // slug -> label, and both are needed because a sale records the product's
+  // name while the category is stored as a slug.
+  const { categories: storeCategories } = await getStoreCategories(supabase, store.id)
+  const categoryLabels = labelMap(storeCategories)
+
   const productCategories: [string, Category][] = (
     (products ?? []) as Pick<Product, 'name' | 'category'>[]
   ).map((p) => [p.name, p.category])
@@ -101,6 +108,7 @@ export default async function ReportsPage() {
       sales={reportSales}
       items={reportItems}
       productCategories={productCategories}
+      categoryLabels={categoryLabels}
       storeName={store.name}
       defaultFrom={toLocalISODate(from)}
       defaultTo={toLocalISODate(to)}

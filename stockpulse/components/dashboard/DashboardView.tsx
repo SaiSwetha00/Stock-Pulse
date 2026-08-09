@@ -20,7 +20,8 @@ import {
 } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import { formatCurrency } from '@/lib/format'
-import { CATEGORY_LABELS, type Product, type Sale } from '@/types'
+import type { Product, Sale } from '@/types'
+import { categoryLabel } from '@/lib/categories'
 import SalesTrendChart from '@/components/dashboard/SalesTrendChartLazy'
 import AutoRefresh from '@/components/dashboard/AutoRefresh'
 import { LocalDate, RelativeTime } from '@/components/ui/LocalTime'
@@ -222,6 +223,7 @@ export default function DashboardView({
   trendData,
   recentSales,
   lowStockItems,
+  categoryLabels,
   alerts,
 }: {
   isOwner: boolean
@@ -238,6 +240,8 @@ export default function DashboardView({
   trendData: { label: string; value: number }[]
   recentSales: Sale[]
   lowStockItems: Product[]
+  /** slug -> display name, from the store's own categories. */
+  categoryLabels: Record<string, string>
   alerts: DashboardAlert[]
 }) {
   return (
@@ -586,7 +590,7 @@ export default function DashboardView({
                   </td>
                   <td className="mt-2 block lg:mt-0 lg:table-cell lg:py-3.5 lg:pr-4">
                     <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-muted-strong">
-                      {CATEGORY_LABELS[p.category]}
+                      {categoryLabel(p.category, categoryLabels)}
                     </span>
                   </td>
                   <td className="mt-3 block lg:mt-0 lg:table-cell lg:py-3.5 lg:pr-4">

@@ -1,4 +1,5 @@
-import { CATEGORY_LABELS, type Category } from '@/types'
+import type { Category } from '@/types'
+import { categoryLabel } from '@/lib/categories'
 
 /** A sale, reduced to what any report actually needs. */
 export interface ReportSale {
@@ -113,7 +114,10 @@ export function topProducts(
 
 export function categoryMix(
   items: ReportItem[],
-  categoryOf: Map<string, Category>
+  categoryOf: Map<string, Category>,
+  /** slug -> display name, from the store's own categories. Passed in rather
+   *  than imported: this file has no session and no store to read one for. */
+  labels: Record<string, string>
 ): { label: string; revenue: number; pct: number }[] {
   const acc = new Map<string, number>()
   let grand = 0
@@ -122,7 +126,7 @@ export function categoryMix(
     // are still real revenue, so they get their own bucket rather than being
     // silently folded into an arbitrary category.
     const cat = categoryOf.get(i.product_name)
-    const label = cat ? CATEGORY_LABELS[cat] : 'Uncategorised'
+    const label = cat ? categoryLabel(cat, labels) : 'Uncategorised'
     const v = Number(i.line_total)
     acc.set(label, (acc.get(label) ?? 0) + v)
     grand += v

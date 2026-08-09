@@ -7,6 +7,7 @@ import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { buildImportPreview, type ImportPreview } from '@/lib/importCsv'
+import type { CategoryOption } from '@/lib/categories'
 import { importProducts } from '@/app/(dashboard)/inventory/actions'
 import type { Product } from '@/types'
 
@@ -29,9 +30,13 @@ function Stat({ label, value, tone }: { label: string; value: number; tone: stri
  */
 export default function ImportProductsModal({
   products,
+  categories,
   onClose,
 }: {
   products: Product[]
+  /** This store's categories, so a CSV naming one by label resolves against
+   *  the shop's own list rather than a built-in five. */
+  categories: CategoryOption[]
   onClose: () => void
 }) {
   const router = useRouter()
@@ -58,7 +63,7 @@ export default function ImportProductsModal({
     }
     try {
       const text = await file.text()
-      const result = buildImportPreview(text, existingSkus)
+      const result = buildImportPreview(text, existingSkus, categories)
       if (result.missingRequired.length > 0) {
         setParseError(
           `The file needs a "${result.missingRequired.join('", "')}" column. Export your inventory to CSV to see the expected headers.`

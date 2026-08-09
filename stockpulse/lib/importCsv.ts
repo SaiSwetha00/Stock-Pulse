@@ -1,5 +1,5 @@
-import { CATEGORIES, validateProduct, type ProductInput } from '@/lib/validation/product'
-import { CATEGORY_LABELS, type Category } from '@/types'
+import { validateProduct, type ProductInput } from '@/lib/validation/product'
+import type { CategoryOption } from '@/lib/categories'
 
 /**
  * RFC 4180 parser. Deliberately hand-written rather than pulled from a
@@ -83,13 +83,16 @@ const HEADER_MAP: Record<string, keyof ProductInput> = {
 
 /** Accepts either the stored key ("dairy") or the displayed label
  *  ("Dairy & Eggs"), since the export writes labels. */
-function normaliseCategory(raw: string): string {
+function normaliseCategory(raw: string, categories: CategoryOption[]): string {
   const v = raw.trim()
   if (!v) return ''
   const lower = v.toLowerCase()
-  if (CATEGORIES.includes(lower as Category)) return lower
-  const match = CATEGORIES.find((c) => CATEGORY_LABELS[c].toLowerCase() === lower)
-  return match ?? v
+  if (categories.some((c) => c.slug === lower)) return lower
+  const match = categories.find((c) => c.name.toLowerCase() === lower)
+  // Unmatched values are passed through untouched so validateProduct reports
+  // "Choose a valid category" against what the file actually said, rather
+  // than against something this function invented.
+  return match?.slug ?? v
 }
 
 export type RowAction = 'create' | 'update' | 'error'
@@ -136,7 +139,13 @@ const EMPTY: ProductInput = {
  * `existingSkus` decides create-vs-update, so the preview can state honestly
  * which rows will overwrite something.
  */
-export function buildImportPreview(text: string, existingSkus: Set<string>): ImportPreview {
+export function buildImportPreview(
+  text: string,
+  existingSkus: Set<string>,
+  /** The store's categories. A CSV may name one by slug or by label, and both
+   *  have to resolve against this shop's list rather than a built-in five. */
+  categories: CategoryOption[],
+): ImportPreview {
   const table = parseCsv(text)
   if (table.length === 0) {
     return {
@@ -170,13 +179,13 @@ export function buildImportPreview(text: string, existingSkus: Set<string>): Imp
       input[key] = (cells[i] ?? '').trim()
     })
 
-    input.category = normaliseCategory(input.category)
+    input.category = normaliseCategory(input.category, categories)
     // A file that omits these columns entirely should still import: fall back
     // to the same defaults the form uses rather than failing validation.
     if (!input.unit) input.unit = 'ea'
     if (!input.category) input.category = 'packaged'
 
-    const errors = validateProduct(input)
+    const errors = validateProduct(input, categories.map((c) => c.slug))
     const problems = Object.values(errors).filter(Boolean) as string[]
 
     const sku = input.sku.trim().toLowerCase()

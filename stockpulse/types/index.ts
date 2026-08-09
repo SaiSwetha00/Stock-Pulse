@@ -1,6 +1,19 @@
 export type Role = 'owner' | 'manager' | 'staff'
 
-export type Category = 'produce' | 'dairy' | 'packaged' | 'beverages' | 'household'
+/**
+ * A category slug, as stored in `products.category`.
+ *
+ * Was a five-value union until migration 0013 made categories the shop's own
+ * data. It cannot be a union any more: the set is per-store and decided at
+ * runtime, so a compile-time list would be a lie the moment somebody adds
+ * "Frozen". The value is still constrained — `products_category_fkey` requires
+ * it to name a row in that store's `categories` table — just not by TypeScript.
+ *
+ * Display names come from `lib/categories.ts#categoryLabel`, never from a
+ * constant. `CATEGORY_LABELS` used to sit further down this file and was one of
+ * five hardcoded copies of the same list.
+ */
+export type Category = string
 
 export interface Store {
   id: string
@@ -69,13 +82,12 @@ export interface SaleItem {
   line_total: number
 }
 
-export const CATEGORY_LABELS: Record<Category, string> = {
-  produce: 'Produce',
-  dairy: 'Dairy & Eggs',
-  packaged: 'Packaged Goods',
-  beverages: 'Beverages',
-  household: 'Household',
-}
+// CATEGORY_LABELS was here. It mapped the five hardcoded slugs to display
+// names, and every screen that showed a category read it — so a shop's own
+// category had no name to render and the map could not grow without a
+// deployment. Replaced by lib/categories.ts: pages read the store's rows and
+// pass a label map down. Removed rather than deprecated, so the compiler finds
+// every call site instead of leaving one quietly on the old list.
 
 export type LoyaltyTier = 'bronze' | 'silver' | 'gold' | 'platinum'
 
