@@ -940,3 +940,62 @@ The corollary is why this sits in DECISIONS rather than FOUND-ISSUES: a privacy
 policy written honestly is a genuine audit of the system's boundaries, and it
 is worth re-reading it whenever a new integration lands. It is cheaper than a
 security review and catches a different class of thing.
+
+## D43 — A CLS total is not a finding. The sources array is.
+
+Three phases carried "CLS 0.0006 on /dashboard at 1440, not isolated" forward
+as an open item. One run reading `entry.sources` answered it completely, and
+found a 0.21 the harness had been reporting as 0.
+
+The rule: **when a layout-shift number needs explaining, read the sources
+array, not the total.** Each `layout-shift` entry carries the nodes that moved
+with their rects before and after, which turns "something shifted" into "the
+h1 grew by one line and these four blocks moved down 31px" — a sentence with a
+fix in it.
+
+Two mechanics that make the difference between working and not:
+
+1. **Install the observer before document start.** `buffered: true` is not
+   enough; `Page.addScriptToEvaluateOnNewDocument` is. The harness attached
+   after navigation and intermittently missed the hydration correction
+   entirely, which is why the same page measured 0.21 in one theme and 0 in the
+   other within a single batch. That was never a theme difference.
+2. **Keep the node description, the text and both rects.** The rects are what
+   identify the mechanism: five elements each moving `+31px` in `y` is a line
+   of text appearing above them, and nothing else.
+
+This is D30 inverted and worth pairing with it. D30's instrument reported a
+value that was too high because it sampled a transition mid-flight. This one
+reported zero because it started sampling too late. Both turn timing into a
+verdict, and both fail toward a confident number — one alarming, one
+reassuring. **The reassuring direction is more dangerous**, because nobody
+investigates a zero.
+
+## D44 — Deterministic geometry beats reserved space
+
+The greeting shift had two available fixes.
+
+**Reserve space:** give the `<h1>` a `min-height` of two lines below `sm`, so
+the wrap has somewhere to go. Correct, one line of CSS, and wrong — it puts a
+gap under every short name for the sake of the long ones, on the width where
+vertical space is scarcest.
+
+**Make the geometry not depend on the string:** put the name on its own line
+below `sm`. The heading is then two lines whether it says "Welcome back" or
+"Good afternoon", so the hydration correction changes the words without
+changing the layout at all. There is nothing to reserve because nothing moves.
+
+The general form, and it applies well past this heading: **when content that
+arrives late changes a layout, prefer making the layout independent of the
+content over making room for the content.** Reserved space is a guess about
+the largest case and is visibly wrong in every other case. Independence is
+exact in all of them.
+
+It also happens to read better on a phone, which is the usual reward for
+fixing the cause rather than padding around it.
+
+Corollary about *why* the correction exists at all, since a later reader may be
+tempted to delete it: the greeting cannot be computed on the server, because
+the server does not know the reader's clock. `useSyncExternalStore` with a
+neutral server snapshot is the correct pattern. The bug was never the
+correction — it was that the two strings had different line counts.

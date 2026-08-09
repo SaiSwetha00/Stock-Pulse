@@ -929,3 +929,105 @@ not be content to have seen.
 
 Worth keeping in mind for any future feature that puts something more sensitive
 than a tin of beans into one of those buckets.
+
+---
+
+# Phase 7A — verification and hardening (2026-08-09)
+
+## S1 — CLS 0.21 on /dashboard at 390, reported as 0 for four phases
+
+The most important finding of the batch, because the instrument was wrong in
+the reassuring direction.
+
+`harness.js` has reported `CLS=0` for `/dashboard` at 390 since Phase 2.
+`cls-probe.js`, which installs a `PerformanceObserver` via
+`Page.addScriptToEvaluateOnNewDocument` — i.e. before document start — measures
+**0.21**, four times the 0.05 budget, on the page people open first.
+
+The harness attaches its observer after navigation, so whether it sees the
+shift depends on whether hydration lands inside its window. It intermittently
+did not. Hence dark measuring 0 and light measuring 0.2112 in the same batch:
+not a theme difference, a sampling difference.
+
+**The cause.** `Greeting` server-renders "Welcome back" and corrects to
+"Good afternoon" at hydration, because only the browser knows the reader's
+clock. The sources array named every victim precisely:
+
+    #text "Harness"            y  78 -> 109   (+31, 337 -> 358 wide)
+    DIV.grid  (stat tiles)     y 216 -> 247   (+31)
+    DIV  "Aug 9 · Updated…"    y 164 -> 195   (+31)
+    H2   "Quick Actions"       y 732 -> 763   (+31)
+    DIV.sp-qa-grid             y 772 -> 803   (+31)
+
+31px is one line of the heading. At 390 the longer greeting wrapped the `<h1>`
+to two lines and pushed the whole page down.
+
+Fixed by putting the name on its own line below `sm`, so the heading is two
+lines whatever the greeting says. Re-measured: **0, with zero shift entries.**
+
+**The transferable part is the instrument, not the fix.** This is D30's shape
+again — an instrument that could not tell you it was *early* — but inverted:
+D30's harness reported a value that was too high because it sampled a moving
+colour; this one reported zero because it started sampling too late. Both
+convert timing into a verdict. A CLS total also cannot say what moved, which
+is why three phases of looking at 0.0006 produced no answer and one run of the
+sources array produced all of it.
+
+## S2 — Four writers put unvalidated text into `not null` columns
+
+The sweep FOUND-ISSUES scoped in 3C-ii, completed. 36 `not null text` columns
+across `schema.sql`, `schema_phase2/3/4.sql` and `migrations/0001`–`0013`.
+
+Passing structurally (CHECK-constrained enums where `''` cannot be stored):
+`profiles.role`, `sales.payment_method`, `suppliers.category`,
+`suppliers.status`, `shipments.status`, `checkout_stations.status`,
+`audit_logs.action`, `ai_messages.role`. `products.category` joined them when
+0013 replaced its CHECK with a foreign key.
+
+Passing by validator: `products.name`/`unit`, `customers.full_name`/
+`loyalty_tier`, `suppliers.name`, `shipments.po_number`, `shifts.role_label`,
+`staff_leave.kind`, `stores.name` (Settings path), `categories.name`/`slug`,
+and the three `support_requests` columns, which additionally carry
+`length(btrim(...))` CHECKs in the database.
+
+Passing because nothing user-supplied reaches them: `sale_items.product_name`
+(copied from a validated product), `supplier_activity.supplier_name`/`message`
+(read back from the row and templated), `notifications.title`/`audience`/
+`kind`, `audit_logs.entity`, `checkout_stations.payment_type`.
+
+**Failing:** `signUpOwner` writing `stores.name` and `profiles.full_name`;
+`inviteStaff` writing `profiles.full_name`; `EditProfileModal` writing
+`profiles.full_name`. All three fixed.
+
+Two notes worth keeping:
+
+- **`stores.name` was fixed at the wrong end in 3C-ii.** That phase fixed the
+  Settings screen, which *edits* the name. `signUpOwner` *creates* it, and was
+  never looked at. Fixing the edit path and not the create path is a very easy
+  mistake to repeat.
+- **`ai_messages.content` uses `length(content)` not `length(btrim(content))`**,
+  so a message of a single space satisfies it. Harmless — nothing renders it as
+  identity — and left alone rather than shipping a migration for it.
+
+## S3 — `EditProfileModal` writes `profiles` straight from the browser
+
+Every other write in the app goes through a Server Action, which re-runs
+validation server-side precisely because a client check can be skipped. This
+modal calls `supabase.from('profiles').update(...)` directly, so its new
+trim-and-reject check is the *only* one.
+
+RLS confines the blast radius to the caller's own row, so the worst case is
+blanking your own name rather than someone else's. Not converted to a Server
+Action in 7A because that is a behavioural change to a screen this batch was
+not otherwise touching. Logged for whoever next has reason to open it.
+
+## Note — the mobile bell is not covered by overlay-probe
+
+`overlay-probe.js` bounds the notification popover to `minWidth: 1024`, which
+was correct when the bell existed only in `Topbar`. There are now two bells in
+the DOM — Topbar's, hidden below `lg`, and MobileHeader's, hidden above it.
+
+The probe still only exercises the desktop one. Adding a `maxWidth: 1023`
+entry for the mobile bell is a data change to the `OVERLAYS` array, not code,
+and belongs in 7B's accessibility pass alongside the rest of the traversal
+work. Recorded so the coverage gap is not mistaken for coverage.

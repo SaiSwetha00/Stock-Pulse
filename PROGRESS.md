@@ -1420,3 +1420,135 @@ verified present in the built CSS by the D9 recipe.
   now that the policy promises to email owners.
 - **CLS 0.0006 on `/dashboard` at 1440** — Phase 7 performance sweep.
 - **`not null` is not `not blank`** — Phase 7 sweep.
+
+---
+
+# PHASE 7A — verification and hardening (2026-08-09, `ui/palette-round`)
+
+Commit `36e6ea3`. **Not merged to main.** 7B still to come.
+
+## 1. Resend — what you need to do, and what changed in code
+
+**Your part, in the Resend dashboard:**
+
+1. Domains -> Add Domain, enter the domain you will send from.
+2. Add the DNS records Resend shows you (an MX and two TXT for SPF/DKIM, plus
+   an optional DMARC TXT) at your DNS provider. Verification is usually minutes.
+3. Wait for the domain to show **Verified**. `GET /domains` currently returns
+   an empty list, which is the state this is fixing.
+
+**Your part, in env** — set in Vercel (Project -> Settings -> Environment
+Variables, Production + Preview) and in `stockpulse/.env.local` for local runs:
+
+    RESEND_FROM="StockPulse <support@yourdomain.com>"
+
+The address must be on the verified domain. Optionally set
+`SUPPORT_CONFIRMATION_EMAILS=1` afterwards to turn on submitter confirmations —
+deliberately still a separate switch, because that is the one place the app
+emails a member of the public.
+
+**My part, done:** `sendEmail` no longer falls back to
+`onboarding@resend.dev`. It returns `not-configured` and writes the reason to
+`console.error`, naming the variable. The support request still saves; only the
+notification declines. A misconfiguration that returns success is worse than
+one that fails.
+
+## 2. Email verification — what to change, and what it breaks
+
+**The setting:** Supabase Dashboard -> Authentication -> Sign In / Providers ->
+Email -> **Confirm email**. Turning it ON sets `mailer_autoconfirm` to false.
+(`GET /auth/v1/settings` on the project currently returns
+`"mailer_autoconfirm": true`, which is how this was found.)
+
+**Do the SMTP first.** With Supabase's built-in SMTP you get a handful of
+messages per hour and Supabase documents it as testing-only. Turning on
+confirmation before custom SMTP is configured means new signups get throttled
+into an opaque 429 and cannot confirm at all. Project Settings -> Authentication
+-> SMTP Settings, pointed at Resend, using the same verified domain as above —
+this is D8's plan, still unexecuted.
+
+**What breaks, honestly:**
+
+| Flow | Effect |
+|---|---|
+| Signup | `signUpOwner` currently redirects straight to `/dashboard` after `signUp`. With confirmation on, the session is not established until the link is clicked, so that redirect lands on a page that bounces to `/login`. **This needs a code change** — a "check your email" screen. Tell me when you have flipped it and I will do it. |
+| Invites | Unaffected. `inviteUserByEmail` already sends a real email and the invitee already sets a password via `/reset-password`. |
+| Password reset | Unaffected. |
+| The harness | `harness-auth.js` creates its user through the Admin API with `email_confirm: true`, so it keeps working. |
+
+I have not touched your auth config.
+
+## 3. `not null` != `not blank` — the full sweep
+
+36 not-null text columns enumerated across `schema.sql`, `schema_phase2/3/4.sql`
+and `migrations/0001`–`0013`.
+
+| Group | Count | Verdict |
+|---|---|---|
+| CHECK-constrained enums — `''` cannot be stored | 9 | **PASS** structurally |
+| Written from a validator that trims and rejects blank | 14 | **PASS** |
+| Nothing user-supplied reaches them (copied, templated, or literal) | 9 | **PASS** |
+| **Unvalidated writers** | **4** | **FAIL — fixed** |
+
+The four failures:
+
+| Writer | Column(s) | Was |
+|---|---|---|
+| `signUpOwner` | `stores.name`, `profiles.full_name` | untrimmed, no blank check |
+| `inviteStaff` | `profiles.full_name` | untrimmed, no blank check, admin client so RLS catches nothing |
+| `EditProfileModal` | `profiles.full_name` | untrimmed, no blank check |
+
+**`stores.name` had been fixed at the wrong end.** Phase 3C-ii fixed Settings,
+which *edits* the name. `signUpOwner` *creates* it and was never examined — so
+the app could still produce a nameless shop, just only once per shop.
+
+Also fixed in passing: `EditProfileModal`'s three fields were hand-rolled
+label+input pairs with no `htmlFor` over inputs with no `id` — the same defect
+3C-ii found on Settings. Now `Field`/`Input`, which supplies the error slot the
+name check needed.
+
+## 4. Notifications below 1024px — fixed
+
+`MobileHeader` now carries `NotificationBell`, seeded from the same server-side
+unread count as `Topbar`, so the two headers cannot disagree about the badge.
+Verified present in the served HTML at 390.
+
+## 5. CLS — isolated, and it was worse than reported
+
+`cls-probe.js` reads `entry.sources` instead of a total, with the observer
+installed before document start. See D43.
+
+**`/dashboard` at 390 measured CLS 0.21 — four times budget — where the harness
+had reported 0 since Phase 2.** The greeting server-renders "Welcome back" and
+corrects to "Good afternoon" at hydration; at 390 that wrapped the `<h1>` to a
+second line and moved the stat tiles, the date row, "Quick Actions" and the
+quick-action grid down 31px each.
+
+Fixed by putting the name on its own line below `sm` (D44). Re-measured:
+
+| | before | after |
+|---|---|---|
+| `/dashboard` 390 | **0.21** (harness said 0) | **0**, zero shift entries |
+| `/dashboard` 1440 | 0.0006 | 0.0006, unchanged |
+
+The 1440 residual is the greeting's text rect widening and the "Updated just
+now" pill narrowing. Neither moves anything below it, which is why it is three
+orders of magnitude smaller. 1.2% of budget, understood, documented, not
+chased.
+
+## Verification
+
+`tsc`, `eslint` and `next build` green. Server confirmed as the one started:
+port 3100 freed first, log checked for `Ready` and zero `EADDRINUSE`, and the
+build asserted by a string only it contains (`block sm:inline`).
+
+Harness after the changes — `/dashboard` and `/profile`, both themes, 390 and
+1440: CLS 0 except the documented 1440 residual, console errors 0, overflow
+offenders 0, no horizontal overflow, `gold == tabStops`, `nonGoldRing` 0,
+`ringless` 0.
+
+## Waiting on you before 7B
+
+- Verify a Resend domain and set `RESEND_FROM`.
+- Configure custom SMTP, then decide on **Confirm email** — and tell me, so I
+  can add the "check your email" screen signup will need.
