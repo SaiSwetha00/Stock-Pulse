@@ -4,12 +4,13 @@ import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { Menu } from 'lucide-react'
+import { Menu, Sparkles } from 'lucide-react'
 import { isOptimizableImage } from '@/lib/images'
 import { storeInitials } from '@/lib/format'
 import { pageTitleFor } from '@/lib/nav'
 import MobileDrawer from './MobileDrawer'
 import NotificationBell from '@/components/notifications/NotificationBell'
+import { useAIAssistant } from '@/components/ai/AIAssistantProvider'
 import type { Profile, Role, Store } from '@/types'
 
 export default function MobileHeader({
@@ -28,6 +29,7 @@ export default function MobileHeader({
   const pathname = usePathname()
   const title = pageTitleFor(pathname)
   const [navOpen, setNavOpen] = useState(false)
+  const { open: openAssistant } = useAIAssistant()
 
   return (
     <>
@@ -57,6 +59,32 @@ export default function MobileHeader({
             somebody opens the app, while the profile is somewhere they go
             once. */}
         <div className="ml-auto flex shrink-0 items-center gap-1">
+          {/* Same gap as the bell, found the same way and one phase later: the
+              assistant's only trigger lived in Topbar, and Topbar is wrapped in
+              `hidden lg:block`. It was never absent — it was in the DOM at
+              390px computing to display:none, which is why it survived every
+              grep and every route sweep. Measured: at 390 the Topbar scope
+              reports 4 controls, 0 reachable.
+
+              That left the assistant with no way in on a phone at all. The
+              command palette could have been the second route to it, but the
+              palette's own triggers are the Topbar search button and Ctrl+K —
+              one hidden by the same wrapper, the other needing a key a phone
+              does not have. Two locks on one door.
+
+              It goes here rather than in the tab bar because the tab bar is
+              four destinations and this is not a destination; and ahead of the
+              profile for the reason the bell is — this is why somebody picks
+              the phone up mid-shift, the profile is somewhere they go once. */}
+          <button
+            type="button"
+            onClick={openAssistant}
+            aria-label="AI Assistant"
+            className="tap-target shrink-0 rounded-lg text-muted-strong transition-colors hover:bg-surface-muted hover:text-foreground"
+          >
+            <Sparkles className="h-5 w-5" aria-hidden="true" />
+          </button>
+
           <NotificationBell initialUnread={initialUnread} />
 
           <Link

@@ -2,9 +2,10 @@
 
 import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { X } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import SidebarNav from './SidebarNav'
 import { FOCUSABLE } from '@/components/ui/Modal'
+import { useCommandPalette } from '@/components/command/CommandPaletteProvider'
 import { storeInitials } from '@/lib/format'
 import type { Role, Store } from '@/types'
 
@@ -29,6 +30,21 @@ export default function MobileDrawer({
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
   const prefersReduced = useReducedMotion()
+  const { open: openPalette } = useCommandPalette()
+
+  /**
+   * Set when the drawer is closing BECAUSE it handed over to another overlay,
+   * so the unmount cleanup below skips its focus restore.
+   *
+   * Without it the handoff loses focus in a way that is easy to miss and hard
+   * to read: the search row closes the drawer and opens the palette in the
+   * same tick, the palette captures the search button as its return target and
+   * focuses its own input — and then, 240ms later when the drawer's exit
+   * animation finishes and the effect finally tears down, the drawer yanks
+   * focus back to the hamburger it remembered on open. The palette is left
+   * open with focus behind it.
+   */
+  const handedOverRef = useRef(false)
 
   // `onClose` is an inline arrow at the call site, so a new function arrives on
   // every render of MobileHeader. With it in the dependency list this effect
@@ -46,6 +62,7 @@ export default function MobileDrawer({
     const previouslyFocused = document.activeElement as HTMLElement | null
     const { overflow } = document.body.style
     document.body.style.overflow = 'hidden'
+    handedOverRef.current = false
 
     // Move focus into the panel so the next Tab walks the nav rather than the
     // page behind it.
@@ -99,7 +116,7 @@ export default function MobileDrawer({
     return () => {
       document.removeEventListener('keydown', onKeyDown, true)
       document.body.style.overflow = overflow
-      previouslyFocused?.focus?.()
+      if (!handedOverRef.current) previouslyFocused?.focus?.()
     }
   }, [open])
 
@@ -154,6 +171,42 @@ export default function MobileDrawer({
                 <X className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
+
+            {/* The command palette was the second thing a phone could not
+                reach. Its only two triggers were the Topbar search button —
+                hidden by the same `hidden lg:block` wrapper that hid the
+                assistant — and a Ctrl+K listener, which needs a key a phone
+                does not have. So every palette action, and search itself, was
+                desktop-only.
+
+                It sits here rather than in the header because the header is
+                already four controls at 390px and this one deserves a label:
+                "Search" as an icon alone reads as filter-this-page, which is
+                the one thing the palette does not do. */}
+            <button
+              type="button"
+              onClick={() => {
+                handedOverRef.current = true
+                // Hand the palette a return target that will still be in the
+                // document when it closes. This button is not one: it lives
+                // inside the drawer, the drawer unmounts on the next line, and
+                // CommandPalette.tsx:111 captures document.activeElement at
+                // open and calls .focus() on it at close. Restoring focus to a
+                // detached node silently does nothing, so focus lands on
+                // <body> — measured exactly that way, `return=LOST -> BODY`,
+                // before this line existed.
+                //
+                // The hamburger is the honest answer anyway: it is where the
+                // user was before the drawer, and it is still on screen.
+                document.querySelector<HTMLElement>('[aria-label="Open navigation"]')?.focus()
+                onClose()
+                openPalette()
+              }}
+              className="control-h mb-3 flex w-full shrink-0 items-center gap-2.5 rounded-lg border border-border bg-surface-muted px-3 text-left text-sm text-muted transition-colors hover:border-border-strong hover:bg-surface"
+            >
+              <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">Search or jump to...</span>
+            </button>
 
             {/* Following a link has to dismiss the drawer: the route changes
                 underneath it, and leaving it open would cover the page the

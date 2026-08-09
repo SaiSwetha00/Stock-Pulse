@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "stockpulse", "run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "stockpulse-3100",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "stockpulse", "run", "dev", "--", "--port", "3100"],
+      "port": 3100
     }
   ]
 }
