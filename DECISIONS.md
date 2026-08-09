@@ -533,3 +533,86 @@ reading the markup. Font size is left per-toolbar on purpose: Sales runs a
 compact filter bar at `text-xs` in a 192px box, and forcing `text-sm` there
 would overflow it to buy a consistency nobody can see, since the two toolbars
 are never on screen together.
+
+## D29 — `aria-modal` is a promise, not a behaviour
+
+Three of the app's four overlays carried `role="dialog"` and
+`aria-modal="true"`. Two of them let Tab walk straight out onto the page
+behind. The attribute tells assistive technology "the rest of the page is
+inert"; nothing enforces that, and a screen-reader user who trusts it is worse
+off than one who does not, because the announcement and the keyboard disagree.
+
+So the rule for this codebase: **`aria-modal="true"` may only be written next
+to a trap.** The trap is four things together, and all four have to be there —
+the command palette had the attribute and none of them:
+
+1. focus moved into the panel on open,
+2. Tab wrapped at both ends,
+3. focus pulled back if it is somehow already outside,
+4. `previouslyFocused` restored on close.
+
+`FOCUSABLE` now lives as a named export on `Modal.tsx` rather than being copied
+per overlay. A focus-trap selector that drifts narrows the trap silently, and
+"silently" is the whole problem with this class of defect.
+
+Corollary about nesting: the assistant panel's clear-chat confirmation is a
+`Modal` sitting on top of the panel, so two traps were live at once. Capture
+listeners fire in registration order, so the panel's ran first and dragged
+focus back out of the dialog in front of it. The outer trap stands down while
+an inner one is open. Any future nested overlay needs the same deference.
+
+## D30 — An instrument that samples a moving value must know when it stopped
+
+`nonGoldRing` went from a clean 0 to a scattered 1..10 the moment the matrix was
+run as eight concurrent Chrome instances instead of one at a time. The values it
+reported were the giveaway: `rgb(136,97,7)` and `rgb(137,97,7)` against a light
+gold of `rgb(138,98,6)`, `rgb(216,172,72)` against a dark gold of
+`rgb(227,179,65)`, and a spread of neutral-to-gold blends. Every one of them was
+the focus ring's own 150ms colour transition, caught in flight.
+
+Three attempts, and the third is the one worth remembering:
+
+- **180ms fixed sleep** — the original. Fine serially, useless under load.
+- **400ms fixed sleep** — better, still guessing. A fixed wait is a bet about a
+  machine's spare capacity, and the harness has no way to know it lost.
+- **Poll until two consecutive reads agree** — correct in principle, and still
+  not sufficient here. When the renderer is starved the transition does not
+  advance between samples, so two equal reads mean "stalled", not "settled".
+  Sampling on a clock cannot distinguish those; it would need animation frames.
+
+Rather than build that, the rule is now operational: **the ring dimension is
+measured serially.** Re-run one at a time and the same three worst offenders —
+`nonGoldRing` 10, 7 and 7 — all measure 0. `trap`, `escape` and `return` are
+event-driven rather than time-sampled and were stable across both, which is why
+the parallel matrix is trustworthy for those and not for this.
+
+The general form, and it is D26 again from the other side: D26 was about an
+instrument that could not tell you it was broken. This is an instrument that
+could not tell you it was *early*. Both convert timing into a verdict, and both
+fail toward a confident number.
+
+## D31 — A probe verdict that two different worlds both satisfy is not a verdict
+
+`overlay-probe.js` decided focus restore by comparing `document.activeElement`
+against `document.querySelector('[data-sp-trigger]')` — a marker attribute, re-
+queried after the dialog closed. When that came back false with
+`focusTag: BODY`, there were two candidate explanations and the measurement
+could not separate them: React had replaced the trigger node and staled the
+marker, or the app had genuinely dropped focus. Both produce exactly the same
+output.
+
+The fix was not a better threshold. It was a second instrument that asks a
+question with different failure modes: `return-probe.js` holds a **direct
+reference** to the trigger node instead of a selector, and samples eight times
+over four seconds instead of once at two. That immediately separated them — on
+/inventory, focus returned at 250ms and held, marker present, same node,
+connected — and the remaining failures then correlated perfectly with the two
+components using `autoFocus`.
+
+Worth stating as a habit: when a check fails, ask first whether the check could
+have produced that output in a healthy system. If yes, fix the check before
+fixing the app. Two of the four things flagged this round were the harness —
+the hidden notification bell and the `Change Password` trigger declared by the
+modal's title rather than the button's label ("Update"). Neither was an app
+defect, and both would have been "fixed" in the app by anyone who trusted the
+report.

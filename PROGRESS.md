@@ -592,3 +592,75 @@ outage harder to reason about.
   `app-build-manifest.json`. Three dead ends; plan is the browser network panel.
 - Anything requiring a real microphone, a real invite email, or a second user
   account.
+
+## Phase 3C-i — overlay focus, complete (2026-08-09, branch `ui/palette-round`)
+
+Three app defects fixed in `fb4d07e`, three harness defects fixed alongside
+them, and the matrix run to completion.
+
+### The app defects
+
+| Overlay | Before | After |
+|---|---|---|
+| AI panel | `trap=ESCAPED x14` `return=LOST` | trapped, returns to trigger |
+| Mobile drawer | `trap=ESCAPED x1` -> "Export CSV" | trapped, returns to trigger |
+| Modal (Add Customer, Add Supplier) | `return=LOST -> BODY` | returns to trigger |
+
+The Modal one is the one worth reading twice. It failed on exactly **two of
+eight** route modals, and those two are the only two whose first field carries
+`autoFocus`. `Modal` recorded `previouslyFocused` in a passive effect, which
+runs *after* React commits the panel — and `autoFocus` fires during that
+commit. So it faithfully recorded a field inside the dialog as the thing to
+return focus to, then focused a detached node on unmount. Reading during render
+instead fixes it for all nineteen call sites, not the two that trip it today.
+See D29 and D31.
+
+### The matrix
+
+36 runs — `/inventory` `/sales` `/suppliers` `/customers` `/staff` `/reports`
+`/audit` `/monitoring` `/profile`, both themes, 390 and 1440 — **104 overlay
+instances**.
+
+| Dimension | Result |
+|---|---|
+| `trap` | correct in 104 of 104 |
+| `escape` | closed in 104 of 104 |
+| `return` | trigger in 104 of 104 |
+| `ringless` | 0 in 104 of 104 |
+| `nonGoldRing` | 0 serially; not trustworthy in parallel — see D30 |
+
+`/profile` was never run before this round. It is now covered in all four
+configurations, including Edit Profile and Change Password.
+
+**`nonGoldRing` is reported honestly rather than as a pass.** Run eight
+concurrent Chromes and it scatters 1..10; run the same configurations one at a
+time and the three worst — 10, 7, 7 — all measure 0. The values it produced
+under load were the focus ring's own 150ms transition caught mid-flight
+(`rgb(136,97,7)` against a gold of `rgb(138,98,6)`). D30 records why polling for
+a settled value does not fix this and what does.
+
+### The harness defects, which mattered as much
+
+Two of the four things the probe flagged were the probe.
+
+1. **It was clicking a `display:none` bell.** `Topbar` is wrapped in
+   `hidden lg:block`, and `el.click()` fires React's handler on a hidden button
+   perfectly happily. At 390 the probe "opened" a 0x0 notification popover,
+   walked fourteen tab stops that were all on the page behind it, and reported
+   `return=LOST` about a control no phone user can reach. Now bounded to
+   `minWidth: 1024`, and a zero-size container reports a loud `INVISIBLE`
+   instead of being measured. (That the phone has no notifications affordance at
+   all is real, and is logged in FOUND-ISSUES as a product gap.)
+2. **`Change Password` was declared by the modal's title, not the button's
+   label.** The button reads "Update". Four consecutive runs reported
+   `NO TRIGGER` for a control that was on screen the whole time.
+3. **The `return` verdict could not tell two worlds apart** — see D31. That is
+   what `return-probe.js` exists for.
+
+### Still open
+
+- **`Add Shipment` (`/suppliers`) is unmeasurable on this fixture.** The
+  control needs at least one supplier row to exist; `NO TRIGGER` is the probe
+  being correct. Needs a seeded supplier before it can be checked.
+- **`nonGoldRing` under parallelism** — instrument limitation, recorded in D30,
+  not an app defect.

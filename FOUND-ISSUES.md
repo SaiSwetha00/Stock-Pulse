@@ -346,3 +346,85 @@ Worth noting the class of bug rather than just the instance: this is the third
 defect this round that `tsc`, `eslint` and `next build` all passed, and the
 second one where the browser's own default behaviour — not the app's code —
 created the element that broke the design system.
+
+---
+
+# Phase 3C-i — the overlays, in their open state (2026-08-09)
+
+`harness.js` measures a page at rest. `overlay-probe.js` drives it into an open
+state first, which is how all of these surfaced. All fixed on
+`ui/palette-round` unless marked otherwise.
+
+## S1 — The AI panel was an `aria-modal` dialog with no trap · FIXED `fb4d07e`
+
+`stockpulse/components/ai/AIAssistantPanel.tsx`
+
+Measured /inventory light 1440: `trap=ESCAPED x14`. Every one of fourteen tab
+stops landed **outside** the panel — the notification bell, the account link,
+"Export CSV" on the page behind a dialog covering the right third of the
+screen. `return=LOST`: nothing recorded what had focus before it opened.
+
+`aria-modal="true"` was already on the element. It buys none of this. It is a
+promise made to assistive technology about behaviour the component has to
+implement itself.
+
+## S2 — The mobile drawer moved focus in and then let it walk out · FIXED `fb4d07e`
+
+`stockpulse/components/layout/MobileDrawer.tsx`
+
+`trap=ESCAPED x1`. It focused the panel on open — the half everyone remembers —
+and had no Tab wrapping, so after the close button and the nav links Tab
+stepped onto "Export CSV" on the page underneath, which is behind a scrim and
+cannot be seen. One escape is enough; the user is now typing into a page they
+cannot look at.
+
+Second defect in the same effect: `onClose` is an inline arrow at the call
+site, so a new function arrived on every render of `MobileHeader`. With it in
+the dependency list the effect re-ran **while the drawer was open**, capturing
+`previouslyFocused` from whatever was focused inside the drawer at that moment.
+
+## S2 — Modal lost focus on close, but only for two of eight · FIXED `fb4d07e`
+
+`stockpulse/components/ui/Modal.tsx`
+
+Add Customer and Add Supplier reported `return=LOST -> BODY`. Add Product,
+Import Products, Assign Shift, Record Leave and the rest returned to their
+trigger. The two that failed are the only two whose first field carries
+`autoFocus` (`CustomerModal.tsx:100`, `SupplierModal.tsx:94`).
+
+`Modal` read `document.activeElement` inside a **passive effect**, which runs
+after React commits the panel — and `autoFocus` is applied during that commit.
+So the honest answer to "what had focus before this opened?" was already "a
+field inside this dialog". That node is detached on unmount, `.focus()` on it
+does nothing, and focus falls to `<body>`. It presents as a focus-restore bug
+and is really an effect-ordering bug.
+
+Now read during render, before the commit. That fixes it for all nineteen
+`Modal` call sites rather than the two that use `autoFocus` today.
+
+**How it was isolated** matters more than the fix. The probe's verdict —
+`activeElement !== document.querySelector('[data-sp-trigger]')` — cannot tell a
+stale marker from a genuinely lost focus, because both produce
+`focusTag: BODY`. `return-probe.js` holds a **direct node reference** instead of
+a selector and samples focus at eight points over four seconds. On /inventory
+it showed focus returning at 250ms and holding to 4000ms, with the marker
+present, connected, and the same node — proving the harness was honest and the
+app was not, for the modals that failed.
+
+## Note — the phone has no notifications affordance at all
+
+`app/(dashboard)/layout.tsx:35` wraps `Topbar` in `hidden lg:block`, and the
+notification bell lives only in `Topbar`. `MobileHeader` offers "Open
+navigation" and "Your profile" and nothing else. Below 1024px there is no way
+to reach notifications.
+
+Found because the probe was clicking the hidden bell: `el.click()` fires
+React's handler on a `display:none` button perfectly happily. Not fixed — it is
+a product decision about what belongs on a phone header, not a focus bug.
+
+## Note — `Add Shipment` is unmeasurable on an empty store
+
+`/suppliers` reports `NO TRIGGER` for Add Shipment in all four configurations,
+and the button list confirms it is genuinely absent: the control needs at least
+one supplier to exist. The probe is reporting correctly. It needs a fixture
+with a supplier row before that overlay can be checked.
