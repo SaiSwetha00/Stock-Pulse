@@ -1676,3 +1676,81 @@ swallowed):
 Confirmed by reading the code, NOT by speaking into it. Headless Chrome has no
 microphone and Chrome's SpeechRecognition sends audio to a Google service, so
 nothing here could be faked into proving it works.
+
+## Human-confirmed, 2026-08-09 (owner, on real hardware)
+
+Two items move out of "unverified", partly. Recorded precisely, because the
+difference between what was confirmed and what was not is the whole value.
+
+**Voice input - the visible failure state is CONFIRMED.** The owner opened the
+assistant in a real browser and exercised the microphone-permission failure.
+It named the site, explained that permission is per-site, and said how to
+re-enable it - matching what VoiceInput.tsx:294 was written to do. This is the
+first human confirmation of that path; every previous statement about it came
+from reading the code.
+
+**Speech-to-text accuracy remains UNVERIFIED.** Nobody has confirmed that
+spoken words are transcribed correctly, or that the transcript reaches the
+assistant intact. What is proven is that the feature fails visibly rather than
+silently. Do not upgrade this to "voice input works".
+
+**Real phone - the gap is PARTLY closed.** The owner loaded the Vercel preview
+on an actual phone at real mobile width and it renders fine. That retires
+"nothing has ever been opened on a real device", which had been the largest
+honest gap in the handover.
+
+Still not closed by it: Safari/iOS specifically (the device browser was not
+recorded), real-device performance numbers, and interaction testing on touch.
+"Renders fine on a real phone" is a strong signal and is not a measurement.
+
+---
+
+# PHASE 8 - NOT STARTED (handover note, 2026-08-09)
+
+Phase 8 was briefed and deliberately not begun: the session ran low on context
+and the first deliverable writes real rows into the owner's live store. A seed
+script abandoned halfway is worse than no seed script, so nothing was started.
+
+## What Phase 8 asks for
+
+1. **First-run onboarding** on an empty store - add your first supplier, first
+   product, first sale. Dismissible, never blocking, and it must not reappear
+   once the store has data.
+2. **A separate, reversible Indian grocery seed** - ~40 products across
+   categories, 5 suppliers, 3 staff, 30 days of sales. Acceptance testing only,
+   NOT the client's live data. Teardown equally safe and scoped to one
+   store_id. Kept well away from
+   supabase/dev-only/seed_demo.DO-NOT-RUN-AGAINST-PRODUCTION.sql.
+3. **Full owner journey at real volume** - add product, receive stock, log
+   sale, low-stock alert, every report, export, invite staff, assign shift,
+   approve leave, raise a support request. Report anything slow or badly
+   readable; empty states have been hiding a lot.
+4. **Teardown**, then confirm clean empty states and no orphaned rows.
+
+Walkthrough as owner, manager and staff via the ROLE flip in harness-auth.js;
+re-run scope-check.js per D25.
+
+## Constraints that must carry into it
+
+- **Seed and teardown must be scoped to the harness store_id and nothing else.**
+  scope-check.js already proves that account reaches exactly one store of four;
+  the seed must take the same care. `sandal local store`
+  (e47fe6eb-8825-4612-965f-cb61b9be3864) is the harness store.
+- The categories table now exists (0013), so seeded products must reference
+  real category slugs per store - `products_category_fkey` is composite and
+  will refuse anything else.
+- Seeding suppliers finally unblocks **Add Shipment on /suppliers**, which
+  3C-i logged as unmeasurable without a supplier row - the probe reporting
+  NO TRIGGER was the probe being correct.
+- D23 stands: a setup action creates the thing empty; only a clearly-labelled
+  seed may invent trade. This IS that clearly-labelled seed, and it must stay
+  labelled.
+
+## Known-open items it should pick up alongside
+
+- 12 color-contrast nodes, confirmed real, unfixed - text-muted on
+  bg-foreground tiles, 3.13:1. Recipe in FOUND-ISSUES.
+- overlay-probe.js does not yet cover the mobile notification bell
+  (minWidth 1024 bound, and there are now two bells in the DOM).
+- EditProfileModal writes profiles straight from the browser, so its
+  trim/reject check is the only one.
