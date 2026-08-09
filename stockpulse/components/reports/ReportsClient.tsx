@@ -4,7 +4,8 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
 import { ArrowDownRight, ArrowUpRight, BarChart3, FileDown } from 'lucide-react'
-import { formatCurrency } from '@/lib/format'
+import { formatCurrency, formatCurrencyAscii } from '@/lib/format'
+import ReportsCharts from './ReportsCharts'
 import type { Category } from '@/types'
 import {
   categoryMix,
@@ -215,22 +216,22 @@ export default function ReportsClient({
         subtitle: `${rangeLabel} · generated ${new Date().toLocaleString()}`,
         filename: csvFilename('stockpulse-report').replace(/\.csv$/, '.pdf'),
         kpis: [
-          { label: 'Revenue', value: formatCurrency(kpis.revenue) },
+          { label: 'Revenue', value: formatCurrencyAscii(kpis.revenue) },
           { label: 'Transactions', value: String(kpis.transactions) },
-          { label: 'Avg Order', value: formatCurrency(kpis.avgOrder) },
+          { label: 'Avg Order', value: formatCurrencyAscii(kpis.avgOrder) },
           { label: 'Units Sold', value: String(kpis.unitsSold) },
         ],
         tables: [
           {
             title: 'Revenue by day',
             head: ['Date', 'Revenue'],
-            rows: daily.map((d) => [d.iso, formatCurrency(d.value)]),
+            rows: daily.map((d) => [d.iso, formatCurrencyAscii(d.value)]),
             numericColumns: [1],
           },
           {
             title: 'Top products',
             head: ['Product', 'Units', 'Revenue'],
-            rows: products.map((p) => [p.name, p.units, formatCurrency(p.revenue)]),
+            rows: products.map((p) => [p.name, p.units, formatCurrencyAscii(p.revenue)]),
             numericColumns: [1, 2],
           },
           {
@@ -238,7 +239,7 @@ export default function ReportsClient({
             head: ['Category', 'Revenue', 'Share'],
             rows: categories.map((c) => [
               c.label,
-              formatCurrency(c.revenue),
+              formatCurrencyAscii(c.revenue),
               `${c.pct.toFixed(1)}%`,
             ]),
             numericColumns: [1, 2],
@@ -249,7 +250,7 @@ export default function ReportsClient({
             rows: payments.map((p) => [
               p.label,
               p.count,
-              formatCurrency(p.revenue),
+              formatCurrencyAscii(p.revenue),
               `${p.pct.toFixed(1)}%`,
             ]),
             numericColumns: [1, 2, 3],
@@ -374,6 +375,12 @@ export default function ReportsClient({
           />
         </div>
       ) : (
+        <>
+        {/* Charts first, tables under them. The tables are the record and stay
+            exactly as they were — these read the SAME memoised series, so the
+            picture and the numbers cannot drift apart. */}
+        <ReportsCharts daily={daily} categories={categories} products={products} />
+
         <div className="mt-6 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
           {/* Revenue by day */}
           <section className="sp-rise sp-delay-1 sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
@@ -540,6 +547,7 @@ export default function ReportsClient({
             </div>
           </section>
         </div>
+        </>
       )}
     </div>
   )

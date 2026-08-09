@@ -273,7 +273,7 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
       // ELECTRONIC SHELF LABELS (E-INK TAGS)
       if (tierIdx === 1) {
         // Middle shelf tag: Pomegranate SKU
-        const tagTex = createEInkTexture('SKU-8821', 'ROYAL POM', '$6.99', 'FRESH 98%')
+        const tagTex = createEInkTexture('SKU-8821', 'ROYAL POM', '₹499', 'FRESH 98%')
         const tagMat = new THREE.MeshStandardMaterial({ map: tagTex })
         const tagGeo = new THREE.BoxGeometry(0.7, 0.35, 0.03)
         const tagMesh = new THREE.Mesh(tagGeo, [
@@ -284,7 +284,7 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
         shelfGroup.add(tagMesh)
 
         // Second tag: Avocado SKU (Alert)
-        const tagTex2 = createEInkTexture('SKU-1029', 'AVOCADO', '$2.49', 'EXP: 2 DAYS', true)
+        const tagTex2 = createEInkTexture('SKU-1029', 'AVOCADO', '₹180', 'EXP: 2 DAYS', true)
         const tagMat2 = new THREE.MeshStandardMaterial({ map: tagTex2 })
         const tagMesh2 = new THREE.Mesh(tagGeo, [
           eslFrameMat, eslFrameMat, eslFrameMat, eslFrameMat, tagMat2, eslFrameMat,
@@ -294,7 +294,7 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
         shelfGroup.add(tagMesh2)
       } else if (tierIdx === 2) {
         // Top shelf tag: Olive oil
-        const tagTex = createEInkTexture('SKU-4910', 'OLIVE OIL', '$34.50', 'OPTIMAL')
+        const tagTex = createEInkTexture('SKU-4910', 'OLIVE OIL', '₹2,450', 'OPTIMAL')
         const tagMat = new THREE.MeshStandardMaterial({ map: tagTex })
         const tagGeo = new THREE.BoxGeometry(0.7, 0.35, 0.03)
         const tagMesh = new THREE.Mesh(tagGeo, [

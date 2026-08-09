@@ -221,7 +221,12 @@ export default function LandingDashboardPreview() {
             <div className="flex items-center gap-6 font-mono text-xs text-[#d1c5b0]">
               <div>
                 <span className="text-[#d1c5b0]/60">Total Value: </span>
-                <span className="text-[var(--sp-gold)] font-bold">$14,892.50</span>
+                {/* Rupees, and grouped the Indian way, because this mock is
+                    the first thing a prospective shopkeeper sees — a preview
+                    quoting dollars sells a different product than the one
+                    behind the login. Hard-coded rather than formatted: this is
+                    a static marketing mock with no data behind it. */}
+                <span className="text-[var(--sp-gold)] font-bold">₹14,89,250</span>
               </div>
               <div>
                 <span className="text-[#d1c5b0]/60">Avg Temp: </span>

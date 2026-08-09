@@ -2,6 +2,7 @@
 
 import { useReducedMotion } from 'framer-motion'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts'
+import { formatCurrency, formatCurrencyWhole } from '@/lib/format'
 
 export default function SalesTrendChart({
   data,
@@ -28,11 +29,16 @@ export default function SalesTrendChart({
           axisLine={false}
           tickLine={false}
           tick={{ fill: '#71717a', fontSize: 12 }}
-          tickFormatter={(v) => (v === 0 ? '0' : `$${v >= 1000 ? `${v / 1000}k` : v}`)}
+          // These two built their own currency strings, which is why the
+          // dashboard kept showing dollars on the axis and in the tooltip
+          // after lib/format.ts had already been switched to rupees. A
+          // formatter nothing calls cannot fix the places that reimplemented
+          // it — hence formatCurrencyWhole existing at all.
+          tickFormatter={(v) => (v === 0 ? '0' : formatCurrencyWhole(Number(v)))}
         />
         <Tooltip
           cursor={{ fill: '#f4f4f5' }}
-          formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Sales']}
+          formatter={(value) => [formatCurrency(Number(value)), 'Sales']}
           contentStyle={{ borderRadius: 8, border: '1px solid #e4e4e7', fontSize: 12 }}
         />
         {/* Bars grow from the axis on mount. Recharts animates by default;

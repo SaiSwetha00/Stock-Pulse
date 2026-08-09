@@ -1,5 +1,83 @@
+/**
+ * The one place the app decides what money looks like.
+ *
+ * Everything below derives from this token, so switching the shop to another
+ * currency is a two-line edit here rather than a hunt through every component
+ * that prints a number. That matters because the previous version hard-coded
+ * `$` and `en-US` inline in the formatter, and the symbol then leaked into
+ * places the formatter never reached — a chart axis and a tooltip built their
+ * own `$${...}` strings, so those two kept printing dollars no matter what
+ * this function returned.
+ *
+ * Deliberately locale + code, NOT a symbol string. Intl derives `₹` from the
+ * pair, and it also derives the digit grouping: en-IN groups by lakh and
+ * crore, so 100000 renders `₹1,00,000.00` and not `₹100,000.00`. A hard-coded
+ * symbol with a Western locale would have got the sign right and the grouping
+ * wrong, which is the more embarrassing half to get wrong in a shop that
+ * counts in lakhs.
+ */
+export const CURRENCY = {
+  locale: 'en-IN',
+  code: 'INR',
+} as const
+
+// Built once. Constructing an Intl.NumberFormat is the expensive part, and
+// these run per row on tables that now carry hundreds of them.
+const MONEY = new Intl.NumberFormat(CURRENCY.locale, {
+  style: 'currency',
+  currency: CURRENCY.code,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+const MONEY_WHOLE = new Intl.NumberFormat(CURRENCY.locale, {
+  style: 'currency',
+  currency: CURRENCY.code,
+  maximumFractionDigits: 0,
+})
+
 export function formatCurrency(n: number): string {
-  return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return MONEY.format(n)
+}
+
+/**
+ * Whole rupees, for chart axes and anywhere else two decimals are noise
+ * rather than information.
+ *
+ * Not `notation: 'compact'`: en-IN compacts 4715 to "₹4.7T", where T is
+ * thousand — indistinguishable at a glance from trillion, on an axis where
+ * the reader has no other cue to the magnitude. `₹4,715` is longer and cannot
+ * be misread.
+ */
+export function formatCurrencyWhole(n: number): string {
+  return MONEY_WHOLE.format(n)
+}
+
+const MONEY_ASCII = new Intl.NumberFormat(CURRENCY.locale, {
+  style: 'currency',
+  currency: CURRENCY.code,
+  currencyDisplay: 'code',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+/**
+ * "INR 1,00,000.00" — the same number, same grouping, no `₹`.
+ *
+ * For the PDF export only, and it is a measured requirement rather than a
+ * preference. jsPDF's built-in Helvetica is WinAnsiEncoding (cp1252), which
+ * has no rupee sign; `doc.internal.pdfEscape('₹')` returns `þÿ ¹`, a UTF-16
+ * fallback the font cannot draw. The export would have shipped every figure
+ * with a broken glyph in front of it, and it would have looked fine on screen
+ * right up to the moment somebody opened the file.
+ *
+ * The alternative is embedding a Unicode font, which means carrying a ~100KB
+ * binary in the repo for one glyph. A currency CODE is standard in financial
+ * exports, so this is the cheaper correct answer rather than a compromise.
+ * If a font is ever embedded, delete this and use formatCurrency.
+ */
+export function formatCurrencyAscii(n: number): string {
+  return MONEY_ASCII.format(n)
 }
 
 export function formatRelativeTime(dateStr: string): string {

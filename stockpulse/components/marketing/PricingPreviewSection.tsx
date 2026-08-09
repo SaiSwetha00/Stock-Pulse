@@ -62,7 +62,7 @@ export default function PricingPreviewSection() {
           <div className="flex items-baseline gap-2 mb-5">
             <span className="font-display font-semibold text-5xl text-[#e0e2ed]">Free</span>
             <span className="font-mono text-xs text-success font-semibold px-2 py-0.5 rounded bg-success/10 border border-success">
-              $0 / Unlimited
+              ₹0 / Unlimited
             </span>
           </div>
 

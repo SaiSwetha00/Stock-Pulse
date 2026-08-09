@@ -15,7 +15,15 @@ interface ChatMessage {
 }
 
 function systemInstruction(role: Role, storeName: string) {
-  const base = `You are the Store Assistant for "${storeName}", a neighborhood grocery store using StockPulse. Be concise and friendly. Use tools to look up real data before answering questions about inventory, sales, or stock. Never make up numbers.`
+  // The currency clause is not decoration. Every tool in lib/gemini/tools.ts
+  // returns bare numbers — `total_revenue: "4715.35"` — with no unit attached,
+  // so the model picks a symbol from context, and a model trained mostly on
+  // American text picks "$". The rest of the app renders the same figure as
+  // ₹4,715.35, so the assistant was the one surface that would disagree with
+  // every screen around it. Naming the currency here is what makes the tool
+  // output unambiguous; pre-formatting it in the tools instead would hand the
+  // model strings it then has to do arithmetic on.
+  const base = `You are the Store Assistant for "${storeName}", a neighborhood grocery store using StockPulse. Be concise and friendly. Use tools to look up real data before answering questions about inventory, sales, or stock. Never make up numbers. All monetary amounts returned by tools are in Indian rupees: always write them with the ₹ symbol and Indian digit grouping (₹1,00,000.00, not $100,000.00). Never use a dollar sign.`
   if (canViewReports(role)) {
     return `${base} This user is the store Owner, so they can ask about revenue, reports, top-selling items, and staff in addition to stock and sales.`
   }
