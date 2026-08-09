@@ -5,7 +5,11 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
-const FOCUSABLE =
+// Exported because the two overlays that are not Modals — the assistant panel
+// and the phone nav drawer — have to trap focus over exactly the same set of
+// controls. Three copies of this selector would drift, and a focus-trap
+// selector that drifts silently narrows the trap.
+export const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 const WIDTHS = {
@@ -58,8 +62,27 @@ export default function Modal({
     onCloseRef.current = onClose
   }, [onClose])
 
+  /**
+   * Read during RENDER, not in the effect below.
+   *
+   * The effect is a passive one, so it runs after React has committed the
+   * panel — and `autoFocus` on a field inside the panel is applied during that
+   * commit. So by the time the effect asked "what had focus before this
+   * opened?", the honest answer was already "a field inside this dialog", and
+   * that is what got stored as the thing to restore to. On unmount that node
+   * is detached, `.focus()` on it does nothing, and focus falls to <body>.
+   *
+   * Measured: of the eight route modals probed, exactly the two whose first
+   * field carries `autoFocus` — Add Customer and Add Supplier — reported
+   * `return=LOST -> BODY`. The other six returned to their trigger. Reading it
+   * during render happens before the commit, so nothing the panel does on
+   * mount can poison it.
+   */
+  const [previouslyFocused] = useState<HTMLElement | null>(() =>
+    typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null),
+  )
+
   useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null
     const { overflow } = document.body.style
     document.body.style.overflow = 'hidden'
 
@@ -101,7 +124,7 @@ export default function Modal({
       document.body.style.overflow = overflow
       previouslyFocused?.focus?.()
     }
-  }, [])
+  }, [previouslyFocused])
 
   const handleBackdrop = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {

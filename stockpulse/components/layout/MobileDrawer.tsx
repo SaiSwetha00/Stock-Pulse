@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { X } from 'lucide-react'
 import SidebarNav from './SidebarNav'
+import { FOCUSABLE } from '@/components/ui/Modal'
 import { storeInitials } from '@/lib/format'
 import type { Role, Store } from '@/types'
 
@@ -29,6 +30,16 @@ export default function MobileDrawer({
   const panelRef = useRef<HTMLDivElement>(null)
   const prefersReduced = useReducedMotion()
 
+  // `onClose` is an inline arrow at the call site, so a new function arrives on
+  // every render of MobileHeader. With it in the dependency list this effect
+  // re-ran while the drawer was open — re-capturing `previouslyFocused` from
+  // whatever was focused INSIDE the drawer at that moment, and yanking focus
+  // back to the panel. Read the latest through a ref instead.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
   useEffect(() => {
     if (!open) return
 
@@ -40,20 +51,57 @@ export default function MobileDrawer({
     // page behind it.
     panelRef.current?.focus()
 
+    /**
+     * Moving focus IN was not enough. Measured with the open-state probe:
+     * `trap=ESCAPED x1` — Tab walked the close button and the nav links, then
+     * stepped straight out of an `aria-modal` drawer onto "Export CSV" on the
+     * page underneath, which is behind a scrim and cannot be seen. The page
+     * behind a modal has to stay unreachable, so Tab wraps at both ends and
+     * pulls focus back if it is already outside.
+     */
     function onKeyDown(e: KeyboardEvent) {
+      const panel = panelRef.current
+      if (!panel) return
+
       if (e.key === 'Escape') {
+        e.preventDefault()
         e.stopPropagation()
-        onClose()
+        onCloseRef.current()
+        return
+      }
+      if (e.key !== 'Tab') return
+
+      const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE))
+      if (focusable.length === 0) {
+        e.preventDefault()
+        return
+      }
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const active = document.activeElement as HTMLElement | null
+
+      // The panel itself carries tabIndex={-1} and is where focus starts, so
+      // `!panel.contains(active)` is the only outside case to catch.
+      if (!panel.contains(active)) {
+        e.preventDefault()
+        first.focus()
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault()
+        first.focus()
       }
     }
 
-    document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('keydown', onKeyDown, true)
     return () => {
-      document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('keydown', onKeyDown, true)
       document.body.style.overflow = overflow
       previouslyFocused?.focus?.()
     }
-  }, [open, onClose])
+  }, [open])
 
   return (
     <AnimatePresence>

@@ -16,7 +16,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import type { Profile, Store } from '@/types'
-import Modal from '@/components/ui/Modal'
+import Modal, { FOCUSABLE } from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import RichText from './RichText'
 import ThreadList from './ThreadList'
@@ -74,6 +74,19 @@ export default function AIAssistantPanel({
   const scrollRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const loadedRef = useRef(false)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // The trap effect below runs once per open, so it must not close over a
+  // stale onClose or stale nested-overlay state. Synced on every render.
+  const onCloseRef = useRef(onClose)
+  const historyOpenRef = useRef(historyOpen)
+  const confirmClearRef = useRef(confirmClear)
+  useEffect(() => {
+    onCloseRef.current = onClose
+    historyOpenRef.current = historyOpen
+    confirmClearRef.current = confirmClear
+  })
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -266,24 +279,80 @@ export default function AIAssistantPanel({
   }, [threadId, refreshThreads])
 
   /**
-   * Escape closes the panel — or the history drawer, if that is what is open.
-   * Dismissing the whole assistant because someone glanced at their history and
-   * changed their mind would throw away the conversation they were in.
+   * Focus trap, Escape, and focus restore.
+   *
+   * `aria-modal="true"` was already on the dialog below and buys none of this:
+   * it is a promise made to assistive technology, not a behaviour. Measured
+   * with the open-state probe before this effect existed, /inventory light
+   * 1440: `trap=ESCAPED x14` — every one of fourteen tab stops landed OUTSIDE
+   * the panel, walking the notification bell, the account link and "Export
+   * CSV" on the page behind a dialog that claimed to be modal. `return=LOST`,
+   * because nothing recorded what had focus before it opened.
+   *
+   * Same shape as Modal.tsx and the command palette: document listener in the
+   * capture phase, Tab wrapped at both ends, focus pulled back when it is
+   * already outside, previouslyFocused restored on close.
+   *
+   * Escape still closes the history drawer first when that is what is open —
+   * dismissing the whole assistant because someone glanced at their history
+   * and changed their mind would throw away the conversation they were in.
    */
   useEffect(() => {
     if (!isOpen) return
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key !== 'Escape') return
-      if (confirmClear) return // the dialog handles its own Escape
-      if (historyOpen) {
-        setHistoryOpen(false)
+
+    const previouslyFocused = document.activeElement as HTMLElement | null
+
+    // The input is the point of the panel, so it takes focus rather than the
+    // first control in DOM order (which is the history button).
+    inputRef.current?.focus()
+
+    function onKeyDownDoc(e: KeyboardEvent) {
+      const panel = panelRef.current
+      if (!panel) return
+
+      // The clear-chat confirmation is a real Modal with its own trap, and it
+      // sits ON TOP of this panel. Two traps arguing over Tab would drag focus
+      // back out of the dialog in front, so this one stands down while that is
+      // open and lets the Modal handle both keys.
+      if (confirmClearRef.current) return
+
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        if (historyOpenRef.current) setHistoryOpen(false)
+        else onCloseRef.current()
         return
       }
-      onClose()
+      if (e.key !== 'Tab') return
+
+      const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE))
+      if (focusable.length === 0) {
+        e.preventDefault()
+        return
+      }
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const active = document.activeElement as HTMLElement | null
+
+      if (!panel.contains(active)) {
+        e.preventDefault()
+        first.focus()
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault()
+        first.focus()
+      }
     }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [isOpen, onClose, historyOpen, confirmClear])
+
+    document.addEventListener('keydown', onKeyDownDoc, true)
+    return () => {
+      document.removeEventListener('keydown', onKeyDownDoc, true)
+      previouslyFocused?.focus?.()
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -295,6 +364,7 @@ export default function AIAssistantPanel({
           in the effect above. */}
       <div className="fixed inset-0 z-40 bg-black/20" onClick={onClose} aria-hidden="true" />
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="ai-assistant-title"
@@ -454,6 +524,7 @@ export default function AIAssistantPanel({
             className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface-muted px-2 py-2"
           >
             <input
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask about inventory, sales, or staff"
