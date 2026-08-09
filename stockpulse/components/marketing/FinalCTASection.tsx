@@ -35,7 +35,25 @@ export default function FinalCTASection() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-5 mb-12">
             <Link
               href="/signup"
-              className="w-full sm:w-auto px-11 py-5 rounded-xl font-mono text-xs uppercase tracking-widest font-semibold text-accent-ink bg-gradient-to-r from-[var(--sp-gold)] via-[var(--sp-gold-light)] to-[var(--sp-gold-deep)] shadow-[0_0_30px_rgba(201,162,39,0.5)] hover:shadow-[0_0_50px_rgba(201,162,39,0.8)] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer group"
+              // Three measured problems, one button.
+              //
+              // 1. The LABEL was the same colour as the button.
+              //    `text-accent-ink` resolves to #f0d78c in this band, and the
+              //    gradient's middle stop is --sp-gold-light, which IS #f0d78c.
+              //    Measured 1.00:1 — the label was not faint, it was invisible,
+              //    which is what made the control read as a solid yellow blob.
+              //    Now a near-black ink, written literally so it cannot be
+              //    re-pointed at a token that flips light.
+              // 2. The gradient's dark end made a dark label fail anyway:
+              //    --sp-gold-deep is #8a6b1a, and even #14100c only reaches
+              //    3.77:1 on it. Ending the ramp on --sp-gold instead keeps a
+              //    gold button and takes the worst case to ~7.7:1.
+              // 3. The GLOW was a 30px full-bleed halo at 0.5 alpha rising to
+              //    50px at 0.8 on hover, blooming over the button's own edges.
+              //    Replaced with a grounded drop shadow, so the button sits on
+              //    the page instead of smearing into it, and hover lifts it
+              //    rather than flaring.
+              className="w-full sm:w-auto px-11 py-5 rounded-xl font-mono text-xs uppercase tracking-widest font-semibold text-[#14100c] bg-gradient-to-r from-[var(--sp-gold)] via-[var(--sp-gold-light)] to-[var(--sp-gold)] shadow-[0_8px_20px_-8px_rgba(201,162,39,0.45)] hover:shadow-[0_10px_26px_-8px_rgba(201,162,39,0.6)] transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer group"
             >
               Get Started Now <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
             </Link>

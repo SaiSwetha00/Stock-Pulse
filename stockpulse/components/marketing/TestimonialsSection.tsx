@@ -91,7 +91,16 @@ export default function TestimonialsSection() {
                 {current.scenario}
               </div>
 
-              <p className="font-display italic text-xl sm:text-2xl text-[#e8e5da] leading-relaxed mb-10">
+              {/* `text-foreground`, not a hard-coded hex. This was
+                  `text-[#e8e5da]` — a pale cream chosen when this section sat
+                  on a dark band, and never re-checked after it moved into
+                  `.sp-band-cream`, which flips `--sp-surface-card` to #fbf8f1.
+                  Pale cream on cream measured 1.12:1 against a 4.5 minimum, on
+                  all three slides: the quote was very nearly invisible.
+
+                  The token flips with the band, so this cannot drift again the
+                  next time the section changes background. */}
+              <p className="font-display italic text-xl sm:text-2xl text-foreground leading-relaxed mb-10">
                 “{current.quote}”
               </p>
 

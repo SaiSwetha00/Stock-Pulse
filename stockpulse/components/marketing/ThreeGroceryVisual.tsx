@@ -120,21 +120,211 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
     // Every texture in this scene is generated locally — no loader needed.
 
     /**
-     * Locally drawn product panels: a vertical palette gradient plus a simple
-     * line glyph. No network, no third party.
+     * GROCERY SILHOUETTES — locally drawn product panels.
      *
-     * These replaced six `images.unsplash.com` texture loads. Three reasons,
-     * any one of which is sufficient for something shipping to a paying
-     * client: it is remote stock photography with licensing attached, it made
-     * the landing page depend on a third-party CDN at render time, and all six
-     * URLs had already gone 404 — so the scene was fetching, failing, and
-     * logging errors to the console only to render untextured anyway.
+     * These first replaced six `images.unsplash.com` texture loads, for three
+     * reasons any one of which is sufficient: remote stock photography carries
+     * licensing, it made the landing page depend on a third-party CDN at
+     * render time, and all six URLs had already gone 404 — so the scene was
+     * fetching, failing, and rendering untextured anyway.
      *
-     * Canvas-drawn rather than checked-in images because this file already
-     * builds textures this way (see createEInkTexture and the screen canvas
-     * below), so it adds no new technique and no asset to the repo.
+     * That first replacement drew a circle above a horizontal line on every
+     * panel. Which is, almost exactly, the glyph browsers and design tools use
+     * for a MISSING IMAGE — so six identical broken-image placeholders ended
+     * up sitting on a shelf meant to be selling the product. It read as a
+     * failure state, not as groceries. This is the second attempt, and the
+     * lesson is that "restrained" and "unfinished" can look identical.
+     *
+     * These are flat line-and-fill shapes: a filled body in one palette colour
+     * and a single ink outline, no gradients inside the shape, no shading, no
+     * photographs. At the size these render — roughly 90px across in the
+     * hero — anything more detailed turns to mush, and anything less is the
+     * circle-and-line again.
+     *
+     * Canvas-drawn for the same reason the rest of this file is: it adds no
+     * asset to the repo, no network request, and no dependency.
      */
-    function createProductPanel(top: string, bottom: string, ink: string) {
+    type ItemKind = 'leaves' | 'tomato' | 'carrot' | 'onion' | 'bottle' | 'carton' | 'bag' | 'jar'
+
+    function drawItem(
+      g: CanvasRenderingContext2D,
+      kind: ItemKind,
+      cx: number,
+      cy: number,
+      s: number,
+      fill: string,
+      ink: string,
+    ) {
+      g.save()
+      g.translate(cx, cy)
+      g.scale(s, s)
+      g.lineJoin = 'round'
+      g.lineCap = 'round'
+      g.strokeStyle = ink
+      g.lineWidth = 5
+      g.fillStyle = fill
+
+      const leaf = (ang: number, len: number, wide: number) => {
+        g.save()
+        g.rotate(ang)
+        g.beginPath()
+        g.moveTo(0, 0)
+        g.quadraticCurveTo(-wide, -len * 0.55, 0, -len)
+        g.quadraticCurveTo(wide, -len * 0.55, 0, 0)
+        g.closePath()
+        g.fill()
+        g.stroke()
+        g.restore()
+      }
+
+      if (kind === 'leaves') {
+        // A tied bunch of greens: three blades from one stem.
+        leaf(-0.5, 82, 26)
+        leaf(0, 96, 28)
+        leaf(0.5, 82, 26)
+        g.beginPath()
+        g.moveTo(0, 0)
+        g.lineTo(0, 34)
+        g.stroke()
+      } else if (kind === 'tomato') {
+        g.beginPath()
+        g.arc(0, 6, 44, 0, Math.PI * 2)
+        g.fill()
+        g.stroke()
+        // Calyx — the detail that stops it reading as a plain ball.
+        g.beginPath()
+        for (let i = 0; i < 5; i++) {
+          const a = (i / 5) * Math.PI * 2 - Math.PI / 2
+          g.moveTo(0, -38)
+          g.lineTo(Math.cos(a) * 22, -38 + Math.sin(a) * 16)
+        }
+        g.stroke()
+        g.beginPath()
+        g.moveTo(0, -38)
+        g.lineTo(0, -56)
+        g.stroke()
+      } else if (kind === 'carrot') {
+        g.beginPath()
+        g.moveTo(-26, -22)
+        g.lineTo(26, -22)
+        g.lineTo(0, 74)
+        g.closePath()
+        g.fill()
+        g.stroke()
+        g.beginPath()
+        g.moveTo(-16, -24)
+        g.lineTo(-26, -60)
+        g.moveTo(0, -24)
+        g.lineTo(0, -66)
+        g.moveTo(16, -24)
+        g.lineTo(26, -60)
+        g.stroke()
+      } else if (kind === 'onion') {
+        g.beginPath()
+        g.moveTo(0, -26)
+        g.bezierCurveTo(46, -20, 46, 62, 0, 62)
+        g.bezierCurveTo(-46, 62, -46, -20, 0, -26)
+        g.closePath()
+        g.fill()
+        g.stroke()
+        g.beginPath()
+        g.moveTo(0, -26)
+        g.lineTo(-8, -58)
+        g.moveTo(0, -26)
+        g.lineTo(10, -56)
+        g.stroke()
+        // Two seams, which is what makes an onion an onion and not a potato.
+        g.beginPath()
+        g.moveTo(-18, -14)
+        g.quadraticCurveTo(-26, 24, -14, 54)
+        g.moveTo(18, -14)
+        g.quadraticCurveTo(26, 24, 14, 54)
+        g.stroke()
+      } else if (kind === 'bottle') {
+        g.beginPath()
+        g.moveTo(-12, -74)
+        g.lineTo(12, -74)
+        g.lineTo(12, -40)
+        g.quadraticCurveTo(30, -20, 30, 10)
+        g.lineTo(30, 66)
+        g.quadraticCurveTo(30, 76, 20, 76)
+        g.lineTo(-20, 76)
+        g.quadraticCurveTo(-30, 76, -30, 66)
+        g.lineTo(-30, 10)
+        g.quadraticCurveTo(-30, -20, -12, -40)
+        g.closePath()
+        g.fill()
+        g.stroke()
+        g.beginPath()
+        g.moveTo(-14, -74)
+        g.lineTo(14, -74)
+        g.stroke()
+        g.beginPath()
+        g.moveTo(-24, 14)
+        g.lineTo(24, 14)
+        g.stroke()
+      } else if (kind === 'carton') {
+        // Gable top — the shape that says "milk" without a label.
+        g.beginPath()
+        g.moveTo(-34, -34)
+        g.lineTo(0, -74)
+        g.lineTo(34, -34)
+        g.lineTo(34, 70)
+        g.lineTo(-34, 70)
+        g.closePath()
+        g.fill()
+        g.stroke()
+        g.beginPath()
+        g.moveTo(-34, -34)
+        g.lineTo(34, -34)
+        g.moveTo(0, -74)
+        g.lineTo(0, -34)
+        g.stroke()
+      } else if (kind === 'bag') {
+        g.beginPath()
+        g.moveTo(-30, -46)
+        g.lineTo(30, -46)
+        g.lineTo(40, 70)
+        g.lineTo(-40, 70)
+        g.closePath()
+        g.fill()
+        g.stroke()
+        // Folded-over top.
+        g.beginPath()
+        g.moveTo(-30, -46)
+        g.quadraticCurveTo(0, -66, 30, -46)
+        g.stroke()
+        g.beginPath()
+        g.moveTo(-34, 16)
+        g.lineTo(34, 16)
+        g.stroke()
+      } else if (kind === 'jar') {
+        g.beginPath()
+        g.moveTo(-34, -34)
+        g.lineTo(34, -34)
+        g.lineTo(38, 58)
+        g.quadraticCurveTo(38, 72, 24, 72)
+        g.lineTo(-24, 72)
+        g.quadraticCurveTo(-38, 72, -38, 58)
+        g.closePath()
+        g.fill()
+        g.stroke()
+        // Lid.
+        g.beginPath()
+        g.rect(-40, -62, 80, 28)
+        g.fill()
+        g.stroke()
+      }
+      g.restore()
+    }
+
+    /**
+     * One panel face. `kinds` may hold two items — a produce face reads more
+     * like a grocery shelf as a small grouping than as one lonely vegetable,
+     * and it is how all eight requested items fit across six shelf faces
+     * without adding or moving a single panel.
+     */
+    function createProductPanel(top: string, bottom: string, ink: string, kinds: ItemKind[], fill: string) {
       const c = document.createElement('canvas')
       c.width = 256
       c.height = 256
@@ -146,31 +336,40 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
         g.fillStyle = grad
         g.fillRect(0, 0, 256, 256)
 
-        // One restrained line mark, centred — enough to read as a labelled
-        // product face at this scale without pretending to be a photograph.
+        // Sized from the rendered screenshot, not from how it looks in the
+        // 256px texture. The panel is ~90px wide on screen and tilted away
+        // from camera, so a shape that fills a comfortable half of the canvas
+        // ends up reading as a small mark on the shelf.
+        if (kinds.length === 1) {
+          drawItem(g, kinds[0], 128, 116, 1.3, fill, ink)
+        } else {
+          drawItem(g, kinds[0], 84, 120, 0.92, fill, ink)
+          drawItem(g, kinds[1], 174, 124, 0.92, fill, ink)
+        }
+
+        // Shelf-edge rule, so the face reads as packaging rather than a sticker.
         g.strokeStyle = ink
-        g.lineWidth = 6
-        g.globalAlpha = 0.55
+        g.globalAlpha = 0.35
+        g.lineWidth = 4
         g.beginPath()
-        g.arc(128, 112, 46, 0, Math.PI * 2)
-        g.stroke()
-        g.beginPath()
-        g.moveTo(78, 186)
-        g.lineTo(178, 186)
+        g.moveTo(38, 214)
+        g.lineTo(218, 214)
         g.stroke()
       }
       return new THREE.CanvasTexture(c)
     }
 
     // Palette only: gold, deep red, coffee-brown, cream, near-black.
-    const pomegranatesTex = createProductPanel('#8f2a1c', '#5c1a11', '#f4e8d4')
-    const avocadoTex = createProductPanel('#4a3524', '#2b1f16', '#c9a227')
-    const oliveOilTex = createProductPanel('#c9a227', '#8a6206', '#14100c')
-    const honeyJarTex = createProductPanel('#e3b341', '#a8822c', '#14100c')
-    const organicMilkTex = createProductPanel('#f4e8d4', '#d6c3a3', '#4a3524')
-    const artisanCheeseTex = createProductPanel('#edc155', '#c9a227', '#14100c')
+    // Fills are chosen for contrast against their own panel, not for realism —
+    // a red tomato on a red panel is a silhouette nobody can see.
+    const greensTex = createProductPanel('#4a3524', '#2b1f16', '#14100c', ['leaves', 'tomato'], '#c9a227')
+    const rootsTex = createProductPanel('#8f2a1c', '#5c1a11', '#14100c', ['carrot', 'onion'], '#f4e8d4')
+    const oliveOilTex = createProductPanel('#c9a227', '#8a6206', '#14100c', ['bottle'], '#f4e8d4')
+    const honeyJarTex = createProductPanel('#e3b341', '#a8822c', '#14100c', ['jar'], '#5c1a11')
+    const organicMilkTex = createProductPanel('#f4e8d4', '#d6c3a3', '#4a3524', ['carton'], '#8f2a1c')
+    const riceBagTex = createProductPanel('#edc155', '#c9a227', '#14100c', ['bag'], '#4a3524')
 
-    ;[pomegranatesTex, avocadoTex, oliveOilTex, honeyJarTex, organicMilkTex, artisanCheeseTex].forEach((tex) => {
+    ;[greensTex, rootsTex, oliveOilTex, honeyJarTex, organicMilkTex, riceBagTex].forEach((tex) => {
       tex.colorSpace = THREE.SRGBColorSpace
       tex.anisotropy = 16
     })
@@ -357,7 +556,7 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
       return prodGroup
     }
 
-    // --- TOP SHELF (sy = 1.15): Extra Virgin Olive Oil & Artisanal Honey ---
+    // --- TOP SHELF: cooking oil bottle & preserve jar ---
     const topY = 1.15
     const oliveOilDisplay = createPhotorealisticProductDisplay(oliveOilTex, -0.9, topY, 0.1, 1.1, 0.85, 0.1, Math.PI * 0.04)
     itemsGroup.add(oliveOilDisplay)
@@ -365,21 +564,21 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
     const honeyDisplay = createPhotorealisticProductDisplay(honeyJarTex, 0.9, topY, 0.1, 1.1, 0.85, 0.1, -Math.PI * 0.04)
     itemsGroup.add(honeyDisplay)
 
-    // --- MIDDLE SHELF (sy = 0): Fresh Pomegranates & Hass Avocados ---
+    // --- MIDDLE SHELF: fresh produce — leafy greens, tomato, carrot, onion ---
     const midY = 0
-    const pomDisplay = createPhotorealisticProductDisplay(pomegranatesTex, -0.9, midY, 0.1, 1.25, 0.9, 0.1, Math.PI * 0.03)
-    itemsGroup.add(pomDisplay)
+    const greensDisplay = createPhotorealisticProductDisplay(greensTex, -0.9, midY, 0.1, 1.25, 0.9, 0.1, Math.PI * 0.03)
+    itemsGroup.add(greensDisplay)
 
-    const avoDisplay = createPhotorealisticProductDisplay(avocadoTex, 0.9, midY, 0.1, 1.25, 0.9, 0.1, -Math.PI * 0.03)
-    itemsGroup.add(avoDisplay)
+    const rootsDisplay = createPhotorealisticProductDisplay(rootsTex, 0.9, midY, 0.1, 1.25, 0.9, 0.1, -Math.PI * 0.03)
+    itemsGroup.add(rootsDisplay)
 
-    // --- BOTTOM SHELF (sy = -1.15): Organic Milk & Gourmet Artisan Cheese ---
+    // --- BOTTOM SHELF: milk carton & staples bag ---
     const botY = -1.15
     const milkDisplay = createPhotorealisticProductDisplay(organicMilkTex, -0.9, botY, 0.1, 1.1, 0.85, 0.1, Math.PI * 0.05)
     itemsGroup.add(milkDisplay)
 
-    const cheeseDisplay = createPhotorealisticProductDisplay(artisanCheeseTex, 0.9, botY, 0.1, 1.1, 0.85, 0.1, -Math.PI * 0.05)
-    itemsGroup.add(cheeseDisplay)
+    const riceBagDisplay = createPhotorealisticProductDisplay(riceBagTex, 0.9, botY, 0.1, 1.1, 0.85, 0.1, -Math.PI * 0.05)
+    itemsGroup.add(riceBagDisplay)
 
     mainGroup.add(itemsGroup)
 
@@ -441,21 +640,19 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
     scanBeam.position.set(0, 0, 0.9)
     telemetryGroup.add(scanBeam)
 
-    // 3D Telemetry Bounding Boxes
-    const create3DBoundingBox = (x: number, y: number, z: number, w: number, h: number, d: number, colorHex: number) => {
-      const bGeo = new THREE.BoxGeometry(w, h, d)
-      const wire = new THREE.WireframeGeometry(bGeo)
-      const mat = new THREE.LineBasicMaterial({ color: colorHex, linewidth: 2 })
-      const lineSegs = new THREE.LineSegments(wire, mat)
-      lineSegs.position.set(x, y, z)
-      return lineSegs
-    }
-
-    const bbox1 = create3DBoundingBox(-0.8, midY + 0.32, 0.1, 0.9, 0.65, 0.9, 0xedc155)
-    const bbox2 = create3DBoundingBox(0.8, midY + 0.32, 0.1, 0.9, 0.65, 0.9, 0x10b981)
-    telemetryGroup.add(bbox1)
-    telemetryGroup.add(bbox2)
-
+    /* The two telemetry bounding boxes are GONE.
+     *
+     * They were wireframe cubes floating around the middle shelf, one gold and
+     * one green, and they were the other half of why this scene read as
+     * broken: a wireframe box drawn over a product is the universal look of
+     * something that failed to load, or of a debug overlay left switched on.
+     * They also implied a meaning the product does not have — nothing in
+     * StockPulse does object detection, so a machine-vision detection box was
+     * promising a feature that does not exist.
+     *
+     * The scan beam and sensor pod stay. Those read as a shelf sensor, which
+     * is a thing the monitoring feature genuinely models.
+     */
     mainGroup.add(telemetryGroup)
     scene.add(mainGroup)
 
@@ -492,10 +689,7 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
       const scanY = Math.sin(t * 1.4) * 1.15
       scanBeam.position.y = scanY
 
-      // Pulse bounding boxes subtly
-      const scale = 1 + Math.sin(t * 3) * 0.02
-      bbox1.scale.set(scale, scale, scale)
-      bbox2.scale.set(scale, scale, scale)
+      // The bounding-box pulse went with the boxes themselves.
 
       // Lerp rotation for smooth mouse interaction
       targetRotY += (mouseX * 0.35 - Math.PI * 0.12 - targetRotY) * 0.05
