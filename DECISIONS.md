@@ -666,3 +666,41 @@ Generalises past Tailwind: any tool that greps source rather than parsing it
 will treat prose about code as code. The verification recipe in D9 is the check
 that catches it, and it only catches it if you actually run it after the change
 rather than before.
+
+## D34 — Phase 3 close-out: the four things a later batch will be tempted to "fix"
+
+Phase 3 is closed. Each of these looks like an oversight in the finished
+product and is a decision with reasoning behind it. Collected here because the
+individual entries are spread across 3A, 3B and 3C, and a batch working from
+the *result* rather than the log will not find them.
+
+1. **`/support` has no page-level primary button.** D32. Ratified by the owner
+   on 2026-08-09: "a triage list whose only actions are per-row doesn't need a
+   page-level primary, and ten primaries is the same as none." The
+   one-high-emphasis-button rule is a ceiling, not a floor.
+
+2. **No `sp-lift` on the static panels of the list routes.** D27. A card that
+   rises when pointed at and depresses when clicked promises that something
+   happens; on those cards nothing does. The honest hover affordance for a
+   table is the row tint, which is present and measured.
+
+3. **The toolbar search boxes and filter selects do not use `Field`.** D28.
+   `Field` stacks a visible uppercase label above its control, and a search box
+   carrying a magnifier, a describing placeholder and a clear button does not
+   need the word "Search" on top of it. They share `Field`'s *skin* exactly —
+   radius, height, resting `bg-surface-muted`, `focus:bg-surface`, gold ring —
+   while keeping a toolbar's *layout*. Same skin, different component, on
+   purpose.
+
+4. **Fourteen raw palette classes remain.** D9. Alpha scrims (`bg-black/40`)
+   and gradient stops (`via-black/95`) need `/opacity` on a built-in colour,
+   which the semantic tokens cannot express — a token with an `/opacity`
+   modifier compiles, builds, and emits no rule at all. Both read correctly in
+   either theme already. Converting them would make them worse. The two that
+   were *not* in this group — the zinc-900 slider accents — were removed in
+   3C-ii, because near-black does not invert.
+
+The general form: each is a case where visual consistency and honest meaning
+pulled in opposite directions, and meaning won. If one of these is ever
+reversed, reverse it because the meaning changed, not because the screen looked
+inconsistent next to its neighbours.

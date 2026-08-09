@@ -806,3 +806,90 @@ That closes the "not yet measured" list in FOUND-ISSUES for these three routes.
 3A (Inventory, Sales, Suppliers, Customers), 3B (Reports, Staff, Activity,
 Monitoring), 3C-i (overlay focus, 104 instances) and 3C-ii (Settings, Support,
 Help Centre) between them cover every route in the app.
+
+---
+
+# PHASE 3 — CLOSED (2026-08-09, branch `ui/palette-round`)
+
+Four batches. Every route in the app is now on one control family, one
+elevation ladder, one radius scale and one button ladder, and every one of them
+has been measured rather than eyeballed.
+
+## What each batch covered
+
+| Batch | Routes | Headline |
+|---|---|---|
+| 3A | Inventory, Sales, Suppliers, Customers | 8 toolbar controls that disagreed on radius, background and focus behaviour brought onto one skin (D28); `sp-lift` deliberately withheld (D27) |
+| 3B | Reports, Staff, Activity, Monitoring | the last off-family control; the implicitly focusable scroll container found and named |
+| 3C-i | all 9 overlay-bearing routes | overlay focus: **104 instances** on trap, escape, return, ringless |
+| 3C-ii | Settings, Support, Help Centre (+ `/help/[slug]`) | the Field family, the button ladder, and three Settings defects |
+
+## Totals measured across Phase 3
+
+- **104 overlay instances** (3C-i) — trap, escape and return correct in 104 of
+  104; `ringless` 0 in 104 of 104.
+- **16 harness states** (3C-ii) — CLS 0, console errors 0, horizontal overflow
+  none, focus rings `gold == tabStops`, requested-vs-landed 16/16 exact.
+- **9 further overlay instances** (3C-ii) — the four global overlays against
+  `/settings`, `/support` and `/help`, which FOUND-ISSUES had listed as never
+  measured in their open state. 9 of 9 correct.
+- Ring dimensions measured **serially throughout**, per D30.
+
+## App defects Phase 3 found, by batch
+
+Every one of these was green through `tsc`, `eslint` and `next build`.
+
+| Batch | Defect |
+|---|---|
+| 3B | A scroll container Chrome made keyboard-focusable on its own, with no `tabindex`, so it fell outside every selector in the focus rule and painted the black UA ring — and announced nothing, being an unlabelled `div` |
+| 3C-i | The AI panel was an `aria-modal` dialog with **no trap** — 14 of 14 tab stops landed on the page behind it |
+| 3C-i | The mobile drawer moved focus in and let Tab walk back out onto a page hidden behind a scrim |
+| 3C-i | `Modal` lost focus on close for exactly 2 of 8 route modals — the only two whose first field carries `autoFocus`. An effect-ordering bug wearing a focus-restore bug's clothes |
+| 3C-ii | Settings' three labels had no `htmlFor` over inputs with no `id` — none pointed at its own control, on the one screen that is entirely a form |
+| 3C-ii | The address `<textarea rows={2}>` carried `control-h`, a fixed 40px, so it rendered as a single line |
+| 3C-ii | **An empty store name saved successfully** — `not null` is not `not blank`. Now logged as a *pattern* to sweep in Phase 7, not a one-off |
+| 3C-ii | Both range sliders used a zinc-900 accent — near-black does not invert, so in dark mode the filled track and thumb were near-black on a near-black card |
+
+## Harness defects Phase 3 found — and the pattern in them
+
+**Three consecutive rounds in which something the probe flagged was the probe.**
+This is the most transferable thing Phase 3 produced, so it is stated as a
+count rather than left implicit:
+
+| Round | What it flagged | What it actually was |
+|---|---|---|
+| 3C-i | `return=LOST` on a notification bell | It was clicking a `display:none` bell — `el.click()` fires React's handler on a hidden button quite happily, so it "opened" a 0×0 popover at 390 and walked 14 stops on the page behind |
+| 3C-i | `NO TRIGGER` for Change Password, four runs running | The overlay was declared by the modal's *title*; the button reads "Update" |
+| 3C-i | `return=LOST -> BODY` | Ambiguous by construction — a stale marker and a genuinely lost focus produce identical output (D31). Needed a second instrument holding a direct node reference |
+| 3C-ii | `offenders=1` on `/settings` | `closest('.sp-e1')` matches the element *itself*, and the theme control's active segment legitimately carries an elevation class, so a button became its own card and was measured against its own padding box. The tell was the symmetry: `right +12px left +12px` is exactly its `px-3` |
+
+Plus one that was neither app nor probe but procedure:
+
+**The first 16-state run of 3C-ii is void and its numbers were never reported.**
+`npm run build` was run while `next start` was already serving, so chunk hashes
+moved under the running process — 500s and 404s on `_next/static/chunks/*.js`,
+and on `/help/[slug]` the **stylesheet** failed to load. That run reported
+`gold=0 nonGoldRing=22` and CLS 0.0214 on that route, which reads exactly like
+a design-system regression confined to one page and was in fact a page
+rendering with no CSS, painting Chrome's default black ring on every control.
+Restart the server after any rebuild, before measuring.
+
+The rule these all point at is D26's, from both sides: an instrument that
+cannot tell you it is broken (the `/login` mislabel), one that cannot tell you
+it is *early* (D30's ring sampling), and one measuring a build the report does
+not name. **Before believing a probe's failure, ask whether a healthy system
+could have produced that output.** Four times in two rounds, it could.
+
+## Phase 3 leaves open, deliberately
+
+- **`Add Shipment` on `/suppliers`** — unmeasurable without a seeded supplier
+  row. The probe reporting `NO TRIGGER` is the probe being correct. Phase 8.
+- **No notifications affordance below 1024px** — `Topbar` is `hidden lg:block`
+  and the bell lives only there. A product decision about what belongs on a
+  phone header, not a focus bug. Phase 7.
+- **`nonGoldRing` under parallelism** — instrument limitation, D30. Run the
+  ring dimension serially and it measures 0.
+- **`not null` is not `not blank`** — the cross-cutting sweep, Phase 7.
+
+See **D34** for the four things in the finished result that look like
+oversights and are decisions.

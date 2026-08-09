@@ -546,3 +546,59 @@ Not a code fix: restart the server after any rebuild, before measuring. Logged
 because the symptom impersonates a design-system regression, and because this
 is the same family as D26 — the report named a build the server was not
 serving.
+
+## PATTERN — `not null` is not `not blank` · SWEEP IN PHASE 7
+
+Raised by the owner after Phase 3C-ii, and correctly: the empty-store-name bug
+above is an instance, not an incident.
+
+`stores.name` is `not null`. A form that posts `''` satisfies that constraint
+completely — Postgres rejects the *absence* of a value, never the emptiness of
+one. So the write succeeds, the API returns no error, the UI shows a success
+toast, and the record is now blank in a column the schema declares mandatory.
+Every layer behaved exactly as written. The result is still a nameless shop.
+
+**The shape to look for:** a `text not null` column, a form field bound to it,
+and no `.trim()` plus no required-check between them. Whitespace makes it
+worse — `" "` is not empty, so even a naive `if (!value)` guard passes it, and
+the stored value is a string that renders as nothing.
+
+**The sweep, for Phase 7:** enumerate every `not null` text column in
+`supabase/schema.sql`, `schema_phase2-4.sql` and `migrations/0001`–`0012`, then
+for each one find the form or Server Action that writes it and confirm two
+things — that the value is trimmed before the write, and that blank is rejected
+with a field-level error rather than sent. Known-good already:
+`supportRequest.ts`, `customer.ts`, `product.ts`, `supplier.ts`, `shift.ts`,
+`leave.ts` and now `storeSettings.ts` all validate and trim. Everything else is
+unaudited.
+
+Two things worth deciding during that sweep rather than after it:
+
+- **Where the check belongs.** Client-side validation is a convenience; the
+  crafted request skips it. Anything written through a Server Action should
+  re-run the same validator server-side, the way `submitSupportRequest` does.
+- **Whether to add `check (length(trim(col)) > 0)` constraints.** That closes
+  it at the layer that cannot be bypassed, and it is a migration, so it is a
+  decision for the owner rather than a code change. Cheaper to add for all of
+  them at once than one at a time.
+
+Deliberately not fixed now: it is a cross-cutting audit, and widening Phase 3's
+diff to cover it would have made the visual round unreviewable.
+
+## Note — `/support` has no page-level primary, ON PURPOSE. Do not "fix" it.
+
+`stockpulse/components/support/SupportClient.tsx`
+
+Phase 3C-ii's button ladder gave `/settings` a Save and `/help` a Send request,
+and left `/support` with no high-emphasis button at all. That is not an
+omission and it is not a screen that was missed.
+
+`/support` is a triage list. Its only action is `Mark resolved`, and there is
+one per row — promoting it to primary would put N near-black buttons on screen,
+which is visually indistinguishable from having none. The Open/All filters were
+already wearing the primary skin and were demoted for the same reason: a filter
+changes what is listed, never what is done.
+
+See **D32**, which the owner ratified on 2026-08-09. A later batch reading
+"one high-emphasis button per screen" as a requirement rather than a limit will
+be tempted to add one here. The rule is a ceiling.
