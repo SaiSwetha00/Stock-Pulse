@@ -52,6 +52,12 @@ export default function CommandPalette({
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  // The trap effect runs once, so it must not close over a stale onClose.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
   const listboxId = useId()
 
   const results = useMemo(() => {
@@ -86,6 +92,70 @@ export default function CommandPalette({
       ?.querySelector(`[data-index="${safeIndex}"]`)
       ?.scrollIntoView({ block: 'nearest' })
   }, [safeIndex])
+
+  /**
+   * Focus trap, document-level Escape, and focus restore.
+   *
+   * Escape and the arrows were bound to the input's own onKeyDown, and nothing
+   * held focus inside the dialog. Measured with the open-state probe: of 13 tab
+   * stops, 12 landed OUTSIDE — the skip link and the entire sidebar behind the
+   * overlay. Once focus was out there Escape never reached the handler, so a
+   * keyboard user had an aria-modal dialog covering the page and no way to
+   * dismiss it. The probe reported `escape=STILL OPEN`.
+   *
+   * Same shape as Modal.tsx, which already does this correctly: listener on the
+   * document in the capture phase, Tab wrapped at both ends, focus returned to
+   * whatever opened the palette.
+   */
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null
+
+    function onKeyDownDoc(e: KeyboardEvent) {
+      const panel = panelRef.current
+      if (!panel) return
+
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        onCloseRef.current()
+        return
+      }
+      if (e.key !== 'Tab') return
+
+      const focusable = Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      )
+      if (focusable.length === 0) {
+        e.preventDefault()
+        return
+      }
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const active = document.activeElement as HTMLElement | null
+
+      // Wrap at both ends, and pull focus back if it is already outside — the
+      // page behind must stay unreachable while this is open.
+      if (!panel.contains(active)) {
+        e.preventDefault()
+        first.focus()
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDownDoc, true)
+    return () => {
+      document.removeEventListener('keydown', onKeyDownDoc, true)
+      previouslyFocused?.focus?.()
+    }
+  }, [])
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'Escape') {
@@ -136,6 +206,7 @@ export default function CommandPalette({
       className="fixed inset-0 z-[60] flex items-start justify-center bg-black/40 p-4 pt-[12vh]"
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"
@@ -166,7 +237,20 @@ export default function CommandPalette({
           </kbd>
         </div>
 
-        <div ref={listRef} id={listboxId} role="listbox" aria-label="Results" className="max-h-80 overflow-y-auto py-2">
+        {/* tabIndex={-1}: this scrolls, and Chrome makes an overflowing
+            container keyboard-focusable on its own, so it became a tab stop
+            painting the black UA ring — measured rgb(16,16,16), the same
+            pattern as the rota strip in Phase 3B. It should not be a stop at
+            all: this is a combobox, the input keeps focus and the arrows drive
+            the list. Opting out explicitly is the fix, not styling the ring. */}
+        <div
+          ref={listRef}
+          id={listboxId}
+          role="listbox"
+          aria-label="Results"
+          tabIndex={-1}
+          className="max-h-80 overflow-y-auto py-2"
+        >
           {results.length === 0 ? (
             <EmptyState
               icon={SearchX}
