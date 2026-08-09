@@ -894,3 +894,49 @@ wearing a meaning, which is the thing D27 and D32 both refuse.
 Corollary for future decoration: if removing a colour from a component appears
 to destroy information, check whether the information was ever really there.
 Usually the words beside it were already doing the work.
+
+## D41 — A legal document's contents list is generated, never written
+
+`LegalPage` takes `sections: {id, title, body}[]` and renders the table of
+contents and the section headings from that one array. It would have been
+quicker to write a list of anchors by hand above the prose.
+
+Two parallel lists that must agree is the exact shape this codebase has already
+been bitten by twice: `lib/nav.ts` drifted from the route guards and a manager
+got an empty sidebar, and `ROLE_STYLES` drifted from the role list and a badge
+rendered `undefined`. A dead anchor in a privacy policy is worse than either,
+because the reader who clicks "Retention" and lands nowhere concludes the
+document is as unmaintained as the link.
+
+Generating both from one array makes the failure impossible rather than
+unlikely. The test that every anchor resolves to a real id still runs — 27
+anchors across the two documents — but it now checks a property the code cannot
+violate, which is the right kind of test to have.
+
+Corollary, and the reason this is a decision rather than a detail: **prose is
+data too.** The instinct to write a legal page as one long JSX blob is what
+makes it undiffable, unlinkable and impossible to test. Sections as data cost
+nothing and made the whole document machine-checkable.
+
+## D42 — An integration is a data export, and the policy is where that surfaces
+
+Drafting the privacy policy meant listing every place data leaves the system.
+That list turned out to contain something no phase had thought about: the AI
+assistant sends store data to Google.
+
+Nobody hid it. The phase that built the assistant was thinking about streaming,
+tool declarations and role-gating `OWNER_ONLY_TOOLS` — all of which it did
+carefully — and simply never asked "and where does this data physically go?"
+The privacy policy is the first artefact in the project whose job is to ask
+that question about every dependency at once, and it found the answer in about
+five minutes of reading imports.
+
+The rule going forward: **when adding a dependency that transmits anything,
+name it in the policy in the same change.** Not later, not as a docs task. If
+it receives user data it is a sub-processor, and the disclosure is part of
+shipping the feature rather than an afterthought.
+
+The corollary is why this sits in DECISIONS rather than FOUND-ISSUES: a privacy
+policy written honestly is a genuine audit of the system's boundaries, and it
+is worth re-reading it whenever a new integration lands. It is cheaper than a
+security review and catches a different class of thing.

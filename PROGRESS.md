@@ -1327,3 +1327,96 @@ references either, and the CSS lives inside `Crate3D.tsx` so it leaves with it.
   isolated.
 - **`not null` is not `not blank`** — Phase 7 sweep, untouched by Phase 5.
 - **Resend -> Supabase SMTP** — still blocks invite delivery.
+
+---
+
+# PHASE 6 — Privacy Policy and Terms (2026-08-09, `ui/palette-round`)
+
+Commit `00a8419`. **Not merged to main** — `main` stays on the current working
+version until Phase 9.
+
+Both pages were placeholders that honestly said they were placeholders. They
+are now full drafts. **They are AI-written and have not been reviewed by a
+lawyer** — every page carries that warning in a banner outside the contents.
+
+## Which email path is actually live — checked, not assumed
+
+The brief asked me to write against whichever is real. Measured against the
+live project:
+
+| | Finding |
+|---|---|
+| **Resend** | Key authenticates (`GET /domains` returns 200) but **zero verified domains**, and `RESEND_FROM` is unset — so mail sends from Resend's shared `onboarding@resend.dev`, which only delivers to the Resend account owner |
+| **Supabase Auth** | Still owns invite and password-reset mail. `mailer_autoconfirm: true`, so signup confirmation mail is not sent at all |
+
+Resend is live for support notifications and is named as a sub-processor;
+Supabase is named for auth mail. Both operational consequences are logged as
+S1/S2 in FOUND-ISSUES rather than smoothed over in the policy.
+
+## A fourth sub-processor the brief did not list
+
+`app/api/ai/chat/route.ts` streams to Google's `gemini-flash-latest`, and
+`lib/gemini/tools.ts` lets it return product names and stock levels, sales and
+revenue summaries, and staff names. **Store trading figures and staff names
+leave the system to Google whenever the assistant is used**, and nothing said
+so. Now disclosed with what it receives, and with the plain note that the
+assistant is optional. See D42.
+
+## What the documents contain
+
+**Privacy Policy** — 13 sections: who we are; the controller/processor split
+and why it decides who you contact; what is collected and why; legal basis;
+sub-processors named individually; where data lives; retention; your rights and
+which you can exercise yourself; security; breach notification; cookies and
+browser storage; children's data; how changes are announced.
+
+**Terms** — 13 sections: parties; what the service is and is not; accounts;
+staff roles and owner responsibility; acceptable use; data ownership;
+availability with no uptime guarantee; fees; suspension and termination;
+disclaimers; limitation of liability; changes; governing law.
+
+**50 TODO placeholders** (24 privacy, 26 terms), each rendered as a marked
+TODO. Legal entity, registered address, contact email, governing jurisdiction
+and effective date are blank on purpose. Fees is blank too — nothing in the
+software takes a payment, so inventing a price would have been the same error.
+
+## Tested
+
+**22 structural assertions, 22 passed**, across both routes: HTTP 200; exactly
+one h1; 14 h2s; no h3 before the first h2; **every anchor resolves to a real
+id** (14 + 13); every section appears in the contents; TODOs present; draft
+banner present; last-updated present; both footer links resolve (2 links each
+on the landing page).
+
+**8 harness states**, serial per D30 — `/privacy` and `/terms` across light and
+dark at 390 and 1440. (8 is right: 2 routes x 2 themes x 2 widths.)
+
+| Dimension | Result |
+|---|---|
+| CLS | **0** in all 8 |
+| Console errors | **0** in all 8 |
+| Horizontal page overflow | none at 390 or 1440 |
+| Focus rings | `gold == tabStops` 21/21 in all 8, `nonGoldRing` 0, `ringless` 0 |
+| Network failures | 2-4 per run, all `ERR_ABORTED` `?_rsc=` prefetches |
+
+One honest caveat: `controls=0` on both routes, because the card-overflow probe
+looks for controls inside `.sp-e1` cards and these prose pages have none. So
+`offenders=0` there is trivially true; the meaningful overflow signal is
+`pageOverflowX=false`, which is real.
+
+The server was confirmed to be the one started, per last phase's lesson: port
+3100 was freed first, the log checked for `Ready` and for the absence of
+`EADDRINUSE`, and both routes asserted on a string that exists only in this
+build.
+
+Warning-token contrast checked in both themes rather than assumed — light
+`#8a5a06` on `#f7e7c6`, dark `#d9a13c` on `#322210` — and all four new classes
+verified present in the built CSS by the D9 recipe.
+
+## Carried forward
+
+- **Email verification is off** (S1) and **support confirmations cannot reach a
+  real submitter** (S2). Both are dashboard/config fixes, and both matter more
+  now that the policy promises to email owners.
+- **CLS 0.0006 on `/dashboard` at 1440** — Phase 7 performance sweep.
+- **`not null` is not `not blank`** — Phase 7 sweep.

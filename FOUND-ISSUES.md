@@ -850,3 +850,82 @@ same 64px box, so the idle-time swap has nothing to shift.
 
 Still not isolated, still Phase 7's performance sweep, still logged so it
 cannot become the new baseline by attrition.
+
+---
+
+# Phase 6 — found while drafting the legal documents (2026-08-09)
+
+Writing a privacy policy means enumerating every place data leaves the system.
+Doing that honestly surfaced four things nobody had asked about.
+
+## S1 — Email addresses are never verified (`mailer_autoconfirm: true`)
+
+`GET /auth/v1/settings` on the live project returns `"mailer_autoconfirm": true`.
+Signup confirmation email is not sent; accounts are confirmed on creation.
+
+**Anyone can register with an email address they do not control.** For this app
+that matters more than usual, because the account email is the password-reset
+address and the channel this policy promises to use for breach notification. A
+person who signs up as someone else's address has an account tied to an
+identity they cannot receive mail for, and the real owner of that address
+cannot tell.
+
+It also quietly contradicts the invite flow: `inviteStaff` sends a real
+invitation, so staff addresses ARE exercised, while self-signup addresses are
+not.
+
+Not changed — it is a dashboard setting, not code, and turning it on mid-phase
+would break signup for anyone mid-flow until SMTP is confirmed working. Flagged
+because the privacy policy now promises to email store owners about breaches
+and material changes, and that promise is only as good as the address.
+
+## S2 — Support confirmation email cannot reach a real submitter
+
+Verified against the Resend API with the project's own key: it authenticates
+(`GET /domains` -> 200) and returns **zero verified domains**. `RESEND_FROM` is
+unset, so `lib/email/resend.ts` falls back to `onboarding@resend.dev` —
+Resend's shared sender, which by design only delivers to the Resend account
+owner's own address.
+
+So operator notification works, and a confirmation to the person who submitted
+the support request does not, for any address that is not the account owner's.
+`sendSupportEmails` already puts submitter confirmations behind a flag and the
+file says why, so this is documented behaviour rather than a surprise — but the
+underlying fix (verify a sending domain, set `RESEND_FROM`) has not been done
+and is worth doing before a client relies on support replies.
+
+## S2 — Google was an undisclosed sub-processor
+
+`app/api/ai/chat/route.ts` streams to `gemini-flash-latest`, and
+`lib/gemini/tools.ts` declares tools that can return product names and stock
+levels, sales and revenue summaries, and staff names. All of that leaves the
+system to Google whenever the assistant is used.
+
+Nothing in the product said so. The old privacy placeholder listed
+sub-processors under "what is not written yet", so this was not a regression —
+it was simply never disclosed, and it is the single most surprising data flow
+in the app for a shopkeeper who assumes their takings stay in their database.
+
+Now named in the policy with what it receives, plus the plain advice that the
+assistant is optional and nothing else depends on it.
+
+**The general point:** an integration added for a feature is also a data
+export. The privacy consequences of `@google/genai` were never considered when
+the assistant was built, because the phase that built it was thinking about
+streaming and tool calls.
+
+## Note — public image buckets, restated as a privacy fact
+
+D6 and migration `0009` both chose public read for avatars and product images,
+for good reasons (many images per page, `next/image` caching, signed URLs
+expire). That decision is not being reversed.
+
+What had never been written down is the consequence in privacy terms: **anyone
+holding an image URL can view it without signing in.** The URLs contain a
+random uuid and are not listed anywhere, so this is obscurity rather than
+access control. Now stated plainly in the policy's Security section, including
+the advice not to upload anything to a product or profile photo that you would
+not be content to have seen.
+
+Worth keeping in mind for any future feature that puts something more sensitive
+than a tin of beans into one of those buckets.
