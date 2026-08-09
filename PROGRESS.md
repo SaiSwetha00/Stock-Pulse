@@ -893,3 +893,97 @@ could have produced that output.** Four times in two rounds, it could.
 
 See **D34** for the four things in the finished result that look like
 oversights and are decisions.
+
+---
+
+## Phase 4 — data-driven product categories (2026-08-09, branch `ui/palette-round`)
+
+Commit `bc0b7ac`. **Migration 0013 is written and NOT APPLIED** — see the
+blocker below. The app is built to run either side of it.
+
+### The list was hardcoded in six places
+
+Grepped before anything was claimed, because "the product form picks up new
+categories without a code change" is only true if the form reads the database:
+
+| Where | What |
+|---|---|
+| `types/index.ts:3` | the five-value `Category` union |
+| `types/index.ts:72` | `CATEGORY_LABELS` |
+| `lib/validation/product.ts:3` | `CATEGORIES` |
+| `ProductModal.tsx:15` | a **second** `CATEGORIES`, duplicating the one above |
+| `InventoryClient.tsx:24` | `CATEGORY_FILTERS`, labels re-typed by hand |
+| `schema.sql:48` | the CHECK constraint |
+
+Plus eight read sites of `CATEGORY_LABELS`. All six copies are gone; the only
+list left in the codebase is `DEFAULT_CATEGORIES` in `lib/categories.ts`, which
+exists solely as the pre-migration fallback (D37) and is unreachable once 0013
+has run.
+
+### What landed
+
+- **`0013_categories.sql`** — table, composite restrict FK, backfill, RLS
+  mirroring `can_manage()`, `check (length(trim(name)) > 0)`, and a down path
+  with a guard that aborts rather than half-reversing. See D35.
+- **`/settings/categories`** — list, add, rename, reorder, delete; guarded by
+  `canManage`, signpost card on `/settings`. See D36.
+- **Four Server Actions.** Every update and delete asks for its rows back with
+  `.select('id')` per D24 — including the reorder, which is a loop of updates.
+  Delete counts products server-side first and refuses with a sentence naming
+  the number; the restrict FK is the belt to that braces.
+- **Reorder renumbers 1..n rather than swapping two `sort_order` values.**
+  A swap is a no-op whenever the two values are equal, and they can be: the
+  column defaults to 0, 0013's defensive backfill writes 99, and the secondary
+  sort is by name. A write that changes nothing and reports success is the
+  failure shape this project keeps finding.
+- **`lib/validation/category.ts`** — trims, rejects blank, rejects a name that
+  slugs to nothing ("!!!"), and catches duplicates by name *and* by slug,
+  because "Dairy & Eggs" and "Dairy Eggs" slug identically.
+
+### Measured
+
+`tsc --noEmit`, `eslint` and `next build` all green; `/settings/categories`
+present in the route table.
+
+**Role test, by flipping `ROLE` in `harness-auth.js`** — staff redirect,
+manager and owner render, tracking `/customers` and diverging from `/settings`
+and `/audit`. The first run of this reported staff getting 200 on the
+owner-only `/settings`, which was the probe: it matched the `<title>`, not the
+page body. Next returns HTTP 200 with a `NEXT_REDIRECT` payload for a Server
+Component `redirect()`, so status code alone cannot tell a rendered page from
+a refused one. Fourth round running in which something a probe flagged was the
+probe. Role restored to `owner`; `scope-check.js` re-run per D25 and unchanged
+from the 2026-08-08 baseline.
+
+**16 harness measurements**, serial per D30 — `/settings`,
+`/settings/categories`, `/inventory`, `/dashboard` × light/dark × 390/1440:
+
+| Dimension | Result |
+|---|---|
+| CLS | 0 in 14 of 16; **0.0006** on `/dashboard` at 1440, both themes |
+| Console errors | 0 in all 16 |
+| Card-overflow offenders | 0 in all 16 |
+| Horizontal page overflow | none at 390 or 1440 |
+| Focus rings | `gold == tabStops` in all 16, `nonGoldRing` 0, `ringless` 0 |
+| Network failures | 0 real; every one an `ERR_ABORTED` `?_rsc=` prefetch |
+| Requested vs landed | 16/16 exact |
+
+The 0.0006 is 1.2% of the 0.05 budget and is reported rather than rounded
+away. It was 0 in the Phase 2 dashboard runs. **Not isolated** — the store has
+zero products, so the low-stock table this change touches never renders, which
+makes it unlikely to be Phase 4's doing.
+
+### Blocked on the owner — migration 0013
+
+There is no DDL path from here: no `psql`, no `pg`/`postgres` driver in the
+project, no Management API token, and the service-role key reaches PostgREST,
+which is the data plane. `categories` currently returns PGRST205. Same as 0011
+and 0012 — it needs the Supabase SQL editor.
+
+**Until it is applied, these are untested:**
+
+- the RLS policies themselves (the `can_manage()` half of D36's pairing). What
+  was measured is the app-layer guard; the database-layer mirror is unexercised.
+- the functional pass: create three, rename one, reorder, assign a product,
+  and confirm the delete refusal is readable. All four actions currently return
+  "Categories are not set up on this database yet".

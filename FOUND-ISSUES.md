@@ -602,3 +602,75 @@ changes what is listed, never what is done.
 See **D32**, which the owner ratified on 2026-08-09. A later batch reading
 "one high-emphasis button per screen" as a requirement rather than a limit will
 be tempted to add one here. The rule is a ceiling.
+
+---
+
+# Phase 4 — data-driven categories (2026-08-09)
+
+## Harness — HTTP status cannot tell a rendered page from a refused one · FIXED (probe)
+
+The role test's first run reported a **staff** account getting `200` on the
+owner-only `/settings`, which reads as a blown authorisation guard.
+
+It was not. A Next.js Server Component `redirect()` returns **HTTP 200 with a
+`NEXT_REDIRECT` payload** — the layout shell and `<head>` are already flushed,
+so the redirect arrives inside the RSC stream and the client navigates. Status
+code and `redirect_url` are both useless as discriminators.
+
+The second attempt was also wrong, and more interestingly: grepping the body
+for `"Store Settings"` matched the `<title>`, which Next emits from the route's
+`metadata` export *before* the redirect resolves. On `/settings/categories` it
+matched the `<meta name="description">` too, so a refused page scored two hits
+on a marker meant to prove it had rendered.
+
+What works is a string that exists only inside the rendered component and in no
+metadata — `"Add a category"`, `"Interface Theme"` — checked alongside a count
+of `NEXT_REDIRECT`. With controls on both sides (`/customers` for canManage,
+`/settings` and `/audit` for isOwner) the result separated cleanly.
+
+**This is the fourth consecutive round in which something a probe flagged was
+the probe** (D31). The tell each time is the same: ask whether a *healthy*
+system could produce that output. A correctly-guarded route absolutely can
+return 200 with its own title in it.
+
+## PATTERN — a reorder that swaps two values is a no-op when they are equal
+
+`moveCategory` swaps two rows' positions. The obvious implementation swaps
+their `sort_order` values.
+
+That is silently wrong whenever the two are equal, and they can be: the column
+defaults to `0`, 0013's defensive backfill writes `99` to every stray, and the
+list's secondary sort is by name — so a legitimate list can arrive with ties.
+Swapping two equal integers writes successfully, changes nothing, returns no
+error, and the UI reports a reorder that did not happen.
+
+Fixed by renumbering the whole list `1..n` in the intended order and writing
+only the rows whose number actually changed. Worth recording as a shape rather
+than an incident: it belongs with D24's family — **a write that succeeds
+without changing anything is indistinguishable from one that worked**, and the
+fix is always to make the operation assert what it changed.
+
+## Note — `/settings` is owner-only, which nearly shipped a dead link
+
+The product form's "Manage categories" link is reached by managers, since
+adding a product is `can_manage()` work. Had the categories UI been a card on
+`/settings`, that link would have bounced every manager to `/dashboard`.
+
+Caught by reading the route guard before building the UI, not by testing.
+Resolved by making `/settings/categories` a sibling route with its own
+`canManage` guard — see D36. Recorded because the collision is invisible from
+either side on its own: the link looks right, and the guard looks right.
+
+## Migration 0013 is NOT APPLIED
+
+`categories` returns PGRST205 on the hosted project. No DDL path exists from
+the agent side (no `psql`, no `pg` driver, no Management API token; the
+service-role key reaches PostgREST only), so it needs the SQL editor — same as
+0009, 0011 and 0012.
+
+The app runs either side of it by design (D37), so this is not a broken
+deploy. What it does mean is that **0013's RLS policies are unexercised**: the
+`canManage` half of the owner/manager/staff model was measured at the app
+layer, and the `can_manage()` half in the database has never been asked a
+question. CLAUDE.md's warning about those two drifting is exactly why that gap
+is written down rather than assumed closed.

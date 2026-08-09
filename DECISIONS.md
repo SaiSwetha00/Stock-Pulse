@@ -704,3 +704,86 @@ The general form: each is a case where visual consistency and honest meaning
 pulled in opposite directions, and meaning won. If one of these is ever
 reversed, reverse it because the meaning changed, not because the screen looked
 inconsistent next to its neighbours.
+
+## D35 — products.category stays text; the FK is composite
+
+Migration 0013 makes categories data. The obvious modelling is
+`products.category_id uuid references categories(id)`. It was not done, for
+three reasons that are all about what already reads that column:
+
+- `public.sales_category_breakdown()` (migration 0004) groups by `p.category`
+  and returns it as `text`. A uuid changes that function's contract and every
+  caller of it.
+- CSV import and export round-trip the category as a readable word. Exporting
+  uuids would make the file useless to the shopkeeper it is for.
+- Every existing `products` row stays valid with no data rewrite.
+
+So the column keeps the slug and gains
+`foreign key (store_id, category) references categories(store_id, slug)`.
+
+**Carrying `store_id` into the key is the part that matters.** Slugs are only
+unique per store, so a plain FK on `slug` could not express "this store's
+category" — and a composite key makes it structurally impossible for one shop's
+product to reference another shop's category. That is a multi-tenant invariant
+enforced by the database rather than by remembering to write `.eq('store_id')`.
+
+**The slug is immutable; rename changes `name` only.** `name` is what people
+read, `slug` is identity. Renaming "Frozen" to "Frozen Foods" rewrites no
+products rows, so a relabelling cannot shift a shop's historical grouping.
+`on update cascade` is set anyway as a safety net for a slug change the app
+never makes.
+
+`on delete restrict`, not cascade and not set null: cascading would delete a
+shop's products because somebody tidied a list, and set null is unavailable —
+the column is `not null`.
+
+## D36 — /settings/categories is canManage(), and that is why it is its own route
+
+The plan put category management "in Settings". Taken literally — a card on
+`/settings` — it would have shipped a broken link.
+
+`/settings` is owner-only (`page.tsx` redirects, `NAV_ITEMS` says
+`roles: ['owner']`), because 0002 reserves store settings and hiring to the
+owner. Categories are not in that group: they classify products, and adding a
+product is `can_manage()` work. The "Manage categories" link on the product
+form is reached by managers, so a card on `/settings` would bounce half its
+audience to `/dashboard` for something their role is allowed to do.
+
+So it is a sibling route with its own guard — D15's `/staff/team` pattern with
+the roles inverted (there the child was narrower than the parent; here it is
+wider) — and `/settings` keeps a signpost card, for the same reason the "Your
+team" card exists: an owner who has used the app will look there first.
+
+Measured rather than asserted, by flipping `ROLE` in `harness-auth.js`:
+
+| Route | staff | manager | owner |
+|---|---|---|---|
+| `/settings` · isOwner | redirect | redirect | renders |
+| `/audit` · isOwner | redirect | redirect | renders |
+| `/customers` · canManage | redirect | renders | renders |
+| `/settings/categories` | redirect | renders | renders |
+
+It tracks the `canManage` control exactly and diverges from both `isOwner`
+controls, which is the shape the guard claims to have.
+
+Deliberately **not** added to `lib/nav.ts`. NAV_ITEMS drives the sidebar and
+the command palette, and `/staff/team` — the same kind of sub-screen reached
+from its parent — is not in it either.
+
+## D37 — the app ships ahead of migration 0013
+
+`getStoreCategories` falls back to the five built-in categories when the table
+is missing (42P01 / PGRST205), exactly as `/staff` treats a missing
+`staff_leave` (D21). Without that, deploying this branch against an unmigrated
+database breaks `/inventory`, `/dashboard`, `/sales` and `/reports` at once —
+and operating rule 4 says every commit leaves the branch deployable.
+
+The fallback is the five values the old CHECK allowed, in the order the product
+form listed them, so the day the migration runs nobody's list changes.
+
+Two things keep this from being a silent lie. The fallback is narrow — only a
+missing table, never "any error", because D21's `staff_leave` bug was exactly
+an over-broad catch that rendered an empty page with nothing saying why. And
+the management screen renders a warning naming the file to run, with its own
+controls disabled, so the one screen whose entire job is editing the list
+cannot quietly appear to work.
