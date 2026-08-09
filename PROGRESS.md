@@ -1228,3 +1228,102 @@ FOUND-ISSUES; see D38.
   Phase 4 did not add to it: `categories.name` carries
   `check (length(trim(name)) > 0)` and is validated and trimmed on both sides.
 - **Resend -> Supabase custom SMTP** — unchanged, still blocks invite delivery.
+
+---
+
+# PHASE 5 — in-app imagery and motion character (2026-08-09, `ui/palette-round`)
+
+Commit `65c5a9c`. **Not merged to main** — per the branch policy, `main` stays
+on the current working version until Phase 9.
+
+## Files changed — 12
+
+New: `components/ui/LineArt.tsx`, `components/dashboard/CrateMark.tsx`,
+`components/dashboard/Crate3D.tsx`.
+Edited: `app/globals.css`, `components/dashboard/Greeting.tsx`,
+`components/ui/EmptyState.tsx`, `components/ui/ProductThumb.tsx`,
+`components/inventory/ProductImageUpload.tsx`, and the four module clients
+(`InventoryClient`, `SalesClient`, `CustomersClient`, `SuppliersClient`).
+
+## Weight — measured before and after on the same tree
+
+Phase 5 was stashed, rebuilt and weighed, then restored, rebuilt and weighed
+again, rather than comparing against a figure quoted from an earlier phase.
+
+| | before | after | delta |
+|---|---|---|---|
+| Shared JS (gz) | 169.3 KB | **169.3 KB** | **+0.0** |
+| All chunks JS (gz) | 1041.6 KB | 1045.4 KB | **+3.8 KB** |
+| CSS (gz) | 21.2 KB | 21.3 KB | **+0.1 KB** |
+| JS files | 57 | 58 | +1 |
+
+The +1 file is the 3D, isolated by content grep to a single chunk at **0.8 KB
+gz** which is requested only after idle. Shared JS has still never moved from
+169.3 KB.
+
+## KPIs paint before the decoration loads
+
+| | |
+|---|---|
+| FCP | **2496 ms** |
+| `.sp-crate` first present in DOM | **3071 ms** |
+| KPI text present | yes, and server-rendered — in the first paint by construction |
+| JS requests, normal motion | 19 |
+| JS requests, reduced motion | **18** — the 3D chunk is never requested |
+
+## prefers-reduced-motion
+
+| | |
+|---|---|
+| pulse `animationName` | `none` |
+| pulse `stroke-dashoffset` | **0px** — frozen into a COMPLETE drawing, not an empty box (D18) |
+| 3D crate mounted | **no** |
+| static isometric crate present | **yes** |
+
+## The 20-state harness — 5 routes x 2 themes x 2 widths, serial per D30
+
+(The brief said 16; five routes at two themes and two widths is 20, and all 20
+were run.)
+
+| Dimension | Result |
+|---|---|
+| CLS | 0 in **18 of 20**; 0.0006 on `/dashboard` at 1440, both themes |
+| Console errors | **0** in all 20 |
+| Card-overflow offenders | **0** in all 20 |
+| Horizontal page overflow | none at 390 or 1440 |
+| `nonGoldRing` / `ringless` | **0 / 0** in all 20 |
+| Network failures | 0 real; all `ERR_ABORTED` `?_rsc=` prefetches |
+
+**The CLS 0.0006 is unchanged.** That was the specific risk of putting imagery
+on that page, and the answer is that imagery did not move it — every new
+element declares a fixed box, and the crate's two states fill the same 64px.
+
+`/sales` at 390 reports `gold=20` against `tabStops=22` in both themes. That is
+the harness's own accounting, not two missing rings — see FOUND-ISSUES.
+
+## What was built
+
+- **Greeting figure** — shopkeeper, counter, crate, gold pulse. The
+  needs-attention signal moved from colour to tempo (1.6s / 2.8s). See D40.
+- **Image slots, fallback first** — `.sp-img-slot`, a three-token gradient plus
+  the photo drawing, in exactly the box a photo would occupy. Zero products in
+  the project have an image, so this IS the app's resting appearance. Verified
+  in the product modal at 79x79 with the gradient painting and the drawing
+  present.
+- **Four empty-state illustrations** — Inventory, Sales, Customers, Suppliers,
+  on the "none yet" state only. Verified rendering on all four routes, which
+  the empty harness store makes the default state.
+- **One CSS-3D crate** on the dashboard. No WebGL, no dependency. See D39.
+
+## Removing the 3D, if it is ever unwanted
+
+Delete `components/dashboard/Crate3D.tsx` and `components/dashboard/CrateMark.tsx`,
+and remove the import and `<CrateMark />` from `Greeting.tsx`. Nothing else
+references either, and the CSS lives inside `Crate3D.tsx` so it leaves with it.
+
+## Carried forward
+
+- **CLS 0.0006 on `/dashboard` at 1440** — Phase 7 performance sweep, still not
+  isolated.
+- **`not null` is not `not blank`** — Phase 7 sweep, untouched by Phase 5.
+- **Resend -> Supabase SMTP** — still blocks invite delivery.

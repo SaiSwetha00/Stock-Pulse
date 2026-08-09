@@ -833,3 +833,64 @@ Three habits fall out of it, and all five would have been caught by one of them:
 had in fact been applied — and that claim was then copied forward into
 `CLAUDE.md` on the strength of the document alone. A doc is an instrument too.
 Measure the system, not the note somebody left about it.
+
+## D39 — 3D is CSS transforms, and the styles ship with the component
+
+Phase 5 approved "ONE decorative element, on the dashboard only. Pure CSS 3D
+transforms preferred. If you believe WebGL is genuinely required, stop and ask."
+
+**WebGL was not required and nothing was installed.** A wireframe crate is six
+bordered rectangles under `transform-style: preserve-3d`. three.js would have
+been ~150 KB gz to draw six rectangles, and the whole point of deferring old
+Phase 6 was that a decoration must not cost a rendering library. There was
+nothing to ask about, so nothing was asked.
+
+Three things about the shape are deliberate and will look like over-engineering
+to a later reader:
+
+1. **The static version is the default, not the fallback.** `CrateMark` renders
+   an inline-SVG isometric crate on first paint for every device, and only
+   swaps in the animated one after `requestIdleCallback` on a machine that has
+   not asked for less work. That is D18 again — the resting state is the
+   correct one — and it is also what makes "must not block LCP" true by
+   construction rather than by measurement: nothing about the 3D is requested
+   until the browser says it is idle. Measured: FCP 2496ms, crate present at
+   3071ms.
+
+2. **The gate is biased towards not animating.** Reduced motion, Data Saver,
+   `deviceMemory <= 4`, `hardwareConcurrency <= 4`. Every one of those signals
+   is optional in some browser, so each is checked before it is trusted. Being
+   wrong in the cautious direction costs a drawing nobody notices; being wrong
+   the other way spends a cheap phone's battery on decoration.
+
+3. **The CSS lives inside `Crate3D.tsx`, not `globals.css`.** Two reasons, and
+   the second is the real one. `globals.css` is downloaded by every route
+   including `/login`, and a signed-out visitor should not pay for a decoration
+   on an authenticated page. More importantly, "removable in one commit" has to
+   be true of the styles as well as the markup — D33 records a dead rule that
+   outlived its only two call sites because it was spelled out somewhere
+   nobody was looking. Delete the file, the style goes with it.
+
+Measured cost: **+3.8 KB gz across all chunks, +0.0 KB on the shared bundle**,
+of which the 3D is a **0.8 KB gz chunk that is a separate file**.
+
+## D40 — A state carried only in colour moves to tempo, not to a second colour
+
+The greeting's pulse used `--warning` when something needed attention and
+`--success` when it did not. Phase 5 required the figure be coffee and gold
+only, which appears to force a choice between the brief and the signal.
+
+It does not. The signal moved into **duration**: 1.6s when something needs
+attention, 2.8s when it does not, both inside the 3s ceiling.
+
+That is the better encoding regardless of the brief, and worth stating as a
+rule rather than a one-off. A state encoded in hue alone is invisible to a
+colour-blind reader and to anyone glancing at a screen in sunlight; the same
+state encoded in rhythm is visible to both. The app already said it in words
+directly to the left of the mark — "3 items low on stock" — so the mark was
+never the accessible carrier of that information anyway. It was decoration
+wearing a meaning, which is the thing D27 and D32 both refuse.
+
+Corollary for future decoration: if removing a colour from a component appears
+to destroy information, check whether the information was ever really there.
+Usually the words beside it were already doing the work.

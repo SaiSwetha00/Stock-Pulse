@@ -777,3 +777,76 @@ Deliberately left in place. It costs two lines, it is the same
 ship-ahead-of-the-migration courtesy as `saveLeave` (D21) and the categories
 screen (D37), and a bucket can be deleted as easily as it was created — at
 which point the message is correct again and names the file to run.
+
+---
+
+# Phase 5 — imagery and motion (2026-08-09)
+
+## Harness — a dead server answered every request, and the report named a build it never served · FIXED (procedure)
+
+The worst failure of the phase, and the sixth consecutive round in which
+something a probe flagged was the probe.
+
+The first Phase 5 measurement pass reported: the pulse not animating under
+normal motion, the 3D crate never mounting, the static crate absent, and zero
+image slots. Four defects, consistent with each other, and all four false.
+
+`npx next start -p 3100` had been launched while a server from the **previous
+phase** was still bound to that port. The new process died instantly with
+`EADDRINUSE` — into a log nobody read, because the command that started it also
+`curl`ed `/login`, got `200`, and moved on. The `200` came from the old
+process, which was serving a build from before Phase 5 existed.
+
+The tell was there and was nearly missed: `sp-trace` appeared in the served
+HTML but the new figure's paths did not. **The old `PulseMark` also used
+`sp-trace`.** A grep for the class the new component happens to share with the
+old one is not a check that the new component shipped.
+
+FOUND-ISSUES already carries "a build swapped underneath a running server"
+from Phase 3C-ii. This is its mirror image — the build did not swap, the server
+never restarted — and both produce a report that names a build the process was
+not serving. Two shapes, one rule:
+
+**Do not accept HTTP 200 as proof the server you started is the server
+answering.** Assert on a string that exists only in the build under test. The
+curl that settled it looked for `M12 52h88`, a path introduced by this phase
+and present in nothing before it.
+
+See D38: the healthy scenario that produces "animation not running, component
+not mounted, zero image slots" is *an older build of the same app*, and that
+should have been the first hypothesis rather than the fifth.
+
+## Note — `gold != tabStops` on /sales at 390 is the harness's accounting, not a missing ring
+
+`/sales` at 390px reports `tabStops=22 gold=20 nonGoldRing=0 ringless=0` in
+both themes. Read quickly, two controls lost their focus ring.
+
+They did not. `harness.js` computes `tabStops` as `r.rings.length` — every
+recorded stop — while `gold`, `nonGoldRing` and `ringless` all filter on
+`x.fv`, whether the element matched `:focus-visible`. Two stops on that route
+at that width never entered the `:focus-visible` state, so they are counted in
+the total and in none of the three buckets. No ring was expected and none was
+missing.
+
+**`nonGoldRing` and `ringless` are the load-bearing numbers, and both are 0 in
+all 20 states.** `gold == tabStops` is a convenient shorthand that only holds
+when every stop happens to match `:focus-visible`, which is not guaranteed and
+is not an app property.
+
+Left as-is rather than "fixed": making the three buckets sum to `tabStops`
+would mean inventing a fourth category for stops that are correctly ringless,
+and the number that matters is already reported honestly.
+
+## S3 — CLS 0.0006 on /dashboard at 1440 is unchanged by Phase 5
+
+Re-measured across all 20 states. `/dashboard` at 1440 still reports **0.0006**
+in both themes; every other route and width is 0.
+
+This was the specific risk of adding imagery to that page, so it is worth
+stating plainly: **the figure, the crate and the image slots did not move it.**
+All three declare fixed boxes — `h-16 w-28`, `h-16 w-16`, and the slot's
+explicit `width`/`height` — and the crate's static and animated states fill the
+same 64px box, so the idle-time swap has nothing to shift.
+
+Still not isolated, still Phase 7's performance sweep, still logged so it
+cannot become the new baseline by attrition.
