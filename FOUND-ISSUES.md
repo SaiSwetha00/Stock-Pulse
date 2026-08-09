@@ -295,3 +295,54 @@ third-party hosts requested at runtime.
 card heading uses `padStart(2, '0')` and is correct; the new remove toast
 matches the heading. Cosmetic, and unreachable until a shop configures ten
 counters — left alone rather than widening this branch's diff.
+
+## S2 — Implicitly focusable scroll container with no name and no ring · FIXED Phase 3B
+
+`stockpulse/components/staff/StaffScheduleClient.tsx:259` (the weekly rota strip)
+
+Measured on `/staff` at 390, both themes: `nonGoldRing=1`, `rgb(16, 16, 16)`, on a
+`<div>` whose text content was `MON3TUE4WED5THU6FRI7SAT8SUN9`.
+
+Chrome makes an overflowing scroll container **keyboard-focusable on its own**,
+so the week can be scrolled without a mouse. That is correct behaviour and worth
+keeping. The problem is that this implicit focus carries no `tabindex`
+attribute, and the app's global focus rule reaches
+`[tabindex]:focus-visible` — so the container fell outside every selector in it
+and painted the black UA ring. It was also an unlabelled `div`, so a screen
+reader user landed on a tab stop that announced nothing.
+
+Fixed by declaring what the browser was already doing: `tabIndex={0}`,
+`role="region"` and an `aria-label`. Re-measured: `gold=21, nonGoldRing=0`.
+
+### The general pattern, and where else it could hide
+
+Any element that scrolls, overflows, and contains **no focusable children** can
+become a tab stop the design system never styled. Two conditions have to hold at
+once, which is why this was the only instance found:
+
+- it must actually overflow at the width being used, and
+- it must contain nothing else focusable — Chrome suppresses the implicit focus
+  when the scroller already has a tabbable descendant.
+
+Swept every `overflow-*` container in the app (19 of them) and measured tab
+traversal on 10 route/theme combinations — dashboard, inventory, sales,
+suppliers, customers, reports, staff, staff/team, audit, monitoring. Only the
+rota strip surfaced. The rest fall into two safe groups:
+
+- **Scrolls only at `lg`** (`lg:overflow-x-auto` on the audit, customers, sales,
+  suppliers and team-roster tables): at 390 there is no overflow, and at `lg`
+  the rows contain action buttons, so the scroller is never the tab stop.
+  Verified on `/staff/team` at 390 — `gold=20, nonGoldRing=0`.
+- **Contains focusable children** (AI panel, command palette listbox, mobile
+  drawer, notification bell, modal bodies, import preview).
+
+**Not yet measured:** `/settings`, `/profile`, `/help`, `/support`, and the
+overlay components in their open state — the palette, the AI panel, the mobile
+drawer and the notification popover only mount on interaction, and the harness
+measures a page at rest. Those are Phase 3C / Phase 7 work. The check is cheap:
+tab-traverse and look for `nonGoldRing > 0`.
+
+Worth noting the class of bug rather than just the instance: this is the third
+defect this round that `tsc`, `eslint` and `next build` all passed, and the
+second one where the browser's own default behaviour — not the app's code —
+created the element that broke the design system.
