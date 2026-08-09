@@ -727,3 +727,53 @@ Browser pane in this environment never hydrates React". That was true of the
 Browser pane MCP surface, and is **not** true of the CDP harness — this run
 measured `react hydrated: true` and drove a real modal. Interaction tests are
 available here; they just have to wait for hydration first.
+
+## S2 — `0009_product_images_bucket.sql` was recorded as unapplied for weeks, and was applied · CORRECTED 2026-08-09
+
+`PROGRESS.md`'s "Blocked on the owner" table carried:
+
+> Run `0009_product_images_bucket.sql` — **NOT APPLIED.** Product image uploads
+> report "storage is not set up" until it is run
+
+That was false. Measured against the live project on 2026-08-09:
+
+| Check | Result |
+|---|---|
+| bucket `product-images` exists, `public = true` | yes |
+| owner uploads into its own `<store_id>/` folder | **200** |
+| owner uploads into another store's folder | **403** · new row violates row-level security policy |
+| **staff** uploads into its own store's folder | **403** · same |
+| products with a non-null `image_url`, project-wide | 0 |
+
+So both halves of 0009 are live: the public bucket and the `can_manage()` +
+`current_store_id()` write policies. Nothing about product image upload is
+broken on the hosted project, and it is **not** a Phase 8 blocker.
+
+**The damage was in the propagation, which is the part worth recording.** The
+stale line was read and repeated into `CLAUDE.md` — "0009 is the one still
+outstanding" — on the strength of the document alone, without a single call to
+the storage API. A wrong fact in a planning doc is cheap; a wrong fact promoted
+into the file that instructs every future session is not, because the next
+agent inherits it as ground truth and has no reason to question it.
+
+Two things changed as a result:
+
+- `CLAUDE.md` now says explicitly that migration status must be measured, not
+  read, and carries the one-line storage-API check.
+- The zero `image_url` rows explain how this survived: with no products
+  carrying images, nothing on any screen looks wrong whether the bucket exists
+  or not. **A claim nobody's workflow exercises can stay false indefinitely.**
+
+This is D38 from the non-probe side: a document is an instrument, and an
+instrument that cannot tell you it is wrong is worse than none.
+
+## Note — the "storage is not set up" message is now unreachable, and should stay
+
+`components/inventory/ProductImageUpload.tsx:84` branches on the upload error
+mentioning "bucket" and tells the user to apply migration 0009. With 0009
+applied that branch cannot fire.
+
+Deliberately left in place. It costs two lines, it is the same
+ship-ahead-of-the-migration courtesy as `saveLeave` (D21) and the categories
+screen (D37), and a bucket can be deleted as easily as it was created — at
+which point the message is correct again and names the file to run.

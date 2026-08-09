@@ -46,7 +46,15 @@ npm run lint      # eslint
 
 - `NODE_EXTRA_CA_CERTS=./avast-root.pem` in `dev` is machine-specific (Avast antivirus TLS interception); if not needed on your machine, run `next dev` directly.
 - No test suite is configured in this project.
-- Database schema/migrations live in `stockpulse/supabase/` (`schema.sql` + `schema_phase2-4.sql` for the base schema, then `migrations/0001`–`0013`) — run these in the Supabase SQL editor, there's no migration CLI wired up. There is also **no DDL path from an agent**: no `psql` on this machine, no `pg`/`postgres` driver in the project, and the service-role key reaches PostgREST, which is the data plane only. Applying a migration is always a request to the owner. `0009_product_images_bucket.sql` is the one still outstanding.
+- Database schema/migrations live in `stockpulse/supabase/` (`schema.sql` + `schema_phase2-4.sql` for the base schema, then `migrations/0001`–`0013`) — run these in the Supabase SQL editor, there's no migration CLI wired up. There is also **no DDL path from an agent**: no `psql` on this machine, no `pg`/`postgres` driver in the project, and the service-role key reaches PostgREST, which is the data plane only. Applying a migration is always a request to the owner.
+
+**Do not trust a doc about which migrations are applied — measure.** `PROGRESS.md` carried "0009 NOT APPLIED" for weeks after it had in fact been applied, and this file briefly repeated it. The storage API and PostgREST both answer the question directly in one call, so the check costs nothing:
+
+```
+node -e "fetch(process.env.U+'/storage/v1/bucket',{headers:{apikey:K,Authorization:'Bearer '+K}}).then(r=>r.json()).then(console.log)"
+```
+
+As of 2026-08-09, verified by measurement rather than by reading: `0001`–`0013` are all applied. `0009`'s bucket exists AND its write policies hold (own-store upload 200, other-store 403, staff 403).
 
 ### Environment variables (`stockpulse/.env.local`)
 

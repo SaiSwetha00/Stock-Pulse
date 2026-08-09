@@ -787,3 +787,49 @@ an over-broad catch that rendered an empty page with nothing saying why. And
 the management screen renders a warning naming the file to run, with its own
 controls disabled, so the one screen whose entire job is editing the list
 cannot quietly appear to work.
+
+## D38 — Confirm the probe before believing it. Standing rule.
+
+Raised by the owner on 2026-08-09 after the fifth consecutive round in which a
+measurement flagged a defect that turned out to be in the measurement.
+
+**The rule: when an instrument reports a defect, the first question is not "how
+do I fix the app" but "could a healthy system have produced this output?" If
+yes, fix the instrument first.** It is not a suggestion to be sceptical in
+general; it is a specific ordering, because the failure mode is that a false
+report gets "fixed" in the app and the real bug is now buried under a change
+nobody needed.
+
+The five, in order:
+
+| Round | Flagged | Actually was |
+|---|---|---|
+| 3C-i | `return=LOST` on the notification bell | The probe was clicking a `display:none` button — `el.click()` fires React's handler on a hidden element quite happily, so it "opened" a 0x0 popover at 390px and walked fourteen tab stops on the page behind |
+| 3C-i | `NO TRIGGER` for Change Password, four runs running | The overlay was declared by the modal's *title*; the button reads "Update" |
+| 3C-ii | `offenders=1` on `/settings` | `closest('.sp-e1')` matches the element itself, so the theme control's active segment became its own card. The tell was the symmetry: `right +12px left +12px` is exactly its own `px-3` |
+| 4 | staff getting HTTP 200 on the owner-only `/settings` | A Server Component `redirect()` returns **200 with a `NEXT_REDIRECT` payload** — the shell is already flushed. Worse, the follow-up check grepped the body for the page title and matched the `<title>` and `<meta description>` Next emits *before* the redirect resolves |
+| 4 | the product modal never opening | React had not hydrated, so a CDP click landed on a button with no handler attached |
+
+**What the five have in common** is that each verdict was satisfied by two
+different worlds and the instrument could not tell them apart (D31), or the
+instrument sampled before the system had settled (D30). So the practical test
+is: *name the healthy scenario that produces this exact output.* If you can
+name one, the check is not yet a check.
+
+Three habits fall out of it, and all five would have been caught by one of them:
+
+1. **Carry a control.** The role matrix only became trustworthy when
+   `/customers` (canManage) and `/settings` + `/audit` (isOwner) were measured
+   in the same run. A number with nothing to compare against is a number.
+2. **Assert on something only the real outcome can produce.** A page title
+   comes from `metadata` and is emitted whether or not the page renders; "Add a
+   category" exists only if the component mounted.
+3. **Wait for a condition, never for a duration.** D30 is the same lesson from
+   the timing side. `react hydrated: true` is a fact; `sleep(2000)` is a bet
+   about how fast the machine is.
+
+**This generalises past probes to any stale artefact.** The same round found
+`PROGRESS.md` asserting `0009_product_images_bucket.sql` was unapplied when it
+had in fact been applied — and that claim was then copied forward into
+`CLAUDE.md` on the strength of the document alone. A doc is an instrument too.
+Measure the system, not the note somebody left about it.

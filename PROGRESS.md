@@ -579,7 +579,7 @@ outage harder to reason about.
 
 | What | Why |
 |---|---|
-| Run `0009_product_images_bucket.sql` | **NOT APPLIED.** Product image uploads report "storage is not set up" until it is run |
+| ~~Run `0009_product_images_bucket.sql`~~ | **APPLIED — this row was wrong.** Corrected 2026-08-09 by measuring rather than reading: the bucket exists and is public, and its write policies hold. See the Phase 4 close-out. |
 | Run `0008_avatars_bucket.sql` | Applied |
 | Resend -> Supabase custom SMTP | Invitations cannot be delivered; blocks Phase 3 |
 
@@ -1106,3 +1106,125 @@ one, serially, both themes, 390 and 1440:
 move and delete controls are enabled now, so they are tab stops, and all of
 them carry the gold ring. A measurement of the disabled page would have
 reported a clean result about a screen nobody can use.
+
+---
+
+# PHASE 4 — CLOSED (2026-08-09, branch `ui/palette-round`)
+
+Migration 0013 applied by the owner. Product categories are the shop's own
+data: add, rename, reorder, delete, from `/settings/categories`.
+
+**Branch policy, set by the owner 2026-08-09: do NOT merge to `main`.**
+Phases 5–9 remain, and the live site stays on the current working version
+until Phase 9. All Phase 4–8 work stays on `ui/palette-round`.
+
+## The two numbers this phase turns on
+
+### 1. Per-store category counts — 20 is 4 stores x 5 defaults
+
+Checked before anything else, because a backfill that ran twice produces a
+larger-than-expected number too, and "20 looks like a lot" and "20 is exactly
+right" are indistinguishable without the breakdown.
+
+| Store | Categories | Duplicate slugs | Duplicate names |
+|---|---|---|---|
+| Neighborhood Market | 5 | 0 | 0 |
+| corner grocer | 5 | 0 | 0 |
+| sital | 5 | 0 | 0 |
+| **sandal local store** (the harness store) | **5** | **0** | **0** |
+| **Total** | **20** | **0** | **0** |
+
+Categories with no parent store: **0**. The backfill's second, defensive pass —
+for in-use values the five defaults do not cover — inserted **nothing**, which
+is correct: the old CHECK constraint guaranteed every product already used one
+of the five.
+
+Your store, in sort order: `1 produce · 2 dairy · 3 packaged · 4 beverages ·
+5 household` — identical to the order the product form used to hardcode, so
+nothing moved on the day the migration ran.
+
+### 2. RLS — the database half of the can_manage() pairing
+
+CLAUDE.md documents a past bug where `lib/permissions.ts` and the database
+drifted. The route-guard test proved the app half only. This asks the database
+directly, with the anon key and a real user session, so RLS is the only thing
+deciding and the Server Action is not in the path at all. Role flipped via the
+`ROLE` constant in `harness-auth.js`.
+
+| Operation | staff | manager | owner |
+|---|---|---|---|
+| SELECT | 200 · 5 rows | 200 · 5 rows | 200 · 5 rows |
+| INSERT | **403 · 42501** | 201 | 201 |
+| UPDATE | **200 · 0 rows** | 200 · 1 row | 200 · 1 row |
+| DELETE | **200 · 0 rows** | 200 · 1 row | 200 · 1 row |
+
+Staff read and cannot write. Read access is deliberate, not an oversight: staff
+render category names on `/inventory`, `/dashboard` and `/sales`, and a
+narrower select policy would blank the label for them on three screens.
+
+**This is D24 demonstrated rather than cited.** A refused UPDATE and a refused
+DELETE are both **HTTP 200 with zero rows** — no error object, nothing to
+branch on, indistinguishable from success. That is exactly why every update and
+delete in `settings/categories/actions.ts` asks for its rows back with
+`.select('id')`, including the reorder loop.
+
+`scope-check.js` re-run as owner per D25, with `categories` added to its table
+list — a new RLS-protected table it does not measure means the blast radius
+silently stops covering the schema:
+
+| table | in project | visible to harness | outside its own store |
+|---|---|---|---|
+| categories | 20 | **5** | **0** |
+
+All other tables unchanged from the 2026-08-08 baseline. Role restored to
+`owner`.
+
+## 0009 was not a blocker — the doc was wrong
+
+`0009_product_images_bucket.sql` had been listed under "Blocked on the owner"
+as NOT APPLIED. Measured on 2026-08-09, it is applied and correct:
+
+| Check | Result |
+|---|---|
+| bucket `product-images` exists, `public = true` | yes |
+| owner uploads into its own `<store_id>/` folder | **200** |
+| owner uploads into another store's folder | **403** RLS |
+| staff uploads into its own store's folder | **403** RLS |
+
+Both halves are live — the public bucket and the `can_manage()` +
+`current_store_id()` write policies. **Product image upload is not broken on
+the hosted project and 0009 does not need applying before or during Phase 8.**
+
+The stale line had been copied forward into `CLAUDE.md` before it was checked.
+Both are corrected, and `CLAUDE.md` now states that migration status must be
+measured rather than read, with the one-line storage-API check. Logged in
+FOUND-ISSUES; see D38.
+
+## Everything else Phase 4 measured
+
+- **28 functional assertions, 28 passed**, driven through the real Server
+  Actions with every result verified against the database by service-role read.
+  The delete refusal: *"1 product still use this category. Move it to another
+  category first, then delete this one."* — HTTP 200 `ok:false`, row still
+  present afterwards.
+- **The manager's route through the product form**, driven in a real browser:
+  modal opens, link visible with `href=/settings/categories`, click lands on
+  the rendered page, dropdown carries the five DB categories, no migration
+  banner.
+- **16 harness measurements** across `/settings`, `/settings/categories`,
+  `/inventory` and `/dashboard`, both themes, 390 and 1440, rings serial per
+  D30 — plus `/settings/categories` re-measured after the migration, since the
+  first pass had measured its disabled fallback state.
+- **The six hardcoded copies of the category list are gone.** The only list
+  left is `DEFAULT_CATEGORIES` in `lib/categories.ts`, the pre-migration
+  fallback, now unreachable on this database.
+
+## Phase 4 leaves open
+
+- **CLS 0.0006 on `/dashboard` at 1440**, both themes, against 0 at the Phase 2
+  baseline. 1.2% of budget, not isolated, logged S3 for Phase 7's performance
+  sweep rather than allowed to become the new baseline silently.
+- **`not null` is not `not blank`** — the cross-cutting sweep, still Phase 7.
+  Phase 4 did not add to it: `categories.name` carries
+  `check (length(trim(name)) > 0)` and is validated and trimmed on both sides.
+- **Resend -> Supabase custom SMTP** — unchanged, still blocks invite delivery.
