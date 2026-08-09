@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Store, SlidersHorizontal, Palette, Users, Tags, ArrowRight } from 'lucide-react'
+import { Store, SlidersHorizontal, Palette, Users, Tags, Scale, ArrowRight, ArrowUpRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Store as StoreType } from '@/types'
 import Toggle from '@/components/ui/Toggle'
@@ -454,6 +454,44 @@ export default function SettingsClient({ store }: { store: StoreType }) {
           Manage categories
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
+      </div>
+
+      {/* Not a signpost to a feature — a signpost to the documents.
+
+          These are linked in the marketing footer, which a signed-in owner
+          rarely sees: once you are inside the app you stop visiting the landing
+          page, and the terms you agreed to become unreachable without signing
+          out. Both open in a new tab so reading them does not lose unsaved
+          changes on this screen, which is a form. */}
+      <div className="sp-card-p sp-rise sp-delay-6 mt-6 flex flex-wrap items-center justify-between gap-4 sp-e1 rounded-2xl border border-border bg-surface shadow-sm">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-muted">
+            <Scale className="h-4.5 w-4.5 text-muted-strong" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="sp-heading">Legal</h2>
+            <p className="mt-0.5 text-sm text-muted">
+              The privacy policy and terms that apply to this store&apos;s account.
+            </p>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          {[
+            { href: '/privacy', label: 'Privacy Policy' },
+            { href: '/terms', label: 'Terms of Service' },
+          ].map((doc) => (
+            <Link
+              key={doc.href}
+              href={doc.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="control-h relative inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground shadow-xs transition-[background-color,box-shadow,filter] duration-150 hover:bg-surface-muted active:brightness-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong"
+            >
+              {doc.label}
+              <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          ))}
+        </div>
       </div>
 
     </div>
