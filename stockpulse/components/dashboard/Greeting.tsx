@@ -1,6 +1,7 @@
 'use client'
 
 import { useSyncExternalStore } from 'react'
+import CrateMark from './CrateMark'
 
 /**
  * The first thing on the dashboard: who you are, what time it is, and whether
@@ -85,49 +86,94 @@ export default function Greeting({
         </p>
       </div>
 
-      <PulseMark active={needsAttention} />
+      {/* Fixed-size cluster, hidden below sm. Both marks declare their own box,
+          so neither can move the greeting text however long it takes to paint. */}
+      <div className="hidden shrink-0 items-center gap-3 sm:flex">
+        <ShopFigure active={needsAttention} />
+        <CrateMark />
+      </div>
     </div>
   )
 }
 
 /**
- * The small looping visual.
+ * The line-art figure beside the greeting: a shopkeeper at a counter with a
+ * crate, under a pulse line.
  *
  * Hand-written inline SVG driven by CSS keyframes — no Lottie, no runtime
- * library, nothing added to any bundle beyond this markup. Well under a
- * kilobyte, two orders of magnitude inside the 30KB ceiling, and it ships in
- * the dashboard route's own chunk because nothing else imports it, so the
- * shared bundle is untouched.
+ * library, nothing added to any bundle beyond this markup. It ships in the
+ * dashboard route's own chunk because nothing else imports it, so the shared
+ * bundle is untouched.
  *
- * A pulse line, echoing the product's name. It leans amber and beats faster
- * when something needs attention, so the movement carries meaning rather than
- * being decoration that happens to animate.
+ * TWO COLOURS ONLY: coffee (`--border-strong`) draws the scene, gold
+ * (`--accent`) draws the pulse. That is D22's rule — gold is the mark, never
+ * the ground — and it is the same pairing the four empty-state drawings use,
+ * so the figure reads as part of one language rather than a mascot.
  *
- * Every animated element is `motion-safe:`. Under reduced motion the whole
- * thing renders as a static line, which still reads correctly.
+ * WHAT REPLACED WHAT, AND WHY IT MATTERS:
+ *   This was a bare pulse line coloured `--warning` when something needed
+ *   attention and `--success` when it did not. Moving to coffee-and-gold
+ *   would have thrown that signal away, so it moved into TEMPO instead: the
+ *   loop runs at 1.6s when something needs attention and 2.8s when it does
+ *   not. Both are inside the 3s the brief allows. That is also the better
+ *   encoding — the old version carried a state in colour alone, which is
+ *   exactly the thing a colour-blind reader cannot see, and the sentence to
+ *   the left has always said it in words anyway.
+ *
+ * D18: the resting state is the correct one. `sp-trace` rests at
+ * `stroke-dashoffset: 0` — fully drawn — and the keyframes only override it
+ * while running, so under `prefers-reduced-motion` this is a complete, static
+ * drawing rather than an empty box.
  */
-function PulseMark({ active }: { active: boolean }) {
-  const stroke = active ? 'var(--warning)' : 'var(--success)'
+function ShopFigure({ active }: { active: boolean }) {
   const duration = active ? '1.6s' : '2.8s'
 
   return (
     <div
       aria-hidden="true"
-      className="hidden h-14 w-24 shrink-0 items-center justify-center rounded-xl bg-surface-muted sm:flex"
+      className="flex h-16 w-28 items-center justify-center rounded-xl bg-surface-muted"
     >
-      <svg viewBox="0 0 96 40" className="h-9 w-20" fill="none" role="presentation">
-        <path
-          d="M2 20 H26 L32 8 L40 32 L48 14 L54 20 H94"
-          stroke={stroke}
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          pathLength={100}
-          strokeDasharray="100"
-          className="sp-trace"
-          style={{ animationDuration: duration }}
-        />
-        <circle cx="94" cy="20" r="2.5" fill={stroke} className="sp-blip" style={{ animationDuration: duration }} />
+      <svg
+        viewBox="0 0 112 64"
+        className="h-14 w-24"
+        fill="none"
+        stroke="var(--border-strong)"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        role="presentation"
+      >
+        {/* counter */}
+        <path d="M12 52h88" />
+        <path d="M20 52v5M92 52v5" />
+        {/* shopkeeper */}
+        <circle cx="38" cy="31" r="6" />
+        <path d="M27 52c0-7 5-11 11-11s11 4 11 11" />
+        <path d="M48 45l7-5" />
+        {/* crate on the counter */}
+        <path d="M64 52V39h22v13z" />
+        <path d="M64 45h22M75 39v13" />
+
+        {/* The one gold element. */}
+        <g stroke="var(--accent)">
+          <path
+            d="M8 16h18l4-9 6 18 5-9h55"
+            strokeWidth="2"
+            pathLength={100}
+            strokeDasharray="100"
+            className="sp-trace"
+            style={{ animationDuration: duration }}
+          />
+          <circle
+            cx="96"
+            cy="16"
+            r="2.5"
+            fill="var(--accent)"
+            stroke="none"
+            className="sp-blip"
+            style={{ animationDuration: duration }}
+          />
+        </g>
       </svg>
     </div>
   )

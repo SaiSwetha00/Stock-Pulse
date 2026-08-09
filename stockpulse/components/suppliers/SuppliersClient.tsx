@@ -16,6 +16,7 @@ import {
 import Badge, { type BadgeTone } from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
+import { LineArtTruck } from '@/components/ui/LineArt'
 import SortableTh from '@/components/ui/SortableTh'
 import Pagination from '@/components/ui/Pagination'
 import ExportCsvButton from '@/components/ui/ExportCsvButton'
@@ -279,7 +280,7 @@ export default function SuppliersClient({
                       <td colSpan={6} className="block lg:table-cell">
                         {suppliers.length === 0 ? (
                           <EmptyState
-                            icon={Truck}
+                            illustration={<LineArtTruck className="h-full w-full" />}
                             title="No suppliers yet"
                             description="Add a supplier to track incoming shipments and delivery performance."
                             action={

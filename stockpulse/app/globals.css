@@ -1447,3 +1447,35 @@ body {
     animation-iteration-count: infinite;
   }
 }
+
+/* ===============================================================
+   PHASE 5 — IMAGE SLOTS
+
+   Every place a product photo can appear renders this underneath,
+   whether or not a photo exists. It is the resting appearance, not
+   an error state: at the time it was built, zero products in the
+   project had an image, so the empty slot IS what the app looks
+   like and it had to be designed first.
+
+   A gradient of three existing tokens rather than a fixed colour,
+   so it inverts with the theme for free and cannot drift from the
+   surfaces around it. The warm end is `--accent-soft`, which is
+   the only accent value quiet enough to be a fill — D22 puts gold
+   on marks, never on ground, and this is the exception the token
+   exists for.
+
+   Not a canvas. The Unsplash removal drew on a canvas because it
+   was generating WebGL textures; this is a flat gradient behind
+   thirty table rows, and thirty 2D contexts would cost far more
+   than one CSS rule. Same constraint honoured — nothing remote,
+   nothing binary.
+   =============================================================== */
+.sp-img-slot {
+  background-color: var(--surface-muted);
+  background-image: linear-gradient(
+    140deg,
+    var(--raised) 0%,
+    var(--surface-muted) 48%,
+    var(--accent-soft) 100%
+  );
+}

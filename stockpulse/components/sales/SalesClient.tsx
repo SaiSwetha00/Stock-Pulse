@@ -3,9 +3,10 @@
 import { useMemo, useState } from 'react'
 import { canViewReports } from '@/lib/permissions'
 import Link from 'next/link'
-import { Plus, Search, Star, ArrowRight, Receipt, X } from 'lucide-react'
+import { Plus, Search, Star, ArrowRight, X } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
+import { LineArtReceipt } from '@/components/ui/LineArt'
 import SortableTh from '@/components/ui/SortableTh'
 import Pagination from '@/components/ui/Pagination'
 import ExportCsvButton from '@/components/ui/ExportCsvButton'
@@ -320,7 +321,7 @@ export default function SalesClient({
                     <td colSpan={5} className="block lg:table-cell">
                       {sales.length === 0 ? (
                         <EmptyState
-                          icon={Receipt}
+                          illustration={<LineArtReceipt className="h-full w-full" />}
                           title="No sales logged yet"
                           description="Log your first sale to start building transaction history and trends."
                           action={<Button onClick={() => setModalOpen(true)}>Log Sale</Button>}

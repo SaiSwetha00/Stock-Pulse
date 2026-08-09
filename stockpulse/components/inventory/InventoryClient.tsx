@@ -13,6 +13,7 @@ import Button from '@/components/ui/Button'
 import Badge, { type BadgeTone } from '@/components/ui/Badge'
 import { useToast } from '@/components/ui/Toast'
 import EmptyState from '@/components/ui/EmptyState'
+import { LineArtShelf } from '@/components/ui/LineArt'
 import SortableTh from '@/components/ui/SortableTh'
 import Pagination from '@/components/ui/Pagination'
 import ExportCsvButton from '@/components/ui/ExportCsvButton'
@@ -391,7 +392,7 @@ export default function InventoryClient({
                       different words — and different ways out. */}
                   {products.length === 0 ? (
                     <EmptyState
-                      icon={PackageX}
+                      illustration={<LineArtShelf className="h-full w-full" />}
                       title="No products yet"
                       description="Add your first product to start tracking stock levels, pricing, and low-stock alerts."
                       action={

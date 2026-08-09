@@ -15,6 +15,7 @@ import { formatCurrency } from '@/lib/format'
 import { RelativeTime } from '@/components/ui/LocalTime'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
+import { LineArtPeople } from '@/components/ui/LineArt'
 import SortableTh from '@/components/ui/SortableTh'
 import Pagination from '@/components/ui/Pagination'
 import ExportCsvButton from '@/components/ui/ExportCsvButton'
@@ -305,7 +306,7 @@ export default function CustomersClient({
                   >
                     {initialCustomers.length === 0 ? (
                       <EmptyState
-                        icon={Users}
+                        illustration={<LineArtPeople className="h-full w-full" />}
                         title="No customers yet"
                         description="Add a customer to start tracking purchase history and loyalty tiers."
                         action={

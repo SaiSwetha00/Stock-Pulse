@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { isOptimizableImage } from '@/lib/images'
 import Modal from '@/components/ui/Modal'
 import ImageAdjuster, { type AdjustedImage } from '@/components/ui/ImageAdjuster'
+import { LineArtPhoto } from '@/components/ui/LineArt'
 
 /** Mirrors the bucket's limits in 0009. Checked here so the user gets a
  *  sentence rather than a 413, and there so the browser is not the boundary. */
@@ -120,12 +121,16 @@ export default function ProductImageUpload({
       </p>
 
       <div className="flex items-center gap-4">
-        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-border bg-surface-muted">
+        {/* The empty state of this slot is what every product currently shows,
+            since no product in the project has an image yet. It is built to be
+            the resting appearance rather than an error: the same 80px box, a
+            soft gradient, and the photo drawing at low opacity. */}
+        <div className="sp-img-slot h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-border">
           {isOptimizableImage(value) ? (
             <Image src={value} alt="" width={80} height={80} className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
-              <ImagePlus className="h-6 w-6 text-muted" aria-hidden="true" />
+              <LineArtPhoto className="h-9 w-9 opacity-45" />
             </div>
           )}
         </div>
