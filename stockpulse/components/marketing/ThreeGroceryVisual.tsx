@@ -2,6 +2,10 @@
 
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
+// Ships inside the installed `three` package (three/examples/jsm) — not a new
+// dependency, not a download. It builds a small procedural room whose walls
+// and lights become the scene's reflections.
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 
 interface ThreeGroceryVisualProps {
   interactive?: boolean
@@ -34,6 +38,38 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 1.1
     container.appendChild(renderer.domElement)
+
+    /**
+     * THE ENVIRONMENT MAP — the single change that stops this looking like
+     * plastic.
+     *
+     * Physically-based materials are lit by their surroundings, not just by
+     * lamps. Until now `scene.environment` was null, and that one omission is
+     * what every "toy" complaint traced back to:
+     *
+     *   transmission 0.92 had nothing behind it to refract, so glass rendered
+     *     as a flat tinted solid;
+     *   metalness 0.95 had nothing to reflect, so brass caps rendered as dark
+     *     grey plastic;
+     *   roughness barely mattered, because under direct light alone a rough
+     *     and a smooth surface return nearly the same thing.
+     *
+     * RoomEnvironment is a small procedural room — a few emissive planes and
+     * boxes — rendered once into a PMREM cubemap. Generated in memory at
+     * startup: no HDR file, no texture download, no dependency. One render at
+     * mount, then the target is reused every frame, so the per-frame cost is a
+     * texture lookup rather than a scene render.
+     */
+    const pmrem = new THREE.PMREMGenerator(renderer)
+    pmrem.compileEquirectangularShader()
+    const roomEnv = new RoomEnvironment()
+    const envRT = pmrem.fromScene(roomEnv, 0.04)
+    scene.environment = envRT.texture
+    pmrem.dispose()
+
+    // The environment adds real light, so the exposure tuned without one now
+    // blows out.
+    renderer.toneMappingExposure = 0.85
 
     /**
      * THREE-POINT RIG: key, fill, rim.
@@ -166,6 +202,7 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
       color: 0xe0b343,
       metalness: 0.9,
       roughness: 0.2,
+      envMapIntensity: 1.5,
     })
 
     // Tempered Heavy Glass Shelf with refraction & clarity
@@ -318,6 +355,73 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
      * jitter goes through instanceColor and the instance matrix, so the
      * variation costs nothing extra.
      */
+    /**
+     * Procedural surface noise: value noise over a hashed lattice, drawn to a
+     * canvas at runtime.
+     *
+     * As a roughnessMap it makes a surface unevenly matte — which is the
+     * difference between "matte" and "moulded plastic". A real tomato is
+     * glossier on the shoulder than in the dimple, and a single uniform
+     * roughness value cannot say that. As a bumpMap on cardboard it gives
+     * tooth.
+     *
+     * 0 KB of assets: drawn, not loaded.
+     */
+    function noiseTexture(size: number, scale: number, contrast: number, seedBase: number) {
+      const c = document.createElement('canvas')
+      c.width = size
+      c.height = size
+      const g = c.getContext('2d')
+      if (g) {
+        const img = g.createImageData(size, size)
+        const hash = (x: number, y: number) => {
+          const n = Math.sin(x * 127.1 + y * 311.7 + seedBase) * 43758.5453
+          return n - Math.floor(n)
+        }
+        const smooth = (x: number, y: number) => {
+          const xi = Math.floor(x)
+          const yi = Math.floor(y)
+          const xf = x - xi
+          const yf = y - yi
+          const u = xf * xf * (3 - 2 * xf)
+          const v = yf * yf * (3 - 2 * yf)
+          const a = hash(xi, yi)
+          const b = hash(xi + 1, yi)
+          const cc = hash(xi, yi + 1)
+          const d = hash(xi + 1, yi + 1)
+          return a * (1 - u) * (1 - v) + b * u * (1 - v) + cc * (1 - u) * v + d * u * v
+        }
+        for (let y = 0; y < size; y++) {
+          for (let x = 0; x < size; x++) {
+            let n = 0
+            let amp = 1
+            let f = scale
+            for (let o = 0; o < 3; o++) {
+              n += smooth((x / size) * f, (y / size) * f) * amp
+              amp *= 0.5
+              f *= 2
+            }
+            n = n / 1.75
+            const v = Math.max(0, Math.min(255, 128 + (n - 0.5) * 255 * contrast))
+            const i = (y * size + x) * 4
+            img.data[i] = v
+            img.data[i + 1] = v
+            img.data[i + 2] = v
+            img.data[i + 3] = 255
+          }
+        }
+        g.putImageData(img, 0, 0)
+      }
+      const t = new THREE.CanvasTexture(c)
+      t.wrapS = THREE.RepeatWrapping
+      t.wrapT = THREE.RepeatWrapping
+      return t
+    }
+
+    const produceNoise = noiseTexture(128, 6, 0.9, 11.3)
+    const cardboardNoise = noiseTexture(128, 14, 1.1, 47.9)
+    const clothNoise = noiseTexture(128, 22, 0.8, 91.7)
+
     const phys = (o: THREE.MeshPhysicalMaterialParameters) => new THREE.MeshPhysicalMaterial(o)
     const std = (o: THREE.MeshStandardMaterialParameters) => new THREE.MeshStandardMaterial(o)
 
@@ -331,6 +435,7 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
       clearcoatRoughness: 0.03,
       transparent: true,
       metalness: 0,
+      envMapIntensity: 1.4,
     })
     const glassJarMat = phys({
       color: 0x7a1f14,
@@ -342,17 +447,66 @@ export default function ThreeGroceryVisual({ interactive = true }: ThreeGroceryV
       clearcoatRoughness: 0.08,
       transparent: true,
       metalness: 0,
+      envMapIntensity: 1.2,
     })
-    const capMat = std({ color: 0xe0b343, metalness: 0.95, roughness: 0.25 })
+    const capMat = std({ color: 0xe0b343, metalness: 0.95, roughness: 0.25, envMapIntensity: 1.6 })
     const labelMat = std({ color: 0xf4e8d4, roughness: 0.75, metalness: 0 })
-    const produceMat = phys({ color: 0xffffff, roughness: 0.78, clearcoat: 0.25, clearcoatRoughness: 0.7, metalness: 0 })
-    const leafMat = std({ color: 0x5f6b21, roughness: 0.92, metalness: 0 })
-    const cardboardMat = std({ color: 0x4a3524, roughness: 0.96, metalness: 0 })
-    const crateSlatMat = std({ color: 0x5c4530, roughness: 0.95, metalness: 0 })
-    const sackMat = std({ color: 0xd6c3a3, roughness: 0.98, metalness: 0 })
-    const cartonMat = std({ color: 0xf4e8d4, roughness: 0.8, metalness: 0 })
+    // roughnessMap is what makes it fruit rather than a painted ball: the
+    // shoulder catches a highlight, the dimple does not.
+    const produceMat = phys({
+      color: 0xffffff,
+      roughness: 0.72,
+      roughnessMap: produceNoise,
+      clearcoat: 0.3,
+      clearcoatRoughness: 0.65,
+      metalness: 0,
+      envMapIntensity: 0.9,
+    })
+    const leafMat = std({ color: 0x5f6b21, roughness: 0.9, roughnessMap: produceNoise, metalness: 0, envMapIntensity: 0.6 })
+    const cardboardMat = std({
+      color: 0x4a3524,
+      roughness: 0.96,
+      roughnessMap: cardboardNoise,
+      bumpMap: cardboardNoise,
+      bumpScale: 0.9,
+      metalness: 0,
+      envMapIntensity: 0.35,
+    })
+    const crateSlatMat = std({
+      color: 0x5c4530,
+      roughness: 0.95,
+      roughnessMap: cardboardNoise,
+      bumpMap: cardboardNoise,
+      bumpScale: 0.8,
+      metalness: 0,
+      envMapIntensity: 0.35,
+    })
+    const sackMat = std({
+      color: 0xd6c3a3,
+      roughness: 0.98,
+      roughnessMap: clothNoise,
+      bumpMap: clothNoise,
+      bumpScale: 1.2,
+      metalness: 0,
+      envMapIntensity: 0.3,
+    })
+    const cartonMat = std({
+      color: 0xf4e8d4,
+      roughness: 0.82,
+      roughnessMap: cardboardNoise,
+      metalness: 0,
+      envMapIntensity: 0.5,
+    })
     const cartonCapMat = std({ color: 0x8f2a1c, roughness: 0.7, metalness: 0 })
-    const eggMat = phys({ color: 0xf0e2c8, roughness: 0.55, clearcoat: 0.35, clearcoatRoughness: 0.6, metalness: 0 })
+    const eggMat = phys({
+      color: 0xf0e2c8,
+      roughness: 0.6,
+      roughnessMap: produceNoise,
+      clearcoat: 0.3,
+      clearcoatRoughness: 0.55,
+      metalness: 0,
+      envMapIntensity: 0.8,
+    })
 
     // Deterministic jitter. Math.random would make every reload a different
     // shelf, so a screenshot could never be compared against another one.
