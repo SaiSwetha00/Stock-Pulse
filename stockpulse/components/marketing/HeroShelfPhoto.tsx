@@ -77,7 +77,10 @@ export default function HeroShelfPhoto() {
   }, [])
 
   return (
-    <div ref={rootRef} className="sp-hero-photo relative h-full w-full overflow-hidden rounded-2xl border border-border">
+    <div
+      ref={rootRef}
+      className="sp-hero-photo relative h-full w-full overflow-hidden rounded-[20px] border border-white/10 shadow-[0_40px_90px_-30px_rgba(0,0,0,0.95)] ring-1 ring-inset ring-white/[0.08]"
+    >
       {/* The moving layer. Overflow is clipped by the parent, so the drift can
           scale past the frame without the page ever seeing a scrollbar. */}
       <div className="sp-hero-photo__inner absolute inset-0">
@@ -96,23 +99,34 @@ export default function HeroShelfPhoto() {
           // the scrim is heaviest. The first crop left a legible "R24.99"
           // price tag mid-frame, which is another retailer's price in rand on
           // a product that prices everything in rupees.
-          className="object-cover object-[30%_62%]"
+          className="sp-hero-photo__img object-cover object-[30%_62%]"
           placeholder="blur"
         />
       </div>
 
-      {/* Scrim. Two jobs, and the second is the one that matters: it sinks the
-          photograph into a very dark page so the overlay cards keep their
-          contrast, and it quiets the shop's own signage — this is a real store
-          with its own price tags in rand, and unreadable is the right amount
-          of readable for them. */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_100%_at_70%_20%,rgba(0,0,0,0.15)_0%,rgba(0,0,0,0.55)_55%,rgba(0,0,0,0.86)_100%)]" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/40" />
-      {/* The right edge specifically. The crop pushed this store's own
-          promotional signage and its rand price tags over here, and at the
-          edge they are decoration; legible, they are another retailer's
-          prices in the wrong currency on our hero. */}
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-[46%] bg-gradient-to-l from-black/92 via-black/55 to-transparent" />
+      {/* TREATMENT, rebuilt lighter.
+          The first version stacked three near-opaque gradients and the photo
+          disappeared behind them — it went almost black, which defeats the
+          entire point of using a photograph. These are targeted instead of
+          global: darkness only where a card actually sits, plus a soft
+          vignette to keep the eye in the middle. The picture stays a picture. */}
+
+      {/* Vignette — edges only, centre untouched. */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(115%_95%_at_52%_38%,transparent_0%,transparent_42%,rgba(0,0,0,0.30)_74%,rgba(0,0,0,0.66)_100%)]" />
+
+      {/* Under the Low-Stock card, bottom-left only. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[42%] bg-gradient-to-t from-black/80 via-black/25 to-transparent" />
+
+      {/* Under the Assistant card, top-right only — and it still quiets this
+          shop's own rand price tags, just without blacking out the shelf. */}
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-[42%] bg-gradient-to-l from-black/90 via-black/40 to-transparent" />
+
+      {/* Premium finish: a slow specular sheen that crosses the frame every
+          14s, and a warm gold cast pinned to the top-left so the image sits
+          inside the palette rather than beside it. Both are cosmetic and both
+          stop dead under reduced motion. */}
+      <div className="sp-hero-photo__sheen pointer-events-none absolute inset-0" />
+      <div className="pointer-events-none absolute inset-0 mix-blend-soft-light bg-[radial-gradient(90%_70%_at_18%_12%,rgba(224,179,67,0.42)_0%,transparent_62%)]" />
     </div>
   )
 }
