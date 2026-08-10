@@ -1158,3 +1158,51 @@ emulated media feature.
 
     normal   early{svg} late{canvas}  CLS=0  threeChunkFetched=true
     reduced  early{svg} late{svg}     CLS=0  threeChunkFetched=false
+
+## D51 — The hero is a photograph, because procedural WebGL could not read as real produce
+
+Three rounds went into making a three.js grocery shelf look real, each one a
+genuine improvement and none of them enough:
+
+1. Flat canvas-drawn panels on boxes. Read as cutout paper.
+2. Real geometry — bottles, jars, gable cartons, tapered sacks — then grouping
+   and instancing: 74 draw calls for 186 objects, crates packed two layers
+   deep, per-instance hue and scale jitter.
+3. A PMREM environment map from `RoomEnvironment` plus procedural roughness
+   and bump maps. This was the big one: `scene.environment` had been null the
+   whole time, so transmission had nothing to refract and metalness nothing to
+   reflect. Glass finally looked like glass and brass like brass.
+
+Produce still looked like moulded plastic. The reason is not mysterious and is
+worth writing down: **a tomato is a texture problem, not a geometry or lighting
+problem.** Real fruit has subsurface scattering, blemishes, colour variation
+within a single skin, and specular breakup at a scale no runtime-drawn canvas
+noise reproduces. Every texture available to that scene was one I generated in
+a 128px loop. Sphere plus noise is not a tomato and no amount of envMapIntensity
+makes it one.
+
+So the hero is now a photograph of a real shop, animated with CSS.
+
+**What that bought, measured:**
+
+| | |
+|---|---|
+| three.js | removed from `package.json` entirely, with `@types/three` |
+| Emitted JS | 4,105,578 -> 3,568,687 bytes, **-536,891 (-524 KB raw, ~133 KB gz)** |
+| Photo | 340,754 bytes committed once; `next/image` serves a smaller modern format at the rendered size |
+| CLS | 0 — a static import gives `next/image` the intrinsic 1600x1067 at build time, so the box is reserved before any byte arrives |
+
+**What it cost.** The shelf no longer rotates in three dimensions, and the
+products are somebody else's shop rather than a stylised version of the
+customer's. The motion is a slow 34s drift plus a small pointer tilt, which is
+less than a WebGL scene can do and more than enough for a hero.
+
+**Why not both.** A photograph cannot be lit by the page or reorganised per
+viewport, and a WebGL scene cannot be photoreal without real texture assets.
+Asked to choose, realism wins for a hero whose whole job is to say "this is
+for a grocery shop".
+
+The image is Pexels photo 264636, CC0 / Pexels licence, free for commercial
+use with no attribution required, committed to `public/hero/` so nothing is
+fetched from a third-party host at render time — the same reasoning that
+removed six `images.unsplash.com` texture loads several phases ago.

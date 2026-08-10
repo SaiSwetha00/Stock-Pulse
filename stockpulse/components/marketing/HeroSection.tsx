@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { ArrowRight, Activity, Sparkles } from 'lucide-react'
-import HeroShelf from './HeroShelf'
+import HeroShelfPhoto from './HeroShelfPhoto'
 
 export default function HeroSection() {
   return (
@@ -97,11 +97,11 @@ export default function HeroSection() {
 
           {/* Floating interactive 3D visual */}
           <div className="relative w-full h-[450px] md:h-[540px] z-10">
-            <HeroShelf interactive={true} />
+            <HeroShelfPhoto />
           </div>
 
           {/* Floating Telemetry Glass Card Overlay — quieter border, no colored glow */}
-          <div className="absolute -bottom-4 -left-4 md:bottom-6 md:left-0 z-20 p-5 rounded-xl glass-card border border-border shadow-2xl max-w-xs">
+          <div className="sp-hero-card absolute -bottom-4 -left-4 md:bottom-6 md:left-0 z-20 p-5 rounded-xl glass-card border border-border shadow-2xl max-w-xs">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-8 h-8 rounded-lg bg-surface/[0.04] border border-border flex items-center justify-center text-[#a39c8a]">
                 <Activity className="w-4 h-4" />
@@ -116,7 +116,7 @@ export default function HeroSection() {
             </div>
           </div>
 
-          <div className="absolute -top-4 -right-4 md:top-6 md:right-0 z-20 p-5 rounded-xl glass-card border border-border shadow-2xl max-w-xs">
+          <div className="sp-hero-card sp-hero-card--far absolute -top-4 -right-4 md:top-6 md:right-0 z-20 p-5 rounded-xl glass-card border border-border shadow-2xl max-w-xs">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-[var(--sp-gold)]/15 border border-[var(--sp-gold)]/30 flex items-center justify-center" style={{ color: 'var(--sp-gold)' }}>
                 <Sparkles className="w-4 h-4" />

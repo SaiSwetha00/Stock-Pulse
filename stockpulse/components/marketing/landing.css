@@ -431,3 +431,82 @@
   bottom: 0;
   background: linear-gradient(0deg, rgba(0, 0, 0, 0.28) 0%, transparent 100%);
 }
+
+/* ---------------------------------------------------------------
+   HERO PHOTOGRAPH
+   The shelf is a photo now, not a WebGL scene (D51). Everything that
+   moves here is a compositor-only transform: no layout, no paint, no
+   JavaScript per frame.
+
+   Two custom properties, --sp-hero-mx / --sp-hero-my, are written on
+   :root by HeroShelfPhoto on pointermove and default to 0 so every
+   rule below is valid before the first move and on touch devices that
+   never send one.
+   --------------------------------------------------------------- */
+:root {
+  --sp-hero-mx: 0;
+  --sp-hero-my: 0;
+}
+
+.sp-landing .sp-hero-photo {
+  /* The tilt lives on the frame, the drift on the layer inside it, so
+     the two never fight over one transform property. */
+  perspective: 1200px;
+  transform: rotateY(calc(var(--sp-hero-mx) * 3.2deg))
+    rotateX(calc(var(--sp-hero-my) * -2.4deg));
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.sp-landing .sp-hero-photo__inner {
+  /* Starts already scaled: the keyframes move BETWEEN scaled states, so
+     the photo never shows an edge as it drifts. */
+  transform: scale(1.08);
+  animation: sp-hero-drift 34s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+@keyframes sp-hero-drift {
+  0% {
+    transform: scale(1.08) translate3d(-1.1%, -0.8%, 0);
+  }
+  50% {
+    transform: scale(1.13) translate3d(1.2%, 0.6%, 0);
+  }
+  100% {
+    transform: scale(1.09) translate3d(-0.6%, 1.1%, 0);
+  }
+}
+
+/* The overlay cards move FURTHER than the photo and in the same
+   direction. That difference is the whole parallax: matched motion
+   would read as one flat plane, which is what "pasted on" looks
+   like. */
+.sp-landing .sp-hero-card {
+  transform: translate3d(calc(var(--sp-hero-mx) * 10px), calc(var(--sp-hero-my) * 7px), 0);
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+/* The two cards sit on opposite corners, so opposing drift separates
+   them from each other as well as from the photo. */
+.sp-landing .sp-hero-card--far {
+  transform: translate3d(calc(var(--sp-hero-mx) * -13px), calc(var(--sp-hero-my) * -9px), 0);
+}
+
+/* Reduced motion freezes ALL of it to a still photograph — the drift,
+   the tilt and the card parallax. The pointer listener is never
+   attached in that case either, so the variables stay at 0 and these
+   transforms resolve to none. */
+@media (prefers-reduced-motion: reduce) {
+  .sp-landing .sp-hero-photo,
+  .sp-landing .sp-hero-card,
+  .sp-landing .sp-hero-card--far {
+    transform: none;
+    transition: none;
+  }
+  .sp-landing .sp-hero-photo__inner {
+    animation: none;
+    transform: scale(1.04);
+  }
+}
