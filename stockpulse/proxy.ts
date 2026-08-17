@@ -24,6 +24,13 @@ export const config = {
     // sign-in page as HTML. The card rendered blank in every link preview.
     // Caught by curling the production server — the build reports the route
     // as generated either way, so nothing upstream of this shows a problem.
-    '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|opengraph-image|twitter-image|icon|apple-icon|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|mp4|webm|mov|woff|woff2)$).*)',
+    // `wasm` is here for exactly the reason the mp4 note above gives, and was
+    // found the same way — by curling the path. /wasm/zxing_reader.wasm is the
+    // barcode decoder, served from public/. Without this line every request for
+    // it goes through session handling: signed in it still returns the binary,
+    // but an expired or absent session answers a 1 MB wasm request with the
+    // sign-in page as HTML, and the scanner then fails with a module
+    // instantiation error rather than with anything about being logged out.
+    '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|opengraph-image|twitter-image|icon|apple-icon|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|mp4|webm|mov|woff|woff2|wasm)$).*)',
   ],
 }
