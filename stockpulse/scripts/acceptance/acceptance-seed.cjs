@@ -17,6 +17,9 @@
  *   - it refuses to run against any store but the harness one (lib.cjs);
  *   - every product carries an `ACC-` SKU, so seeded stock is identifiable in
  *     the UI, in an export, and in a database query, forever;
+ *   - every product carries a PLACEHOLDER barcode in the GS1 restricted-
+ *     distribution range (200...), which is not and can never be a real
+ *     article's code — see the ean13() comment below;
  *   - every id is derived from a fixed namespace, so the teardown removes
  *     exactly this set and provably nothing else.
  *
@@ -137,6 +140,42 @@ const FORCE_LOW = new Set([
   'Curry Leaves',
 ])
 
+// ---------------------------------------------------------------------------
+// Placeholder barcodes
+// ---------------------------------------------------------------------------
+// THESE ARE NOT REAL PRODUCT BARCODES. Every value produced below is invented
+// by this script. Scanning a real tin of Amul ghee will NOT match the seeded
+// "Pure Ghee 500ml" row, and none of these digits identifies any real-world
+// article. They exist so the later scanning phases have unique, well-formed
+// values to resolve against instead of a column full of NULLs.
+//
+// They are built so they can never be mistaken for real ones:
+//
+//   - The prefix is 200. GS1 reserves 02 and 20-29 for RESTRICTED
+//     DISTRIBUTION — codes a shop prints for itself, which by definition
+//     identify nothing outside that shop. A placeholder in that range is not
+//     merely unassigned; it is in the block guaranteed never to be assigned to
+//     a manufacturer.
+//   - The check digit is computed properly, so a scanner or validator accepts
+//     them as well-formed EAN-13. A seed of malformed codes would exercise the
+//     error path forever and the happy path never.
+//   - The payload is the catalogue index, so the mapping is stable across runs
+//     and collisions are impossible by construction rather than by luck — the
+//     same reasoning as derivedId() above: two runs must produce the same shop.
+//
+// This carries D48 forward. The seed stays labelled: the ACC- SKU is the label
+// a human reads, the 200 prefix is the label a machine reads.
+function ean13(index) {
+  // 3-digit restricted prefix + 9 digits of payload = 12, + check digit = 13.
+  const body = `200${String(index).padStart(9, '0')}`
+  let sum = 0
+  for (let i = 0; i < 12; i++) {
+    // EAN-13 weights the 1st, 3rd, 5th... digit by 1 and the rest by 3.
+    sum += Number(body[i]) * (i % 2 === 0 ? 1 : 3)
+  }
+  return body + String((10 - (sum % 10)) % 10)
+}
+
 function isoDaysAgo(days, hour, minute) {
   const d = new Date()
   d.setDate(d.getDate() - days)
@@ -244,6 +283,9 @@ async function main() {
       name,
       brand,
       sku: `${SEED_TAG}-${String(i + 1).padStart(3, '0')}`,
+      // Placeholder, not a real barcode — read the ean13() comment above
+      // before assuming any of these means anything outside this store.
+      barcode: ean13(i + 1),
       category,
       unit_price: price,
       unit,
