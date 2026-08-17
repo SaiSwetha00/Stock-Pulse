@@ -23,6 +23,15 @@ export default function ProductModal({
   product,
   storeId,
   categories,
+  /**
+   * Seeds the Barcode field when CREATING, so a scan that matched nothing
+   * lands in the form with the digits already there.
+   *
+   * Ignored when editing: `product.barcode` is the row's own value and must
+   * win, or a scan that resolved to a product could overwrite that product's
+   * stored barcode with whatever was last held up to the camera.
+   */
+  initialBarcode,
   onClose,
   onSaved,
 }: {
@@ -35,13 +44,17 @@ export default function ProductModal({
   /** This store's categories, ordered. The Server Action re-reads them and
    *  re-validates against its own copy — this one is for the dropdown. */
   categories: CategoryOption[]
+  /** Create mode only — see the note on the destructured prop above. */
+  initialBarcode?: string
   onClose: () => void
   onSaved: () => void
 }) {
   const [name, setName] = useState(product?.name ?? '')
   const [brand, setBrand] = useState(product?.brand ?? '')
   const [sku, setSku] = useState(product?.sku ?? '')
-  const [barcode, setBarcode] = useState(product?.barcode ?? '')
+  // The row's own barcode wins when editing; initialBarcode only fills a
+  // blank create form.
+  const [barcode, setBarcode] = useState(product?.barcode ?? initialBarcode ?? '')
   // Defaults to the store's first category rather than a hardcoded 'produce',
   // which would not exist in a shop that renamed or removed it.
   const [category, setCategory] = useState<string>(
