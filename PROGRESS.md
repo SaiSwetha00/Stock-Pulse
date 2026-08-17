@@ -2057,6 +2057,64 @@ pass showed nothing about the CDP denial working. It only became evidence once
 the grant path was proved to be the thing failing. A green check whose cause
 has not been established is not a check — D45's shape, from the other side.
 
+## CORRECTION (same day): the first version reported a working camera as refused
+
+Reported from a real Android Chrome device on the preview deployment: Start
+camera always produced "Camera permission was refused", with the camera
+permission granted.
+
+**The cause was in this component's error handling, not in the camera.**
+`getUserMedia()` and `await video.play()` sat inside one `try`, and the single
+`catch` ran both through `classifyCameraError`. `HTMLMediaElement.play()`
+rejects with **`NotAllowedError`** under the autoplay policy — the same name
+`getUserMedia` uses for a denied permission — so a successful camera open
+followed by a rejected `play()` was reported as a permission refusal. On
+Android Chrome the `await` on `getUserMedia` consumes the user activation from
+the tap, which is what makes the following `play()` look like unprivileged
+autoplay.
+
+Four changes:
+
+1. **The camera request has its own `try`/`catch` and nothing else is in it.**
+   Only a `getUserMedia` rejection may produce a permission message. Stated in
+   a comment on `classifyCameraError` too, because the next person to add a
+   step to the start sequence will be tempted to widen that block again.
+2. **A rejected `play()` is now non-fatal.** The element is already bound to a
+   live track and Android Chrome usually plays anyway; the decode loop gates on
+   `readyState`, so it waits rather than aborting a working camera. The
+   rejection is surfaced as a warning, not an error.
+3. **The raw `name: message` is always on screen** beneath the friendly copy.
+   The friendly sentence is a guess at meaning; the DOMException is what
+   happened. Without it this bug was undiagnosable from the screen — which is
+   how it reached a device in the first place.
+4. **A Diagnostics block**, collapsed, populated on Start: secure context,
+   origin, in-an-iframe, `getUserMedia` presence, **Permissions API camera
+   state**, video-input count, live `readyState`/dimensions, frame count, last
+   error, user agent.
+
+The permission copy was also wrong in substance. It said "your browser is
+blocking the camera" and named only the browser's site permission — but Android
+has **two independent permissions**, the OS permission for the Chrome app and
+Chrome's own per-site permission, and granting one does not grant the other. A
+user who had checked the OS one was being sent back to the same place. Both are
+named now.
+
+`video.muted` and `defaultMuted` are also set imperatively in an effect: React
+sets `muted` as a property and does not reliably reflect the attribute, and the
+autoplay policy inspects the element's muted state. Cheap, and it removes one
+candidate cause rather than leaving it arguable.
+
+Verified after the fix, in a browser: the raw `NotAllowedError: Permission
+denied` renders, the two-layer remedy copy renders, and Diagnostics reports
+`Permissions API camera state: denied` alongside `Video input devices: 1` —
+precisely the pair that separates "the site permission is blocked" from "there
+is no camera".
+
+**Still not verified on a real device.** The fix is correct about the bug it
+describes, but whether the Android symptom was this bug or Chrome's per-site
+permission cannot be settled from here. Diagnostics answers that on the first
+tap, which is the point of it.
+
 ## Verified — the rest
 
 - `tsc --noEmit`, `eslint`, `next build` all green.
