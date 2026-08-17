@@ -30,13 +30,32 @@ const withBundleAnalyzer = bundleAnalyzer({
  *   executable script.
  * - Referrer-Policy: keeps full URLs (which carry record ids) out of the
  *   Referer header on cross-origin navigations.
- * - Permissions-Policy: this app needs none of these devices, so deny them.
+ * - Permissions-Policy: each entry below is a decision about a device this app
+ *   actually uses, and `()` is NOT "default" — it is an EMPTY allowlist, which
+ *   denies the feature to every origin including this one. A denied feature
+ *   makes getUserMedia reject with NotAllowedError before the browser asks the
+ *   user anything, so no amount of granting permission in Android, iOS or the
+ *   browser itself will help.
+ *
+ *     camera=(self)      the barcode scanner on /scan
+ *     microphone=(self)  voice input in the AI assistant
+ *     geolocation=()     DELIBERATELY denied — nothing reads location, and if
+ *                        something ever does, this line should be what stops
+ *                        it until somebody decides otherwise
+ *
+ *   This previously read `camera=(), microphone=(), geolocation=()` under the
+ *   note "this app needs none of these devices, so deny them". That was true
+ *   when written and silently stopped being true when voice input and the
+ *   scanner shipped. It cost several sessions of device-level debugging that
+ *   could never have found anything, because the failure was in a response
+ *   header rather than on the device. See FOUND-ISSUES.md and DECISIONS.md:
+ *   BEFORE calling a browser capability broken, curl this header.
  */
 const SECURITY_HEADERS = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },
 ];
 
 /**

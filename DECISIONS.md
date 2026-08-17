@@ -1158,3 +1158,49 @@ emulated media feature.
 
     normal   early{svg} late{canvas}  CLS=0  threeChunkFetched=true
     reduced  early{svg} late{svg}     CLS=0  threeChunkFetched=false
+
+## D52 — A security header written for the app as it was is a silent feature-killer as the app grows
+
+Numbered D52, not D51: the unmerged `hero/photo-shelf` branch already drafts a
+D51, and two entries sharing a number is a worse problem than a gap.
+
+`next.config.ts` sent `Permissions-Policy: camera=(), microphone=(),
+geolocation=()` under the note "this app needs none of these devices, so deny
+them". **That note was true when it was written.** It was correct hardening for
+the app as it then existed, and nothing about the decision was careless.
+
+Then voice input shipped. Then the barcode scanner shipped. The header did not
+change, because nothing makes a header change when a feature arrives — and `()`
+is an *empty allowlist*, not a default, so both features were denied their
+device before the browser asked anyone anything. `getUserMedia` rejected with
+`NotAllowedError`, which is the same error a user-denied permission produces.
+
+**The rule: when adding a browser capability — camera, microphone, geolocation,
+clipboard, USB, bluetooth, screen capture — check `Permissions-Policy` in the
+same change, before the feature is called broken.** One command answers it:
+
+    curl -sI https://stock-pulse-mu.vercel.app/ | grep -i permissions-policy
+
+**Why this earns an entry rather than a line in FOUND-ISSUES.** It cost several
+sessions of device-level debugging that could never have found anything. Every
+hypothesis was about the device — Android app permissions, Chrome's per-site
+permission, the autoplay policy, user activation, a React `muted` attribute —
+and each was plausible, checkable and irrelevant. A real bug in the scanner's
+error handling was found and fixed along the way, and reported as the likely
+cause; it was not the cause. The evidence that mattered sat in one response
+header the whole time, and it took the owner noticing that **two unrelated
+features on two different origins were failing identically** to point at it.
+
+That shape is the lesson, and it generalises well past this header: **when two
+independent things fail the same way, stop debugging either one.** A shared
+symptom implies a shared cause, and a shared cause lives in what they have in
+common — the document, the origin, the response, the platform — not inside
+either feature. D38 says confirm the probe before believing a defect; this says
+confirm the *environment* before believing either feature is at fault.
+
+Corollary about the comment, which is what made this durable: the old note
+explained the *policy* ("we need none of these") rather than the *mechanism*
+("`()` denies it to ourselves, and getUserMedia will reject"). Anyone checking
+whether the header could break the camera would have needed to already know the
+mechanism to see the problem. The replacement spells out what `()` does, so the
+next person does not have to.

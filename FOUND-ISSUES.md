@@ -1118,3 +1118,54 @@ Unchanged since it was built. Headless Chrome has no microphone, and
 `SpeechRecognition` in Chrome sends audio to a Google speech service, so there
 is nothing here to fake that would prove anything. The owner is testing it;
 steps and expected failure modes are in PROGRESS.
+
+**Resolved as to cause, 2026-08-17: it was never going to work. See S1 below —
+`Permissions-Policy: microphone=()` denied the microphone to the document, so
+every attempt failed before any device was consulted.**
+
+## S1 — `Permissions-Policy` denied camera and microphone to the app itself — FIXED 2026-08-17
+
+`stockpulse/next.config.ts:39`, applied to `source: "/(.*)"` — every route, on
+production and every preview alike.
+
+```
+Permissions-Policy: camera=(), microphone=(), geolocation=()
+```
+
+`()` is not "unset" or "default". It is an **empty allowlist**, which denies the
+feature to every origin *including the document's own*. With it in place,
+`navigator.mediaDevices.getUserMedia()` rejects with `NotAllowedError`
+immediately — before the browser consults the user, the site permission, or the
+OS. Nothing a user can grant makes any difference.
+
+**What it broke, for as long as each had existed:**
+
+- the AI assistant's voice input (microphone), on production;
+- the `/scan` barcode scanner (camera), on the PR #2 preview.
+
+**Why it took so long to find.** The symptom is indistinguishable from a denied
+permission, because it is *reported* as one — same `NotAllowedError`, same
+error name, same UI copy. Every instinct says "check the device", and the device
+was fine throughout. Two unrelated features on two different origins failing
+identically was the signal that mattered, and it was the owner who spotted it
+and named the header as the hypothesis.
+
+**How it got there.** The comment above the line read *"this app needs none of
+these devices, so deny them"* — which was **true when written**. It was a
+correct, deliberate hardening decision for the app as it then existed. Voice
+input and the scanner arrived afterwards, and nothing existed that would have
+prompted anyone to revisit the header.
+
+**Fix:** `camera=(self), microphone=(self), geolocation=()`. Geolocation stays
+denied on purpose — nothing reads location, and that line should be what stops
+it if something ever tries.
+
+**Confirmed after deploy** by curling the header on production, not by reading
+the config. The check costs one command and should be the first thing run
+against any future "the camera/microphone is broken" report:
+
+```
+curl -sI https://stock-pulse-mu.vercel.app/ | grep -i permissions-policy
+```
+
+Generalised as D52 in DECISIONS.md.
