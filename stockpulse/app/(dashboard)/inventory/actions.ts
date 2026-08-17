@@ -37,6 +37,77 @@ async function allowedCategorySlugs(
 const FK_VIOLATION = '23503'
 /** Postgres unique_violation. */
 const UNIQUE_VIOLATION = '23505'
+/** Postgres check_violation — a barcode that is not 8-14 digits (0014). */
+const CHECK_VIOLATION = '23514'
+
+/**
+ * The product already holding this barcode in this store, if any.
+ *
+ * Exists so the shopkeeper is told *which* product they clashed with. The
+ * database can only say "duplicate key value violates unique constraint
+ * products_store_barcode_key", which names an index rather than a thing on a
+ * shelf — that is the raw error this is here to stop surfacing.
+ *
+ * Scoped to store_id as well as barcode even though RLS already scopes the
+ * read: the unique index is per store (0014), so a match in another shop is
+ * not a conflict and must never be named — that would leak a product name
+ * across tenants. Belt and braces, and it makes the intent legible.
+ */
+async function barcodeConflict(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  storeId: string,
+  barcode: string,
+  /** The row being edited, which cannot conflict with itself. */
+  excludeProductId?: string,
+): Promise<{ id: string; name: string } | null> {
+  let q = supabase
+    .from('products')
+    .select('id, name')
+    .eq('store_id', storeId)
+    .eq('barcode', barcode)
+  if (excludeProductId) q = q.neq('id', excludeProductId)
+
+  const { data } = await q.limit(1)
+  return data?.[0] ?? null
+}
+
+/**
+ * The message the form shows for a duplicate, with the clashing product named.
+ *
+ * Falls back to a sentence that still says what happened when the lookup finds
+ * nothing — which is genuinely possible: the conflicting row can be deleted
+ * between the failed write and this read. "Another product" is vague and true;
+ * inventing a name would be neither.
+ */
+function duplicateBarcodeMessage(conflict: { name: string } | null): string {
+  return conflict
+    ? `This barcode is already used by ${conflict.name}.`
+    : 'This barcode is already used by another product in this store.'
+}
+
+/**
+ * PostgREST's answer when 0014 has not been applied: PGRST204, "Could not find
+ * the 'barcode' column of 'products' in the schema cache".
+ *
+ * Handled for the same reason /staff special-cases 42P01 for staff_leave
+ * (D21): a branch must stay deployable ahead of its migration, and every
+ * product save on this branch writes a barcode field. Without this, an
+ * unmigrated database turns "Add Product" into an opaque schema-cache error.
+ *
+ * Narrow on purpose — this code and this code only. D21's bug was an
+ * over-broad catch that swallowed every error into a page that rendered
+ * perfectly with nothing on it and nothing saying why.
+ */
+function isMissingBarcodeColumn(error: { code?: string; message?: string }): boolean {
+  return error.code === 'PGRST204' && /barcode/i.test(error.message ?? '')
+}
+
+const MISSING_BARCODE_COLUMN = {
+  ok: false as const,
+  message:
+    'Barcodes are not set up on this database yet. Run ' +
+    'supabase/migrations/0014_product_barcode.sql in the Supabase SQL editor.',
+}
 
 /**
  * Creates or updates a product, then invalidates the routes that render it.
@@ -74,6 +145,22 @@ export async function saveProduct(
 
   const payload = toProductPayload(input)
 
+  // Checked before the write so the common case gets a sentence naming the
+  // other product rather than a constraint name. This is NOT the guarantee —
+  // two saves racing would both pass this read — so the 23505 branch below
+  // stays as the real backstop. Two people adding stock at one counter is an
+  // ordinary Saturday in a grocery, not a hypothetical.
+  if (payload.barcode) {
+    const conflict = await barcodeConflict(supabase, store.id, payload.barcode, productId)
+    if (conflict) {
+      return {
+        ok: false,
+        errors: { barcode: duplicateBarcodeMessage(conflict) },
+        message: duplicateBarcodeMessage(conflict),
+      }
+    }
+  }
+
   const { error } = productId
     ? await supabase
         .from('products')
@@ -84,8 +171,30 @@ export async function saveProduct(
 
   if (error) {
     if (error.code === UNIQUE_VIOLATION) {
+      // products_store_barcode_key is the only unique index on this table —
+      // there is none on sku, verified across schema.sql and migrations
+      // 0001-0014 — so a 23505 here is a barcode clash. The constraint name is
+      // still checked rather than assumed, because "the only one today" is a
+      // fact with a shelf life.
+      const isBarcode =
+        !error.message || /barcode/i.test(`${error.message} ${error.details ?? ''}`)
+      if (isBarcode && payload.barcode) {
+        const conflict = await barcodeConflict(supabase, store.id, payload.barcode, productId)
+        const message = duplicateBarcodeMessage(conflict)
+        return { ok: false, errors: { barcode: message }, message }
+      }
       return { ok: false, message: 'A product with that SKU already exists.' }
     }
+    if (error.code === CHECK_VIOLATION && /barcode/i.test(error.message ?? '')) {
+      // The validator should have caught this; if it did not, the two rules
+      // have drifted and the message should say something a human can act on.
+      return {
+        ok: false,
+        errors: { barcode: 'Use 8 to 14 digits, numbers only.' },
+        message: 'Use 8 to 14 digits, numbers only.',
+      }
+    }
+    if (isMissingBarcodeColumn(error)) return MISSING_BARCODE_COLUMN
     return { ok: false, message: error.message }
   }
 
@@ -233,13 +342,22 @@ export async function importProducts(
       : await supabase.from('products').insert({ ...payload, store_id: store.id })
 
     if (error) {
-      failed.push({
-        line,
-        reason:
-          error.code === UNIQUE_VIOLATION
-            ? 'A product with that SKU already exists.'
-            : error.message,
-      })
+      let reason: string
+      if (error.code === UNIQUE_VIOLATION && payload.barcode) {
+        // Same treatment as the form: name the product, not the index. A
+        // 200-row import that reports "duplicate key value violates unique
+        // constraint" 6 times is a file nobody can fix.
+        reason = duplicateBarcodeMessage(
+          await barcodeConflict(supabase, store.id, payload.barcode, existingId),
+        )
+      } else if (error.code === UNIQUE_VIOLATION) {
+        reason = 'A product with that SKU already exists.'
+      } else if (isMissingBarcodeColumn(error)) {
+        reason = MISSING_BARCODE_COLUMN.message
+      } else {
+        reason = error.message
+      }
+      failed.push({ line, reason })
       continue
     }
 

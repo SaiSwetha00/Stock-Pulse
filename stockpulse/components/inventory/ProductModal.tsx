@@ -41,6 +41,7 @@ export default function ProductModal({
   const [name, setName] = useState(product?.name ?? '')
   const [brand, setBrand] = useState(product?.brand ?? '')
   const [sku, setSku] = useState(product?.sku ?? '')
+  const [barcode, setBarcode] = useState(product?.barcode ?? '')
   // Defaults to the store's first category rather than a hardcoded 'produce',
   // which would not exist in a shop that renamed or removed it.
   const [category, setCategory] = useState<string>(
@@ -72,6 +73,7 @@ export default function ProductModal({
       name,
       brand,
       sku,
+      barcode,
       category,
       unitPrice,
       unit,
@@ -146,6 +148,31 @@ export default function ProductModal({
               {(p) => <Input {...p} value={sku} onChange={(e) => setSku(e.target.value)} />}
             </Field>
           </div>
+
+          {/* Deliberately NOT type="number". A barcode is a string of digits,
+              not a quantity: type="number" strips a leading zero (UPC-A codes
+              legitimately start with one), accepts "8e12", and offers spinner
+              arrows on a value nobody increments. inputMode="numeric" gets the
+              phone keypad — which is the keyboard actually in the shopkeeper's
+              hand — without any of that. */}
+          <Field
+            label="Barcode"
+            hint="Optional · 8-14 digits, numbers only"
+            error={errors.barcode}
+          >
+            {(p) => (
+              <Input
+                {...p}
+                value={barcode}
+                onChange={(e) => setBarcode(e.target.value)}
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={14}
+                placeholder="e.g. 8901234567895"
+                className="sp-num"
+              />
+            )}
+          </Field>
 
           <div>
             <Field label="Category" error={errors.category}>

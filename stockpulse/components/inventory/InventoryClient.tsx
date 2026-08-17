@@ -81,6 +81,10 @@ const csvColumns = (labels: Record<string, string>): CsvColumn<Product>[] => [
   { header: 'Name', value: (p) => p.name },
   { header: 'Brand', value: (p) => p.brand },
   { header: 'SKU', value: (p) => p.sku },
+  // Next to SKU because it is the other identifier, and because
+  // lib/importCsv.ts maps the header "barcode" straight back onto this field —
+  // an export that round-trips through Excel must not silently lose it.
+  { header: 'Barcode', value: (p) => p.barcode },
   { header: 'Category', value: (p) => categoryLabel(p.category, labels) },
   // Raw numbers, not formatCurrency: "$1,234.00" reaches Excel as text and
   // will not sum. Formatting is the spreadsheet's job.
@@ -148,6 +152,10 @@ export default function InventoryClient({
         !q ||
         p.name.toLowerCase().includes(q) ||
         p.sku?.toLowerCase().includes(q) ||
+        // Typing a barcode into the search box is what a shopkeeper does
+        // before there is a scanner — and after there is one, when it will not
+        // read a crumpled label. It is visible in the row, so it is findable.
+        p.barcode?.includes(q) ||
         p.brand?.toLowerCase().includes(q) ||
         // Searching "dairy" or "kg" was a dead end before; both are visible
         // in the row, so both should be findable.
@@ -266,7 +274,7 @@ export default function InventoryClient({
             }}
             type="search"
             aria-label="Search inventory"
-            placeholder="Search name, SKU, brand, category, or unit..."
+            placeholder="Search name, SKU, barcode, brand, category, or unit..."
             className="control-h w-full rounded-lg border border-border bg-surface-muted pl-10 pr-12 text-sm placeholder:text-muted transition-[border-color,background-color] duration-150 focus:border-border-strong focus:bg-surface focus:outline-none"
           />
           {search && (
@@ -442,8 +450,16 @@ export default function InventoryClient({
                     </div>
                   </td>
                   <td className="mt-3 flex items-center justify-between gap-2 lg:mt-0 lg:table-cell lg:px-4 lg:py-4">
-                    <p className="text-muted-strong">SKU: {p.sku || '—'}</p>
-                    <span className="inline-block rounded bg-surface-muted px-2 py-0.5 text-xs font-medium uppercase text-muted lg:mt-1">
+                    <div className="min-w-0">
+                      <p className="text-muted-strong">SKU: {p.sku || '—'}</p>
+                      {/* Rendered only when set. A row of "Barcode: —" on 41
+                          products would be 41 lines saying nothing, and this
+                          cell already carries the category chip. */}
+                      {p.barcode && (
+                        <p className="sp-num truncate text-xs text-muted">Barcode: {p.barcode}</p>
+                      )}
+                    </div>
+                    <span className="inline-block shrink-0 rounded bg-surface-muted px-2 py-0.5 text-xs font-medium uppercase text-muted lg:mt-1">
                       {categoryLabel(p.category, labels)}
                     </span>
                   </td>
