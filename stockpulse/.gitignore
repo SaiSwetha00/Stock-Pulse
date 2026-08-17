@@ -45,3 +45,8 @@ next-env.d.ts
 
 # crash artifacts from the shell, not part of the project
 *.stackdump
+
+# Staged from node_modules by scripts/copy-zxing-wasm.mjs on predev/prebuild.
+# Not committed: it is a 1 MB build output, and a stale committed copy could
+# silently disagree with the JS glue that loads it.
+public/wasm/
