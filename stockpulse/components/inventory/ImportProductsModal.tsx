@@ -128,9 +128,9 @@ export default function ImportProductsModal({
               product, anything else is added. Nothing is written until you confirm.
             </p>
             <p className="text-sm text-muted">
-              Recognised headers: Name, Brand, SKU, Category, Unit Price, Unit, Stock,
-              Min Stock, Expiry. Exporting your inventory first gives you the exact
-              format back.
+              Recognised headers: Name, Brand, SKU, Barcode, Category, Unit Price, Unit,
+              Stock, Min Stock, Expiry. Exporting your inventory first gives you the
+              exact format back.
             </p>
 
             <input
@@ -212,6 +212,9 @@ export default function ImportProductsModal({
                       <td className="px-3 py-2">
                         <p className="font-medium text-foreground">{r.input.name || '—'}</p>
                         {r.input.sku && <p className="text-xs text-muted">SKU: {r.input.sku}</p>}
+                        {r.input.barcode && (
+                          <p className="sp-num text-xs text-muted">Barcode: {r.input.barcode}</p>
+                        )}
                         {r.problems.length > 0 && (
                           <p className="mt-0.5 text-xs text-danger">{r.problems.join(' ')}</p>
                         )}

@@ -50,6 +50,10 @@ export interface Product {
   name: string
   brand: string | null
   sku: string | null
+  /** EAN/UPC/ITF, digits only, 8-14 chars. Null until someone types one in.
+   *  Migration 0014 added it nullable and unique PER STORE, not globally —
+   *  two shops legitimately stock the same barcode. */
+  barcode: string | null
   category: Category
   unit_price: number
   unit: string
