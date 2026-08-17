@@ -2486,3 +2486,126 @@ tap, which is the point of it.
   Wired to unmount as well as to the button.
 - Overlapping decodes are impossible — a `busyRef` guard drops a frame rather
   than queueing it, so a slow decode cannot build a backlog that stalls the tab.
+
+---
+
+# BARCODE — Phase 3 of 5: Inventory wiring (2026-08-17)
+
+Branch `barcode/inventory-wiring`, off `main` (`b9e459f`). **Not merged.**
+Scan from Inventory, resolve the code against this store, and land in one of
+the two flows Inventory already has. No Sales wiring, no new write path.
+
+## Nothing new was invented, which is the point
+
+| | |
+|---|---|
+| entry point | a `Scan` button in the toolbar beside Import CSV / Add Product, behind the same `canWrite` gate |
+| match | `setEditing(product)` + `setModalOpen(true)` — what the Edit button does |
+| no match | `setEditing(null)` + `setModalOpen(true)` — what Add Product does, plus the digits pre-filled |
+| unreadable / QR / wrong symbology | Phase 2's component, mounted as-is |
+
+**There is no separate "adjust stock" screen in Inventory to reuse.** Checked
+before building: a grep for adjust/restock/updateStock finds nothing, and the
+only stock control anywhere is the `Quantity` field inside `ProductModal`. So
+"take the user to update that product's stock" *is* edit-mode `ProductModal`,
+which is why the match path is identical to clicking Edit.
+
+The scanner component gained exactly **one** optional prop, `onDetected`. With
+it omitted `/scan` behaves precisely as before. Everything else — the camera
+faults, the "Looking for a barcode…" state, the QR message, the diagnostics
+block — is reused rather than reimplemented.
+
+## The lookup is a Server Action, not a filter over what is already loaded
+
+`InventoryClient` already holds every product in memory, so a client-side match
+would have been free. It would also have been wrong: that array is a snapshot
+from page load, so a product added at the till thirty seconds ago is not in it.
+The scan would then offer to *create* it, and the unique index would refuse the
+save with a message naming a product not on screen.
+
+`findProductByBarcode` takes `store_id` from the session and never from the
+caller, writes `.eq('store_id')` explicitly even though RLS already scopes the
+read — it is the pair `products_store_barcode_key` is built on, so this is an
+index lookup — and returns a discriminated result, because `product: null` is a
+**successful** answer meaning "no product has this barcode", not a failure.
+
+Guarded by `canManage()` despite being a read: a scan can only end in create or
+edit, both of which `saveProduct` refuses for staff, so an unguarded read would
+be a path to a dead end — and it avoids adding a barcode-enumeration endpoint
+no UI offers.
+
+## Verified — the whole flow, in a browser, with a working camera
+
+**Phase 2 could never open a camera in headless Chrome. That was never Chrome.**
+`Permissions-Policy: camera=()` was sent by `next.config.ts` on *every*
+response including the dev server's, so the document itself was denied. With
+`camera=(self)` the fake-device path works, and Phase 3 got the end-to-end
+verification Phase 2 could not:
+
+    seeded   2000000000015 -> "Edit Product"  name="Red Onions"  stock=39
+    unseeded 9990000000012 -> "Add Product"   barcode pre-filled, name=""
+
+9/9 checks. The unseeded code was confirmed absent from **every** store first,
+or the no-match case would prove nothing.
+
+**Store scoping, measured across tenants.** A barcode was temporarily written
+onto a product in a *different* store and looked up as the harness owner using
+the anon key so RLS applied:
+
+    scoped   (store_id + barcode): 200, 0 rows   <- NO MATCH, correct
+    unscoped (barcode only)      : 200, 0 rows   <- RLS hides it independently
+
+Two layers agreeing, not one. The foreign barcode was restored.
+
+**Role gate, with controls (D38).** `profiles.role` flipped between runs;
+`getCurrentUser` re-reads it, so the same session sees different UI:
+
+| role | Scan | Add Product | Import CSV | Edit |
+|---|---|---|---|---|
+| staff | no | no | no | no |
+| manager | yes | yes | yes | yes |
+| owner | yes | yes | yes | yes |
+
+Add/Import/Edit are the controls: Scan disappearing alongside them is the
+consistent result. Scan alone differing would have been the finding.
+
+**RLS on the write itself — unchanged, and still open.** Measured directly on
+`products.stock` per D24, rows actually affected:
+
+| role | `PATCH products.stock` | rows |
+|---|---|---|
+| **staff** | **200** | **1** |
+| manager | 200 | 1 |
+| owner | 200 | 1 |
+
+Identical to the Phase 1 measurement. **Phase 3 adds no write path** — a scan
+leads only to `saveProduct`, which refuses staff — but the pre-existing
+`"staff can update stock on sale"` policy still lets staff PATCH `products`
+directly through PostgREST. Unfixed, unchanged, still logged.
+
+`tsc --noEmit`, `eslint` and `next build` all green.
+
+## Three probe defects, all mine, none of them the app
+
+D38 asks for the healthy scenario that produces the same output before
+reporting a defect. All three had one:
+
+1. **`video.readyState = null`** after a successful scan. The scanner modal
+   *unmounts* when `ProductModal` opens, so there is no `<video>` left to
+   query. The decode is itself the proof the camera worked — nothing else can
+   open that dialog.
+2. **`name = null`, `stock = null`** in the modal. My label regexes were
+   `/^Name/` and `/^Stock/`; the real labels are **"Product Name"** and
+   **"Quantity"**. `/^Barcode/` matched, which is what showed the extractor was
+   sound and the patterns were not.
+3. **`redirected /inventory -> /login`** — the harness session had expired. The
+   instrument failing loudly rather than reporting a green "staff sees nothing"
+   result is D26 working as designed.
+
+## NOT verified — a real scan on a physical device
+
+The camera here is a `.y4m` file played through Chrome's fake device. Nobody
+has held a phone at a shelf and watched stock update. **Expected at this stage
+and not a gap to close now** — the owner has since confirmed both `/scan` and
+voice input work on a real Android device, so the remaining unknown is the
+Phase 3 hand-off specifically, not whether the camera works at all.
