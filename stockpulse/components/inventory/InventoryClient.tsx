@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from 'react'
 import { canManage } from '@/lib/permissions'
-import { Search, Plus, Pencil, Trash2, Wallet, AlertTriangle, PackageX, X, Upload } from 'lucide-react'
+import { Search, Plus, Pencil, Trash2, Wallet, AlertTriangle, PackageX, X, Upload, ScanLine } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { deleteProduct } from '@/app/(dashboard)/inventory/actions'
+import { deleteProduct, findProductByBarcode } from '@/app/(dashboard)/inventory/actions'
 import type { Product, Role } from '@/types'
 import { categoryLabel, labelMap, type CategoryOption } from '@/lib/categories'
 import { formatCurrency } from '@/lib/format'
@@ -22,6 +22,7 @@ import type { CsvColumn } from '@/lib/csv'
 import ProductModal from './ProductModal'
 import ProductThumb from '@/components/ui/ProductThumb'
 import ImportProductsModal from './ImportProductsModal'
+import ScannerPrototype from '@/components/scan/ScannerPrototype'
 
 // `CATEGORY_FILTERS` was a fourth hardcoded copy of the list — and the labels
 // were re-typed by hand here, so it could disagree with the product form's
@@ -144,6 +145,59 @@ export default function InventoryClient({
   const [deletingBusy, setDeletingBusy] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
+  // --- barcode scanning (Phase 3) -----------------------------------------
+  const [scanOpen, setScanOpen] = useState(false)
+  /** Carries the scanned digits into ProductModal when nothing matched. */
+  const [scanBarcode, setScanBarcode] = useState('')
+  const [scanBusy, setScanBusy] = useState(false)
+  /** A failed lookup. Shown inside the scanner dialog so the camera stays up
+   *  and the user can simply try again. */
+  const [scanError, setScanError] = useState('')
+
+  /**
+   * A decoded barcode arrives here. One lookup, then one of two existing
+   * flows — no third path is introduced.
+   *
+   *   found    -> exactly what the Edit button does: ProductModal in edit
+   *               mode, which is where stock is changed. There is no separate
+   *               stock-adjust screen in Inventory to reuse instead.
+   *   no match -> exactly what Add Product does, plus the scanned digits
+   *               pre-filled into the Barcode field.
+   *
+   * The lookup is a Server Action, not a filter over the `products` already in
+   * memory. The in-memory list is a snapshot from page load: a product added
+   * on the till thirty seconds ago would not be in it, and the scan would
+   * offer to create a duplicate — which the unique index would then refuse
+   * with a message about a product the user cannot see on screen.
+   */
+  async function handleScanned(value: string) {
+    if (scanBusy) return
+    setScanBusy(true)
+    setScanError('')
+    try {
+      const result = await findProductByBarcode(value)
+      if (!result.ok) {
+        setScanError(result.message)
+        return
+      }
+      setScanOpen(false)
+      if (result.product) {
+        setScanBarcode('')
+        setEditing(result.product)
+        toast.info('Product found', `${result.product.name} — update the stock and save.`)
+      } else {
+        setEditing(null)
+        setScanBarcode(value)
+        toast.info('No product with that barcode', 'Add it now — the barcode is filled in.')
+      }
+      setModalOpen(true)
+    } catch (err) {
+      setScanError(err instanceof Error ? err.message : 'The lookup failed. Try again.')
+    } finally {
+      setScanBusy(false)
+    }
+  }
+
   const filtered = useMemo(() => {
     // One lowercase pass instead of one per row per field.
     const q = search.trim().toLowerCase()
@@ -240,6 +294,21 @@ export default function InventoryClient({
             filenameBase="products"
             itemLabel="products"
           />
+          {/* Same gate as Add/Edit/Import: a scan can only end in creating or
+              editing a product, and saveProduct refuses both for staff — so
+              offering the button to staff would be offering a dead end. */}
+          {canWrite && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setScanError('')
+                setScanOpen(true)
+              }}
+            >
+              <ScanLine className="h-4 w-4" aria-hidden="true" />
+              Scan
+            </Button>
+          )}
           {canWrite && (
             <Button variant="secondary" onClick={() => setImportOpen(true)}>
               <Upload className="h-4 w-4" aria-hidden="true" />
@@ -543,14 +612,50 @@ export default function InventoryClient({
         />
       )}
 
+      {/* The scanner itself is Phase 2's component, mounted unchanged apart
+          from the onDetected callback. Every camera fault, the QR/wrong-
+          symbology message and the "still looking" state come from there —
+          none of it is reimplemented here. */}
+      {scanOpen && (
+        <Modal
+          title="Scan a barcode"
+          width="sm"
+          onClose={() => {
+            setScanOpen(false)
+            setScanError('')
+          }}
+        >
+          <div className="space-y-4 px-6 py-5">
+            <p className="text-sm text-muted-strong">
+              Point the camera at a product barcode. If it is already in your inventory you can
+              update its stock; if not, you can add it.
+            </p>
+
+            <ScannerPrototype onDetected={handleScanned} />
+
+            {scanBusy && <p className="text-sm text-muted">Looking that barcode up…</p>}
+
+            {scanError && (
+              <div role="alert" className="rounded-lg bg-danger-bg px-3.5 py-2.5 text-sm text-danger">
+                {scanError}
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
+
       {modalOpen && (
         <ProductModal
           product={editing}
           storeId={storeId}
           categories={categories}
+          initialBarcode={scanBarcode}
           onClose={() => {
             setModalOpen(false)
             setEditing(null)
+            // Cleared on close so the next manual Add Product does not open
+            // carrying digits from an earlier scan.
+            setScanBarcode('')
           }}
           onSaved={refresh}
         />

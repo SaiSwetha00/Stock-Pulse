@@ -191,12 +191,29 @@ const SAMPLE_MS = 120
  *  than it adds in accuracy for a barcode filling most of the view. */
 const DECODE_WIDTH = 640
 
-export default function ScannerPrototype() {
+export default function ScannerPrototype({
+  /**
+   * Called once, on the first frame that decodes a retail product barcode.
+   *
+   * The ONLY addition Phase 3 needed. Everything else here is unchanged,
+   * deliberately: the camera faults, the "Looking for a barcode…" state, the
+   * QR/wrong-symbology message and the diagnostics block are the ones Phase 2
+   * shipped and verified. Inventory reuses them by mounting this component
+   * rather than by reimplementing any of it.
+   *
+   * Omitted — as on /scan — the component behaves exactly as before.
+   */
+  onDetected,
+}: {
+  onDetected?: (value: string, format: string) => void
+} = {}) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const busyRef = useRef(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  /** One hand-off per camera session — see the onDetected call in tick(). */
+  const handedOffRef = useRef(false)
 
   const [running, setRunning] = useState(false)
   const [starting, setStarting] = useState(false)
@@ -293,19 +310,30 @@ export default function ScannerPrototype() {
           format: result.format,
           at: new Date().toLocaleTimeString(),
         })
+        // Hand off once and once only. Without the ref guard the sampling
+        // loop keeps firing every ~120ms while the barcode is still in
+        // frame, so a caller that opens a dialog would reopen it several
+        // times a second.
+        if (onDetected && !handedOffRef.current) {
+          handedOffRef.current = true
+          onDetected(result.value, result.format)
+        }
       }
     } catch (err) {
       setDecoderError(err instanceof Error ? err.message : String(err))
     } finally {
       busyRef.current = false
     }
-  }, [])
+  }, [onDetected])
 
   const start = useCallback(async () => {
     setFault(null)
     setDecoderError(null)
     setVideoWarning(null)
     setStarting(true)
+    // A new camera session may hand off again — otherwise Stop/Start would
+    // leave the scanner permanently unable to report a code.
+    handedOffRef.current = false
 
     // Collected before anything is attempted, so the panel describes the
     // environment even when the camera call fails instantly.
