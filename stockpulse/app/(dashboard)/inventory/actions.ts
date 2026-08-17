@@ -232,25 +232,30 @@ export async function saveProduct(
  * is the pair the unique index `products_store_barcode_key` is built on, so
  * this is an index lookup rather than a scan.
  *
- * Guarded by canManage() even though it is a read and staff may already SELECT
- * products under RLS. Two reasons: the only things a scan can lead to are
- * create and edit, both of which saveProduct refuses for staff, so an
- * unguarded read here would be a path to a dead end; and it avoids adding a
- * barcode-enumeration endpoint no UI offers.
+ * NOT guarded by canManage(), and that CHANGED IN PHASE 4. Phase 3 guarded it,
+ * reasoning that a scan could only lead to create or edit — both of which
+ * saveProduct refuses for staff — so an unguarded read would be a path to a
+ * dead end. **That reasoning stopped being true the moment Sales was wired
+ * up.** `/sales` has no role guard at all: NAV_ITEMS lists all three roles,
+ * the page does not redirect, and Log Sale is ungated, because staff work the
+ * till. Keeping the guard would have stopped a cashier scanning anything.
+ *
+ * Removing it exposes nothing new. RLS already lets any store member SELECT
+ * products ("store members can view products"), so a staff session could
+ * always read this row — the guard only ever blocked the convenient path to
+ * it. Inventory's own Scan button stays behind canWrite, so nothing there
+ * changes.
  *
  * `product: null` is a SUCCESSFUL result, not a failure — "no product has this
- * barcode" is the answer that opens the create form. Distinguishing that from
- * "the lookup failed" is why this returns a discriminated result rather than
- * `Product | null` (D17).
+ * barcode" is a real answer, and the two callers act on it differently:
+ * Inventory opens the create form, Sales reports an unknown item and adds
+ * nothing. Distinguishing that from "the lookup failed" is why this returns a
+ * discriminated result rather than `Product | null` (D17).
  */
 export async function findProductByBarcode(
   barcode: string,
 ): Promise<{ ok: false; message: string } | { ok: true; product: Product | null }> {
-  const { profile, store } = await getCurrentUser()
-
-  if (!canManage(profile.role)) {
-    return { ok: false, message: 'You do not have permission to change inventory.' }
-  }
+  const { store } = await getCurrentUser()
 
   // The same shape the validator and migration 0014's CHECK enforce. Checked
   // here so a malformed value cannot become a pointless round trip, and so a
