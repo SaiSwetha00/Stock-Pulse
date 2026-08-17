@@ -6,6 +6,7 @@ import { getCurrentUser } from '@/lib/data'
 import { canManage } from '@/lib/permissions'
 import { getStoreCategories } from '@/lib/categories'
 import { notify } from '@/app/(dashboard)/notifications/actions'
+import type { Product } from '@/types'
 import {
   validateProduct,
   toProductPayload,
@@ -217,6 +218,71 @@ export async function saveProduct(
   revalidatePath('/dashboard')
 
   return { ok: true }
+}
+
+/**
+ * Resolve a scanned barcode to a product IN THIS STORE.
+ *
+ * Phase 3's whole server-side surface. It reads; it writes nothing.
+ *
+ * `store_id` comes from the session and is never accepted from the caller —
+ * the same rule saveProduct follows, and the reason a scan on one shop's phone
+ * cannot resolve to another shop's product. `.eq('store_id')` is written out
+ * even though RLS already scopes the read: it makes the intent legible, and it
+ * is the pair the unique index `products_store_barcode_key` is built on, so
+ * this is an index lookup rather than a scan.
+ *
+ * Guarded by canManage() even though it is a read and staff may already SELECT
+ * products under RLS. Two reasons: the only things a scan can lead to are
+ * create and edit, both of which saveProduct refuses for staff, so an
+ * unguarded read here would be a path to a dead end; and it avoids adding a
+ * barcode-enumeration endpoint no UI offers.
+ *
+ * `product: null` is a SUCCESSFUL result, not a failure — "no product has this
+ * barcode" is the answer that opens the create form. Distinguishing that from
+ * "the lookup failed" is why this returns a discriminated result rather than
+ * `Product | null` (D17).
+ */
+export async function findProductByBarcode(
+  barcode: string,
+): Promise<{ ok: false; message: string } | { ok: true; product: Product | null }> {
+  const { profile, store } = await getCurrentUser()
+
+  if (!canManage(profile.role)) {
+    return { ok: false, message: 'You do not have permission to change inventory.' }
+  }
+
+  // The same shape the validator and migration 0014's CHECK enforce. Checked
+  // here so a malformed value cannot become a pointless round trip, and so a
+  // crafted request meets the rule the form does.
+  const value = barcode.trim()
+  if (!/^[0-9]{8,14}$/.test(value)) {
+    return { ok: false, message: 'That is not a valid barcode.' }
+  }
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('store_id', store.id)
+    .eq('barcode', value)
+    .maybeSingle()
+
+  if (error) {
+    // PGRST204 here would mean migration 0014 has not been applied. Named
+    // rather than surfaced raw, exactly as saveProduct does.
+    if (error.code === 'PGRST204') {
+      return {
+        ok: false,
+        message:
+          'Barcodes are not set up on this database yet. Run ' +
+          'supabase/migrations/0014_product_barcode.sql in the Supabase SQL editor.',
+      }
+    }
+    return { ok: false, message: error.message }
+  }
+
+  return { ok: true, product: (data as Product) ?? null }
 }
 
 export async function deleteProduct(productId: string): Promise<ActionResult> {
