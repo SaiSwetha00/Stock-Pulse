@@ -49,7 +49,7 @@ npm run lint      # eslint
 - **Barcode decoding is `zxing-wasm` on every browser — deliberately not the native `BarcodeDetector`.** WebKit implements that API not at all, so a native-first design would make the fallback the real code path on every iPhone while being the branch nobody tests. One decoder means the behaviour verified on Chrome is the behaviour shipped on Safari. Do not "optimise" this into a native-first split without measuring both paths on a real iOS device. Full reasoning: the header comment of `lib/barcode/decoder.ts`.
 - `proxy.ts`'s matcher must exclude every static extension served from `public/`. `wasm` was added for the barcode decoder after measuring 307→`/login` on `/wasm/zxing_reader.wasm` without a session; the file's own comments record the same bug for `mp4` (a black hero) and `opengraph-image` (blank link previews). If you add a binary asset type, curl it unauthenticated before assuming it is served.
 - No test suite is configured in this project.
-- Database schema/migrations live in `stockpulse/supabase/` (`schema.sql` + `schema_phase2-4.sql` for the base schema, then `migrations/0001`–`0013`) — run these in the Supabase SQL editor, there's no migration CLI wired up. There is also **no DDL path from an agent**: no `psql` on this machine, no `pg`/`postgres` driver in the project, and the service-role key reaches PostgREST, which is the data plane only. Applying a migration is always a request to the owner.
+- Database schema/migrations live in `stockpulse/supabase/` (`schema.sql` + `schema_phase2-4.sql` for the base schema, then `migrations/0001`–`0014`) — run these in the Supabase SQL editor, there's no migration CLI wired up. There is also **no DDL path from an agent**: no `psql` on this machine, no `pg`/`postgres` driver in the project, and the service-role key reaches PostgREST, which is the data plane only. Applying a migration is always a request to the owner.
 
 **Do not trust a doc about which migrations are applied — measure.** `PROGRESS.md` carried "0009 NOT APPLIED" for weeks after it had in fact been applied, and this file briefly repeated it. The storage API and PostgREST both answer the question directly in one call, so the check costs nothing:
 
@@ -58,6 +58,24 @@ node -e "fetch(process.env.U+'/storage/v1/bucket',{headers:{apikey:K,Authorizati
 ```
 
 As of 2026-08-09, verified by measurement rather than by reading: `0001`–`0013` are all applied. `0009`'s bucket exists AND its write policies hold (own-store upload 200, other-store 403, staff 403).
+
+`0014_product_barcode.sql` (2026-08-17) adds `products.barcode` — **applied and verified**: `products` reports 15 columns, the unique index is `(store_id, barcode) where barcode is not null`, and the CHECK is `^[0-9]{8,14}$`. Uniqueness is deliberately **per store, not global** (two shops legitimately stock the same EAN); proved by measurement — the same barcode in a second store returns 200 · 1 row. Measure it the same way — the PostgREST OpenAPI document is the authoritative column list and answers in one call:
+
+```
+node -e "fetch(U+'/rest/v1/',{headers:{apikey:K,Authorization:'Bearer '+K}}).then(r=>r.json()).then(s=>console.log(Object.keys(s.definitions.products.properties)))"
+```
+
+Read that output before trusting a `barcode present:` boolean derived from it — if the spec fetch fails, `definitions` is undefined and a naive `Object.hasOwn` on `{}` reports `false`, which is indistinguishable from "not applied". That exact false negative happened while writing 0014 (D38 again: name the healthy scenario that produces this output).
+
+**A note about `products` and RLS that predates 0014 and is easy to misread.** `products` carries `"staff can update stock on sale"` — `for update using (store_id = current_store_id())`, with no role test, no column list and no `WITH CHECK`. Permissive RLS policies are OR'd, so **staff can PATCH any `products` column in their own store directly through PostgREST**, including `barcode`. Measured 2026-08-17 with the anon key and a real staff session, carrying manager and owner as controls in the same run:
+
+| role | PATCH `products` | rows |
+|---|---|---|
+| staff | 200 | **1** |
+| manager | 200 | 1 |
+| owner | 200 | 1 |
+
+What stops staff through the UI is the app-layer `canManage()` guard in `app/(dashboard)/inventory/actions.ts`, not the database. **This is not the `categories` behaviour** (staff UPDATE there is 200 · 0 rows) — do not generalise one table's measurement to another, which is exactly the mistake that makes "products is locked down like categories" feel true.
 
 ### Environment variables (`stockpulse/.env.local`)
 

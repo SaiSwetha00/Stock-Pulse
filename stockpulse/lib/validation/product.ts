@@ -11,6 +11,10 @@ export type ProductInput = {
   name: string
   brand: string
   sku: string
+  /** Optional. Typed by hand today; a later phase fills it from a camera.
+   *  Kept as a raw string like every other field here so the form, the CSV
+   *  import and the Server Action all validate the same value. */
+  barcode: string
   category: string
   unitPrice: string
   unit: string
@@ -30,6 +34,7 @@ export type ProductPayload = {
   name: string
   brand: string | null
   sku: string | null
+  barcode: string | null
   category: Category
   unit_price: number
   unit: string
@@ -40,6 +45,19 @@ export type ProductPayload = {
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * 8..14 digits. Covers every symbology a grocery meets — EAN-8 (8), UPC-E
+ * expanded (8), UPC-A (12), EAN-13 (13), ITF-14/GTIN-14 (14) — and rejects the
+ * things that make a later scan silently fail to match: spaces, hyphens, the
+ * apostrophe Excel adds to long numerics, and a value that has been through a
+ * spreadsheet as a float ("8.90123e+12").
+ *
+ * Kept identical to migration 0014's products_barcode_format_check. CLAUDE.md
+ * records a past bug where the app-layer rule and the database rule drifted;
+ * these two must be changed together.
+ */
+const BARCODE = /^[0-9]{8,14}$/
 
 /**
  * Pure so it can run in three places without duplication: the browser (instant
@@ -66,6 +84,14 @@ export function validateProduct(
   else if (name.length > 120) errors.name = 'Name must be 120 characters or fewer.'
 
   if (values.sku.trim().length > 40) errors.sku = 'SKU must be 40 characters or fewer.'
+
+  // Optional: blank is a valid answer and must not be an error, since most
+  // products will have no barcode on the day this ships.
+  const barcode = values.barcode.trim()
+  if (barcode && !BARCODE.test(barcode)) {
+    errors.barcode = 'Use 8 to 14 digits, numbers only.'
+  }
+
   if (values.brand.trim().length > 80) errors.brand = 'Brand must be 80 characters or fewer.'
 
   if (!allowedCategories.includes(values.category)) {
@@ -98,6 +124,11 @@ export function toProductPayload(values: ProductInput): ProductPayload {
     name: values.name.trim(),
     brand: values.brand.trim() || null,
     sku: values.sku.trim() || null,
+    // Empty means NULL, never ''. The unique index is partial on
+    // `barcode is not null`, so a stored '' would be a real value competing
+    // for uniqueness — the second product saved without a barcode would then
+    // collide with the first.
+    barcode: values.barcode.trim() || null,
     category: values.category as Category,
     unit_price: Number(values.unitPrice.trim() || '0'),
     unit: values.unit.trim(),

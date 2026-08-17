@@ -1908,6 +1908,359 @@ compile the lazy chunk on demand. Neither was an app fault.
 
 ---
 
+# BARCODE — Phase 1 of 4: data model and manual entry (2026-08-17)
+
+Branch `hero/photo-shelf`. **Not merged.** Scope was data and manual entry
+only: no camera, no scanning UI, no Inventory or Sales wiring.
+
+## Migration 0014 — and it is 0014, checked rather than assumed
+
+`ls supabase/migrations/` stops at `0013_categories.sql`, so `0014` is genuinely
+next. `grep -rn "barcode" supabase/` returned nothing beforehand — no schema
+file, migration or `fix_*.sql` had already added the column.
+
+`0014_product_barcode.sql` adds three things and no RLS policy.
+
+### It is `unique (store_id, barcode)`, NOT `unique (barcode)`
+
+The brief said a unique index on `barcode`. A global one is wrong here and the
+failure is not subtle: **EAN/UPC codes identify a product, not a
+product-in-a-shop.** Two grocers both stocking Amul Whole Milk 1L scan the same
+thirteen digits. Under a global index, whichever store typed it first would
+permanently stop every other store on the platform from recording that product
+— and the second shopkeeper would be told their barcode is "already used by" a
+product they cannot see, in a shop they do not know exists.
+
+Carrying `store_id` into the key is D35's reasoning reused: the same shape that
+makes `products_category_fkey` composite, so one tenant's row cannot collide
+with another's by construction rather than by remembering `.eq('store_id')`.
+
+It is also what the later phases need. A scan resolves *within the current
+store*, so the index enforcing uniqueness is the same index serving the lookup.
+A global index could not serve that query.
+
+Reversing it is one line and it is written in the migration. Do not, without
+first deciding what a second shop stocking the same product should do.
+
+### The index is PARTIAL, so "multiple NULLs allowed" is true by construction
+
+The brief said to confirm rather than assume that multiple NULLs are permitted.
+Confirmed, and then made independent of the answer.
+
+Postgres unique indexes do permit multiple NULLs — two NULLs are never equal.
+But **since PG15 that is a default, not a guarantee**: `NULLS NOT DISTINCT`
+inverts it. `where barcode is not null` removes the question entirely — rows
+with no barcode are not in the index at all, so no NULLS-handling setting can
+make them collide. It also keeps the index to the rows that can conflict.
+
+`toProductPayload` writes `null`, never `''`, for the same reason: under a
+partial index a stored empty string is a *real value* competing for
+uniqueness, so the second product saved without a barcode would collide with
+the first.
+
+### A CHECK as well as a validator, deliberately
+
+`barcode ~ '^[0-9]{8,14}$'` in the database, the identical regex in
+`lib/validation/product.ts`. 8-14 covers EAN-8, UPC-E expanded, UPC-A (12),
+EAN-13 (13) and ITF-14 (14). Digits only, because a stray space or the
+apostrophe Excel prepends to long numerics is the difference between a scan
+matching and silently not matching — and the second failure looks like broken
+hardware. The validator gives a readable message; the constraint makes the bad
+row impossible. CLAUDE.md already records what happens when those two drift.
+
+## THE MEASUREMENT THAT MATTERS: staff can write to products. They always could.
+
+The brief asked me to confirm a staff barcode write "still returns the existing
+zero-rows-affected behavior". **It does not, and it never did.** Measured with
+the anon key and a real staff session so RLS is the only thing deciding, with
+manager and owner as controls in the same run (D38 — a number with nothing to
+compare against is a number):
+
+| role | `PATCH /rest/v1/products` | rows affected |
+|---|---|---|
+| **staff** | **200** | **1** |
+| manager | 200 | 1 |
+| owner | 200 | 1 |
+
+The cause is in `schema.sql` and was never rewritten by 0002:
+
+    create policy "staff can update stock on sale" on products
+      for update using (store_id = public.current_store_id());
+
+No role test, no column list, no `WITH CHECK`. Permissive policies are OR'd, so
+this one alone lets any store member update any column of any product in their
+own store. It exists so a sale can decrement `stock`, and it grants far more
+than that.
+
+**Barcode inherits exactly this and opens nothing new** — which is what the
+brief actually asked me to guarantee, and that guarantee holds. But the
+baseline it assumed is not the baseline that exists. Where the zero-rows
+expectation comes from is clear: `categories` really does refuse staff writes
+with 200 · 0 rows, and Phase 4 measured that. **One table's policy is not
+another's.**
+
+Not fixed here. The brief said not to write a new policy, and a new policy
+could not have fixed it anyway — an added permissive policy can only widen
+access. The fix is to *narrow* the existing one, which lands on the sale path,
+and that is its own change with its own blast radius. Logged, not smuggled in.
+
+Through the UI, staff are stopped by `canManage()` in `inventory/actions.ts` —
+the app layer, not the database.
+
+## What landed in the app
+
+| File | Change |
+|---|---|
+| `types/index.ts` | `Product.barcode: string \| null` |
+| `lib/validation/product.ts` | `barcode` on `ProductInput`/`ProductPayload`; the 8-14 digit rule; `'' -> null` |
+| `components/inventory/ProductModal.tsx` | one `Field`, full width under Brand/SKU, hint "Optional · 8-14 digits" |
+| `app/(dashboard)/inventory/actions.ts` | duplicate detection naming the product; 23505 backstop; 23514; PGRST204 |
+| `components/inventory/InventoryClient.tsx` | barcode under the SKU in the row, a `Barcode` CSV column, and searchable |
+| `lib/importCsv.ts` | header aliases, `EMPTY`, within-file duplicate check |
+| `components/inventory/ImportProductsModal.tsx` | recognised-headers line, preview row |
+| `scripts/acceptance/acceptance-seed.cjs` | `ean13()` + placeholder barcodes |
+
+### The duplicate error is checked twice, on purpose
+
+A `SELECT` before the write produces the friendly sentence in the common case.
+It is **not** the guarantee — two saves racing both pass it — so the `23505`
+branch stays as the real backstop and does its own lookup to name the product.
+Two people adding stock at one counter is an ordinary Saturday, not a
+hypothetical.
+
+Both paths fall back to "already used by another product in this store" when
+the lookup finds nothing, which is genuinely reachable: the conflicting row can
+be deleted between the failed write and the read. Vague and true beats a name
+that was invented.
+
+The error is returned as `errors.barcode` **and** as `message`, so it lands on
+the field's own inline slot rather than only in the banner at the top of a
+ten-field form.
+
+### The dead SKU branch, found in passing
+
+`saveProduct` has always had `UNIQUE_VIOLATION -> "A product with that SKU
+already exists."` **There is no unique index on `products.sku`** anywhere in
+`schema.sql` or migrations 0001-0013 — checked, not assumed. That branch has
+never been reachable. `products_store_barcode_key` is the first genuinely
+unique index on this table, which is why the 23505 handler now checks *which*
+constraint fired instead of assuming SKU.
+
+### CSV import was not in scope and could not be left alone
+
+Adding a `Barcode` column to the export while the import ignored the header
+would have made an export-edit-reimport round trip **silently drop every
+barcode** — an unmapped column is never read, and the preview would show
+nothing wrong. So `barcode`/`bar code`/`ean`/`upc`/`gtin` map to the field, and
+a barcode repeated inside one file is reported the way a repeated SKU already
+was.
+
+## Placeholder barcodes for the seed — 40, not 41
+
+**These are not real product barcodes and the seed says so in three places.**
+Scanning a real tin of Amul ghee will not match the seeded row.
+
+`ean13(i)` produces `200` + 9-digit index + a correctly computed check digit.
+The prefix is the point: **GS1 reserves 02 and 20-29 for restricted
+distribution** — codes a shop prints for itself, which by definition identify
+nothing outside that shop. These are not merely unassigned; they sit in the
+block guaranteed never to be assigned to a manufacturer. The check digit is
+computed properly so a scanner accepts them as well-formed EAN-13 — a seed of
+malformed codes would exercise the error path forever and the happy path never.
+
+Verified before going near the database: 40 codes, **40 unique**, all 13
+digits, **all with valid EAN-13 check digits**, all matching both the app regex
+and the migration's CHECK.
+
+    2000000000015  2000000000022  2000000000039  2000000000046 ...
+
+**The brief said 41 seeded products; the seed owns 40.** Measured rather than
+assumed: the harness store holds 41 products, of which 40 carry an `ACC-` SKU
+and one does not — `Journey Test Masala 500g`, created by hand during the Phase
+8 owner journey. The seed derives every id from a fixed namespace precisely so
+teardown removes what it created and provably nothing else; having it reach out
+and stamp a row it did not create would break that property to save one value.
+The 41st gets its barcode through the product form, which is also the manual
+save test.
+
+## The PDF export does not gain a barcode column, and here is why
+
+The brief said to show barcode in the CSV and PDF exports "the same way the
+ACC- SKU is already shown". **SKU is not in any PDF.**
+
+There is exactly one PDF in the app — `exportReportPdf` in `lib/pdf.ts`, called
+only from `ReportsClient.tsx` — and it is a *sales* report: Revenue by day, Top
+products, Category mix, Payment methods. Its product rows come from
+`ReportItem`, which is `{ product_name, quantity, line_total, created_at }`:
+no product id, no SKU, no join back to `products`. Nothing there to mirror.
+
+Adding one would mean matching sale line items to products by name, and
+`product_name` is a snapshot taken at the time of sale — a renamed product
+silently stops matching. That is a new feature with a correctness question in
+it, not an extension in place.
+
+**So: CSV yes, PDF no, by measurement rather than by omission.** If product
+identity is wanted in a report, the honest version is an Inventory PDF export
+carrying SKU *and* barcode together — a small, separate piece of work.
+
+## Verified
+
+`tsc --noEmit`, `eslint` and `next build` all green; all 28 routes still in the
+route table.
+
+## 0014 applied and verified — 27 checks, 27 passed
+
+Applied by the owner in the SQL editor. Confirmed by measurement, not by
+reading the folder: the PostgREST OpenAPI document now lists **15** columns on
+`products`, and `barcode`'s description is verbatim the `comment on column`
+this migration writes — which also proves it was THIS file that ran and not
+some other change.
+
+### The database, tested behaviourally rather than by reading catalogs
+
+A catalog row proves an object exists, not that it behaves. Every line below is
+the result of trying the thing:
+
+| | |
+|---|---|
+| multiple NULL barcodes coexist | 47 rows `IS NULL` |
+| accepts a valid 13-digit barcode | 200, 1 row |
+| CHECK rejects non-digits | 400 · **23514** |
+| CHECK rejects 7 digits | 400 · **23514** |
+| duplicate within a store | 409 · **23505** |
+| **same barcode in ANOTHER store** | **200, 1 row — per-store, not global** |
+| a different barcode, same store | 200, 1 row |
+| clearing back to NULL | 200, 1 row |
+
+The sixth row is the one that cannot be established by reading. It is the
+difference between `unique (store_id, barcode)` and `unique (barcode)`, and
+under the second this app would be broken for its second customer.
+
+### The form, driven in a real browser — 12 of 12
+
+| | |
+|---|---|
+| React hydrated before anything was clicked | fiber present, waited for as a fact |
+| search filtered to the target row | `["Edit Journey Test Masala 500g"]` |
+| Edit Product modal opened | `"Edit Product"` |
+| Barcode field present, label wired by id | `{label:"Barcode", wired:true, maxLength:"14"}` |
+| text field with numeric keypad | `type=null inputMode=numeric` |
+| typed digits accepted | `4006381333931` |
+| **saved through the form and persisted** | db = `4006381333931` |
+| **visible after a full reload** | rendered |
+| **friendly duplicate error** | *"This barcode is already used by Red Onions."* |
+| **no raw Postgres error in the UI** | no 23505, no `duplicate key`, no index name |
+| error attached to the field itself | `aria-invalid="true"`, `aria-describedby` -> that sentence |
+| refused save left the row untouched | db unchanged |
+
+The duplicate message is returned as `errors.barcode` as well as `message`, and
+the last check confirms it lands on the control rather than only in the banner.
+
+### Staff write, against `barcode` specifically
+
+| role | `PATCH products.barcode` | rows |
+|---|---|---|
+| **staff** | **200** | **1** |
+| manager | 200 | 1 |
+| owner | 200 | 1 |
+
+Identical to the `brand` baseline. **barcode inherits the existing policy
+exactly and opens no new path** — which is what was asked. The pre-existing
+opening is unchanged and is written up above.
+
+### The CSV export — the actual bytes, not the column list
+
+`URL.createObjectURL` was patched before the click so the Blob could be read
+back. Reading the source would not have caught an off-by-one putting digits
+under the wrong header.
+
+    Name,Brand,SKU,Barcode,Category,Unit Price,Unit,Stock,Min Stock,Status
+    Agarbatti Pack,Cycle,ACC-039,2000000000398,Household,1.35,pack,19,7,In Stock
+
+3,357 bytes, Barcode at index 3 between SKU and Category, **40 of 41 rows
+carrying 8-14 digits, all in the 200 block**. The 41st is the journey product,
+restored to NULL after the form test.
+
+### Backfill — 40, and why not a reseed
+
+`acceptance-seed.cjs --yes` was deliberately NOT run. Its sales loop reads
+`new Date().getDay()` to decide how busy each of the last 30 days was, and
+every later PRNG draw shifts with it — eight days on from the original run it
+would regenerate different sales, quantities and closing stock, rewriting the
+whole demo shop to set one column. A targeted backfill wrote only `barcode`,
+using a byte-identical copy of the seed's `ean13()` keyed off the SKU
+(`ACC-007` -> `ean13(7)`), so a future full reseed reproduces exactly these
+values instead of a competing set.
+
+Result: 40 rows written, 40 distinct, all 13 digits, all `200...`.
+
+## Four instrument failures, none of them the app
+
+Recorded because D38 says to, and because three of the four produced output a
+healthy system could also produce.
+
+1. **`barcode present: false` while the project was DOWN.** The first probe run
+   hit 521 from Cloudflare and 544 DatabaseTimeout from storage — the Supabase
+   project had auto-paused. `definitions` was undefined, `Object.hasOwn({},
+   'barcode')` is `false`, and "not applied" and "could not ask" were
+   indistinguishable. Fixed by printing the column list beside the boolean, so
+   an empty answer looks empty.
+2. **`hasAddProduct: false` on a page that had the button.**
+   `document.body.innerText` returned 340 characters because innerText reflects
+   *rendered* text and the preview pane was not compositing. `textContent`
+   found it immediately.
+3. **The preview pane cannot verify interactive behaviour at all.** Not
+   displayed means not compositing, which means no layout (`getBoundingClientRect`
+   all zeros), no screenshots, and **no hydration** — every control had an empty
+   React fiber, so a click lands on a button with no handler. This is D38 case 5
+   recurring. The CDP harness from the earlier sessions hydrates properly and is
+   the right instrument; the pane is not.
+4. **`Server action not found`** — action ids were read from `.next/server/`
+   (production) while the dev server was running, which uses
+   `.next/dev/server/` with different ids. Its sibling reading, `PASS  no raw
+   Postgres error leaked`, passed **because nothing ran** — a green line about
+   an action that 404'd.
+
+## Environment finding: `npm run start` cannot reach Supabase on this machine
+
+Not a bug in the app, and it will bite again, so it is written here as a
+standalone finding rather than as a note attached to a config file.
+
+**Symptom.** Every authenticated route on a locally-served *production* build
+307s to `/login` while holding a valid, freshly minted session cookie. The same
+cookie works perfectly against `npm run dev`.
+
+**Cause.** `package.json` differs between the two scripts:
+
+    dev    cross-env NODE_EXTRA_CA_CERTS=./avast-root.pem next dev
+    start  next start
+
+Avast intercepts TLS on this machine, so without that CA bundle the *server's*
+outbound HTTPS to Supabase fails. `proxy.ts` -> `updateSession` cannot validate
+the session, treats the request as anonymous, and redirects. The failure is at
+the server's own egress, which is why nothing about the cookie looks wrong.
+
+**Why it reads as an auth bug and is not.** A 307 to `/login` with a good
+cookie is exactly what an expired session looks like. The tell is that
+re-minting does not help while `dev` keeps working on the same cookie — one
+process trusts the Supabase certificate chain and the other does not.
+
+**Fix when a production build needs to be exercised locally:**
+
+    cd stockpulse && npx cross-env NODE_EXTRA_CA_CERTS=./avast-root.pem next start
+
+or add `NODE_EXTRA_CA_CERTS` to whatever launches it. A `stockpulse-prod` entry
+was tried in `.claude/launch.json` during this session and **deliberately not
+kept** — it was incomplete without that variable, and shipping a launch config
+that reproduces this exact confusion is worse than not having one.
+
+**Consequence for this phase:** the UI verification above ran against the dev
+server on port 3100, not a production build. The production bundle was
+confirmed green by `next build` and its route table, but no authenticated
+production route was exercised locally.
+
+---
+
 # BARCODE — Phase 2 of 4: camera scanning prototype (2026-08-17)
 
 Branch `barcode/camera-prototype`, off `main` (`f0bb65b`). **Not merged, not

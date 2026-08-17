@@ -67,6 +67,15 @@ const HEADER_MAP: Record<string, keyof ProductInput> = {
   product: 'name',
   brand: 'brand',
   sku: 'sku',
+  // Without these the inventory export's new "Barcode" column comes back as an
+  // unknown header and every barcode in the file is dropped — silently, since
+  // an unmapped column is simply never read. EAN/UPC/GTIN are the names a
+  // supplier's own price list is most likely to use.
+  barcode: 'barcode',
+  'bar code': 'barcode',
+  ean: 'barcode',
+  upc: 'barcode',
+  gtin: 'barcode',
   category: 'category',
   'unit price': 'unitPrice',
   price: 'unitPrice',
@@ -121,6 +130,7 @@ const EMPTY: ProductInput = {
   name: '',
   brand: '',
   sku: '',
+  barcode: '',
   category: '',
   unitPrice: '',
   unit: '',
@@ -169,6 +179,11 @@ export function buildImportPreview(
   // Track SKUs seen within this file so a duplicate inside one upload is
   // reported rather than silently applied twice.
   const seenInFile = new Set<string>()
+  // Same guard, for the other unique column. Without it a file carrying one
+  // barcode twice previews as two clean rows and then fails at the database
+  // on whichever happens to be written second — a success screen with a
+  // failure buried in it, which is the shape this file already avoids for SKU.
+  const seenBarcodes = new Set<string>()
 
   for (let r = 1; r < table.length; r++) {
     const cells = table[r]
@@ -193,6 +208,12 @@ export function buildImportPreview(
       problems.push(`Duplicate SKU "${input.sku.trim()}" appears earlier in this file.`)
     }
     if (sku) seenInFile.add(sku)
+
+    const barcode = input.barcode.trim()
+    if (barcode && seenBarcodes.has(barcode)) {
+      problems.push(`Duplicate barcode "${barcode}" appears earlier in this file.`)
+    }
+    if (barcode) seenBarcodes.add(barcode)
 
     let action: RowAction
     if (problems.length > 0) action = 'error'
