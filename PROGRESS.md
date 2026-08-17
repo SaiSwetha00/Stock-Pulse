@@ -2609,3 +2609,121 @@ has held a phone at a shelf and watched stock update. **Expected at this stage
 and not a gap to close now** — the owner has since confirmed both `/scan` and
 voice input work on a real Android device, so the remaining unknown is the
 Phase 3 hand-off specifically, not whether the camera works at all.
+
+**Closed 2026-08-17:** the owner ran the full loop on a real Android phone
+against the preview — scanned an unknown product, got Add Product pre-filled,
+saved it with name/price/quantity, rescanned it and got Edit Product with the
+saved details. Phase 3 merged as `b88ed50`.
+
+---
+
+# BARCODE — Phase 4 of 5: Sales wiring (2026-08-17)
+
+Branch `barcode/sales-wiring`, off `main` (`b88ed50`). **Not merged.**
+
+## Scanning is an entry point, not a second path
+
+The add-item flow lives in `components/sales/LogSaleModal.tsx`, and the single
+function that puts anything in a cart is `addToCart(product)`. A scan calls
+**that function**, so everything downstream is inherited rather than rebuilt:
+
+| behaviour | why it is automatic |
+|---|---|
+| duplicate scan increments, capped at stock | `addToCart` already does exactly that (`Math.min(l.quantity + 1, product.stock)`) |
+| price charged | `product.unit_price`, the current price, same as manual |
+| stock deduction | `handleSubmit` maps the cart into the `log_sale` RPC — untouched, so a scanned line and a searched line are indistinguishable by the time they reach it |
+
+Requirement 5 therefore needed **no code at all**: the scan never touches the
+submit path.
+
+**An unknown barcode is an error here, never an invitation to add inventory.**
+Inventory's no-match opens the create form; Sales says "No product in this
+store has the barcode NNN. Nothing was added." and adds nothing. At a till,
+inventing a name and a price with a customer waiting is the wrong answer.
+
+A scanned product with `stock <= 0` is also refused, because manual search
+already filters to `stock > 0` — a scan must not be a way round that.
+
+## The one thing that had to change outside Sales
+
+`findProductByBarcode` lost its `canManage()` guard.
+
+Phase 3 added that guard reasoning a scan could only lead to create or edit,
+both refused for staff, so an unguarded read was a path to a dead end. **That
+stopped being true the moment Sales was wired.** Measured, not assumed:
+`/sales` has no role guard — `NAV_ITEMS` lists all three roles, the page does
+not redirect, and Log Sale is ungated, because staff work the till. The guard
+would have stopped a cashier scanning anything.
+
+Removing it exposes nothing: RLS already lets any store member SELECT products,
+so a staff session could always read that row. Inventory's Scan button stays
+behind `canWrite`, so nothing there changes.
+
+## Scanner mounted inline, NOT as a nested Modal
+
+D29: two live focus traps fight, and the outer one drags focus back out of the
+inner dialog. The scanner renders inside the existing sale modal instead —
+which also lets the cashier watch the cart fill up while scanning.
+
+Continuous scanning without touching the scanner component: `key={scanned}`
+remounts `ScannerPrototype` after each hit, re-arming its one-hand-off-per-
+session ref guard. Phase 2's component is unchanged.
+
+## Verified — 13/13, in a browser with a fake camera
+
+    scan once            Total 1.29   (unit_price, correct)
+    scan same again      Total 2.58   (incremented)
+    sale_items after     1 row, quantity 2, unit_price 1.29
+    stock                39 -> 37
+
+The duplicate question is answered by **`sale_items`, not the DOM**: one row
+with quantity 2 can only come from one cart line being incremented. Two lines
+of quantity 1 would total 2.58 as well, which is why the Total alone was not
+accepted as proof.
+
+Unmatched barcode: the message names the barcode, the cart stays empty, no
+create form appears, the modal survives.
+
+Every sale written was deleted and stock restored, verified by reading back.
+
+## Role gate — D24, rows actually affected
+
+| role | Scan button | `log_sale` | sale rows | stock |
+|---|---|---|---|---|
+| staff | shown | 200 | **1** | −1 |
+| manager | shown | 200 | 1 | −1 |
+| owner | shown | 200 | 1 | −1 |
+
+All three identical, and that is **correct** — unlike Inventory, selling is
+what staff are for. This is the same `"staff can update stock on sale"` policy
+that reads as a gap on Inventory; here it is the policy doing its job.
+
+`tsc --noEmit`, `eslint` and `next build` all green.
+
+## Probe defects, and one real mistake
+
+Four instrument faults, each with a healthy scenario that produced the same
+output (D38): a `$`-anchored Total regex against a `₹` currency; a cart-line
+counter that counted the success toast; a sales count read before the RPC had
+committed; and a `signIn()` that reset the harness password mid-loop, revoking
+the browser cookie the next role's UI check was using.
+
+**And one genuine mistake, not a probe artefact.** The cleanup deleted
+`recent[0]` — the newest sale — on the assumption it was the row the run had
+just created. On a run where no sale was created, that deleted a real seeded
+sale: **`165a1f77-a2e7-5818-be52-dce048fe9837` (`sale:375`), gone.** Harness
+store only, one row of 379, nothing in a customer's data — but it is data loss
+caused by exactly the reasoning D24 exists to forbid: acting on which rows you
+*believe* were affected instead of which rows *were*. The cleanup now diffs the
+id set captured before the run and deletes only ids absent from it.
+
+The row is not recoverable as it was: its contents came from a PRNG sequence
+seeded off the run date, so it cannot be reconstructed, and fabricating a
+replacement is what D23 forbids. Re-running `acceptance-seed.cjs --yes` would
+recreate `sale:375` by derived id, at the cost of regenerating every other
+seeded sale's dates and quantities.
+
+## NOT verified
+
+No physical device. The camera is a `.y4m` file through Chrome's fake device;
+nobody has scanned a real item into a real sale on a phone.
