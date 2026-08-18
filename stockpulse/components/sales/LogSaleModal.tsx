@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, Plus, Minus, Trash2, ShoppingCart } from 'lucide-react'
+import { Search, Plus, Minus, Trash2, ShoppingCart, ScanLine } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import Modal from '@/components/ui/Modal'
 import ProductThumb from '@/components/ui/ProductThumb'
@@ -11,6 +11,8 @@ import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/format'
 import { REPORTING_TIMEZONE, reportingDate } from '@/lib/reportingTimezone'
 import { notify } from '@/app/(dashboard)/notifications/actions'
+import { findProductByBarcode } from '@/app/(dashboard)/inventory/actions'
+import ScannerPrototype from '@/components/scan/ScannerPrototype'
 import type { Product } from '@/types'
 
 /**
@@ -73,6 +75,21 @@ export default function LogSaleModal({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // --- barcode scanning (Phase 4) -----------------------------------------
+  const [scanOpen, setScanOpen] = useState(false)
+  const [scanBusy, setScanBusy] = useState(false)
+  const [scanError, setScanError] = useState('')
+  /**
+   * Counts successful scans, and doubles as a remount key for the scanner.
+   *
+   * ScannerPrototype hands off once per camera session (a ref guard stops its
+   * ~8fps loop reopening a dialog repeatedly). A till needs to scan item after
+   * item, so bumping this key remounts the component and arms it again —
+   * achieved without changing the scanner, which stays exactly as Phase 2
+   * shipped it.
+   */
+  const [scanned, setScanned] = useState(0)
+
   const results = useMemo(() => {
     if (!search) return []
     return products
@@ -95,6 +112,56 @@ export default function LogSaleModal({
       return [...prev, { product, quantity: 1 }]
     })
     setSearch('')
+  }
+
+  /**
+   * A scanned barcode enters the sale HERE, through addToCart — the exact
+   * function the search results call. Nothing about pricing, duplicate
+   * handling, the stock cap or submission is duplicated: scanning is an entry
+   * point, not a parallel path.
+   *
+   * Consequences that follow for free, rather than by being re-implemented:
+   *   - the same product scanned twice increments the line and caps at stock,
+   *     because that is what addToCart already does;
+   *   - the price charged is product.unit_price, the current price;
+   *   - handleSubmit maps the cart into log_sale unchanged, so stock is
+   *     deducted identically however the line got there.
+   *
+   * An unknown barcode is an ERROR at a till, never an invitation to create a
+   * product mid-sale — that is the Inventory flow's job, and doing it here
+   * would mean inventing a price and a name with a customer waiting.
+   */
+  async function handleScanned(value: string) {
+    if (scanBusy) return
+    setScanBusy(true)
+    setScanError('')
+    try {
+      const result = await findProductByBarcode(value)
+      if (!result.ok) {
+        setScanError(result.message)
+        return
+      }
+      if (!result.product) {
+        setScanError(`No product in this store has the barcode ${value}. Nothing was added.`)
+        return
+      }
+      // Manual search only lists products with stock > 0, so a scan must not
+      // be a way round that. Same rule, stated once more because the search
+      // filter cannot reach here.
+      if (result.product.stock <= 0) {
+        setScanError(`${result.product.name} is out of stock. Nothing was added.`)
+        return
+      }
+
+      addToCart(result.product)
+      setScanned((n) => n + 1)
+      setScanError('')
+      toast.success('Added to sale', `${result.product.name} · ${formatCurrency(result.product.unit_price)}`)
+    } catch (err) {
+      setScanError(err instanceof Error ? err.message : 'The lookup failed. Try again.')
+    } finally {
+      setScanBusy(false)
+    }
   }
 
   function updateQty(productId: string, delta: number) {
@@ -168,6 +235,46 @@ export default function LogSaleModal({
     >
         <div className="px-6 py-5">
           {error && <div className="mb-4 rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">{error}</div>}
+
+          {/* Scanning sits beside the search box because it is the same job —
+              choosing which product goes into the sale — and it is ungated,
+              exactly like the search box, because staff work the till. */}
+          <button
+            type="button"
+            onClick={() => {
+              setScanError('')
+              setScanOpen(true)
+            }}
+            className="control-h mb-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface text-sm font-semibold text-foreground hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong"
+          >
+            <ScanLine className="h-4 w-4" aria-hidden="true" />
+            {scanOpen ? 'Hide the scanner' : 'Scan a barcode'}
+          </button>
+
+          {/* Inline, NOT a nested Modal. D29: two live focus traps fight, and
+              the outer one drags focus back out of the inner dialog. Inline
+              also means the cashier can see the cart filling up while they
+              scan, which is the whole job here. */}
+          {scanOpen && (
+            <div className="mb-4 rounded-xl border border-border bg-surface-muted p-4">
+              <ScannerPrototype key={scanned} onDetected={handleScanned} />
+
+              {scanBusy && <p className="mt-3 text-sm text-muted">Looking that barcode up…</p>}
+
+              {scanError && (
+                <div role="alert" className="mt-3 rounded-lg bg-danger-bg px-3.5 py-2.5 text-sm text-danger">
+                  {scanError}
+                </div>
+              )}
+
+              {scanned > 0 && !scanError && (
+                <p className="mt-3 text-sm text-muted">
+                  {scanned} item{scanned === 1 ? '' : 's'} scanned into this sale. Press Start
+                  camera again for the next one.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="relative">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />

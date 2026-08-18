@@ -1169,3 +1169,40 @@ curl -sI https://stock-pulse-mu.vercel.app/ | grep -i permissions-policy
 ```
 
 Generalised as D52 in DECISIONS.md.
+
+## S2 — A verification teardown deleted a real seeded sale — 2026-08-17
+
+`165a1f77-a2e7-5818-be52-dce048fe9837` (`sale:375` by the acceptance seed's
+derived-id scheme). Harness store only. **Not recovered, deliberately.**
+
+**Cause.** The Phase 4 verification probe created a sale, then cleaned up with:
+
+```js
+const recent = await api('sales?...&order=created_at.desc&limit=5')
+newSaleIds = [recent[0]?.id]     // "the newest sale must be the one I made"
+```
+
+On a run where the sale was never created — the probe's own `until` predicate
+had failed, so it clicked Complete with an empty cart — `recent[0]` was not the
+probe's row. It was the newest *seeded* sale, and the teardown deleted it and
+its `sale_items`.
+
+**This is D24's mistake in a mirror.** D24 says a write that can be refused
+silently must ask what it actually changed. This is the same error pointed the
+other way: a delete that assumes which row it created, instead of measuring it.
+
+**Fixed in the probe** (`scratchpad/sales-scan-probe.cjs`, and the same pattern
+in `sales-role-probe.cjs`): capture the set of ids **before** the run, and
+delete only ids absent from that set. Confirmed by a subsequent run reporting
+`378 -> 378` with `new ids: []` and removing nothing.
+
+**Why it is not being restored.** The seed is idempotent on derived ids, so
+`acceptance-seed.cjs --yes` would recreate `sale:375` — but its contents came
+from a PRNG sequence seeded off the run date, so the regenerated sale would
+differ from the deleted one, and every *other* seeded sale's dates and
+quantities would be rewritten at the same time. Fabricating a stand-in row is
+what D23 forbids. The owner's call, 2026-08-17: one demo row out of 379 with no
+customer data is a smaller loss than regenerating the shop's whole trading
+history. The harness store therefore holds 378 sales, and that is expected.
+
+Generalised as D53 in DECISIONS.md.
