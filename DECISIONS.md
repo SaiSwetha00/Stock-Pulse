@@ -1204,3 +1204,43 @@ explained the *policy* ("we need none of these") rather than the *mechanism*
 whether the header could break the camera would have needed to already know the
 mechanism to see the problem. The replacement spells out what `()` does, so the
 next person does not have to.
+
+## D53 — A teardown must delete what it created, not what is newest
+
+The Phase 4 probe cleaned up after itself by deleting the most recent sale, on
+the reasoning that it had just created a sale, so the newest one was surely it.
+
+On a run where the sale was never created — a predicate had failed and the
+probe clicked Complete with an empty cart — "the newest sale" was a real seeded
+row. It was deleted along with its line items
+(`165a1f77-a2e7-5818-be52-dce048fe9837`, `sale:375`).
+
+**The rule: capture the identifiers that exist BEFORE the run, and delete only
+what is not in that set.** Never `order=created_at.desc&limit=1`, never "the
+last one", never a timestamp window. Those all encode a belief about what
+happened; a diff measures it.
+
+```js
+const before = new Set((await listIds()).map(r => r.id))
+// ... do the thing ...
+const mine = (await listIds()).map(r => r.id).filter(id => !before.has(id))
+```
+
+**This is D24 seen from the other side, and the pair is the point.** D24 says a
+write that can be silently refused must ask how many rows it changed, because
+"I asked for it" is not evidence it happened. This says a delete must ask which
+rows it created, because "I created something" is not evidence about *which*.
+Both failures come from substituting an intention for a measurement, and both
+are invisible in the happy path — the recency teardown worked perfectly on
+every run that did create a sale.
+
+Two corollaries worth keeping:
+
+- **The dangerous run is the one where the operation failed.** Cleanup code is
+  written while thinking about success and executed most consequentially after
+  failure. A teardown whose correctness depends on the run having worked is not
+  a teardown.
+- **Seed data being "just demo data" is not a licence.** It is somebody's
+  reproducible fixture; the acceptance seed exists precisely so a screenshot
+  can be reproduced. Losing one row of it is cheap, but the habit that lost it
+  is the same habit that would drop a customer's sale.
