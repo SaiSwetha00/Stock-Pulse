@@ -2727,3 +2727,62 @@ seeded sale's dates and quantities.
 
 No physical device. The camera is a `.y4m` file through Chrome's fake device;
 nobody has scanned a real item into a real sale on a phone.
+
+---
+
+# BARCODE — CLOSED across all five phases (2026-08-17)
+
+On `main`, deployed to production. `0001`–`0015` contiguous, no gaps.
+
+| phase | what landed | merge |
+|---|---|---|
+| 1 | `products.barcode`, per-store unique index, manual entry, CSV | `f461dee` |
+| 2 | `/scan` prototype, zxing-wasm on every browser, self-hosted | `b88ed50` (with 3) |
+| 3 | Inventory: scan → edit stock, or create pre-filled | `b88ed50` |
+| 4 | Sales: scan → `addToCart`, same duplicate/price/deduction rules | `2667f59` |
+| 5 | `0015` drops the blanket staff UPDATE policy on `products` | `e738423` |
+
+Plus the fix that made any of it work on a phone: `Permissions-Policy` was
+`camera=(), microphone=()`, denying both to the app itself. See D52 — it cost
+several sessions of device-level debugging that could never have found it.
+
+## Verified on production (not localhost, not preview)
+
+- `0015` on `main`; migration numbers `1..15`, **no gaps**.
+- Deploy `success`; `/` and `/login` 200, `/inventory` and `/sales` 307 to auth.
+- `/wasm/zxing_reader.wasm` → 200, `application/wasm`, 1,093,289 bytes.
+- Authenticated `/inventory`: Scan button present, "Search name, SKU, barcode…",
+  10 rows rendering `Barcode:`. `/sales`: Log Sale present.
+- `products` reports 15 columns, `barcode` among them.
+- RLS after 0015, rows actually affected (D24): staff `log_sale` 200 · 1 row ·
+  stock −1, staff `PATCH products` 200 · **0 rows**; manager and owner 1 row.
+- Console: no errors or exceptions captured.
+
+The owner ran all six chain steps by hand on a phone against the preview —
+scan unknown → create → rescan → Edit with saved details → Sales scan → same
+item twice giving quantity 2 on one line → Complete Sale → stock −1.
+
+## NOT verified — carried forward honestly
+
+1. **Safari / iOS — never tested, at all.** The decoder was chosen *because*
+   WebKit lacks `BarcodeDetector`; that reasoning is still an argument, not a
+   measurement. Needs one real iPhone.
+2. **Real-device performance.** Decode latency, battery, and behaviour on a
+   cheap Android are unmeasured. The sampling loop is 8 fps against a 1 MB
+   wasm; nobody has watched it run for an hour at a till.
+3. **Email delivery** — unchanged from earlier phases and unrelated to
+   barcodes, but still open: invitations depend on SMTP configuration.
+4. **`products.sku` has no unique index.** Measured again: a duplicate SKU
+   PATCH returns 200 · 1 row, so `saveProduct`'s "SKU already exists" branch
+   has never been reachable. **The next step is the duplicate audit, not the
+   index** — the SQL is in FOUND-ISSUES.
+5. **One product with no barcode** — `Journey Test Masala 500g`, 1 of 42,
+   cosmetic; the seed does not own that row so it will never gain one.
+
+Also unclosed and deliberate: the automated production chain probe did **not**
+pass. Its wait predicate keyed on `"Add Product"` in body text, which is also a
+toolbar button always present for an owner, so it proceeded before any decode
+had happened. That is a probe defect with a healthy explanation (D38), not an
+app failure — but it means the joined chain on production is evidenced by the
+owner's manual run and by each link being verified separately, not by an
+automated end-to-end pass.
