@@ -1206,3 +1206,20 @@ customer data is a smaller loss than regenerating the shop's whole trading
 history. The harness store therefore holds 378 sales, and that is expected.
 
 Generalised as D53 in DECISIONS.md.
+
+## CLOSED 2026-08-17 — the `products` staff-UPDATE hole
+
+The long-standing finding (staff able to PATCH any `products` column in their
+own store, because `"staff can update stock on sale"` had no role test, no
+column list and no `WITH CHECK`) is **fixed** by
+`supabase/migrations/0015_products_staff_policy.sql`, applied and verified.
+
+The policy was dropped rather than narrowed. RLS cannot restrict an UPDATE to
+particular columns, so "staff may change only stock" was never expressible;
+`log_sale` is `security definer` and so never needed the policy to decrement
+stock. Verified after applying — staff `log_sale` 200 · 1 row · stock −1, staff
+`PATCH products` 200 · **0 rows**, manager and owner unchanged at 1 row.
+
+Still open, unchanged: `products.sku` has no unique index, so `saveProduct`'s
+"A product with that SKU already exists" branch remains unreachable (measured:
+a duplicate SKU PATCH returns 200 · 1 row).
