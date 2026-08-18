@@ -1,4 +1,9 @@
-import { validateProduct, type ProductInput } from '@/lib/validation/product'
+import {
+  describeProductErrors,
+  singleLot,
+  validateProduct,
+  type ProductInput,
+} from '@/lib/validation/product'
 import type { CategoryOption } from '@/lib/categories'
 
 /**
@@ -59,9 +64,21 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((r) => r.some((cell) => cell.trim() !== ''))
 }
 
+/** Everything on a product row that is a plain string cell. */
+type ScalarField = Exclude<keyof ProductInput, 'lots'>
+
+/**
+ * The two cells that become the row's ONE lot.
+ *
+ * They are not fields of ProductInput any more, because a lot is not a
+ * product-level value: a product has many, a CSV row can only say one. They
+ * are collected separately and folded into `input.lots` at the end of the row.
+ */
+type LotField = 'lotQuantity' | 'lotExpiry'
+
 /** Header aliases, lowercased. Mirrors the export headers so a file exported
  *  from StockPulse, edited in Excel, re-imports without renaming anything. */
-const HEADER_MAP: Record<string, keyof ProductInput> = {
+const HEADER_MAP: Record<string, ScalarField | LotField> = {
   name: 'name',
   'product name': 'name',
   product: 'name',
@@ -80,14 +97,23 @@ const HEADER_MAP: Record<string, keyof ProductInput> = {
   'unit price': 'unitPrice',
   price: 'unitPrice',
   unit: 'unit',
-  stock: 'stock',
-  quantity: 'stock',
-  qty: 'stock',
+  stock: 'lotQuantity',
+  quantity: 'lotQuantity',
+  qty: 'lotQuantity',
   'min stock': 'lowStockThreshold',
   'low stock threshold': 'lowStockThreshold',
   minimum: 'lowStockThreshold',
-  expiry: 'expiryDate',
-  'expiry date': 'expiryDate',
+  // "Expiry Date" is what the inventory export writes, and it has to keep
+  // mapping here for the same reason "Barcode" does: an export that
+  // round-trips through Excel must not silently lose a column.
+  expiry: 'lotExpiry',
+  'expiry date': 'lotExpiry',
+  expires: 'lotExpiry',
+  'best before': 'lotExpiry',
+}
+
+function isLotField(key: ScalarField | LotField): key is LotField {
+  return key === 'lotQuantity' || key === 'lotExpiry'
 }
 
 /** Accepts either the stored key ("dairy") or the displayed label
@@ -124,6 +150,16 @@ export interface ImportPreview {
    *  mis-mapped column is visible rather than silently dropped. */
   unknownHeaders: string[]
   missingRequired: string[]
+  /**
+   * True when the file has a Stock/Quantity or Expiry column, i.e. when it is
+   * saying something about what is on the shelf.
+   *
+   * A row can describe only one lot, so importing stock REPLACES a product's
+   * lots. A price list with neither column must therefore leave them alone
+   * rather than clear them — which is what the old code did, silently, by
+   * turning a missing Stock column into `0`.
+   */
+  replacesLots: boolean
 }
 
 const EMPTY: ProductInput = {
@@ -134,12 +170,11 @@ const EMPTY: ProductInput = {
   category: '',
   unitPrice: '',
   unit: '',
-  stock: '',
   lowStockThreshold: '',
-  expiryDate: '',
   // CSV has no image column; a bulk import leaves the photo unset rather
   // than inventing one.
   imageUrl: '',
+  lots: [],
 }
 
 /**
@@ -165,6 +200,7 @@ export function buildImportPreview(
       errorCount: 0,
       unknownHeaders: [],
       missingRequired: ['Name'],
+      replacesLots: false,
     }
   }
 
@@ -174,6 +210,8 @@ export function buildImportPreview(
 
   const missingRequired: string[] = []
   if (!mapped.includes('name')) missingRequired.push('Name')
+
+  const replacesLots = mapped.some((k) => k !== null && isLotField(k))
 
   const rows: ParsedRow[] = []
   // Track SKUs seen within this file so a duplicate inside one upload is
@@ -187,12 +225,20 @@ export function buildImportPreview(
 
   for (let r = 1; r < table.length; r++) {
     const cells = table[r]
-    const input: ProductInput = { ...EMPTY }
+    const input: ProductInput = { ...EMPTY, lots: [] }
+    let lotQuantity = ''
+    let lotExpiry = ''
 
     mapped.forEach((key, i) => {
       if (!key) return
-      input[key] = (cells[i] ?? '').trim()
+      const cell = (cells[i] ?? '').trim()
+      if (key === 'lotQuantity') lotQuantity = cell
+      else if (key === 'lotExpiry') lotExpiry = cell
+      else input[key] = cell
     })
+
+    // One lot per row, and only when the file said anything about stock.
+    if (replacesLots) input.lots = singleLot(lotQuantity, lotExpiry)
 
     input.category = normaliseCategory(input.category, categories)
     // A file that omits these columns entirely should still import: fall back
@@ -201,7 +247,9 @@ export function buildImportPreview(
     if (!input.category) input.category = 'packaged'
 
     const errors = validateProduct(input, categories.map((c) => c.slug))
-    const problems = Object.values(errors).filter(Boolean) as string[]
+    // Not Object.values: `lotRows` is an array of objects, which would reach a
+    // shopkeeper's import report as "[object Object]".
+    const problems = describeProductErrors(errors)
 
     const sku = input.sku.trim().toLowerCase()
     if (sku && seenInFile.has(sku)) {
@@ -230,5 +278,6 @@ export function buildImportPreview(
     errorCount: rows.filter((x) => x.action === 'error').length,
     unknownHeaders,
     missingRequired,
+    replacesLots,
   }
 }

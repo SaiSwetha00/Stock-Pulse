@@ -57,10 +57,44 @@ export interface Product {
   category: Category
   unit_price: number
   unit: string
+  /** Trigger-maintained mirror of sum(product_batches.quantity) since 0016.
+   *  Read freely; never written directly - see the note on `product_batches`. */
   stock: number
   low_stock_threshold: number
+  /** LEGACY. 0016 copied this into the backfilled batch and Phase 2 stopped
+   *  reading or writing it - a product's expiry now lives on its lots, because
+   *  one column cannot hold two deliveries with two different dates. Left in
+   *  place rather than dropped: dropping it is destructive, nothing depends on
+   *  it, and a later phase can remove it once no branch references it. */
   expiry_date: string | null
   image_url: string | null
+  created_at: string
+  updated_at: string
+  /** Present only where the query embeds them - `/inventory` does, `/sales`
+   *  does not. Same optional-embed shape as `Sale.sale_items`. */
+  product_batches?: ProductBatch[]
+}
+
+/**
+ * One lot of a product: how many, and when it goes off. Introduced by
+ * migration 0016.
+ *
+ * `expiry_date` is nullable on purpose - most of what a kirana shop sells
+ * (soap, matches, steel scrubbers) never expires, and forcing a date would
+ * make people invent one, which warns wrongly.
+ *
+ * `quantity` may be 0: a lot that has sold out but is kept for its history.
+ * Those lots are excluded from "what expires next", which is why the list can
+ * show a blank expiry for a product that has batch rows.
+ */
+export interface ProductBatch {
+  id: string
+  store_id: string
+  product_id: string
+  quantity: number
+  expiry_date: string | null
+  received_on: string
+  note: string | null
   created_at: string
   updated_at: string
 }

@@ -8,6 +8,7 @@ import { deleteProduct, findProductByBarcode } from '@/app/(dashboard)/inventory
 import type { Product, Role } from '@/types'
 import { categoryLabel, labelMap, type CategoryOption } from '@/lib/categories'
 import { formatCurrency } from '@/lib/format'
+import { expiryTone, formatExpiry, nextExpiry } from '@/lib/expiry'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import Badge, { type BadgeTone } from '@/components/ui/Badge'
@@ -54,7 +55,7 @@ function statusFor(p: Product): { label: string; tone: BadgeTone } {
   return { label: 'In Stock', tone: 'success' }
 }
 
-type SortKey = 'name' | 'sku' | 'unit_price' | 'stock' | 'status'
+type SortKey = 'name' | 'sku' | 'unit_price' | 'stock' | 'expiry' | 'status'
 
 // Module scope on purpose: this map is a dependency of the sort memo, so a
 // literal defined in the component would re-sort on every render.
@@ -63,6 +64,11 @@ const SORT_ACCESSORS: SortAccessors<Product, SortKey> = {
   sku: (p) => p.sku,
   unit_price: (p) => p.unit_price,
   stock: (p) => p.stock,
+  // The earliest date among lots that still hold something. Returning null for
+  // a product with no dated stock is deliberate: useTable sinks blanks in both
+  // directions, so clicking Expiry never fills the top of the screen with the
+  // rows that have nothing to say.
+  expiry: (p) => nextExpiry(p.product_batches),
   // Sort by urgency rather than alphabetically — "Out of Stock" before
   // "In Stock" is the useful order, and A-Z would invert it.
   status: (p) => ({ out: 0, low: 1, in: 2 })[stockStatus(p)],
@@ -93,8 +99,51 @@ const csvColumns = (labels: Record<string, string>): CsvColumn<Product>[] => [
   { header: 'Unit', value: (p) => p.unit },
   { header: 'Stock', value: (p) => p.stock },
   { header: 'Min Stock', value: (p) => p.low_stock_threshold },
+  // Column index 9, after the Stock/Min Stock pair and before Status —
+  // expiry is a fact about the stock on hand, and splitting a value from its
+  // threshold to make room would read worse.
+  //
+  // The header is "Expiry Date" and not "Expires" because lib/importCsv.ts
+  // maps that exact string back onto a lot: an export that round-trips
+  // through Excel must not silently lose the column, which is the same reason
+  // Barcode sits next to SKU.
+  //
+  // One date, not the lots, because a CSV cell is one value. It is the same
+  // date the list column shows: the earliest among lots that still hold
+  // something. A product whose lots are all undated exports blank.
+  { header: 'Expiry Date', value: (p) => nextExpiry(p.product_batches) },
   { header: 'Status', value: (p) => statusFor(p).label },
 ]
+
+/**
+ * The expiry cell. A date alone does not say whether to act on it, and a
+ * shopkeeper scanning forty rows should not be doing the subtraction.
+ *
+ * `today` is a prop all the way from the server so this renders identically
+ * before and after hydration — see the header of lib/expiry.ts.
+ */
+function ExpiryValue({ date, today }: { date: string | null; today: string }) {
+  if (!date) return <span className="text-muted">—</span>
+  const tone = expiryTone(date, today)
+  return (
+    <span
+      className={
+        tone === 'expired'
+          ? 'font-semibold text-danger'
+          : tone === 'soon'
+            ? 'font-semibold text-warning'
+            : 'text-muted-strong'
+      }
+    >
+      {formatExpiry(date)}
+      {tone !== 'ok' && (
+        <span className="block text-xs font-medium">
+          {tone === 'expired' ? 'Expired' : 'Expiring soon'}
+        </span>
+      )}
+    </span>
+  )
+}
 
 /**
  * One inventory screen for every width. This replaces the previous pair — a
@@ -112,6 +161,7 @@ export default function InventoryClient({
   storeId,
   initialProducts,
   categories,
+  today,
 }: {
   // storeId is no longer needed: mutations go through Server Actions that read
   // the store from the session.
@@ -121,6 +171,11 @@ export default function InventoryClient({
   /** This store's categories, ordered — the filter row, the CSV export and
    *  the product form all read their labels from here. */
   categories: CategoryOption[]
+  /** The shop's calendar date, YYYY-MM-DD, from the server. Never computed
+   *  here: `new Date()` in a client component can disagree with the server
+   *  render across midnight, and React would swap an "Expired" label under
+   *  the reader between the two passes. */
+  today: string
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -450,6 +505,7 @@ export default function InventoryClient({
               <SortableTh label="SKU / Category" sortKey="sku" sort={table.sort} onSort={table.toggleSort} className="px-4" />
               <SortableTh label="Unit Price" sortKey="unit_price" sort={table.sort} onSort={table.toggleSort} align="right" className="px-4" />
               <SortableTh label="Stock" sortKey="stock" sort={table.sort} onSort={table.toggleSort} align="right" className="px-4" />
+              <SortableTh label="Expiry" sortKey="expiry" sort={table.sort} onSort={table.toggleSort} className="px-4" />
               <SortableTh label="Status" sortKey="status" sort={table.sort} onSort={table.toggleSort} className="px-4" />
               {canWrite && (
                 <th scope="col" className="px-4 py-3.5">
@@ -462,7 +518,7 @@ export default function InventoryClient({
             {pageItems.length === 0 && (
               <tr className="block lg:table-row">
                 <td
-                  colSpan={canWrite ? 6 : 5}
+                  colSpan={canWrite ? 7 : 6}
                   className="block sp-rise sp-e1 rounded-2xl border border-border bg-surface shadow-sm lg:table-cell lg:rounded-none lg:shadow-none"
                 >
                   {/* An empty store and a filter that matched nothing need
@@ -558,6 +614,12 @@ export default function InventoryClient({
                         </span>
                       )}
                     </span>
+                  </td>
+                  <td className="mt-2 flex items-center justify-between gap-2 lg:mt-0 lg:table-cell lg:px-4 lg:py-4">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
+                      Expiry
+                    </span>
+                    <ExpiryValue date={nextExpiry(p.product_batches)} today={today} />
                   </td>
                   <td className="mt-3 block lg:mt-0 lg:table-cell lg:px-4 lg:py-4">
                     <Badge tone={badge.tone}>{badge.label}</Badge>

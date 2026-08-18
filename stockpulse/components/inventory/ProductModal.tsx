@@ -1,15 +1,22 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight, Plus, Trash2 } from 'lucide-react'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Field'
 import { useToast } from '@/components/ui/Toast'
 import { saveProduct } from '@/app/(dashboard)/inventory/actions'
-import { validateProduct, type ProductErrors, type ProductInput } from '@/lib/validation/product'
+import {
+  MAX_LOTS,
+  totalLotQuantity,
+  validateProduct,
+  type LotInput,
+  type ProductErrors,
+  type ProductInput,
+} from '@/lib/validation/product'
 import ProductImageUpload from './ProductImageUpload'
 import type { Product } from '@/types'
 import type { CategoryOption } from '@/lib/categories'
@@ -18,6 +25,44 @@ import type { CategoryOption } from '@/lib/categories'
 // lib/validation/product.ts, so the form and its validator each held their own
 // copy of the same five slugs. Both are gone; the list arrives as a prop from
 // the page, which reads it from the store's own rows.
+
+/**
+ * A lot row as the form holds it. `key` is React's, not the database's: a new
+ * row has no id yet, and keying on the array index makes React reuse the wrong
+ * input when a row above it is removed — the classic symptom being a date
+ * jumping up one row while the cursor stays put.
+ */
+type LotRow = LotInput & { key: string }
+
+const BLANK_LOT = (key: string): LotRow => ({ key, quantity: '', expiryDate: '' })
+
+/**
+ * Existing lots, earliest expiry first, undated last.
+ *
+ * That order is the reading order of the question the section answers — what
+ * goes off next — and it matches how the list column sorts, so the same
+ * product does not present its lots in two different orders on two screens.
+ *
+ * A product with no lots still gets one blank row: the form has to offer
+ * somewhere to type, and a blank row stores nothing (see `meaningfulLots`).
+ */
+function initialLots(product: Product | null): LotRow[] {
+  const rows = (product?.product_batches ?? [])
+    .slice()
+    .sort((a, b) => {
+      if (a.expiry_date === b.expiry_date) return a.created_at < b.created_at ? -1 : 1
+      if (!a.expiry_date) return 1
+      if (!b.expiry_date) return -1
+      return a.expiry_date < b.expiry_date ? -1 : 1
+    })
+    .map((b) => ({
+      key: b.id,
+      id: b.id,
+      quantity: String(b.quantity),
+      expiryDate: b.expiry_date ?? '',
+    }))
+  return rows.length > 0 ? rows : [BLANK_LOT('lot-0')]
+}
 
 export default function ProductModal({
   product,
@@ -62,9 +107,14 @@ export default function ProductModal({
   )
   const [unitPrice, setUnitPrice] = useState(product?.unit_price?.toString() ?? '')
   const [unit, setUnit] = useState(product?.unit ?? 'ea')
-  const [stock, setStock] = useState(product?.stock?.toString() ?? '')
   const [threshold, setThreshold] = useState(product?.low_stock_threshold?.toString() ?? '10')
-  const [expiryDate, setExpiryDate] = useState(product?.expiry_date ?? '')
+  // Quantity and Expiry are no longer two loose fields. They are a LOT, and a
+  // product has as many as it has had deliveries — which is the whole reason
+  // migration 0016 exists. `products.stock` is now the sum of these, written
+  // by a trigger, never typed.
+  const [lots, setLots] = useState<LotRow[]>(() => initialLots(product))
+  // Monotonic, so a removed row's key is never handed to a later one.
+  const nextLotKey = useRef(1)
   const [imageUrl, setImageUrl] = useState<string | null>(product?.image_url ?? null)
   const router = useRouter()
   const toast = useToast()
@@ -90,11 +140,37 @@ export default function ProductModal({
       category,
       unitPrice,
       unit,
-      stock,
       lowStockThreshold: threshold,
-      expiryDate,
       imageUrl: imageUrl ?? '',
+      // `key` is presentation state and is stripped here rather than being
+      // sent to a Server Action that has no use for it.
+      lots: lots.map(({ quantity, expiryDate, id }) => ({ quantity, expiryDate, id })),
     }
+  }
+
+  function updateLot(index: number, patch: Partial<LotRow>) {
+    setLots((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)))
+  }
+
+  function addLot() {
+    setLots((rows) =>
+      rows.length >= MAX_LOTS ? rows : [...rows, BLANK_LOT(`lot-${nextLotKey.current++}`)],
+    )
+  }
+
+  /**
+   * Removing the last row leaves a fresh blank one rather than an empty
+   * section — but a NEW blank one, with no id. That distinction is the
+   * deletion: the action matches submitted ids against the product's existing
+   * lots and deletes whatever is missing, so dropping the id is how "remove
+   * this lot" is expressed. Clearing the fields in place would instead have
+   * saved a lot of zero, which 0016 treats as a real state.
+   */
+  function removeLot(index: number) {
+    setLots((rows) => {
+      const next = rows.filter((_, i) => i !== index)
+      return next.length > 0 ? next : [BLANK_LOT(`lot-${nextLotKey.current++}`)]
+    })
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -239,22 +315,6 @@ export default function ProductModal({
                 />
               )}
             </Field>
-            <Field label="Quantity" error={errors.stock} required>
-              {(p) => (
-                <Input
-                  {...p}
-                  required
-                  type="number"
-                  min="0"
-                  className="sp-num"
-                  value={stock}
-                  onChange={(e) => setStock(e.target.value)}
-                />
-              )}
-            </Field>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <Field label="Low Stock Threshold" error={errors.lowStockThreshold}>
               {(p) => (
                 <Input
@@ -267,20 +327,90 @@ export default function ProductModal({
                 />
               )}
             </Field>
-            {/* "(optional)" moves out of the label and into the hint slot —
-                the label should name the field, not carry parenthetical
-                instructions the hint row already has a place for. */}
-            <Field label="Expiry Date" hint="Optional" error={errors.expiryDate}>
-              {(p) => (
-                <Input
-                  {...p}
-                  type="date"
-                  value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
-                />
-              )}
-            </Field>
           </div>
+
+          {/* Stock lots. Same Field/Input pattern and the same two-column
+              grid the Quantity and Expiry Date fields sat in before — this is
+              that pair, repeated, because a shop that took delivery twice has
+              two dates and one row could only ever hold the later one. */}
+          <fieldset className="rounded-xl border border-border px-4 pb-4 pt-3">
+            <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-strong">
+              Stock &amp; Expiry
+            </legend>
+
+            <p className="mb-3 text-xs text-muted">
+              One row per delivery. Leave the date blank for anything that does not expire.
+            </p>
+
+            {errors.lots && (
+              <p role="alert" className="mb-3 text-xs font-medium text-danger">
+                {errors.lots}
+              </p>
+            )}
+
+            <div className="space-y-3">
+              {lots.map((lot, i) => (
+                <div key={lot.key} className="grid grid-cols-[1fr_1fr_auto] items-start gap-3">
+                  <Field label="Quantity" error={errors.lotRows?.[i]?.quantity}>
+                    {(p) => (
+                      <Input
+                        {...p}
+                        type="number"
+                        min="0"
+                        className="sp-num"
+                        value={lot.quantity}
+                        onChange={(e) => updateLot(i, { quantity: e.target.value })}
+                      />
+                    )}
+                  </Field>
+                  {/* "(optional)" stays out of the label and in the hint slot
+                      — the label should name the field, not carry
+                      parenthetical instructions the hint row has a place for. */}
+                  <Field label="Expiry Date" hint="Optional" error={errors.lotRows?.[i]?.expiryDate}>
+                    {(p) => (
+                      <Input
+                        {...p}
+                        type="date"
+                        value={lot.expiryDate}
+                        onChange={(e) => updateLot(i, { expiryDate: e.target.value })}
+                      />
+                    )}
+                  </Field>
+                  {/* Pushed down past the label so it lines up with the two
+                      controls rather than with their captions. */}
+                  <button
+                    type="button"
+                    onClick={() => removeLot(i)}
+                    aria-label={`Remove lot ${i + 1}`}
+                    className="tap-target mt-6 rounded-lg text-muted hover:bg-danger-bg hover:text-danger"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={addLot}
+                disabled={lots.length >= MAX_LOTS}
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Add another lot
+              </Button>
+              {/* Stated, not typed. This is the number 0016's trigger will put
+                  in products.stock, and showing it is how the reader confirms
+                  the rows add up to what they expected. */}
+              <p className="sp-num text-sm text-muted-strong" aria-live="polite">
+                Total stock:{' '}
+                <span className="font-semibold text-foreground">
+                  {totalLotQuantity(currentInput())}
+                </span>
+              </p>
+            </div>
+          </fieldset>
 
           <div className="flex gap-3 pt-2">
             {/* The ladder, not two hand-rolled buttons: secondary for the way
