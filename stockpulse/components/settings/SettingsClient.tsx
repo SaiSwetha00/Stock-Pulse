@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { MIN_EXPIRY_WARNING_DAYS, storeExpiryWarningDays } from '@/lib/expiry'
 import { Store, SlidersHorizontal, Palette, Users, Tags, Scale, ArrowRight, ArrowUpRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Store as StoreType } from '@/types'
@@ -24,13 +25,28 @@ import {
  * beside lived in a different module. They are now the Staff module's Team tab;
  * what remains here is the store itself.
  */
+/**
+ * The slider's own ceiling, deliberately below the column's CHECK of 90.
+ *
+ * 90 stops on a range input is a control nobody can land precisely, and no
+ * grocery warns three months ahead. The wider bound stays in the database
+ * because it is a backstop against a crafted request, not the control — this
+ * page writes `stores` directly from the browser, so the CHECK is the only
+ * thing standing between a hand-rolled PATCH and a nonsense value.
+ */
+const SLIDER_MAX_DAYS = 30
+
 export default function SettingsClient({ store }: { store: StoreType }) {
   const router = useRouter()
   const [name, setName] = useState(store.name)
   const [address, setAddress] = useState(store.address ?? '')
   const [phone, setPhone] = useState(store.contact_phone ?? '')
   const [threshold, setThreshold] = useState(store.low_stock_threshold_units)
-  const [perishableHours, setPerishableHours] = useState(store.perishables_warning_hours)
+  // Days, replacing the hours slider that sat here and drove nothing. Read
+  // through the helper because `expiry_warning_days` does not exist until 0017
+  // is applied — see migration 0017 DECISION 1 for why this is the same
+  // setting rather than a second one.
+  const [expiryDays, setExpiryDays] = useState(storeExpiryWarningDays(store))
   const [criticalAlerts, setCriticalAlerts] = useState(store.critical_stock_alerts)
   const [dailyDigest, setDailyDigest] = useState(store.daily_digest)
   const [supplierUpdates, setSupplierUpdates] = useState(store.supplier_updates)
@@ -72,7 +88,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
     address !== (store.address ?? '') ||
     phone !== (store.contact_phone ?? '') ||
     threshold !== store.low_stock_threshold_units ||
-    perishableHours !== store.perishables_warning_hours ||
+    expiryDays !== storeExpiryWarningDays(store) ||
     criticalAlerts !== store.critical_stock_alerts ||
     dailyDigest !== store.daily_digest ||
     supplierUpdates !== store.supplier_updates ||
@@ -83,7 +99,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
     setAddress(store.address ?? '')
     setPhone(store.contact_phone ?? '')
     setThreshold(store.low_stock_threshold_units)
-    setPerishableHours(store.perishables_warning_hours)
+    setExpiryDays(storeExpiryWarningDays(store))
     setCriticalAlerts(store.critical_stock_alerts)
     setDailyDigest(store.daily_digest)
     setSupplierUpdates(store.supplier_updates)
@@ -114,7 +130,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
     // Validate before the round trip. `stores.name` is `not null` but not
     // `not blank`, so an empty name used to save successfully and leave the
     // shop nameless everywhere it is printed.
-    const found = validateStoreSettings({ name, address, phone })
+    const found = validateStoreSettings({ name, address, phone, expiryWarningDays: expiryDays })
     if (Object.keys(found).length > 0) {
       setErrors(found)
       return
@@ -133,7 +149,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
         address: address.trim(),
         contact_phone: phone.trim(),
         low_stock_threshold_units: threshold,
-        perishables_warning_hours: perishableHours,
+        expiry_warning_days: expiryDays,
         critical_stock_alerts: criticalAlerts,
         daily_digest: dailyDigest,
         supplier_updates: supplierUpdates,
@@ -144,8 +160,18 @@ export default function SettingsClient({ store }: { store: StoreType }) {
     // A failed save used to fall through silently — the button returned to
     // "Save Changes" and the user had no way to tell it hadn't worked.
     if (error) {
-      setSaveError(error.message)
-      toast.error('Could not save settings', error.message)
+      // PGRST204 naming this column means 0017 has not been applied. Named
+      // rather than surfaced raw, the same way saveProduct names a missing
+      // `barcode` column — a branch has to stay deployable ahead of its
+      // migration, and every settings save on this branch writes this field.
+      const missingColumn =
+        error.code === 'PGRST204' && /expiry_warning_days/i.test(error.message ?? '')
+      const message = missingColumn
+        ? 'The expiry warning setting is not set up on this database yet. Run ' +
+          'supabase/migrations/0017_store_expiry_warning_days.sql in the Supabase SQL editor.'
+        : error.message
+      setSaveError(message)
+      toast.error('Could not save settings', message)
       return
     }
     toast.success('Settings saved')
@@ -338,23 +364,29 @@ export default function SettingsClient({ store }: { store: StoreType }) {
 
             <div className="mt-3 rounded-lg bg-surface-muted p-4">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-muted-strong">Perishables Warning</span>
+                <span className="font-medium text-muted-strong">Expiry Warning</span>
                 <span className="rounded-sm bg-warning-bg px-2 py-1 text-xs font-semibold text-warning">
-                  {perishableHours} Hours
+                  {expiryDays} {expiryDays === 1 ? 'Day' : 'Days'}
                 </span>
               </div>
+              {/* Days, not hours. This control used to read "48 Hours" and set
+                  `perishables_warning_hours`, which nothing ever read — see
+                  migration 0017. `product_batches.expiry_date` is a `date`, so
+                  there is no hour on it to compare against: 12 hours and 23
+                  hours were the same query, and a unit finer than the data is
+                  a control promising precision it cannot deliver. */}
               <input
                 type="range"
-                min={12}
-                max={168}
-                value={perishableHours}
-                onChange={(e) => setPerishableHours(Number(e.target.value))}
-                aria-label="Perishables warning, in hours"
+                min={MIN_EXPIRY_WARNING_DAYS}
+                max={SLIDER_MAX_DAYS}
+                value={expiryDays}
+                onChange={(e) => setExpiryDays(Number(e.target.value))}
+                aria-label="Expiry warning, in days"
                 className="mt-3 w-full accent-[var(--accent-fill)]"
               />
               <div className="mt-1 flex justify-between text-xs text-muted">
-                <span>12h</span>
-                <span>7d</span>
+                <span>1 day</span>
+                <span>{SLIDER_MAX_DAYS} days</span>
               </div>
             </div>
           </div>

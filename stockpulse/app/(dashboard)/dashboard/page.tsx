@@ -10,6 +10,8 @@ import {
   storeGreeting,
   weekdayIndex,
 } from '@/lib/reportingTimezone'
+import { storeExpiryWarningDays } from '@/lib/expiry'
+import { getExpiringStock } from '@/lib/expiringStock'
 import type { Product, Sale } from '@/types'
 import { categoryLabel, getStoreCategories, labelMap } from '@/lib/categories'
 import DashboardView, { type DashboardAlert } from '@/components/dashboard/DashboardView'
@@ -32,12 +34,19 @@ export default async function DashboardPage() {
   const today = reportingDate(now)
   const weekStart = shiftDays(today, -6)
 
+  // The window this store warns on. Read through the helper, never off the
+  // property: `expiry_warning_days` is absent until 0017 is applied, and an
+  // undefined here would become NaN in shiftDays and quietly report that
+  // nothing is expiring — which looks exactly like good news.
+  const warningDays = storeExpiryWarningDays(store)
+
   const [
     { data: lowStock },
     { data: recentSales },
     { data: daily },
     { data: stations },
     { data: recentShipments },
+    expiring,
   ] = await Promise.all([
     // Was every product in the store, filtered down in Node. Each product
     // carries its own threshold, so the test is column-to-column — something
@@ -68,6 +77,9 @@ export default async function DashboardPage() {
       .eq('status', 'dock')
       .order('created_at', { ascending: false })
       .limit(1),
+    // Same shape as low_stock_products above: one scoped call that comes back
+    // already ordered urgency-first, so nothing here filters or sorts.
+    getExpiringStock(supabase, store.id, today, warningDays),
   ])
 
   // Already ordered scarcest-first by the function.
@@ -104,6 +116,32 @@ export default async function DashboardPage() {
   const categoryLabels = labelMap(categories)
 
   const alerts: DashboardAlert[] = []
+
+  // Expired first: it is the more urgent of the two and the alert list is
+  // read top-down. Deep red for loss that has already happened; the
+  // expiring-soon entry is a warning and must not shout in the same voice.
+  if (expiring.expired.length > 0) {
+    alerts.push({
+      id: 'expired',
+      kind: 'expired',
+      title: `Expired: ${expiring.expired.length} item${expiring.expired.length === 1 ? '' : 's'}`,
+      description:
+        expiring.expired.length === 1
+          ? `${expiring.expired[0].name} is past its expiry date.`
+          : `${expiring.expired[0].name} and ${expiring.expired.length - 1} other${expiring.expired.length === 2 ? '' : 's'} are past their expiry date.`,
+      time: 'now',
+    })
+  }
+
+  if (expiring.soon.length > 0) {
+    alerts.push({
+      id: 'expiring',
+      kind: 'expiring',
+      title: `Expiring within ${warningDays} day${warningDays === 1 ? '' : 's'}`,
+      description: `${expiring.soon.length} item${expiring.soon.length === 1 ? '' : 's'} to sell or move while there is still time.`,
+      time: 'now',
+    })
+  }
 
   if (lowStockItems.length > 0) {
     const topCategory = categoryLabel(lowStockItems[0].category, categoryLabels)
@@ -164,6 +202,9 @@ export default async function DashboardPage() {
       lowStockItems={lowStockItems}
       categoryLabels={categoryLabels}
       alerts={alerts}
+      expiring={expiring}
+      expiryWarningDays={warningDays}
+      today={today}
     />
   )
 }

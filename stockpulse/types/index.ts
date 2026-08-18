@@ -22,7 +22,22 @@ export interface Store {
   address: string | null
   contact_phone: string | null
   low_stock_threshold_units: number
+  /**
+   * DEAD since schema.sql:14 and on its way out. /settings showed a slider for
+   * it and nothing ever read it — see migration 0017 DECISION 1. Phase 3
+   * replaced it with `expiry_warning_days`; this stays only until `main` stops
+   * writing it, at which point one migration drops the column.
+   */
   perishables_warning_hours: number
+  /**
+   * How many days ahead a dated batch counts as "expiring soon". Added by
+   * 0017, so it is OPTIONAL in the type on purpose: the app has to render on a
+   * database where 0017 has not been applied yet, and it falls back to
+   * EXPIRY_WARNING_DAYS_DEFAULT there. Read it through
+   * `storeExpiryWarningDays()` rather than directly, so no call site has to
+   * remember that.
+   */
+  expiry_warning_days?: number
   critical_stock_alerts: boolean
   daily_digest: boolean
   supplier_updates: boolean
