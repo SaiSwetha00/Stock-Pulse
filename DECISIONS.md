@@ -1283,3 +1283,43 @@ Corollary about filenames, learned the same round: `0015` was written as
 not been applied. The moment it was applied that name became a falsehood a
 reader would believe without opening the file, so it was renamed in the same
 commit. A name that encodes state has to be maintained like state.
+
+## D55 — Batches are created at the product, not sourced from shipments
+
+Recorded so this is met as a decision rather than rediscovered as a gap.
+
+`0016` introduces `product_batches`, and the obvious question is where a batch
+comes from. In a real grocery the answer is "a delivery arrived" — so the
+natural model is a shipment line item that becomes a batch, carrying the
+supplier, the PO and the received date for free.
+
+**That is not what this does, and the reason is what `shipments` actually is.**
+Measured, not assumed (`schema_phase2.sql:23`):
+
+    shipments(id, store_id, supplier_id, po_number, status, pallets, eta, created_at)
+
+It is **header-only**. `pallets` is an integer count. There is no line-item
+table, so a shipment cannot say *which products* arrived, let alone how many of
+each or when they expire. Sourcing batches from shipments therefore is not a
+foreign key — it is a whole `shipment_items` table, a UI to enter lines against
+a delivery, and a receiving flow that does not exist.
+
+So for now: **a batch is created ad hoc at the product.** Someone adds "40 of
+these, expiring on the 24th" against a product, and that is the whole model.
+
+**No column is reserved for a future `shipment_id`, deliberately.** A nullable
+FK to a table that does not exist yet is a promise in the schema that nothing
+keeps: it would be null on every row, no code would read it, and the next
+person would have to work out whether it was abandoned or unfinished. This
+project already carries exactly that shape as a logged issue — D5's
+`user_preferences.notify_*` columns, created "in anticipation" and dead ever
+since. Adding the column when the feature is real is one migration; explaining
+a dead column forever is worse.
+
+**What this costs, stated plainly.** Batch entry is manual, so it can be
+skipped, and a grocer who does not enter batches gets no expiry warnings for
+that stock. Received-date and supplier provenance are not captured. If those
+turn out to matter, shipment-sourced batches is a separate future decision with
+its own scope — `shipment_items`, a receiving screen, and a migration to
+attach existing batches — and it should be taken on its own merits rather than
+smuggled into an expiry phase.
