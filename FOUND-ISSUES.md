@@ -1206,3 +1206,54 @@ customer data is a smaller loss than regenerating the shop's whole trading
 history. The harness store therefore holds 378 sales, and that is expected.
 
 Generalised as D53 in DECISIONS.md.
+
+## CLOSED 2026-08-17 — the `products` staff-UPDATE hole
+
+The long-standing finding (staff able to PATCH any `products` column in their
+own store, because `"staff can update stock on sale"` had no role test, no
+column list and no `WITH CHECK`) is **fixed** by
+`supabase/migrations/0015_products_staff_policy.sql`, applied and verified.
+
+The policy was dropped rather than narrowed. RLS cannot restrict an UPDATE to
+particular columns, so "staff may change only stock" was never expressible;
+`log_sale` is `security definer` and so never needed the policy to decrement
+stock. Verified after applying — staff `log_sale` 200 · 1 row · stock −1, staff
+`PATCH products` 200 · **0 rows**, manager and owner unchanged at 1 row.
+
+Still open, unchanged: `products.sku` has no unique index, so `saveProduct`'s
+"A product with that SKU already exists" branch remains unreachable (measured:
+a duplicate SKU PATCH returns 200 · 1 row).
+
+## OPEN — `products.sku` has no unique index; the AUDIT is the next step, not the index
+
+Measured 2026-08-17: setting one product's `sku` to another's in the same store
+returns **HTTP 200, 1 row**. So `saveProduct`'s `UNIQUE_VIOLATION -> "A product
+with that SKU already exists."` branch has never been reachable, on any row,
+ever.
+
+**The next step is an audit, not a migration.** Adding
+`unique (store_id, sku) where sku is not null` would fail on apply if any store
+already holds duplicates — and a migration that aborts halfway is worse than
+the gap it closes. `0014` got exactly this treatment before the barcode index
+went in. Run first:
+
+```sql
+select store_id, sku, count(*)
+from public.products
+where sku is not null
+group by store_id, sku
+having count(*) > 1;
+```
+
+Zero rows means the index is safe to add. Any rows must be reconciled by the
+shop that owns them — an agent cannot decide which of two same-SKU products is
+the real one.
+
+Note also that the seed writes `ACC-NNN` SKUs while the create-by-scan flow
+leaves `sku` null, so nulls are normal and the index must be partial.
+
+## OPEN (cosmetic) — one seeded product has no barcode
+
+`Journey Test Masala 500g`, 1 of 42 in the harness store. Created by hand during
+the Phase 8 owner journey, so the acceptance seed does not own it and will never
+give it one. Harmless: it simply cannot be scanned. Left as-is.

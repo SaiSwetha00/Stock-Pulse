@@ -71,15 +71,30 @@ node -e "fetch(U+'/rest/v1/',{headers:{apikey:K,Authorization:'Bearer '+K}}).the
 
 Read that output before trusting a `barcode present:` boolean derived from it — if the spec fetch fails, `definitions` is undefined and a naive `Object.hasOwn` on `{}` reports `false`, which is indistinguishable from "not applied". That exact false negative happened while writing 0014 (D38 again: name the healthy scenario that produces this output).
 
-**A note about `products` and RLS that predates 0014 and is easy to misread.** `products` carries `"staff can update stock on sale"` — `for update using (store_id = current_store_id())`, with no role test, no column list and no `WITH CHECK`. Permissive RLS policies are OR'd, so **staff can PATCH any `products` column in their own store directly through PostgREST**, including `barcode`. Measured 2026-08-17 with the anon key and a real staff session, carrying manager and owner as controls in the same run:
+**`products` RLS, corrected 2026-08-17 — the staff hole is CLOSED.** For most
+of this project `products` also carried `"staff can update stock on sale"` —
+`for update using (store_id = current_store_id())`, with no role test, no
+column list and no `WITH CHECK`. Permissive policies are OR'd, so **staff could
+PATCH any `products` column in their own store** directly through PostgREST,
+including `barcode`. Migration `0015_products_staff_policy.sql` drops it.
 
-| role | PATCH `products` | rows |
+Selling still works because `log_sale` is `security definer` (`schema.sql:212`)
+— it decrements `stock` as its owner, so it never depended on that policy. The
+policy was redundant to the sale path and load-bearing only for direct PATCHes.
+
+Measured after applying, with real sessions and the anon key, rows actually
+affected (D24):
+
+| role | `log_sale` | `PATCH products` |
 |---|---|---|
-| staff | 200 | **1** |
-| manager | 200 | 1 |
-| owner | 200 | 1 |
+| staff | 200 · 1 row · stock −1 | 200 · **0 rows** |
+| manager | 200 · 1 row · stock −1 | 200 · 1 row |
+| owner | 200 · 1 row · stock −1 | 200 · 1 row |
 
-What stops staff through the UI is the app-layer `canManage()` guard in `app/(dashboard)/inventory/actions.ts`, not the database. **This is not the `categories` behaviour** (staff UPDATE there is 200 · 0 rows) — do not generalise one table's measurement to another, which is exactly the mistake that makes "products is locked down like categories" feel true.
+Note Postgres RLS **cannot** restrict an UPDATE to particular columns — there
+is no `for update of (stock)`. "Staff may change only stock" is not expressible
+as a policy, which is why the fix was to remove the policy and rely on the
+definer function rather than to narrow it.
 
 ### Environment variables (`stockpulse/.env.local`)
 

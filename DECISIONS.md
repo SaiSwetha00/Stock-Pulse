@@ -1244,3 +1244,42 @@ Two corollaries worth keeping:
   reproducible fixture; the acceptance seed exists precisely so a screenshot
   can be reproduced. Losing one row of it is cheap, but the habit that lost it
   is the same habit that would drop a customer's sale.
+
+## D54 — A migration is done when its file is on main, not when it runs
+
+This has now happened twice, which is what makes it a rule rather than a slip.
+
+`0014_product_barcode.sql` was applied to the hosted database while its file sat
+on an unmerged branch. For the length of that review the live schema had a
+`products.barcode` column that `main` knew nothing about. `0015_products_staff_policy.sql`
+repeated it exactly: the staff UPDATE policy was dropped on the live database
+while the only record of why sat on an unpushed branch.
+
+**The rule: applying a migration is half the change. It is not finished until
+the file is on `main`.** Until then the live schema and `main` have silently
+diverged, and that divergence is invisible to every check this project runs —
+`tsc`, `eslint` and `next build` are all green on a branch that does not
+describe the database it will deploy against.
+
+Why it is worse than it sounds:
+
+- **Rolling back the branch does not roll back the database.** Closing the PR
+  leaves the schema changed with nothing in the repository explaining it.
+- **The next migration is numbered from `main`.** Two branches that each apply
+  a change while unmerged both believe they are `00NN`, and the second to land
+  quietly collides with the first.
+- **It defeats the project's own instruction to measure rather than read.**
+  CLAUDE.md says to check what is applied by querying the database. That works
+  only while a file exists to compare against; a schema change whose file is on
+  nobody's branch cannot be reconciled at all.
+
+Practical form: apply the SQL, run the post-apply checks, then push and land the
+file **in the same sitting**. If a change is too risky to land immediately, it
+is too risky to have applied — write it as a proposal, get it reviewed, and
+apply it when it can be merged.
+
+Corollary about filenames, learned the same round: `0015` was written as
+`..._PROPOSAL.sql` precisely so a reader scanning the folder would know it had
+not been applied. The moment it was applied that name became a falsehood a
+reader would believe without opening the file, so it was renamed in the same
+commit. A name that encodes state has to be maintained like state.
