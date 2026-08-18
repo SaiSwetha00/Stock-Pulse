@@ -10,6 +10,10 @@ import type { Product } from '@/types'
 import {
   validateProduct,
   toProductPayload,
+  toLotPayloads,
+  totalLotQuantity,
+  describeProductErrors,
+  type LotPayload,
   type ProductErrors,
   type ProductInput,
 } from '@/lib/validation/product'
@@ -111,6 +115,167 @@ const MISSING_BARCODE_COLUMN = {
 }
 
 /**
+ * PostgREST's answer when 0016 has not been applied: PGRST205, "Could not find
+ * the table 'public.product_batches' in the schema cache".
+ *
+ * Same reasoning as isMissingBarcodeColumn above and D21's 42P01 handling on
+ * /staff: a branch has to stay deployable ahead of its migration, and every
+ * product save on this branch writes a batch. Without this, "Add Product"
+ * fails with a schema-cache string on an unmigrated database.
+ *
+ * Narrow on purpose — this code and this table only.
+ */
+function isMissingBatchesTable(error: { code?: string; message?: string }): boolean {
+  return error.code === 'PGRST205' && /product_batches/i.test(error.message ?? '')
+}
+
+const MISSING_BATCHES_TABLE = {
+  ok: false as const,
+  message:
+    'Expiry tracking is not set up on this database yet. Run ' +
+    'supabase/migrations/0016_product_batches.sql in the Supabase SQL editor.',
+}
+
+/**
+ * Zero rows back from a lot UPDATE or DELETE. Names BOTH causes, for the
+ * reason D24's follow-up gives: the first version of that message picked one,
+ * and told a shopkeeper who had double-clicked to go and run SQL.
+ */
+const LOT_WRITE_REFUSED = {
+  ok: false as const,
+  message:
+    'That stock lot could not be changed - it may have just been removed, or ' +
+    'your account may not have permission. Refresh and try again.',
+}
+
+/**
+ * Bring a product's lots to exactly what the form submitted.
+ *
+ * THIS IS THE CHANGE PHASE 2 EXISTS FOR. saveProduct used to write
+ * `products.stock` directly from the Quantity field — an absolute overwrite
+ * that, since 0016 made that column a trigger-maintained mirror of
+ * sum(product_batches.quantity), set it to a number the batches did not
+ * support. 0016's header names that gap and says not to ship a batches UI
+ * without closing it. Nothing in this file writes `products.stock` any more;
+ * the trigger does, and it is right by construction.
+ *
+ * Three rules the shape depends on:
+ *
+ * 1. **A lot id is matched, never trusted.** A submitted id that is not
+ *    already a lot of THIS product in THIS store is treated as a new lot, so a
+ *    crafted request cannot repoint another product's batch. The composite FK
+ *    from 0016 would catch a cross-store attempt anyway; this catches the
+ *    same-store one it would not.
+ *
+ * 2. **Unchanged lots are not rewritten.** A no-op UPDATE still fires 0016's
+ *    trigger, which recomputes stock as the sum of the batches — and the
+ *    batches have never been decremented by a sale, because log_sale still
+ *    touches `products.stock` alone until the FEFO phase. So rewriting an
+ *    untouched lot would quietly restore stock the shop has already sold.
+ *    Skipping the write means editing a product's NAME cannot resurrect stock.
+ *
+ * 3. **Rows affected are checked, not assumed (D24).** An RLS refusal is a
+ *    successful statement matching no rows, indistinguishable from success
+ *    unless the affected rows are asked for. saveProduct is already behind
+ *    canManage so this should be unreachable; "should be unreachable" is
+ *    exactly the reasoning D24 was written about.
+ *
+ * NOT ATOMIC, and that is stated rather than hidden. These are separate
+ * PostgREST calls, so a failure part-way leaves some lots written and returns
+ * an error naming what happened. Making it atomic means a SECURITY DEFINER
+ * function, which means a migration, which Phase 2 does not need for any other
+ * reason. A retry is safe: surviving lots keep their ids and are matched, not
+ * duplicated.
+ */
+async function syncProductLots(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  storeId: string,
+  productId: string,
+  lots: LotPayload[],
+): Promise<ActionResult> {
+  const { data: existing, error: readError } = await supabase
+    .from('product_batches')
+    .select('id, quantity, expiry_date')
+    .eq('store_id', storeId)
+    .eq('product_id', productId)
+
+  if (readError) {
+    if (isMissingBatchesTable(readError)) return MISSING_BATCHES_TABLE
+    return { ok: false, message: readError.message }
+  }
+
+  const current = new Map((existing ?? []).map((b) => [b.id as string, b]))
+  const kept = new Set<string>()
+
+  for (const lot of lots) {
+    const row = lot.id ? current.get(lot.id) : undefined
+
+    if (!row) {
+      const { data, error } = await supabase
+        .from('product_batches')
+        .insert({
+          store_id: storeId,
+          product_id: productId,
+          quantity: lot.quantity,
+          expiry_date: lot.expiry_date,
+        })
+        .select('id')
+      if (error) {
+        if (isMissingBatchesTable(error)) return MISSING_BATCHES_TABLE
+        return { ok: false, message: error.message }
+      }
+      // An insert refused by RLS fails loudly with 42501, so unlike the
+      // update and delete below this needs no rows-affected check — it is
+      // covered by `error`. Kept in the returned id only so the shape reads
+      // the same as the other two branches.
+      if (data?.[0]?.id) kept.add(data[0].id as string)
+      continue
+    }
+
+    kept.add(row.id as string)
+
+    // Rule 2: identical means leave it alone.
+    if (row.quantity === lot.quantity && (row.expiry_date ?? null) === lot.expiry_date) continue
+
+    const { data, error } = await supabase
+      .from('product_batches')
+      .update({
+        quantity: lot.quantity,
+        expiry_date: lot.expiry_date,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', row.id)
+      .eq('store_id', storeId)
+      .select('id')
+
+    if (error) {
+      if (isMissingBatchesTable(error)) return MISSING_BATCHES_TABLE
+      return { ok: false, message: error.message }
+    }
+    if ((data ?? []).length === 0) return LOT_WRITE_REFUSED
+  }
+
+  const removed = (existing ?? []).filter((b) => !kept.has(b.id as string)).map((b) => b.id as string)
+  if (removed.length > 0) {
+    const { data, error } = await supabase
+      .from('product_batches')
+      .delete()
+      .in('id', removed)
+      .eq('store_id', storeId)
+      .select('id')
+
+    if (error) {
+      if (isMissingBatchesTable(error)) return MISSING_BATCHES_TABLE
+      return { ok: false, message: error.message }
+    }
+    if ((data ?? []).length !== removed.length) return LOT_WRITE_REFUSED
+  }
+
+  return { ok: true }
+}
+
+
+/**
  * Creates or updates a product, then invalidates the routes that render it.
  *
  * Why this is a Server Action rather than a browser insert:
@@ -162,13 +327,21 @@ export async function saveProduct(
     }
   }
 
-  const { error } = productId
+  // `.select('id')` on both branches. The insert needs the new id to hang lots
+  // off; the update needs to know the row was actually there, because an id
+  // that is not in this store is a 200 matching no rows rather than an error
+  // (D24) and would otherwise be reported to the shopkeeper as a saved change.
+  const { data: saved, error } = productId
     ? await supabase
         .from('products')
         .update({ ...payload, updated_at: new Date().toISOString() })
         .eq('id', productId)
         .eq('store_id', store.id)
-    : await supabase.from('products').insert({ ...payload, store_id: store.id })
+        .select('id')
+    : await supabase
+        .from('products')
+        .insert({ ...payload, store_id: store.id })
+        .select('id')
 
   if (error) {
     if (error.code === UNIQUE_VIOLATION) {
@@ -199,16 +372,35 @@ export async function saveProduct(
     return { ok: false, message: error.message }
   }
 
+  const savedId = saved?.[0]?.id as string | undefined
+  if (!savedId) {
+    // Zero rows from the UPDATE. Both causes named, per D24's follow-up: the
+    // product was deleted from another tab, or the caller cannot write it.
+    return {
+      ok: false,
+      message:
+        'That product could not be saved - it may have just been removed. Refresh and try again.',
+    }
+  }
+
+  // The stock write, which is now a batch write. Everything above concerns
+  // the product row; `products.stock` is set by 0016's trigger off the back
+  // of this and is never assigned by this file.
+  const lots = await syncProductLots(supabase, store.id, savedId, toLotPayloads(input))
+  if (!lots.ok) return lots
+
   // Raised from the values just saved rather than by re-reading the row: the
   // threshold is per product, so "low" is only meaningful against the number
-  // written alongside it.
-  if (payload.stock <= payload.low_stock_threshold) {
+  // written alongside it. The quantity is now the sum of the lots, which is
+  // exactly what the trigger will have put in products.stock.
+  const onHand = totalLotQuantity(input)
+  if (onHand <= payload.low_stock_threshold) {
     await notify({
-      title: payload.stock === 0 ? 'Out of stock' : 'Low stock',
-      body: `${payload.name} is down to ${payload.stock} (reorder at ${payload.low_stock_threshold}).`,
+      title: onHand === 0 ? 'Out of stock' : 'Low stock',
+      body: `${payload.name} is down to ${onHand} (reorder at ${payload.low_stock_threshold}).`,
       kind: 'low_stock',
       entity: 'products',
-      entityId: productId,
+      entityId: savedId,
     })
   }
 
@@ -346,7 +538,25 @@ const MAX_IMPORT_ROWS = 2_000
  * same-named products would destroy data.
  */
 export async function importProducts(
-  rows: { line: number; input: ProductInput }[]
+  rows: { line: number; input: ProductInput }[],
+  /**
+   * Whether this file speaks about stock at all.
+   *
+   * A CSV row carries at most ONE quantity and ONE date, so when it does speak
+   * about stock the only faithful reading is "these lots are now the product's
+   * lots" - which replaces whatever was there. That is destructive for a
+   * product with several dated lots, so it must not happen by accident, and a
+   * file with neither a Stock nor an Expiry column is exactly that accident:
+   * it is a price list, and it should leave the shelf alone.
+   *
+   * The old code had no such distinction and could not have had one - a
+   * missing Stock column became `Number('' || '0')` and silently wrote stock 0
+   * over every matched product. Same bug, quieter, and it predates batches.
+   *
+   * Defaults to false so a crafted request that omits it cannot clear a
+   * store's lots.
+   */
+  options: { replaceLots?: boolean } = {},
 ): Promise<ImportResult> {
   const { profile, store } = await getCurrentUser()
 
@@ -385,6 +595,8 @@ export async function importProducts(
     if (p.sku) idBySku.set(p.sku.trim().toLowerCase(), p.id)
   }
 
+  const replaceLots = options.replaceLots === true
+
   const failed: ImportResult['failed'] = []
   let created = 0
   let updated = 0
@@ -396,7 +608,7 @@ export async function importProducts(
   for (const { line, input } of rows) {
     const errors = validateProduct(input, allowed)
     if (Object.keys(errors).length > 0) {
-      failed.push({ line, reason: Object.values(errors).filter(Boolean).join(' ') })
+      failed.push({ line, reason: describeProductErrors(errors).join(' ') })
       continue
     }
 
@@ -404,13 +616,17 @@ export async function importProducts(
     const sku = payload.sku?.trim().toLowerCase()
     const existingId = sku ? idBySku.get(sku) : undefined
 
-    const { error } = existingId
+    const { data: saved, error } = existingId
       ? await supabase
           .from('products')
           .update({ ...payload, updated_at: new Date().toISOString() })
           .eq('id', existingId)
           .eq('store_id', store.id)
-      : await supabase.from('products').insert({ ...payload, store_id: store.id })
+          .select('id')
+      : await supabase
+          .from('products')
+          .insert({ ...payload, store_id: store.id })
+          .select('id')
 
     if (error) {
       let reason: string
@@ -432,21 +648,36 @@ export async function importProducts(
       continue
     }
 
+    const rowId = saved?.[0]?.id as string | undefined
+    if (!rowId) {
+      // Zero rows from the UPDATE: the product was removed between the read
+      // that built idBySku and this write (D24 - a refusal and a vanished row
+      // look identical, so the message names both).
+      failed.push({
+        line,
+        reason: 'That product could not be found when the write ran. Re-run the import.',
+      })
+      continue
+    }
+
+    // Same write path the form uses, so a CSV and a hand-typed product cannot
+    // end up meaning different things by "40, expiring on the 24th".
+    if (replaceLots) {
+      const lots = await syncProductLots(supabase, store.id, rowId, toLotPayloads(input))
+      if (!lots.ok) {
+        failed.push({ line, reason: lots.message ?? 'The stock lots could not be written.' })
+        continue
+      }
+    }
+
     if (existingId) {
       updated++
     } else {
       created++
       // Keep the map current so a later row repeating this new SKU updates
-      // rather than colliding on the unique index.
-      if (sku) {
-        const { data: back } = await supabase
-          .from('products')
-          .select('id')
-          .eq('store_id', store.id)
-          .eq('sku', payload.sku as string)
-          .maybeSingle()
-        if (back?.id) idBySku.set(sku, back.id)
-      }
+      // rather than colliding on the unique index. The id comes back from the
+      // insert now, so this no longer costs a second round trip per new row.
+      if (sku) idBySku.set(sku, rowId)
     }
   }
 

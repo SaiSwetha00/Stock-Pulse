@@ -2786,3 +2786,200 @@ had happened. That is a probe defect with a healthy explanation (D38), not an
 app failure — but it means the joined chain on production is evidenced by the
 owner's manual run and by each link being verified separately, not by an
 automated end-to-end pass.
+
+---
+
+# EXPIRY TRACKING — Phases 1 and 2 of 4
+
+## Phase 1 (merged, `5640672` / PR #6) — the summary this file was missing
+
+`supabase/migrations/0016_product_batches.sql`, **applied and verified**. Schema
+only: no UI, no change to `log_sale`.
+
+| what | shape |
+|---|---|
+| `products` gains | `unique (store_id, id)`, so batches can carry a composite FK |
+| new table | `product_batches(id, store_id, product_id, quantity, expiry_date, received_on, note, created_at, updated_at)` |
+| `products.stock` becomes | a trigger-maintained mirror of `sum(product_batches.quantity)` |
+| backfill | one lot per product that held stock, carrying that stock and that product's `expiry_date` |
+
+Four decisions worth not relitigating, all argued at length in the migration's
+own header:
+
+1. **The FK is composite `(store_id, product_id) -> products (store_id, id)`**,
+   the D35 shape. A batch pointing at another shop's product would be a
+   cross-tenant stock leak that RLS could not catch, because the batch's own
+   `store_id` would look perfectly correct.
+2. **Derived by trigger, never reconciled.** A nightly reconcile means the
+   number on screen is knowably wrong between runs; a generated column cannot
+   reference another table.
+3. **The trigger is `SECURITY DEFINER`, and that is load-bearing.** Since 0015
+   dropped the blanket staff policy on `products`, a non-definer trigger would
+   silently fail to update stock for any caller who cannot write `products` —
+   and an RLS refusal is a successful statement affecting zero rows (D24), so
+   the mirror would go quietly wrong rather than loudly.
+4. **No `shipment_id` column, and no `shipment_items`** — D55. `shipments` is
+   header-only, so shipment-sourced batches is a whole feature, not a foreign
+   key. A batch is created ad hoc at the product.
+
+Phase 1 shipped with **one gap it named in its own header**: `saveProduct` and
+`importProducts` still wrote `products.stock` directly, so those writes set the
+mirror to a number the batches did not support. Survivable only because nothing
+read the batches yet. **Closing it is what Phase 2 is.**
+
+## Phase 2 — Inventory UI (this branch)
+
+**No new migration.** 0016 is applied and carries every index Phase 2 needs —
+`(store_id, product_id)` for the modal's read and the partial
+`(store_id, expiry_date)` for the perishables query a later phase will run. The
+next number stays `0017` for whoever needs it.
+
+### What changed, and why the write target had to move
+
+The old modal had a `Quantity` field and one `Expiry Date` field, and
+`saveProduct` wrote both onto the `products` row. Under 0016 that is an
+absolute overwrite of a mirror.
+
+`Quantity` + `Expiry Date` is now a **repeating pair** — one row per delivery —
+in a `Stock & Expiry` fieldset, using the same `Field`/`Input` components and
+the same two-column grid the single pair sat in. `Low Stock Threshold` moved up
+beside `Price` and `Unit` to make room. `Total stock:` is shown, never typed.
+
+| file | change |
+|---|---|
+| `lib/validation/product.ts` | `ProductInput.stock`/`.expiryDate` become `lots: LotInput[]`; `ProductPayload` loses `stock` and `expiry_date` entirely; `toLotPayloads`, `totalLotQuantity`, `describeProductErrors` added |
+| `app/(dashboard)/inventory/actions.ts` | `syncProductLots()`; `saveProduct` and `importProducts` write lots and never `products.stock` |
+| `components/inventory/ProductModal.tsx` | the lot rows, add/remove, live total |
+| `app/(dashboard)/inventory/page.tsx` | one query, `select('*, product_batches(*)')` through the composite FK; `today` computed with `reportingDate()` and passed down |
+| `lib/expiry.ts` | new — `nextExpiry`, `expiryTone`, `formatExpiry`, all on ISO strings, no clock |
+| `components/inventory/InventoryClient.tsx` | sortable `Expiry` column, CSV column, `ExpiryValue` |
+| `lib/importCsv.ts` | Stock/Expiry cells fold into one lot; new `replacesLots` |
+
+### Three rules `syncProductLots` depends on
+
+1. **A lot id is matched, never trusted.** An id that is not already a lot of
+   this product in this store becomes a new lot, so a crafted request cannot
+   repoint another product's batch.
+2. **Unchanged lots are not rewritten.** A no-op UPDATE still fires the
+   trigger, which recomputes stock as the batch sum — and the batches have
+   never been decremented by a sale. Rewriting an untouched lot would quietly
+   restore stock the shop has already sold. This is why editing a product's
+   *name* cannot resurrect stock.
+3. **Rows affected are checked (D24)**, even though `canManage` should make a
+   refusal unreachable. "Should be unreachable" is the reasoning D24 exists
+   about.
+
+### Dates: past, far future, blank
+
+- **Blank is valid and stays valid.** Most of what a kirana shop sells does not
+  expire, and a forced date is worse than none because an invented date warns
+  wrongly. Stored as `null`; the list shows an em dash.
+- **Past is valid.** Refusing it would mean the one lot the feature exists to
+  surface is the one lot it will not accept. Shown in red with `Expired`.
+- **Far future is valid.** Stored and shown with no urgency invented.
+- **Only the impossible is rejected**, year outside 2000–2100, because a year
+  is typed into a four-digit spinner and `0202` is one keystroke from `2026`.
+  The bound is absolute rather than "20 years from now" so the function stays
+  pure and gives the same verdict on client and server.
+
+### No definer function was needed, and that is not an oversight
+
+The brief allowed for one on the 0015 pattern if staff needed to enter stock.
+They do not, this phase: `saveProduct` is behind `canManage`, so staff have no
+Inventory write path at all, and the RLS on `product_batches` that 0016 wrote
+is exactly right as it stands. The definer function becomes necessary when
+`log_sale` must decrement lots — the FEFO phase — and it belongs there.
+
+### Verified — observed, not assumed
+
+Against the hosted database, harness store `sandal local store`, dev server.
+
+**RLS on `product_batches`, anon key, real sessions, rows actually affected (D24):**
+
+| role | SELECT | INSERT | UPDATE | DELETE |
+|---|---|---|---|---|
+| owner | 200 · rows visible | 201 · 1 row | 200 · 1 row | 200 · 1 row |
+| manager | 200 · rows visible | 201 · 1 row | 200 · 1 row | 200 · 1 row |
+| staff | 200 · rows visible | **403 · 42501** | 200 · **0 rows** | 200 · **0 rows** |
+
+Identical to the boundary 0016 wrote, and to the `products` table after 0015.
+The control is the SELECT column: staff can read every lot, so a zero on
+UPDATE is the policy working, not the session being broken.
+
+**The write path, as the owner, through the real modal:**
+
+- Edited `Bananas` (one backfilled lot, 18 @ 2026-08-12) to three lots —
+  18 @ 2026-08-12 (past), 7 @ 2027-12-31 (far future), 5 @ blank. Modal showed
+  `Total stock: 30`. After save the database held three rows and
+  `products.stock = 30`; `products.expiry_date` was not written.
+- **Hard reload:** list showed Stock 30 and `12 Aug 2026 / Expired`; reopening
+  the modal repopulated all three lots, earliest expiry first, undated last.
+- **Removed the 2027 lot, saved:** two rows left, `products.stock = 23`, and
+  the two survivors **kept their ids** — the unchanged rows were not rewritten.
+- **Typo year `0202-01-01`:** blocked with "Check the year — nothing expires in
+  0202.", modal stayed open, nothing written.
+- **Blank expiry on create:** new product, quantity 4, no date → one lot,
+  `quantity 4`, `expiry_date null`, `products.stock = 4`, no error.
+- **The mirror held throughout.** After every step:
+  `select ... having p.stock <> coalesce(sum(b.quantity), 0)` over all 42
+  products returned **zero drifted rows**.
+
+**CSV export**, captured from the real download blob:
+
+```
+Name,Brand,SKU,Barcode,Category,Unit Price,Unit,Stock,Min Stock,Expiry Date,Status
+```
+
+`Expiry Date` is **index 9** (0-based), the tenth column — after the
+Stock/Min Stock pair, before Status. 43 lines for 42 products. `Bananas` wrote
+`2026-08-12` (ISO, so Excel sorts it); a product with no dated lot wrote empty.
+The header is `Expiry Date` and not `Expires` because `lib/importCsv.ts` maps
+that exact string back onto a lot — the same round-trip rule the Barcode column
+follows.
+
+**Staff on `/inventory`:** six columns, no Actions column, zero `Edit` buttons,
+no Add Product / Import CSV / Scan — Export CSV only. The Expiry column is
+readable, which is correct: staff need to see what is going off.
+
+`tsc --noEmit`, `eslint .` and `next build` all green.
+
+**Cleanup (D53):** only ids this session created were deleted — three probe
+lots, one probe product, one extra `Bananas` lot. `Bananas` is back to stock 18
+with its single backfilled lot, and the mirror check is clean.
+
+### NOT verified, carried forward honestly
+
+1. **`log_sale` still decrements `products.stock` and never touches lots.**
+   That is Phase 1's stated scope and the FEFO phase's job. Consequence today:
+   after a sale, `products.stock` is below `sum(quantity)` until some lot
+   changes, and that change then recomputes stock to the batch sum, discarding
+   the sale's deduction. Rule 2 above keeps an ordinary product edit from
+   triggering it; **it does not eliminate it**, and only FEFO will.
+2. **`syncProductLots` is not atomic.** Separate PostgREST calls, so a failure
+   part-way leaves some lots written and returns an error saying so. Making it
+   atomic means a definer function, which means a migration Phase 2 needs for
+   no other reason. Retrying is safe — surviving lots keep their ids.
+3. **The CSV import path was changed but not run end to end.** `replacesLots`
+   is new behaviour: a file with a Stock or Expiry column replaces a product's
+   lots, a file with neither leaves them alone. The second half of that is a
+   fix — a missing Stock column previously became `Number('' || '0')` and wrote
+   stock 0 over every matched product, silently.
+4. **`products.expiry_date` is now neither read nor written.** 0016 copied it
+   into the backfilled lot and the lots are the truth. Left in place rather
+   than dropped: dropping is destructive, nothing depends on it, and a later
+   phase can remove it once no branch references it.
+5. **No phone.** Everything here is a 1707px desktop viewport.
+
+### One instrument fault, no app defect behind it (D38)
+
+The in-app Browser pane never composited a frame, so `requestAnimationFrame`
+never fired, so React never revealed `/inventory` past its `loading.tsx` and
+never hydrated it. Measured symptoms were a table whose every element had a
+0×0 rect, a search box that did not filter, and a click on Edit that opened
+nothing — the exact shape of PROGRESS's earlier "product modal never opening"
+entry.
+
+The healthy scenario that produces all of it is *a correct page in a window
+that is not painting*, which is what it was. Re-measured in real Chrome, where
+forcing a screenshot supplies the missing frame, everything worked first time.
+Nothing was changed in the app on the strength of the first reading.

@@ -92,7 +92,9 @@ export default function ImportProductsModal({
     }
 
     setBusy(true)
-    const result = await importProducts(good)
+    // The file-level fact, passed explicitly: only a file that has a Stock or
+    // Expiry column may replace a product's stock lots.
+    const result = await importProducts(good, { replaceLots: preview.replacesLots })
     setBusy(false)
 
     if (result.message) {
@@ -182,6 +184,20 @@ export default function ImportProductsModal({
                 <span>
                   Ignored unrecognised column{preview.unknownHeaders.length === 1 ? '' : 's'}:{' '}
                   {preview.unknownHeaders.join(', ')}
+                </span>
+              </p>
+            )}
+
+            {/* Said before the click, not after: a file with a Stock or
+                Expiry column rewrites what is on the shelf, and for a product
+                carrying several dated lots that is destructive in a way "12
+                updated" does not convey. */}
+            {preview.replacesLots && preview.updateCount > 0 && (
+              <p className="flex items-start gap-2 rounded-lg bg-warning-bg px-3.5 py-2.5 text-sm text-warning">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>
+                  This file has a stock column, so each matched product&apos;s existing stock lots
+                  and expiry dates are replaced by the single lot its row describes.
                 </span>
               </p>
             )}

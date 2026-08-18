@@ -53,7 +53,7 @@ npm run lint      # eslint
 - **`findProductByBarcode` is a Server Action deliberately, even though `InventoryClient` already holds every product in memory.** That array is a page-load snapshot; a product added at the till seconds ago is absent from it, so a client-side match would offer to create a duplicate — and the unique index would then refuse the save while naming a product that is not on screen.
 - `proxy.ts`'s matcher must exclude every static extension served from `public/`. `wasm` was added for the barcode decoder after measuring 307→`/login` on `/wasm/zxing_reader.wasm` without a session; the file's own comments record the same bug for `mp4` (a black hero) and `opengraph-image` (blank link previews). If you add a binary asset type, curl it unauthenticated before assuming it is served.
 - No test suite is configured in this project.
-- Database schema/migrations live in `stockpulse/supabase/` (`schema.sql` + `schema_phase2-4.sql` for the base schema, then `migrations/0001`–`0014`) — run these in the Supabase SQL editor, there's no migration CLI wired up. There is also **no DDL path from an agent**: no `psql` on this machine, no `pg`/`postgres` driver in the project, and the service-role key reaches PostgREST, which is the data plane only. Applying a migration is always a request to the owner.
+- Database schema/migrations live in `stockpulse/supabase/` (`schema.sql` + `schema_phase2-4.sql` for the base schema, then `migrations/0001`–`0016`) — run these in the Supabase SQL editor, there's no migration CLI wired up. There is also **no DDL path from an agent**: no `psql` on this machine, no `pg`/`postgres` driver in the project, and the service-role key reaches PostgREST, which is the data plane only. Applying a migration is always a request to the owner.
 
 **Do not trust a doc about which migrations are applied — measure.** `PROGRESS.md` carried "0009 NOT APPLIED" for weeks after it had in fact been applied, and this file briefly repeated it. The storage API and PostgREST both answer the question directly in one call, so the check costs nothing:
 
@@ -95,6 +95,87 @@ Note Postgres RLS **cannot** restrict an UPDATE to particular columns — there
 is no `for update of (stock)`. "Staff may change only stock" is not expressible
 as a policy, which is why the fix was to remove the policy and rely on the
 definer function rather than to narrow it.
+
+
+### `products.stock` is DERIVED. Nothing in the app may assign it.
+
+`0016_product_batches.sql` (2026-08-18) — **applied and verified by
+measurement**: `product_batches` is in the PostgREST schema with
+`id, store_id, product_id, quantity, expiry_date, received_on, note,
+created_at, updated_at`, and the mirror check over all 42 harness products
+returns zero drifted rows.
+
+A product's stock lives in `product_batches`, one row per delivery, each with
+its own nullable `expiry_date`. `products.stock` stays a column — five call
+sites in `InventoryClient` alone read `p.stock` — but it is now a
+**trigger-maintained mirror of `sum(product_batches.quantity)`**, kept by a
+`SECURITY DEFINER` trigger. Write it directly and you set it to a number the
+batches do not support; it stays wrong until the next batch change happens to
+re-sync it.
+
+Phase 2 (2026-08-18) closed the two writers that did exactly that. `saveProduct`
+and `importProducts` now go through `syncProductLots` in
+`app/(dashboard)/inventory/actions.ts`, and `ProductPayload` in
+`lib/validation/product.ts` **has no `stock` field at all** — the type is the
+guard, so a call site cannot quietly reintroduce the overwrite.
+
+Three things about that function that look like details and are not:
+
+- **A submitted lot id is matched against this product's existing lots, never
+  trusted.** An unknown id becomes a new lot rather than repointing someone
+  else's batch.
+- **An unchanged lot is not rewritten.** A no-op UPDATE still fires the
+  trigger, which recomputes stock as the batch sum — and `log_sale` still
+  decrements `products.stock` without touching lots (FEFO is a later phase), so
+  rewriting an untouched lot would restore stock the shop has already sold.
+  This is why editing a product's *name* cannot resurrect stock.
+- **It is not atomic.** Separate PostgREST calls; a mid-way failure leaves some
+  lots written and says so. A retry is safe because surviving lots keep ids.
+
+**`products.expiry_date` is legacy and is neither read nor written.** 0016
+copied it into the backfilled lot; one column cannot hold two deliveries with
+two different dates. Left in place because dropping it is destructive and
+nothing depends on it.
+
+**`product_batches` RLS is the post-0015 shape, and must stay that way.** There
+is no blanket store-member UPDATE policy — that is the hole 0015 had to drop
+from `products`. Measured with real sessions and the anon key, rows actually
+affected (D24):
+
+| role | SELECT | INSERT | UPDATE | DELETE |
+|---|---|---|---|---|
+| staff | 200 · rows visible | **403 · 42501** | 200 · **0 rows** | 200 · **0 rows** |
+| manager | 200 · rows visible | 201 · 1 row | 200 · 1 row | 200 · 1 row |
+| owner | 200 · rows visible | 201 · 1 row | 200 · 1 row | 200 · 1 row |
+
+No definer function was needed for staff in Phase 2, and adding one "for
+symmetry" would be wrong: `saveProduct` is behind `canManage`, so staff have no
+Inventory write path to serve. The definer function becomes necessary when
+`log_sale` must decrement lots, and it belongs in that phase.
+
+**Expiry in the UI.** `/inventory` reads lots in ONE query — 
+`select('*, product_batches(*)')`, resolved through 0016's composite FK, so a
+lot cannot arrive from another store. `lib/expiry.ts` does all the reading:
+`nextExpiry` is the earliest date among lots with `quantity > 0`, and every
+comparison is on YYYY-MM-DD **strings** — `new Date('2026-08-24')` parses as
+UTC midnight and renders as the 23rd anywhere ahead of UTC. `today` is computed
+server-side with `reportingDate()` and passed to the client component; deciding
+it in the browser makes an "Expired" badge differ between the server render and
+hydration across midnight.
+
+A blank expiry is valid and always will be — most of what a kirana shop sells
+does not perish. A past date is valid too. Only an impossible year (outside
+2000–2100) is refused, because the control is a four-digit spinner and `0202`
+is one keystroke from `2026`. The bound is absolute rather than relative to
+today so the rule stays pure and cannot disagree between client and server.
+
+The inventory CSV export carries `Expiry Date` at **index 9** (tenth column),
+between `Min Stock` and `Status`. That exact header is what `lib/importCsv.ts`
+maps back onto a lot, so renaming it silently breaks the Excel round trip — the
+same rule the `Barcode` column follows. A CSV row describes one lot, so
+importing a file **with** a Stock or Expiry column replaces a product's lots,
+and a file with **neither** now leaves them alone (it previously wrote stock 0
+over every matched product, silently).
 
 ### Environment variables (`stockpulse/.env.local`)
 
