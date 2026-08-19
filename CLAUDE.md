@@ -53,7 +53,7 @@ npm run lint      # eslint
 - **`findProductByBarcode` is a Server Action deliberately, even though `InventoryClient` already holds every product in memory.** That array is a page-load snapshot; a product added at the till seconds ago is absent from it, so a client-side match would offer to create a duplicate — and the unique index would then refuse the save while naming a product that is not on screen.
 - `proxy.ts`'s matcher must exclude every static extension served from `public/`. `wasm` was added for the barcode decoder after measuring 307→`/login` on `/wasm/zxing_reader.wasm` without a session; the file's own comments record the same bug for `mp4` (a black hero) and `opengraph-image` (blank link previews). If you add a binary asset type, curl it unauthenticated before assuming it is served.
 - No test suite is configured in this project.
-- Database schema/migrations live in `stockpulse/supabase/` (`schema.sql` + `schema_phase2-4.sql` for the base schema, then `migrations/0001`–`0018`) — run these in the Supabase SQL editor, there's no migration CLI wired up. There is also **no DDL path from an agent**: no `psql` on this machine, no `pg`/`postgres` driver in the project, and the service-role key reaches PostgREST, which is the data plane only. Applying a migration is always a request to the owner.
+- Database schema/migrations live in `stockpulse/supabase/` (`schema.sql` + `schema_phase2-4.sql` for the base schema, then `migrations/0001`–`0019`) — run these in the Supabase SQL editor, there's no migration CLI wired up. There is also **no DDL path from an agent**: no `psql` on this machine, no `pg`/`postgres` driver in the project, and the service-role key reaches PostgREST, which is the data plane only. Applying a migration is always a request to the owner.
 
 **Do not trust a doc about which migrations are applied — measure.** `PROGRESS.md` carried "0009 NOT APPLIED" for weeks after it had in fact been applied, and this file briefly repeated it. The storage API and PostgREST both answer the question directly in one call, so the check costs nothing:
 
@@ -437,8 +437,12 @@ server cannot reconstruct what a customer was charged last week. It is rounded
 to `numeric(10,2)`, negatives are refused, `store_id` comes from the session,
 and `p_sold_by` must be a member of that store or the call raises. The **total
 is recomputed in SQL** from those lines, which is why Phase 3's
-`13.450000000000001` stores as `13.45`. FOUND-ISSUES records the missing
-server-price column that would make price tampering detectable.
+`13.450000000000001` stores as `13.45`. **`sale_items.server_unit_price`** (0019) records the catalogue price at replay
+time beside the charged one, so a divergence is a query rather than an
+unanswerable question. NULL for online sales through `log_sale` — that null
+means "did not come through replay", which is information, not missing data. It
+is recorded and never enforced: nothing compares them, and nothing rejects a
+mismatch.
 
 **Sync rules that are load-bearing, not style:** oldest-first and SEQUENTIAL
 (parallel replays race on the same product and produce discrepancy rows

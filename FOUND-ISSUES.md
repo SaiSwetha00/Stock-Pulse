@@ -1452,7 +1452,7 @@ that cannot tell the two caches apart will report a broken thing as working.
 a backgrounded tab — the same limit that hid the previous Sales-scan defect. The
 wasm half is verified; the JS half needs the phone test that found this.
 
-## OPEN — 0018 shipped without the server-price column that was asked for
+## FIXED 2026-08-19 by migration 0019 — 0018 shipped without the server-price column
 
 Offline Phase 4, 2026-08-19. Before applying 0018 the owner asked for the
 server's own price to be recorded alongside the client-supplied one on each
@@ -1477,7 +1477,31 @@ But it leaves one question unanswerable: **did a line replay at a price that
 never matched the catalogue?** Recording the server's price at replay time
 answers it without rejecting anything.
 
-**Fix, when wanted:** add `server_unit_price numeric(10,2)` to `sale_items`, set
-it inside `replay_sale` from the `v_product` row already fetched there, and
-leave it null for ordinary online sales through `log_sale`. One column, one
-assignment, no behaviour change.
+**Fixed by `0019_sale_items_server_price.sql`**, written as its own migration
+rather than as an edit to 0018 — editing an applied migration makes the file
+disagree with the database it claims to describe.
+
+0019 adds `server_unit_price numeric(10,2)` to `sale_items` and replaces
+`replay_sale` (signature byte-identical, so Postgres replaces rather than
+overloads) to set it from the `v_product` row the function already fetches.
+Nullable, no default, no backfill: existing rows stay NULL, which is honest,
+because nobody knows what the catalogue said when they were written.
+
+Verified after apply, with exact counts rather than a truncated page:
+1122 sale_items rows, **0** carrying a server price; a replayed 2-line sale took
+that to 1124 rows and exactly **2** non-null; a pre-0019 row still reads as
+`server_unit_price: null` without error. And the point of the whole thing — a
+sale replayed at 200.77 against a catalogue price of 193 stored
+`unit_price 200.77, server_unit_price 193` on the same row, with the sale total
+computed from the CHARGED price (401.54, not 386). Exactly one
+`/rpc/replay_sale` exists, so no overload was created.
+
+It is recorded, never enforced: nothing compares the two, and the mismatch above
+was accepted without complaint. That is deliberate — a divergence is a question
+for a human, not grounds to refuse a sale that already happened.
+
+**One probe fault worth keeping (D38).** The first run of these checks reported
+"0 new non-null" immediately after seeing `server_unit_price: 193` on the row it
+had just written. Both reads had returned exactly 1000 rows — PostgREST's
+default page cap — so the new row fell outside the window. A count taken from a
+truncated page is not a count.
