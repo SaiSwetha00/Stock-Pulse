@@ -13,6 +13,12 @@ import {
 import { listQueuedSales, type QueuedSale } from '@/lib/offline/queue'
 import { loadDecoder } from '@/lib/barcode/decoder'
 import { syncQueue, type SyncReport } from '@/lib/offline/sync'
+import {
+  checkQueueIntegrity,
+  rememberQueue,
+  requestPersistentStorage,
+  type IntegrityResult,
+} from '@/lib/offline/integrity'
 import { useToast } from '@/components/ui/Toast'
 import type { Product } from '@/types'
 
@@ -55,6 +61,7 @@ export default function OfflineStatus({
   const [syncedAt, setSyncedAt] = useState<string | null>(null)
   const [queued, setQueued] = useState<QueuedSale[]>([])
   const [syncing, setSyncing] = useState(false)
+  const [integrity, setIntegrity] = useState<IntegrityResult | null>(null)
   const toast = useToast()
 
   // --- sync -------------------------------------------------------------
@@ -124,6 +131,22 @@ export default function OfflineStatus({
     else window.setTimeout(warm, 3000)
   }, [])
 
+  // --- ask the browser to keep our storage --------------------------------
+  useEffect(() => {
+    // A REQUEST, not a command. Chrome grants it silently for an installed PWA,
+    // Firefox may prompt, Safari has historically ignored it - which is exactly
+    // the platform whose eviction puts a money-bearing queue at risk, so the
+    // answer is logged rather than assumed. This is mitigation, not a fix; only
+    // a real iPhone can close that gap.
+    void requestPersistentStorage().then((state) => {
+      if (!state.supported) {
+        console.warn('[offline] this browser has no Storage API; the queue cannot be pinned')
+      } else if (!state.persisted) {
+        console.warn('[offline] persistent storage was NOT granted; the queue may be evicted')
+      }
+    })
+  }, [])
+
   // --- the queue ---------------------------------------------------------
   // Polled rather than pushed, and slowly. A sale can be queued from the
   // static offline page, which shares the database but not this React tree, so
@@ -134,7 +157,13 @@ export default function OfflineStatus({
     let alive = true
     const read = () => {
       void listQueuedSales(storeId).then((rows) => {
-        if (alive) setQueued(rows)
+        if (!alive) return
+        // Compare BEFORE remembering, or the check would always agree with
+        // itself. A shrink that this app did not cause is the alarm.
+        const result = checkQueueIntegrity(storeId, rows)
+        setIntegrity(result.ok ? null : result)
+        rememberQueue(storeId, rows)
+        setQueued(rows)
       })
     }
     read()
@@ -151,7 +180,12 @@ export default function OfflineStatus({
     setSyncing(true)
     try {
       const report: SyncReport = await syncQueue(storeId)
-      setQueued(await listQueuedSales(storeId))
+      const after = await listQueuedSales(storeId)
+      // Sales that synced left the queue legitimately, so the witness is
+      // updated here too - otherwise every successful sync would look like an
+      // eviction on the next read.
+      rememberQueue(storeId, after)
+      setQueued(after)
 
       if (report.attempted === 0) return
 
@@ -227,7 +261,7 @@ export default function OfflineStatus({
   // silent, even with signal: until Phase 4 syncs them they exist on one phone
   // and nowhere else, and a cashier must be able to see that nothing was
   // swallowed.
-  if (!offline && queued.length === 0) return null
+  if (!offline && queued.length === 0 && !integrity) return null
 
   return (
     <div
@@ -260,6 +294,26 @@ export default function OfflineStatus({
           Try again
         </button>
       </div>
+
+      {/* THE LOUDEST THING THIS COMPONENT CAN SAY. Sales that were on this
+          device are no longer in IndexedDB, and this app did not remove them -
+          which on iOS means the browser evicted them. Shown in the danger
+          colour and never auto-dismissed, because the alternative is a queue
+          that silently got shorter. */}
+      {integrity && (
+        <div className="mt-2 rounded-lg border border-danger bg-danger-bg px-3 py-2 text-danger">
+          <p className="text-sm font-semibold">
+            {integrity.missingIds.length} saved sale
+            {integrity.missingIds.length === 1 ? '' : 's'} disappeared from this device
+          </p>
+          <p className="mt-0.5 text-xs">
+            This device held {integrity.expected} and now has {integrity.actual}. Nothing here
+            removed {integrity.missingIds.length === 1 ? 'it' : 'them'}, so the browser may have
+            cleared storage. Any sale that had not synced is not recorded anywhere — check
+            today&apos;s takings against the till.
+          </p>
+        </div>
+      )}
 
       {/* The queue, itemised rather than counted. "3 sales pending" tells a
           cashier a number; naming them lets somebody check the till against

@@ -4348,14 +4348,81 @@ record.
    eviction or warns about it. Needs one real iPhone and a deliberate eviction
    test before the app is used on iOS in a shop.
 
-2. **`replay_sale` does not default `p_sold_by` to the caller.** A sale
-   replayed with a null user id lands with no seller. Bounded — the sale, its
-   lines, its total and its stock effect are all correct, and the owner's live
-   test attributed correctly — but it is a hole in the audit trail. **One line,
-   in a NEW migration** (0018 and 0019 are applied and must not be edited):
-
-       coalesce(p_sold_by, auth.uid())
+2. ~~`replay_sale` does not default `p_sold_by` to the caller.~~
+   **WITHDRAWN — this gap never existed.** `0019` line 132 already reads
+   `v_sold_by := coalesce(p_sold_by, auth.uid())`, and a re-measurement against
+   the JWT's own `sub` confirms a null `p_sold_by` stores the authenticated
+   caller. The original finding compared against the first row of
+   `profiles?select=id`, which under RLS returns all six profiles in the store
+   and picked a different user. No migration was applied. See FOUND-ISSUES.
 
 Also unclosed and unchanged: no automated end-to-end run of the whole chain
 exists, and every offline UI verification to date has come from the owner's
 phone rather than from this repository's harness.
+
+## Follow-up (2026-08-19) — storage persistence, an integrity check, and a withdrawn finding
+
+### No migration 0020. The gap it would have fixed does not exist.
+
+`0019`'s `replay_sale` already contains `v_sold_by := coalesce(p_sold_by,
+auth.uid())` at line 132. Re-measured against the JWT's own `sub`: a null
+`p_sold_by` stores the authenticated caller.
+
+The Phase 5 finding compared `sold_by` against the first row of
+`profiles?select=id` — which under RLS returns all six profiles in the store,
+and returned a different user. **The instrument was wrong and the app was
+blamed for it.** No SQL reached the hosted project.
+
+### Mitigating the iOS eviction risk, without an iPhone
+
+Two additions in `lib/offline/integrity.ts`. Neither makes the queue safe on
+iOS — only a real device can settle that — but together they stop an eviction
+being silent.
+
+**`requestPersistentStorage()`** calls `navigator.storage.persist()` and checks
+`persisted()`. It is a REQUEST, not a command: Chrome grants it silently for an
+installed PWA, Firefox may prompt, and Safari has historically ignored it. So
+the answer is checked and logged rather than assumed, and `persisted()` is
+consulted first so a granted origin never re-requests.
+
+**`checkQueueIntegrity()`** keeps a witness — count plus sorted ids — in
+**localStorage, deliberately not IndexedDB**. A witness stored beside the thing
+it witnesses is evicted with it, and the app would then agree the queue had
+always been empty. Separate buckets make a mismatch evidence rather than
+coincidence.
+
+Only a DISAPPEARANCE alarms. A queue that grew is a new sale; one that shrank
+because sync removed entries is normal, which is why the witness is rewritten
+after a successful sync as well as after a write. What cannot happen
+legitimately is an id vanishing that this app did not remove — and that raises a
+red, non-dismissing banner naming the count and telling the shopkeeper to check
+today's takings against the till.
+
+### Verified — logic, in a normal browser environment
+
+| case | result |
+|---|---|
+| fresh install, no witness | ok — silent, no false alarm |
+| unchanged queue | ok |
+| queue grew (new sale) | ok |
+| shrank after sync, witness updated | ok |
+| **all three evicted** | **ALARM**, missing 3 |
+| **one of three evicted** | **ALARM**, missing 1 |
+| **same count, one id swapped** | **ALARM**, missing 1 |
+| corrupt witness | ok — not treated as evidence |
+| second store's witness | unaffected |
+
+`persist()` returns `{persisted:true,supported:true}` when granted,
+`{persisted:false,supported:true}` when refused, and
+`{persisted:false,supported:false}` where the API is absent — three distinct
+states, so a refusal cannot be mistaken for a grant.
+
+`tsc`, `eslint`, `build` green.
+
+### Still not verified
+
+**WebKit's actual eviction behaviour.** Everything above is the mitigation
+working in a browser that does not evict. Whether Safari grants `persist()`,
+and whether the integrity check fires after a genuine iOS eviction, both need a
+real iPhone. The gap is narrower than it was — an eviction can no longer pass
+unnoticed — but it is not closed.

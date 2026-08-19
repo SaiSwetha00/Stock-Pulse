@@ -1529,7 +1529,33 @@ directly (never reaching `replay_sale`, which did not exist until Phase 4) or
 drove `sync.ts` with fixtures built in the probe, which always carried a real
 user id. The two halves were each exercised; the join between them never was.
 
-## OPEN — `replay_sale` does not default `p_sold_by` to the caller
+## WITHDRAWN 2026-08-19 — `replay_sale` DOES default `p_sold_by` to the caller
+
+**This entry was wrong. The gap never existed, and the fault was in my probe.**
+
+`0019`'s `replay_sale` already contains, at line 132:
+
+    v_sold_by := coalesce(p_sold_by, auth.uid());
+
+Re-measured against the JWT's own `sub` rather than a `profiles` query:
+calling with `p_sold_by = null` returns `status="created"` and stores
+`sold_by = a21d8866-…`, which **is** the authenticated caller.
+
+**Why the original measurement lied.** It compared `sold_by` against the first
+row of `profiles?select=id`. Under RLS a store member can see every profile in
+their store — six here — so that query returned somebody else entirely
+(`07aa53d2-…`, "spidy"). Two different users, reported as a missing default.
+
+D38 in its purest form: the instrument was wrong, and an app was blamed for it.
+The rule that would have caught it is the one D38 already states — a probe must
+assert on something only the real outcome can produce, and "the first row RLS
+happens to return" is not that. The authenticated user id is in the token; it
+should have been read from there.
+
+**No migration 0020 was written or applied.** It would have been a no-op
+against production.
+
+--- original entry, kept so the correction has something to correct ---
 
 Found 2026-08-19 while fixing the above. Measured: calling `replay_sale` with
 `p_sold_by = null` returns `status="created"` and stores the sale with
