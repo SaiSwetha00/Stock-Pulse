@@ -13,6 +13,8 @@ import { REPORTING_TIMEZONE, reportingDate } from '@/lib/reportingTimezone'
 import { notify } from '@/app/(dashboard)/notifications/actions'
 import { findProductByBarcode } from '@/app/(dashboard)/inventory/actions'
 import ScannerPrototype from '@/components/scan/ScannerPrototype'
+import ExpiryTag from '@/components/ui/ExpiryTag'
+import { expiryRelative, expiryTone, formatExpiry, nextExpiry } from '@/lib/expiry'
 import type { Product } from '@/types'
 
 /**
@@ -49,6 +51,29 @@ async function raiseMilestoneIfReached(supabase: ReturnType<typeof createClient>
   })
 }
 
+/**
+ * The expiry phrase for a toast, which is plain text and cannot carry the
+ * colour ExpiryTag uses. So the words have to do the work the colour does
+ * elsewhere: "Expired" and "expires in 3 days" read differently at a glance
+ * even in a single grey line.
+ */
+function expiryToastSuffix(date: string, today: string, warningDays: number): string {
+  const tone = expiryTone(date, today, warningDays)
+  if (tone === 'expired') return `EXPIRED ${expiryRelative(date, today)}`
+  if (tone === 'soon') return `expires ${expiryRelative(date, today)}`
+  return `expires ${formatExpiry(date)}`
+}
+
+/**
+ * How many of a product's lots still hold stock AND carry a date — the number
+ * `nextExpiry` picked its answer from. Counting every lot would inflate the
+ * "+N more lots" hint with sold-out rows 0016 keeps for their history and with
+ * undated rows that can never be the nearest expiry.
+ */
+function atRiskLots(product: Product): number {
+  return (product.product_batches ?? []).filter((b) => b.quantity > 0 && b.expiry_date).length
+}
+
 interface CartLine {
   product: Product
   quantity: number
@@ -62,9 +87,14 @@ const PAYMENT_METHODS = [
 
 export default function LogSaleModal({
   products,
+  today,
+  expiryWarningDays,
   onClose,
 }: {
   products: Product[]
+  /** Shop's calendar date and warning window, decided server-side. */
+  today: string
+  expiryWarningDays: number
   onClose: () => void
 }) {
   const router = useRouter()
@@ -156,7 +186,20 @@ export default function LogSaleModal({
       addToCart(result.product)
       setScanned((n) => n + 1)
       setScanError('')
-      toast.success('Added to sale', `${result.product.name} · ${formatCurrency(result.product.unit_price)}`)
+      // The toast names the expiry state as well as the price, because it is
+      // the one moment the cashier is definitely looking at the screen. It
+      // does NOT block or refuse the sale: Phase 4 is display only, and
+      // deciding that expired stock cannot be sold is a policy question
+      // nobody has asked for — a shopkeeper may well be selling it knowingly
+      // at a discount. The line stays on the cart row afterwards, so the
+      // information does not vanish with the toast.
+      const scannedExpiry = nextExpiry(result.product.product_batches)
+      toast.success(
+        'Added to sale',
+        `${result.product.name} · ${formatCurrency(result.product.unit_price)}${
+          scannedExpiry ? ` · ${expiryToastSuffix(scannedExpiry, today, expiryWarningDays)}` : ''
+        }`,
+      )
     } catch (err) {
       setScanError(err instanceof Error ? err.message : 'The lookup failed. Try again.')
     } finally {
@@ -296,7 +339,21 @@ export default function LogSaleModal({
                         faster than reading a name out of a long list. */}
                     <span className="flex min-w-0 items-center gap-2.5">
                       <ProductThumb name={p.name} imageUrl={p.image_url} size={28} />
-                      <span className="truncate font-medium text-foreground">{p.name}</span>
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-foreground">{p.name}</span>
+                        {/* Only when there IS a date. An unexpiring product in
+                            a dropdown of ten would otherwise contribute a line
+                            of "No expiry date" saying nothing — the cart row
+                            can afford that reassurance, a search list cannot. */}
+                        {nextExpiry(p.product_batches) && (
+                          <ExpiryTag
+                            date={nextExpiry(p.product_batches)}
+                            today={today}
+                            warningDays={expiryWarningDays}
+                            lots={atRiskLots(p)}
+                          />
+                        )}
+                      </span>
                     </span>
                     <span className="text-muted">
                       {formatCurrency(p.unit_price)} · {p.stock} in stock
@@ -320,9 +377,20 @@ export default function LogSaleModal({
             )}
             {cart.map((l) => (
               <div key={l.product.id} className="flex items-center justify-between rounded-lg bg-surface-muted px-4 py-3">
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">{l.product.name}</p>
                   <p className="text-xs text-muted">{formatCurrency(l.product.unit_price)} each</p>
+                  {/* Stays on the row after the toast has gone. A cashier who
+                      scanned four things should still be able to see which of
+                      them is the expired one while ringing up the fifth.
+                      Rendered for scanned AND searched lines alike, because a
+                      cart line does not remember how it got there. */}
+                  <ExpiryTag
+                    date={nextExpiry(l.product.product_batches)}
+                    today={today}
+                    warningDays={expiryWarningDays}
+                    lots={atRiskLots(l.product)}
+                  />
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2 rounded-lg border border-border bg-surface px-2 py-1">

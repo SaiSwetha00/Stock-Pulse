@@ -21,8 +21,19 @@ import { shiftDays } from '@/lib/reportingTimezone'
  * "Expired" badge under the reader between the two passes.
  */
 
-/** How far ahead counts as "use it now" rather than merely "dated". */
-export const EXPIRY_SOON_DAYS = 7
+
+/**
+ * The default window, and the fallback when 0017 has not been applied.
+ *
+ * Seven days is the brief's number and it is also the one a grocer can act on:
+ * long enough to discount and move a crate, short enough that the list is not
+ * everything perishable in the shop.
+ */
+export const EXPIRY_WARNING_DAYS_DEFAULT = 7
+
+/** The widest the setting may be, mirroring 0017's CHECK exactly. */
+export const MIN_EXPIRY_WARNING_DAYS = 1
+export const MAX_EXPIRY_WARNING_DAYS = 90
 
 export type ExpiryTone = 'expired' | 'soon' | 'ok'
 
@@ -54,16 +65,33 @@ export function productNextExpiry(product: Product): string | null {
 }
 
 /**
- * How urgent this date is, given the shop's today.
+ * How urgent this date is, given the shop's today and the shop's window.
  *
  * A date in the PAST is 'expired' — a real and useful state, not an input
  * error, which is why validation accepts past dates in the first place. A date
  * FAR in the future is simply 'ok': it is stored and shown, and nothing
  * pretends to be more interested in 2071 than in 2029.
+ *
+ * `warningDays` became a PARAMETER in Phase 4, and the reason is a bug this
+ * function was already carrying. Phase 3 made the window a per-store setting
+ * (`stores.expiry_warning_days`, migration 0017) and taught the dashboard to
+ * read it — but this function kept its own hardcoded `EXPIRY_SOON_DAYS = 7`,
+ * so a shop that set 14 would have been told "expiring soon" on the dashboard
+ * while the inventory list showed the very same lot in neutral grey until day
+ * 7. Nothing surfaced it because every store still holds the default of 7, so
+ * the two numbers agreed by coincidence rather than by construction.
+ *
+ * The default is kept so a caller that genuinely has no store in hand still
+ * gets the documented behaviour instead of NaN — but every caller in the app
+ * passes `storeExpiryWarningDays(store)`.
  */
-export function expiryTone(isoDate: string, today: string): ExpiryTone {
+export function expiryTone(
+  isoDate: string,
+  today: string,
+  warningDays: number = EXPIRY_WARNING_DAYS_DEFAULT,
+): ExpiryTone {
   if (isoDate < today) return 'expired'
-  if (isoDate <= shiftDays(today, EXPIRY_SOON_DAYS)) return 'soon'
+  if (isoDate <= shiftDays(today, warningDays)) return 'soon'
   return 'ok'
 }
 
@@ -87,18 +115,6 @@ export function formatExpiry(isoDate: string): string {
   return `${Number(d)} ${month} ${y}`
 }
 
-/**
- * The default window, and the fallback when 0017 has not been applied.
- *
- * Seven days is the brief's number and it is also the one a grocer can act on:
- * long enough to discount and move a crate, short enough that the list is not
- * everything perishable in the shop.
- */
-export const EXPIRY_WARNING_DAYS_DEFAULT = 7
-
-/** The widest the setting may be, mirroring 0017's CHECK exactly. */
-export const MIN_EXPIRY_WARNING_DAYS = 1
-export const MAX_EXPIRY_WARNING_DAYS = 90
 
 /**
  * This store's warning window.
