@@ -4239,3 +4239,123 @@ has no bundler or type checking.
 4. **The two-device conflict has never been run** with two real devices.
 5. **Safari and iOS remain untested**, including storage eviction, which can
    delete a queue holding real money.
+
+---
+
+# OFFLINE MODE — CLOSED across all five phases (2026-08-19)
+
+On `main`, deployed to production. `0016`–`0019` contiguous, no gaps.
+
+| phase | what landed | merge |
+|---|---|---|
+| 1 | Investigation, plus an installable PWA shell: manifest, service worker, `/offline` | `39ef2ee` |
+| 2 | Offline reads — IndexedDB snapshot by store, offline indicator, one barcode lookup online and off | `9260f29` |
+| 3 | The sale queue — durable in IndexedDB, optimistic stock, a visible queue, and the offline till | `2010542` |
+| 4 | Sync — `0018` `replay_sale`, idempotent replay, discrepancy recording; `0019` server price | `2855e14` |
+| 5 | End-to-end verification, and the bug that verification found | `48a44a5` |
+
+## What the five phases actually built
+
+A cashier with no signal can open the app, look up a product by name or
+barcode, see its price and expiry, complete a sale, and have it reach the
+database exactly once when signal returns — with any stock shortfall recorded
+rather than hidden.
+
+Three separate stores, and keeping them separate IS the design:
+
+- **The service worker's HTTP cache** holds static assets and the offline
+  document. It caches **no authenticated HTML and no RSC payload**, because a
+  grocery phone is shared and a cached `/dashboard` would show the next person
+  the previous person's takings with RLS unable to help.
+- **IndexedDB `snapshots`**, keyed by `storeId`, holds an allowlist of ten
+  product fields. The key IS the tenancy rule: no code path reads "the
+  snapshot" without saying whose.
+- **IndexedDB `queue`** holds sales that have not reached the server.
+  `idbClear` touches only `snapshots`, so signing out clears the product cache
+  and leaves the money.
+
+## The rules that took a phase each to learn
+
+- **A client cannot decide whether it already sent something** (D56).
+  Idempotency is a unique index on `(store_id, client_id)`; the client sends
+  and believes `created` / `duplicate`. A `duplicate` is a SUCCESS.
+- **When physical reality has already diverged, record it — do not reconcile
+  it** (D57). An oversell lands, stock floors at 0, and the shortfall is
+  written down and surfaced.
+- **Prices are copied into the queue, never referenced.** Replaying against
+  today's price would silently re-price a completed transaction.
+- **A queue write is read back before success is reported.** "The put did not
+  throw" is not "the record is there", and this store is the only copy of the
+  money.
+- **Never put a placeholder where a `uuid` goes.**
+- **`/offline` is a static file, not a route.** An App Router page cannot be
+  served offline from a precached document, because hydrating one needs the RSC
+  payload the worker refuses to cache.
+
+## The real bugs, and where each was fixed
+
+| bug | found by | fixed in |
+|---|---|---|
+| `/offline` returned 307 to `/login`, so the worker would have precached **the sign-in page** as its offline document | curling it unauthenticated, Phase 1 | `lib/supabase/middleware.ts` |
+| The worker cached **nothing** — `putIfCacheable` awaited `caches.open()` before `response.clone()`, so the clone threw silently | Phase 1 measurement | `public/sw.js` |
+| Offline page rendered an **error boundary** instead of the cached list | Phase 2 offline test | rewritten as `public/offline.html` |
+| Scanning offline in Log a Sale did nothing — `handleScanned` called the network-only Server Action, showing "Failed to fetch" | **the owner's phone** | `components/sales/LogSaleModal.tsx` |
+| The decoder chunk is never precached, so a first scan offline failed | **the owner's phone** | wasm precached in `sw.js`; JS chunk warmed in `OfflineStatus.tsx` |
+| The offline till queued sales that **could never sync** — `userId: 'unknown'` against `p_sold_by uuid` | Phase 5 code review | `public/offline.html`, hardened in `lib/offline/sync.ts` |
+
+**Three of six were found on a phone, not by any harness**, and the reason is
+one fact: the browser harness cannot hydrate a backgrounded tab, so no offline
+UI was ever seen running here. Every phase carried that as an explicit NOT
+VERIFIED item, and the defects landed precisely in it. The lesson is not that
+the harness is weak — it is that **a carried-forward "not verified" on a path a
+shopkeeper actually uses is a bug waiting for a human to report it.**
+
+## Verified on production, by measurement
+
+- `0016`–`0019` all applied; migration numbers contiguous.
+- `/manifest.webmanifest`, `/sw.js`, `/offline.html` all 200 with correct
+  content types; `/dashboard`, `/inventory`, `/sales` still 307 to auth.
+- `replay_sale` idempotency, oversell handling, `numeric(10,2)` precision, and
+  cross-store `sold_by` rejection — all seven 0018 post-apply checks.
+- `0019`: 1122 `sale_items` rows carrying no server price, a replayed sale
+  adding exactly 2 non-null, and a pre-0019 row still reading as null.
+- D25 scope, all three roles: **1 store of 4, zero foreign rows.**
+
+### The two-device conflict, confirmed in the database
+
+Run by the owner on a real phone against a second device, then verified at the
+database level rather than from the toast:
+
+    Black salt   stock = 0        negative stock anywhere in store: 0
+    discrepancy  units_sold 3 · stock_available 2 · shortfall 1 · resolved null
+    sales rows with that client_id: 1   (qty 3, total 141)
+    every sale touching the product: 2  (online qty 8, then the replay qty 3)
+    sales created after it: none · discrepancies after it: none
+
+The online sale of 8 left 2 on the shelf; the replay took those 2 and recorded
+1 unaccounted for. **The sale landed, stock floored at 0, the shortfall was
+recorded honestly, and the client id kept it to exactly one row.** A second
+attempt was blocked client-side before any RPC, leaving no partial server
+record.
+
+## STILL NOT VERIFIED — on the record
+
+1. **Safari and iOS have never been tested, at all.** This matters more here
+   than anywhere else in the project: **the queue holds real money, and WebKit
+   evicts IndexedDB** under storage pressure and after a period of inactivity.
+   A queue silently evicted before it syncs is a shop's takings gone, with
+   nothing on screen to say so. Nothing in the current design detects that
+   eviction or warns about it. Needs one real iPhone and a deliberate eviction
+   test before the app is used on iOS in a shop.
+
+2. **`replay_sale` does not default `p_sold_by` to the caller.** A sale
+   replayed with a null user id lands with no seller. Bounded — the sale, its
+   lines, its total and its stock effect are all correct, and the owner's live
+   test attributed correctly — but it is a hole in the audit trail. **One line,
+   in a NEW migration** (0018 and 0019 are applied and must not be edited):
+
+       coalesce(p_sold_by, auth.uid())
+
+Also unclosed and unchanged: no automated end-to-end run of the whole chain
+exists, and every offline UI verification to date has come from the owner's
+phone rather than from this repository's harness.
