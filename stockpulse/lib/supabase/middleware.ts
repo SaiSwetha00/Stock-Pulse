@@ -38,7 +38,21 @@ export async function updateSession(request: NextRequest) {
   // /login to find out what happens to their data is precisely backwards, and
   // it would have made the new footer links look broken to every visitor.
   const isLegalRoute = path.startsWith('/privacy') || path.startsWith('/terms')
-  const isPublicRoute = path === '/' || isAuthRoute || isAuthCallback || isLegalRoute
+
+  // The offline fallback must be public, and the reason is specific rather
+  // than philosophical. The service worker precaches it with
+  // `cache.add('/offline')` at install time. Redirected to /login, that call
+  // caches the SIGN-IN PAGE as the offline document - so a cashier who lost
+  // signal would be shown a login form they cannot submit, forever, on a
+  // device that was already signed in.
+  //
+  // Caught by curling it unauthenticated, which is the only way this shows up:
+  // signed in, /offline returns 200 and looks perfectly correct, and the build
+  // reports the route as generated either way.
+  const isOfflineRoute = path === '/offline'
+
+  const isPublicRoute =
+    path === '/' || isAuthRoute || isAuthCallback || isLegalRoute || isOfflineRoute
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone()

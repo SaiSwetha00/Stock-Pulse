@@ -266,6 +266,51 @@ opens the edit form. Refusing to sell expired stock is a policy nobody has
 asked for — a shopkeeper may well be selling it knowingly at a discount — and
 `log_sale` was not touched.
 
+### The app is installable, and the service worker caches NO authenticated HTML
+
+Offline Phase 1 (2026-08-19) added `app/manifest.ts` (served at
+`/manifest.webmanifest`), `public/sw.js`, `app/offline/page.tsx` and
+`components/pwa/RegisterServiceWorker.tsx`. It makes the app installable and
+caches static assets. **It queues nothing and replays nothing** — offline writes
+are Phase 2+.
+
+**The worker never caches a page a signed-in user sees, and that is a security
+decision.** A grocery phone is shared between the owner and staff; a cached
+`/dashboard` would show the next person the previous person's takings before the
+network answered, and RLS cannot help because those bytes never reach the
+server. So the fetch handler ignores every non-GET, every cross-origin request,
+every RSC payload (`?_rsc=` / `RSC: 1`), and every navigation except to serve
+`/offline` as a fallback. Only `/offline` is precached. **Do not add
+network-first-then-cache for navigations** without re-deciding that.
+
+**`putIfCacheable` clones the response BEFORE its first `await`, and the write
+runs inside `event.waitUntil`.** Both are load-bearing, not style. Cloning after
+`await caches.open()` throws because the page has already begun reading the
+body — measured: assets fetched `200 / ok / basic` with correct content-types
+while the cache held zero entries, silently, because the call was not awaited.
+
+It also refuses to cache any response whose content-type is `text/html`. That is
+the guard against the failure `proxy.ts` documents — an expired session
+answering a `.wasm` or `.png` request with the sign-in page. Without it, one
+transient auth blip would be cached and served forever.
+
+**`/offline` must stay public.** `lib/supabase/middleware.ts` lists it beside the
+legal pages. It returned 307 to `/login` when first built, which would have made
+the worker precache the sign-in page as the offline document — a cashier who
+lost signal shown a login form they cannot submit, on an already-signed-in
+device. Signed in it returns 200 and looks perfect; only an unauthenticated curl
+shows it.
+
+**`manifest.webmanifest` and `sw.js` are in `proxy.ts`'s matcher exclusion list**
+for the same reason `wasm`, `mp4` and `opengraph-image` are. Served through auth
+they come back as HTML, which makes the site report no manifest and makes worker
+registration fail on MIME type.
+
+**Lighthouse cannot report a PWA score any more** — measured on 12.8.2: the
+categories are `performance, accessibility, best-practices, seo` and every PWA
+audit is absent, the category having been removed in Lighthouse 12. Check
+installability against Chrome's criteria directly instead.
+
 ### Environment variables (`stockpulse/.env.local`)
 
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase project, used by all three client variants (see below).
