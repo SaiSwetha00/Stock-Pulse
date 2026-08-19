@@ -13,6 +13,7 @@ import {
   toLotPayloads,
   totalLotQuantity,
   describeProductErrors,
+  isValidBarcode,
   type LotPayload,
   type ProductErrors,
   type ProductInput,
@@ -453,7 +454,10 @@ export async function findProductByBarcode(
   // here so a malformed value cannot become a pointless round trip, and so a
   // crafted request meets the rule the form does.
   const value = barcode.trim()
-  if (!/^[0-9]{8,14}$/.test(value)) {
+  // The shared test, not a fourth inline copy. Offline Phase 2 added a matcher
+  // that reads the cached product list, and a private regex here would let
+  // "valid barcode" mean one thing with signal and another without.
+  if (!isValidBarcode(value)) {
     return { ok: false, message: 'That is not a valid barcode.' }
   }
 

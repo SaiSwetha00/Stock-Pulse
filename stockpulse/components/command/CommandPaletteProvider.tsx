@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LogOut, Sparkles, UserRound } from 'lucide-react'
-import { logout } from '@/app/auth/actions'
+import { signOutEverywhereLocal } from '@/lib/offline/signOut'
 import { useAIAssistant } from '@/components/ai/AIAssistantProvider'
 import { navItemsFor } from '@/lib/nav'
 import type { Role } from '@/types'
@@ -81,7 +81,7 @@ export default function CommandPaletteProvider({
         icon: LogOut,
         keywords: 'log out exit leave',
         run: () => {
-          void logout()
+          void signOutEverywhereLocal()
         },
       },
     ]

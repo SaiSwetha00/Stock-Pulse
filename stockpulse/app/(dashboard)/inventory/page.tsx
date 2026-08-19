@@ -48,6 +48,7 @@ export default async function InventoryPage() {
       // store that moved this setting would have seen the dashboard and this
       // list disagree about the same lot.
       expiryWarningDays={storeExpiryWarningDays(store)}
+      userId={profile.id}
     />
   )
 }

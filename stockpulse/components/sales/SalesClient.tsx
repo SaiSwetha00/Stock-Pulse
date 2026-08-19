@@ -16,6 +16,7 @@ import { formatCurrency, toLocalISODate } from '@/lib/format'
 import type { Product, Role, Sale } from '@/types'
 import { LocalDateTime } from '@/components/ui/LocalTime'
 import LogSaleModal from './LogSaleModal'
+import OfflineStatus from '@/components/offline/OfflineStatus'
 import SalesTrendChart from '@/components/dashboard/SalesTrendChartLazy'
 
 const PAYMENT_LABELS: Record<string, string> = { cash: 'Cash', card: 'CC', nfc: 'NFC' }
@@ -83,6 +84,8 @@ export default function SalesClient({
   products,
   today,
   expiryWarningDays,
+  storeId,
+  userId,
   sales,
   trendData,
   categoryBreakdown,
@@ -95,6 +98,8 @@ export default function SalesClient({
   /** The shop's calendar date and warning window, from the server. */
   today: string
   expiryWarningDays: number
+  storeId: string
+  userId: string
   sales: Sale[]
   trendData: { label: string; value: number }[]
   categoryBreakdown: { label: string; pct: number }[]
@@ -148,6 +153,7 @@ export default function SalesClient({
 
   return (
     <div className="sp-page">
+      <OfflineStatus storeId={storeId} userId={userId} products={products} />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="sp-eyebrow">Transactions</p>

@@ -311,6 +311,59 @@ categories are `performance, accessibility, best-practices, seo` and every PWA
 audit is absent, the category having been removed in Lighthouse 12. Check
 installability against Chrome's criteria directly instead.
 
+
+### Offline reads: IndexedDB by store, and /offline is a STATIC FILE
+
+Offline Phase 2 (2026-08-19). The cached product list lives in **IndexedDB
+keyed by `storeId`** (`lib/offline/db.ts`, `lib/offline/snapshot.ts`), never in
+the service worker's HTTP cache. The key IS the tenancy rule: no code path reads
+"the snapshot" without saying whose, so a caller cannot forget a filter that
+does not exist. Verified adversarially - two stores on one device sharing a
+barcode, and neither list can see the other's product.
+
+**`CachedProduct` is an ALLOWLIST of ten fields**, not a convenience type.
+Persisting the whole `Product` would be shorter and would quietly keep every
+selected column forever on a shared shop phone. Reports, sales history,
+customers, suppliers and staff are never cached. Adding a field must be a
+deliberate edit to that type.
+
+**`public/offline.html` is a plain static document - do not turn it back into a
+route.** As `app/offline/page.tsx` it loaded offline, showed the right title,
+and then rendered an error boundary: hydrating an App Router page needs its RSC
+payload, and the worker refuses to cache RSC payloads so no signed-in page data
+is stored on a shared device. The static file removes the conflict rather than
+carving an exception into that rule. It reads IndexedDB in vanilla JS and
+renders the list, so the offline goal survives the architecture.
+
+That file **restates three rules in plain JavaScript** because it cannot import
+TypeScript: the barcode shape test, exact barcode matching, and
+expired/expiring-soon. Each is marked in the file. Change them together with
+`lib/validation/product.ts`, `lib/offline/barcodeLookup.ts` and `lib/expiry.ts`.
+
+**`offline.html` is in `proxy.ts`'s matcher exclusion list** - the sixth member.
+`.html` is not among the listed extensions, so without it the worker's precache
+request is answered with a redirect to `/login`, and the worker caches THE
+SIGN-IN PAGE as its offline document.
+
+**`lookupBarcode` is the single entry point** for "what product has this
+barcode", online and off. `isValidBarcode` is now exported and shared; the
+Server Action carried its own inline copy of that regex until this phase.
+Callers branch on `source`, deliberately: a cached product can NAME something
+at a shelf but not sell it, so Inventory's scan refuses a cache hit rather than
+opening a form whose Save would fail.
+
+**Auth offline, both decided by the owner:** an expired session keeps serving
+cached reads (a token the device cannot refresh proves nothing but absent
+signal), and signing out wipes the cache - `signOutEverywhereLocal` clears
+IndexedDB BEFORE `logout()`, because that action ends in a `redirect()` which
+throws and never returns.
+
+**When a cache write appears to do nothing, suspect hydration first.** Phase 2
+lost most of a session to `OfflineStatus` "not writing" - measured
+`hydrated: false`, in a Chrome tab that was not the active tab in its window.
+Activate the tab, and the same build writes immediately. `lib/offline/db.ts`
+logs its failures now precisely so this is distinguishable next time.
+
 ### Environment variables (`stockpulse/.env.local`)
 
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase project, used by all three client variants (see below).
