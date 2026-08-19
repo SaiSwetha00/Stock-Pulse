@@ -4426,3 +4426,41 @@ working in a browser that does not evict. Whether Safari grants `persist()`,
 and whether the integrity check fires after a genuine iOS eviction, both need a
 real iPhone. The gap is narrower than it was — an eviction can no longer pass
 unnoticed — but it is not closed.
+
+## Offline mode — final note (2026-08-19)
+
+Merged as `bb06804`; production deploy `success`. Nothing is left open on this
+feature that anyone can act on from here.
+
+**`sold_by` was a false alarm, not a gap.** Phase 5 reported that
+`replay_sale` failed to default `p_sold_by` to the caller. It never did fail:
+`0019` line 132 already reads `v_sold_by := coalesce(p_sold_by, auth.uid())`,
+and a re-measurement against the JWT's own `sub` confirms a null `p_sold_by`
+stores the authenticated user. The original probe compared against the first row
+of `profiles?select=id`, which under RLS returns every profile in the store —
+six here — so it read a different user and called it a missing default. **No
+migration 0020 was ever written or applied**, and the entry is marked WITHDRAWN
+in FOUND-ISSUES with its original text kept beneath the correction.
+
+That makes three false alarms this project has now traced back to an instrument
+rather than the app, all of the same shape: a check satisfied by two different
+worlds. D38 already names the cure — assert on something only the real outcome
+can produce. "The first row RLS happens to return" is not that; the caller's id
+was in the token all along.
+
+**The storage mitigation is built and tested; WebKit is not.**
+`lib/offline/integrity.ts` requests persistent storage via
+`navigator.storage.persist()`, checks `persisted()` first so a granted origin
+never re-requests, and keeps the three outcomes distinguishable. It also keeps a
+witness — count plus sorted ids — in **localStorage rather than IndexedDB**, so
+an eviction cannot take the evidence with it, and raises a red, non-dismissing
+banner when an id disappears that the app did not remove. Nine logic cases pass,
+including the one that matters most: an unchanged count with a swapped id still
+alarms.
+
+**What remains unverified is exactly one thing, and it needs hardware.** Whether
+Safari actually grants `persist()`, and whether the integrity check fires after
+a genuine iOS eviction, cannot be settled without a real iPhone. The risk is now
+*detectable* rather than silent — a queue that loses sales will say so — but it
+is not *prevented*. Until someone runs it on a device, offline mode should be
+treated as verified on Android and Chrome only.
