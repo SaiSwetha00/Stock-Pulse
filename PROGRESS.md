@@ -3217,6 +3217,219 @@ fronting Chrome from the Win32 API for the duration and restoring it after.
    emulation, and the in-app pane that can emulate never composites.
 4. **No phone.** Every state above is a desktop Chrome window.
 
+## Phase 4 — the scan says what state the stock is in
+
+### How the two scan flows actually work, before changing anything
+
+Both flows are one lookup and then an EXISTING path. Neither introduces a
+third.
+
+| | Inventory | Sales |
+|---|---|---|
+| entry | `Scan` button (behind `canWrite`) mounts `ScannerPrototype` | `ScannerPrototype` mounted inline in `LogSaleModal` |
+| decode lands in | `InventoryClient#handleScanned` | `LogSaleModal#handleScanned` |
+| lookup | `findProductByBarcode` (Server Action) | the **same** Server Action |
+| match | `ProductModal` in edit mode — which *is* how stock is changed | `addToCart`, the same function the search results call |
+| no match | `ProductModal` in create mode, `initialBarcode` pre-filled | an **error** — never a create form with a customer waiting |
+
+So there is exactly ONE place a scanned product's data is looked up:
+`findProductByBarcode` in `app/(dashboard)/inventory/actions.ts`, shared by
+both screens. That made the natural insertion point obvious — the lookup itself
+now embeds the lots (`select('*, product_batches(*)')`, resolved through 0016's
+composite FK), and both flows get expiry without a second round trip between
+the beep and the answer.
+
+The natural display points that follow from the table above:
+
+1. **The scan toast**, on both screens — the one moment the reader is
+   definitely looking at the phone.
+2. **The cart row** in Sales, which outlives the toast. A cashier who scanned
+   four things must still be able to see which one was the expired one while
+   ringing up the fifth.
+3. **ProductModal's Stock & Expiry fieldset** in Inventory, where a scan lands.
+   The lot rows were already there from Phase 2; what was missing was the
+   verdict — a reader had to compare a column of dates against today in their
+   head to learn the one thing the scan was asking about.
+
+`/sales` search results got it too, and that is deliberate rather than scope
+creep: a cart line does not remember how it got there, so a product reached by
+typing must carry the same information as one reached by beeping. Otherwise the
+same milk shows a date when scanned and nothing when searched.
+
+### One line, not a list — and why
+
+A product can hold many lots. Both scan surfaces are places where someone is
+standing holding something: a phone at a shelf, or a customer's shopping at a
+till. Neither can afford a table.
+
+So `ExpiryTag` shows the **nearest at-risk date only** — the same number
+`nextExpiry` already feeds the inventory column and the dashboard tile, and the
+same one a person acts on, because the earliest thing to go off decides whether
+this item is sold, discounted or pulled. Extra lots are a **count, not a list**:
+"+2 more lots" says a fuller picture exists without making anyone read it here.
+That fuller picture already has a home — ProductModal lists every lot with its
+own quantity and date, and a scan opens exactly that modal.
+
+The count is of lots that hold stock AND carry a date, which is the set
+`nextExpiry` chose from. Counting all lots would inflate the hint with the
+sold-out rows 0016 keeps for history and with undated rows that can never be
+the nearest expiry.
+
+### A threshold bug Phase 3 left behind, found by trying to reuse it
+
+Phase 4 was asked to use "the same thresholds Phase 3 established". It could
+not, because there were two.
+
+Phase 3 made the window a per-store setting (`stores.expiry_warning_days`,
+0017) and taught the dashboard to read it — but `expiryTone()` in
+`lib/expiry.ts` kept its own hardcoded `EXPIRY_SOON_DAYS = 7`. A shop that set
+14 days would have been told "expiring soon" on the dashboard while the
+inventory list showed the very same lot in neutral grey until day 7.
+
+**Nothing surfaced it because every store still holds the default of 7**, so
+the two numbers agreed by coincidence rather than by construction. `EXPIRY_SOON_DAYS`
+is gone; `expiryTone(date, today, warningDays)` takes the window, every caller
+passes `storeExpiryWarningDays(store)`, and `/inventory` now receives it from
+its page the way `/dashboard` already did.
+
+### Verified — observed, not assumed
+
+`today = 2026-08-19`, `storeExpiryWarningDays = 7`, cutoff `2026-08-26`. Run
+through the **shipped** `lib/expiry.ts`, transpiled with the project's own
+TypeScript, against rows read from the live database:
+
+| barcode | product | tone | rendered |
+|---|---|---|---|
+| 2000000000183 | Basmati Rice 5kg | EXPIRED | "Expired 12 Aug 2026 · 7 days ago" |
+| 2000000000275 | Drinking Water 1L | — | "No expiry date" |
+| 2000000000336 | Detergent Powder 1kg | — | "No expiry date" |
+| 2000000000091 | Whole Milk 1L | SOON | "Expires 22 Aug 2026 · in 3 days" |
+| 2000000000060 | Curry Leaves | EXPIRED | "Expired 10 Aug 2026 · 9 days ago" |
+| 8906010366896 | Ghee | OK | "Expires 24 Sep 2026 · in 36 days" |
+
+Curry Leaves and Ghee are controls that depend on no fixture of mine — one
+naturally expired, one naturally beyond the window and therefore neutral.
+
+Server-rendered `/inventory` page 1 (10 of 42 rows) shows the same states
+through the real component path: six cells reading `—`, plus `10 Aug 2026`,
+`16 Aug 2026` and two `12 Aug 2026`, each marked **Expired**. Six plus four is
+ten, which is the page size — so every cell on the page is accounted for.
+
+**RLS — staff can SEE expiry on scan and gained NO write access.** The SELECT
+is the exact one `findProductByBarcode` now runs, and the writes report rows
+actually affected (D24):
+
+| role | `SELECT *, product_batches(*)` | INSERT lot | UPDATE lot | DELETE lot |
+|---|---|---|---|---|
+| staff | 200 · **1 lot visible** | **403 · 42501** | 200 · **0 rows** | 200 · **0 rows** |
+| manager | 200 · 1 lot visible | 201 · 1 row | 200 · 1 row | 200 · 1 row |
+| owner | 200 · 1 lot visible | 201 · 1 row | 200 · 1 row | 200 · 1 row |
+
+Identical to the Phase 1 and Phase 2 matrices — embedding the lots in a read
+that store members were always allowed to make widened nothing. Every write a
+privileged role actually made during the probe was undone, and Basmati's lots
+were confirmed back to `qty 2, 2026-08-12` afterwards.
+
+`tsc --noEmit`, `eslint .`, `next build` green.
+
+### Two expectations in the brief that the data did not match (D38)
+
+Both were checked before being called defects, and neither is one.
+
+1. **"Scan Basmati Rice 5kg — confirm it reads as expired (12 Aug 2026)."** It
+   did not: its only lot was the 0016 backfill with `expiry_date = null`. The
+   tempting conclusion is that Phase 1's backfill dropped the date. It did not
+   — the control says so. **17 of 42 products carry a legacy
+   `products.expiry_date`, and 0 of them lost it**: Pure Ghee 2026-08-14, Whole
+   Milk 2026-08-22, Curry Leaves 2026-08-10 and Ghee 2026-09-24 all match their
+   lot exactly. Basmati's legacy column is `null` too, across every store. It
+   has simply never had an expiry date in this database. A lot dated 2026-08-12
+   was seeded as a **labelled fixture** so the phone test reads as scripted; the
+   table above says so rather than presenting it as found data.
+2. **"For expiring-soon, no current product qualifies — seed one."** Three
+   already did, on the day this ran: Free Range Eggs 08-21, Whole Milk 08-22,
+   Fresh Curd 08-26. Nothing was seeded for that case, and Whole Milk was used
+   as it stands. The premise was true on 08-18 for a cutoff of 08-25; the date
+   moved and the window moved with it.
+
+### NOT verified, carried forward
+
+1. **`log_sale` still does not touch lots.** Explicitly out of scope here and
+   still open: a lot sold out today keeps warning until someone edits it, and
+   the cart's expiry line describes batch quantities no sale has decremented.
+   This is the one gap that survives all four phases, and it needs FEFO.
+2. **The rendered cart row and the ProductModal line were not observed in a
+   browser.** The lookup returning lots is measured, the tone/wording is
+   measured through the shipped code, and the component wiring type-checks and
+   builds — but nobody has watched an `ExpiryTag` paint. Both Chrome and the
+   in-app pane again reported `visibilityState: "hidden"` with rAF never
+   firing, and the extension's tab lived in a Chrome window whose handle the
+   Win32 calls could not front.
+3. **No camera.** No barcode was decoded from a real label; the lookup was
+   exercised by barcode value, not by a scan.
+4. **No phone.**
+
+---
+
+# EXPIRY TRACKING — CLOSED across all four phases (2026-08-19)
+
+| phase | what landed | merge |
+|---|---|---|
+| 1 | `0016` — `product_batches`, and `products.stock` becomes a trigger-maintained mirror | `6e46816` |
+| 2 | Inventory UI: stock and expiry are entered as **lots**, not as a column | `ed2e25a` |
+| 3 | `0017` — a per-store window, dashboard tile, alerts and the expiring list | `16a7b26` |
+| 4 | The scan says what state the stock is in | this branch |
+
+## What the four phases actually changed
+
+`products.stock` used to be a number someone typed. It is now derived from
+`product_batches`, one row per delivery, each with its own nullable expiry —
+and every writer in the app goes through that table. The column survives
+because five call sites in `InventoryClient` alone read `p.stock`, and removing
+it would have made Phase 1 a rewrite of half the app.
+
+Expiry then surfaces in five places, all reading the same `nextExpiry` and the
+same per-store window: the inventory list column, the CSV export at index 9,
+the dashboard tile and its Expiring Soon card, and — since Phase 4 — both scan
+flows.
+
+## The rules that took a phase each to learn
+
+- **Nothing may assign `products.stock`.** `ProductPayload` has no `stock`
+  field at all, so a call site cannot quietly reintroduce the overwrite. The
+  type is the guard.
+- **An unchanged lot is not rewritten.** A no-op UPDATE still fires the trigger,
+  which recomputes stock as the batch sum — and `log_sale` decrements
+  `products.stock` without touching lots, so rewriting an untouched lot would
+  restore stock the shop has already sold. This is why editing a product's
+  *name* cannot resurrect stock.
+- **A blank expiry is valid and always will be.** Most of what a kirana shop
+  sells does not perish. A past date is valid too. Only an impossible year is
+  refused.
+- **Zero is never coloured.** The Low Stock tile already carried the comment
+  recording that colouring a zero made an empty store look like a failing one;
+  the expiry tile follows it, dropping even the red "N already expired" line at
+  zero.
+- **Expired and expiring-soon are different states, not degrees.** Two
+  `ALERT_STYLES` entries, two colours, two words. The one that can still be
+  sold must not look like the one that cannot.
+- **Every date comparison is on YYYY-MM-DD strings**, and `today` always comes
+  from the server. `new Date('2026-08-24')` is UTC midnight and renders as the
+  23rd anywhere ahead of UTC.
+
+## The one gap that survives all four phases
+
+**`log_sale` does not touch `product_batches`.** It decrements
+`products.stock` as its owner, exactly as it did before Phase 1. So after a
+sale the mirror is lower than the batch sum until the next batch write
+re-syncs it, and expiry warnings read quantities no sale has decremented.
+
+Every phase deliberately declined to fix it, and the reason did not change:
+`log_sale` is the one function every sale depends on, and FEFO deduction — 
+deciding *which* lot a sale consumes — is a feature, not a refactor. It needs
+its own phase, a definer function for staff at the till, and its own
+verification. It is the obvious next piece of work.
+
 ---
 
 # OFFLINE MODE — Phase 1 of 5: investigate and propose (2026-08-19)
