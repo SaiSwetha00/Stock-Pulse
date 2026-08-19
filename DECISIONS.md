@@ -1378,3 +1378,46 @@ cannot see.
 Note this overrode the Phase 1 proposal, which said clamp and flag. The owner's
 brief was sharper: do not clamp *silently*. The distinction is the whole
 decision — the clamp is fine, the silence is not.
+
+## D58 — A vendor-prefixed property written LAST silently deletes the standard one
+
+`landing.css` had carried, in three separate glass rules since the port:
+
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+
+That is the order every tutorial writes, and it is the wrong order here.
+Lightning CSS (Next 16 / Turbopack) treats the pair as one declaration and
+keeps whichever comes last. Measured on the served stylesheet, not inferred:
+
+    .sp-landing .glass-card {
+      -webkit-backdrop-filter: blur(16px);
+      transform-style: preserve-3d;
+      ...
+    }
+
+No unprefixed line at all. Chromium 148 does not support the `-webkit-` alias
+— `CSS.supports('-webkit-backdrop-filter','blur(2px)')` returns false while
+the unprefixed form returns true — so **every glass surface on the landing
+page had been a flat translucent rectangle with no blur behind it**: the nav,
+the feature cards, the pricing card, all of them.
+
+Nothing surfaced it because a translucent panel over a near-black page looks
+plausible without blur. It reads as a slightly lighter box, which is a thing
+someone might have designed on purpose. There was no error, no warning, and
+no visual that announced itself as broken — the failure mode was *looking
+fine*, which is why it survived every review of these components.
+
+The fix is the order, not a build flag: prefix FIRST, standard LAST, so the
+compiler keeps the standard one and re-adds the prefix for the targets that
+need it. Verified after the change — computed `backdrop-filter` is
+`blur(16px)` on `.glass-card` and `blur(22px) saturate(1.35)` on the hero
+panel, and the emitted CSS now carries both lines.
+
+**The general rule: when a prefixed and an unprefixed property say the same
+thing, the standard one goes last.** A minifier is allowed to drop the earlier
+of two equivalent declarations, and "the earlier one" is the one you actually
+want to survive. This is the opposite of the habit most CSS is written with,
+which is why it is worth a numbered entry rather than a comment alone — though
+`landing.css` carries the comment too, immediately above the rules, because
+the next person to tidy that block will otherwise put it straight back.

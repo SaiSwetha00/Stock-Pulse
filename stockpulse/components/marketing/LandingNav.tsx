@@ -64,13 +64,15 @@ export default function LandingNav() {
             Sign in
           </Link>
 
+          {/* Red, not gold, and only this one button on the page is.
+
+              It is the same action as the hero's CTA and is on screen at the
+              same time as it; two colours for one action inside one viewport
+              is the inconsistency, not the red. Every other button on the
+              landing page stays gold. */}
           <Link
             href="/signup"
-            className="group inline-flex items-center gap-2 rounded-lg px-5 py-2.5 font-sans text-[14.5px] font-semibold text-[#16130a] transition-all duration-200 cursor-pointer hover:-translate-y-px"
-            style={{
-              background: 'var(--sp-gold)',
-              boxShadow: '0 1px 0 rgba(255,255,255,0.25) inset, 0 6px 16px -6px rgba(201,162,39,0.5)',
-            }}
+            className="sp-cta-red group inline-flex items-center gap-2 rounded-lg px-5 py-2.5 font-sans text-[14.5px] font-semibold cursor-pointer"
           >
             Get started
             <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -111,8 +113,7 @@ export default function LandingNav() {
             <Link
               href="/signup"
               onClick={() => setMobileMenuOpen(false)}
-              className="w-full py-3 rounded-lg text-center font-semibold text-[#16130a]"
-              style={{ background: 'var(--sp-gold)' }}
+              className="sp-cta-red w-full py-3 rounded-lg text-center font-semibold"
             >
               Get started
             </Link>

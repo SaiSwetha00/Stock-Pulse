@@ -138,18 +138,37 @@
   animation: sp-pulseGlow3D 5s ease-in-out infinite;
 }
 
+/*
+ * PREFIX ORDER HERE IS LOAD-BEARING: `-webkit-backdrop-filter` FIRST, the
+ * unprefixed property LAST. Do not "tidy" it back the other way.
+ *
+ * This file is compiled by Lightning CSS (Next 16 / Turbopack), which treats
+ * the two as the same declaration and keeps whichever comes last. With the
+ * unprefixed one written first — which is how all three glass rules below
+ * were written until 2026-08-19 — the emitted CSS contained ONLY
+ * `-webkit-backdrop-filter`. Measured on the served stylesheet, not guessed:
+ * `.sp-landing .glass-card { -webkit-backdrop-filter: blur(16px); ... }` with
+ * no unprefixed line at all.
+ *
+ * Chromium 148 does not support the `-webkit-` alias
+ * (`CSS.supports('-webkit-backdrop-filter','blur(2px)')` -> false, while the
+ * unprefixed form -> true), so every "glass" surface on this page — the nav,
+ * the feature cards, the hero panel — was a flat translucent rectangle with
+ * no blur behind it in current Chrome. It looked deliberate, which is why it
+ * survived this long.
+ */
 /* Glassmorphism Utilities */
 .sp-landing .glass-panel {
   background: rgba(10, 10, 10, 0.75);
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border: 1px solid rgba(237, 193, 85, 0.18);
 }
 
 .sp-landing .glass-card {
   background: rgba(22, 22, 22, 0.65);
-  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   transform-style: preserve-3d;
@@ -164,8 +183,8 @@
 
 .sp-landing .glass-nav {
   background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
   border-bottom: 1px solid rgba(237, 193, 85, 0.15);
 }
 
@@ -430,4 +449,132 @@
 .sp-landing .sp-band-cream::after {
   bottom: 0;
   background: linear-gradient(0deg, rgba(0, 0, 0, 0.28) 0%, transparent 100%);
+}
+
+/* ---------------------------------------------------------------
+   Red accent, and the minimal hero it was added for.
+
+   The palette above is unchanged: black surfaces, gold accent. Red is
+   a THIRD colour layered on top for one job — the single entry point
+   into sign-up — not a repaint. Gold keeps the headline gradient and
+   every other button on the page (D11's rule is intact); red marks the
+   one thing a first-time visitor is meant to press.
+
+   It is a sibling of the --sp-crimson that has been in this file since
+   the port, not a new family: --sp-crimson (#93000a) is the deep end of
+   the same gradient the CTA is filled with, and the shader background
+   already washes that crimson across the page.
+
+   Measured, white text on the fill: #d81f26 -> 5.07:1, #b3111b (hover)
+   -> 6.97:1. Both clear AA for normal text, so the CTA label does not
+   depend on being large. Red is used ONLY as a fill here, never as text
+   on black — #d81f26 as text measures 4.14:1 on #000, which passes for
+   large text only and would be a trap the first time someone set it at
+   14px.
+   --------------------------------------------------------------- */
+:root {
+  --sp-red: #d81f26;
+  --sp-red-deep: #93000a;
+  --sp-red-hover: #b3111b;
+}
+
+/* Full-bleed atmosphere behind the hero. Pure CSS gradients — no image,
+   no canvas, no second WebGL context on top of ShaderBackground. The
+   hero is the first paint a visitor gets, and it should not wait on
+   anything or cost a phone a rendering library (D50). */
+.sp-landing .sp-hero-atmosphere {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    /* Red rising from below the fold — the CTA's colour, diffused, so the
+       button reads as the bright point of a field rather than a sticker. */
+    radial-gradient(ellipse 120% 68% at 50% 118%, rgba(216, 31, 38, 0.4) 0%, rgba(147, 0, 10, 0.22) 34%, transparent 68%),
+    /* Gold whisper from above, tying the new hero to the rest of the page. */
+    radial-gradient(ellipse 90% 55% at 50% -18%, rgba(201, 162, 39, 0.13) 0%, transparent 62%),
+    /* Warm floor lift so the black does not go dead flat at the bottom. */
+    radial-gradient(ellipse 140% 40% at 50% 100%, rgba(64, 32, 12, 0.35) 0%, transparent 70%);
+  animation: sp-hero-drift 34s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Vignette and the fade into whatever section follows. Separate element
+   so it composites over the colour layers rather than joining the same
+   background stack, where the bottom fade would tint the glows. */
+.sp-landing .sp-hero-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse 78% 70% at 50% 45%, transparent 40%, rgba(0, 0, 0, 0.55) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.72) 0%, transparent 22%, transparent 74%, var(--sp-black) 100%);
+}
+
+/* Very slow drift. 34s and 4% of scale — at that rate it is atmosphere,
+   not animation, and it never moves fast enough to pull the eye off the
+   headline. */
+@keyframes sp-hero-drift {
+  0%,
+  100% {
+    transform: scale(1) translate3d(0, 0, 0);
+    opacity: 0.94;
+  }
+  50% {
+    transform: scale(1.04) translate3d(0, -1.5%, 0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-landing .sp-hero-atmosphere {
+    animation: none;
+  }
+}
+
+/* The glass panel around the CTA.
+
+   `glass-card` already exists and is close, but it carries a hover
+   transform (lift + rotate + scale) meant for a grid of feature cards.
+   A panel whose only job is to hold the one button on the page must not
+   move when the pointer crosses it — the button inside it is the thing
+   that responds. Hence its own class rather than a modifier. */
+.sp-landing .sp-hero-glass {
+  background: linear-gradient(160deg, rgba(28, 28, 28, 0.62) 0%, rgba(10, 10, 10, 0.5) 100%);
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
+  backdrop-filter: blur(22px) saturate(135%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.07) inset,
+    0 30px 70px -30px rgba(0, 0, 0, 0.9),
+    0 0 60px -20px rgba(216, 31, 38, 0.28);
+}
+
+/* The one red control. Gradient rather than flat fill so it holds shape
+   against a background that is itself red-tinted. */
+.sp-landing .sp-cta-red {
+  background: linear-gradient(160deg, var(--sp-red) 0%, #b81a20 62%, var(--sp-red-deep) 100%);
+  color: #ffffff;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.22) inset,
+    0 14px 34px -12px rgba(216, 31, 38, 0.62);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.sp-landing .sp-cta-red:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.28) inset,
+    0 18px 44px -12px rgba(216, 31, 38, 0.72);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-landing .sp-cta-red {
+    transition: none;
+  }
+  .sp-landing .sp-cta-red:hover {
+    transform: none;
+  }
 }
