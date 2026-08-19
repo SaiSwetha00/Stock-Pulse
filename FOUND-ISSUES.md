@@ -1332,3 +1332,59 @@ Same family as the `/_next/static/*` entry above, and worth fixing together.
 
 Option 2 is the one that cannot be forgotten. Until then, a deploy touching
 `offline.html` should also touch `sw.js`.
+
+## FIXED 2026-08-19 — the Sales scan was network-only, so scanning offline did nothing
+
+Found on a phone, by the owner, offline. Not by any harness.
+
+**Symptom.** With no signal: open Log a Sale, scan a real seeded barcode
+(`8906010366896`). The camera decodes it — confirmed by the scanner's own
+diagnostics — and then nothing happens. The product is never added, the total
+stays ₹0.00, Complete Sale stays disabled, and the screen shows **"Failed to
+fetch"** next to ScannerPrototype's leftover placeholder text.
+
+**Cause.** `LogSaleModal#handleScanned` called `findProductByBarcode` — a
+Server Action, and therefore network-only. Offline its POST rejects, the
+handler's `catch` put the raw `TypeError` on screen, and because the handler
+never completed, the scanner's own placeholder was never overtaken. The stale
+message was a symptom, not a second bug.
+
+The galling part: **the offline signal was already in that file.**
+`handleSubmit` a few dozen lines below reads `navigator.onLine` to decide
+whether to queue. It simply never reached the scan path. And Phase 2 had already
+built and verified `lookupBarcode` — one entry point that IS the Server Action
+online and reads the store-scoped IndexedDB cache offline — and wired it into
+**Inventory** only.
+
+**Fix.** `handleScanned` now calls `lookupBarcode(value, storeId)`, matching
+Inventory's pattern rather than adding a second matcher. Where Sales differs
+from Inventory is deliberate and is written down in the code: Inventory
+*refuses* a cache hit, because its purpose is to edit a product and a save
+cannot reach the server offline; Sales *accepts* one, because Phase 3 can queue
+the sale. The `catch` no longer shows a raw network error.
+
+The cart's line type was narrowed to `SellableProduct` so a cached product can
+enter it without fabricating `store_id`, `created_at` and `updated_at` — those
+three are absent from Phase 2's snapshot allowlist on purpose, and inventing
+them would have put made-up values into a record that becomes a queued sale.
+
+### Why no harness caught it, which is the part worth keeping
+
+1. **Every automated check of the offline path went through `offline.html`.**
+   That document has its own vanilla till and never calls `lookupBarcode`. The
+   React scan path was tested only *online*, where `findProductByBarcode` works
+   perfectly — so both halves passed and the combination was never exercised.
+2. **The browser harness cannot hydrate a backgrounded tab.** Phases 2 and 3
+   both recorded `hydrated: false` and both explicitly carried "the in-app
+   banner / LogSaleModal's offline branch was never seen running" as NOT
+   VERIFIED. This defect lived exactly there. The gap was declared and then not
+   closed, which is the lesson: a carried-forward "not verified" on a path a
+   shopkeeper actually uses is a bug waiting to be reported by a human.
+3. **No camera.** Nothing in the harness has ever decoded a barcode; every
+   barcode test has called the lookup by value. A scan-specific failure could
+   not surface.
+
+**Still not closed by this fix:** the same harness limits mean the corrected
+path could not be observed in a browser either. It is confirmed by code, by the
+shipped bundle carrying the offline branch, and by `tsc`/`eslint`/`build` —
+and it needs the same phone test that found it.
