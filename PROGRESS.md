@@ -3964,3 +3964,157 @@ until one lands, a deploy touching `offline.html` must also touch `sw.js`.
 4. **`total` is a float.** `13.450000000000001` appeared in a queued record.
    Harmless today — the figure is display-only and Phase 4 will let the server
    recompute from the lines — but it must not become the number a shop is paid.
+
+---
+
+# OFFLINE MODE — Phase 4 of 5: sync and conflict resolution (2026-08-19)
+
+## Why this needed migration 0018
+
+Measured against the live schema before any code was written. `log_sale` could
+not be reused, for four reasons:
+
+1. `sales` had **no key to dedupe on** — a retried replay would insert a second
+   sale, so scope item 1 was impossible without a column.
+2. It computes every line from `v_product.unit_price` — **the price today**.
+   Replaying through it would re-price completed transactions.
+3. It **raises `Insufficient stock` and aborts**, discarding a real sale rather
+   than surfacing the shortfall.
+4. It stamps `sold_by = auth.uid()` and `created_at = now()`, so a replay would
+   credit whoever synced, dated today.
+
+**`log_sale` is not modified.** It is the function every online sale depends on;
+a replay path with different rules got its own function.
+
+## The three decisions inside `replay_sale`
+
+**Idempotency is a unique index, not a lookup.** A "does this client_id exist?"
+check would let two devices — or one device retrying while the first request was
+still in flight — both pass and both insert. The index on
+`(store_id, client_id)` makes the database refuse the second; the function
+catches that and reports `duplicate`. The lookup survives only as a fast path.
+
+**An oversell is recorded, never raised and never hidden.** The sale lands (the
+money was taken, the goods are gone), stock floors at 0, and every clamp writes
+a `stock_discrepancies` row carrying `units_sold`, `stock_available` and
+`shortfall` — and returns it, so the cashier is told at that moment. This is
+where the owner's brief overrode the Phase 1 proposal, correctly: clamping
+quietly would bury a real inventory problem.
+
+**Prices come from the client, which is the one place this app must trust one.**
+The server cannot reconstruct what a customer was charged last week. Exposure is
+bounded: prices only compute this sale's own total, they are rounded to
+`numeric(10,2)` and negatives refused, `store_id` comes from the session, and
+`p_sold_by` must be a member of that store or the call raises.
+
+**The server-price column discussed before applying did NOT land.** Measured:
+`sale_items` is unchanged at `id, sale_id, product_id, product_name, quantity,
+unit_price, line_total`, and `stock_discrepancies` carries no price column. The
+PostgREST spec fetched cleanly and shows everything else from 0018, so this is a
+real negative rather than a stale-cache false one. Recording the server's own
+price alongside the client's remains an open, cheap hardening — it rejects
+nothing and turns "did someone tamper with a price?" from unanswerable into a
+query.
+
+## The sync engine
+
+`lib/offline/sync.ts`. Four rules, each with a reason:
+
+- **Idempotency is the database's job.** This module never decides "I think I
+  already sent that" — it sends and believes the answer. A client-side guess
+  would be wrong exactly when it matters: a request that timed out may well have
+  committed.
+- **Oldest first, sequentially.** Sales replay in the order the shop made them,
+  so when stock runs short it is the LATER sale that records the shortfall —
+  what actually happened on the shelf. Parallel replays would race on the same
+  product and produce discrepancy rows describing an order of events that never
+  occurred.
+- **One failure does not stop the rest.** A sale that cannot be sent stays
+  queued, annotated with a readable reason, `lastTriedAt` and an `attempts`
+  count, and is retried next time. Halting the queue on one bad row would hold
+  good money hostage to it.
+- **Removed only after the server confirms.** If the delete then fails, the sale
+  is replayed and answered `duplicate` — harmless. The opposite order would
+  delete a sale that never landed.
+
+**Nothing resolves silently.** A discrepancy raises an error toast naming the
+product and the shortfall; duplicates are reported as "already recorded" rather
+than folded into the success count, because a cashier watching the queue drop
+deserves to know why; failures name their reason and say the sales are still
+saved. The reason is stored ON the queued sale as well, so it survives the
+reload a cashier will do before asking why one is stuck.
+
+## Verified — observed, not assumed
+
+### 0018, all seven post-apply checks
+
+| check | result |
+|---|---|
+| 1 · column + index | `sales.client_id` present; the index proven behaviourally by check 3 |
+| 2 · existing data untouched | 382 sales, **0** with a `client_id` |
+| 3 · **idempotency** | first `created`, second `duplicate`, **same sale_id**, **1** row |
+| 4 · **oversell** | stock 1, sold 3 → sale landed (15.00), stock **0 not −2**, one discrepancy `units_sold=3 stock_available=1 shortfall=2`, returned to the caller |
+| 5 · **precision** | total `13.45` exactly; line sum equals stored total |
+| 6 · RLS | staff INSERT **403·42501**, UPDATE **0 rows**; manager/owner UPDATE **1 row**; INSERT refused for every role — only the definer writes |
+| 7 · cross-store | `sold_by` from another store → **400** "is not a member of this store" |
+
+### The sync engine, run for real
+
+The shipped `lib/offline/sync.ts` was executed against the live database. Only
+two things were substituted, both named: `@/lib/offline/db` became an in-memory
+Map (IndexedDB does not exist in Node; Phase 3 verified that layer in a
+browser), and `@/lib/supabase/client` became a PostgREST call on a real
+signed-in session. The loop, its ordering, its D24 confirmation checks and its
+failure handling are the shipped code.
+
+| scenario | result |
+|---|---|
+| **A** three queued, come online | attempted 3, **created 3**, duplicates 0, failed 0; **3 rows**; queue emptied; totals sent in order **10, 20, 10** |
+| **B** re-run the same queue | **0 created, 3 duplicates**; still **3 rows** — no duplicates |
+| **C** interrupted mid-sync | 1 created, 2 failed, **2 stayed queued** with *"No connection. It will be sent when you are back online."*; **retry → 2 created, 0 duplicates, 3 rows total** |
+| **D** one sale forced to fail | **2 created, 1 failed**; the failed one stayed queued with its reason and `attempts: 1`; only **2 rows** landed |
+| **E** engineered conflict | server had 2, device sold 3 → sale landed (**12.00**), stock **0 not −1**, discrepancy `units_sold=3 stock_available=2 shortfall=1`, surfaced in the report the UI raises |
+| **F** precision through the engine | queued float `13.450000000000001` → stored **13.45**, line sum equal |
+
+Every run restored what it touched: sales 382 → 382, stock 196 → 196.
+
+### Roles, and D25's scope check
+
+| role | `replay_sale` | rows | `sold_by` correct |
+|---|---|---|---|
+| staff | 200 `created` | 1 | yes |
+| manager | 200 `created` | 1 | yes |
+| owner | 200 `created` | 1 | yes |
+
+Staff can sync, which is required — staff work the till.
+
+`scope-check.js` is not a file in this repo; D25 defines what it does, and that
+measurement was re-run directly: signed in with the anon key so RLS applies,
+**every role sees 1 store of 4, with 0 sales rows and 0 products from any other
+store.**
+
+`tsc --noEmit`, `eslint .` and `next build` all green.
+
+## What the cashier is told, and when
+
+| situation | message |
+|---|---|
+| sales sent | "Offline sales synced — N sent" |
+| some were already there | "· N already recorded" — never folded into the success count |
+| stock was short | **error** toast naming each product: "sold 3, only 2 left … the sale went through and stock is now 0 — please check the shelf" |
+| a sale failed | error toast with the reason, plus the reason pinned to that sale in the queue list |
+
+## NOT verified, carried forward
+
+1. **None of the UI was seen running.** The toasts, the "Sync now" button and
+   the per-sale failure lines type-check and build, but the harness still cannot
+   hydrate a backgrounded tab — the same limit that hid two Phase 3 defects. The
+   engine beneath them is verified; the surface is not.
+2. **The conflict was engineered on one device, not two.** Scenario E set the
+   server's stock to 2 and replayed a sale of 3, which is the same arithmetic a
+   second online client would have produced — but two real clients were never
+   run against each other.
+3. **`p_created_at` backdating was exercised but not asserted.** Queued sales
+   carried timestamps minutes in the past and the rows were accepted; nothing
+   checked that `sales.created_at` matched them.
+4. **The server-price hardening is still absent** (see above).

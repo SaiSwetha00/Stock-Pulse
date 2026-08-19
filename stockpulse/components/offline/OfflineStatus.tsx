@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CloudOff, RefreshCw } from 'lucide-react'
 import { formatCurrency } from '@/lib/format'
@@ -12,6 +12,8 @@ import {
 } from '@/lib/offline/snapshot'
 import { listQueuedSales, type QueuedSale } from '@/lib/offline/queue'
 import { loadDecoder } from '@/lib/barcode/decoder'
+import { syncQueue, type SyncReport } from '@/lib/offline/sync'
+import { useToast } from '@/components/ui/Toast'
 import type { Product } from '@/types'
 
 /**
@@ -52,6 +54,8 @@ export default function OfflineStatus({
   const [offline, setOffline] = useState(false)
   const [syncedAt, setSyncedAt] = useState<string | null>(null)
   const [queued, setQueued] = useState<QueuedSale[]>([])
+  const [syncing, setSyncing] = useState(false)
+  const toast = useToast()
 
   // --- sync -------------------------------------------------------------
   useEffect(() => {
@@ -141,6 +145,60 @@ export default function OfflineStatus({
     }
   }, [storeId])
 
+  // --- sync --------------------------------------------------------------
+  const runSync = useCallback(async () => {
+    if (syncing) return
+    setSyncing(true)
+    try {
+      const report: SyncReport = await syncQueue(storeId)
+      setQueued(await listQueuedSales(storeId))
+
+      if (report.attempted === 0) return
+
+      // NOTHING RESOLVES SILENTLY. Every outcome a cashier could be surprised
+      // by gets its own message, because "3 sales waiting" quietly becoming
+      // "0 sales waiting" is indistinguishable from the sales having been lost.
+      if (report.discrepancies.length > 0) {
+        // The loudest case, and deliberately an error rather than a warning:
+        // stock was short, so the shop sold something it did not have. The sale
+        // still landed - the money was taken - but somebody has to count a
+        // shelf.
+        const lines = report.discrepancies
+          .map((d) => `${d.product_name}: sold ${d.units_sold}, only ${d.stock_available} left`)
+          .join(' · ')
+        toast.error(
+          `Stock did not add up on ${report.discrepancies.length} item${report.discrepancies.length === 1 ? '' : 's'}`,
+          `${lines}. The sale${report.created === 1 ? '' : 's'} went through and stock is now 0 — please check the shelf.`,
+        )
+      }
+
+      if (report.created > 0 || report.duplicates > 0) {
+        const parts: string[] = []
+        if (report.created > 0) parts.push(`${report.created} sent`)
+        // Named rather than hidden. A duplicate means an earlier attempt had
+        // already committed - which is exactly what the client id is for, and a
+        // cashier who sees the count drop deserves to know why.
+        if (report.duplicates > 0) {
+          parts.push(`${report.duplicates} already recorded`)
+        }
+        toast.success('Offline sales synced', parts.join(' · '))
+      }
+
+      if (report.failed.length > 0) {
+        toast.error(
+          `${report.failed.length} sale${report.failed.length === 1 ? '' : 's'} could not sync`,
+          `${report.failed[0].reason ?? 'Unknown reason.'} ${report.failed.length > 1 ? 'See the list below.' : ''} They are still saved on this device.`,
+        )
+      }
+
+      // Server-side stock and takings have moved, so the page's own data is
+      // now stale.
+      if (report.created > 0) router.refresh()
+    } finally {
+      setSyncing(false)
+    }
+  }, [storeId, syncing, toast, router])
+
   // --- connectivity -----------------------------------------------------
   useEffect(() => {
     const update = () => setOffline(navigator.onLine === false)
@@ -148,8 +206,10 @@ export default function OfflineStatus({
 
     const goneOnline = () => {
       setOffline(false)
-      // Pull fresh data the moment signal returns. This is the whole refresh
-      // policy: re-render on the server, which rewrites the snapshot above.
+      // Sync BEFORE refreshing. A refresh would otherwise pull stock that does
+      // not yet include the queued sales, and the cashier would watch the
+      // numbers move twice.
+      void runSync()
       router.refresh()
     }
 
@@ -159,7 +219,7 @@ export default function OfflineStatus({
       window.removeEventListener('online', goneOnline)
       window.removeEventListener('offline', update)
     }
-  }, [router])
+  }, [router, runSync])
 
   const pendingTotal = queued.reduce((sum, s) => sum + s.total, 0)
 
@@ -228,10 +288,39 @@ export default function OfflineStatus({
           {queued.length > 5 && (
             <p className="mt-1 text-xs opacity-80">and {queued.length - 5} more.</p>
           )}
+
+          {/* A failed sale shows WHY, on the sale itself. A cashier asking
+              "why is this stuck" should not have to find a toast that has
+              already gone. */}
+          {queued.some((s) => s.lastError) && (
+            <ul className="mt-2 space-y-0.5">
+              {queued
+                .filter((s) => s.lastError)
+                .slice(0, 3)
+                .map((s) => (
+                  <li key={`err-${s.id}`} className="text-xs font-medium text-danger">
+                    {formatCurrency(s.total)} — {s.lastError}
+                    {s.attempts && s.attempts > 1 ? ` (tried ${s.attempts} times)` : ''}
+                  </li>
+                ))}
+            </ul>
+          )}
+
+          <button
+            type="button"
+            onClick={() => void runSync()}
+            disabled={syncing || offline}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-warning px-3 py-1 text-xs font-semibold disabled:opacity-60"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} aria-hidden="true" />
+            {syncing ? 'Syncing…' : offline ? 'Waiting for signal' : 'Sync now'}
+          </button>
           {/* Said plainly, because Phase 3 does not sync and a cashier who
               assumed it did would stop checking. */}
           <p className="mt-1 text-xs opacity-80">
-            These stay on this device until syncing is switched on.
+            {offline
+              ? 'These stay on this device until you are back online.'
+              : 'They are sent one at a time, oldest first.'}
           </p>
         </div>
       )}

@@ -1451,3 +1451,33 @@ that cannot tell the two caches apart will report a broken thing as working.
 **Not verified:** the warm-up is a React effect, and this harness cannot hydrate
 a backgrounded tab — the same limit that hid the previous Sales-scan defect. The
 wasm half is verified; the JS half needs the phone test that found this.
+
+## OPEN — 0018 shipped without the server-price column that was asked for
+
+Offline Phase 4, 2026-08-19. Before applying 0018 the owner asked for the
+server's own price to be recorded alongside the client-supplied one on each
+replayed line, and applied the migration believing it was included.
+
+**It is not there.** Measured after apply: `sale_items` is unchanged at
+`id, sale_id, product_id, product_name, quantity, unit_price, line_total`, and
+`stock_discrepancies` carries no price column. The PostgREST spec fetched
+cleanly and shows every other 0018 object — `sales.client_id`, the discrepancy
+table with its renamed `units_sold` / `stock_available` — so this is a real
+negative, not the stale-schema-cache false negative CLAUDE.md warns about.
+
+**Why it matters.** `replay_sale` trusts the client's `unit_price` as-is: it is
+rounded to `numeric(10,2)` and refused if negative, but never compared against
+`products.unit_price`. That is deliberate and unavoidable — the server cannot
+reconstruct what a customer was charged last week, and validating against
+today's price would reject legitimate sales made either side of a price change.
+The exposure is bounded (own store only; `store_id` from the session;
+`p_sold_by` must be a member) and grants no reach the UI does not already give.
+
+But it leaves one question unanswerable: **did a line replay at a price that
+never matched the catalogue?** Recording the server's price at replay time
+answers it without rejecting anything.
+
+**Fix, when wanted:** add `server_unit_price numeric(10,2)` to `sale_items`, set
+it inside `replay_sale` from the `v_product` row already fetched there, and
+leave it null for ordinary online sales through `log_sale`. One column, one
+assignment, no behaviour change.
