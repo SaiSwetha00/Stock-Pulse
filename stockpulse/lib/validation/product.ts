@@ -109,7 +109,23 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
  * records a past bug where the app-layer rule and the database rule drifted;
  * these two must be changed together.
  */
-const BARCODE = /^[0-9]{8,14}$/
+export const BARCODE = /^[0-9]{8,14}$/
+
+/**
+ * The single barcode-shape test in this codebase.
+ *
+ * Exported in Offline Phase 2 because there are now THREE places a barcode is
+ * checked before it is looked up — the form, `findProductByBarcode` on the
+ * server, and the offline matcher that reads the cached product list. The
+ * server action previously carried its own inline copy of this regex; a
+ * fourth copy in the offline path would have made "valid barcode" mean
+ * something slightly different depending on whether the till had signal,
+ * which is the drift CLAUDE.md already records for the app-layer and
+ * database-layer rules.
+ */
+export function isValidBarcode(value: string): boolean {
+  return BARCODE.test(value.trim())
+}
 
 /**
  * The plausible-year window for an expiry date.

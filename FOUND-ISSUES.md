@@ -1257,3 +1257,45 @@ leaves `sku` null, so nulls are normal and the index must be partial.
 `Journey Test Masala 500g`, 1 of 42 in the harness store. Created by hand during
 the Phase 8 owner journey, so the acceptance seed does not own it and will never
 give it one. Harmless: it simply cannot be scanned. Left as-is.
+
+## OPEN — the service worker assumes `/_next/static/*` filenames are content-hashed
+
+Found 2026-08-19 while debugging the Offline Phase 2 cache-population bug. Not
+fixed in that pass on purpose; it is unrelated to the bug that surfaced it and
+deserves its own change.
+
+`public/sw.js` serves everything under `/_next/static/` **cache-first**, and the
+comment justifying that says a stale entry is "impossible by construction:
+a changed file has a different URL". That is true for a build system that
+content-hashes every asset filename. **It has not been verified for this
+Turbopack build.**
+
+The chunk names this build emits — `1evuhcjv1j8kn.js`, `2n49xu12dxk2-.js`,
+`09jctk90n8g5c.js` — do not look like content hashes of the kind webpack
+produced, and nothing has confirmed they change when a chunk's contents change.
+
+**If a filename is ever reused across builds while its contents differ, the
+cache-first rule serves the old JavaScript forever** — to every returning user,
+after every deploy, with no way out but clearing site data. That is a worse
+failure than having no service worker at all, and it would present as "the fix
+I deployed did nothing for some people".
+
+Suspicion only, and the honest reason it stayed a suspicion: during Phase 2 the
+loaded chunk WAS the newest one (verified by fetching it and finding a string
+added minutes earlier), so on that occasion the names did change or the cache
+did not interfere. One observation is not the rule.
+
+**How to settle it, cheaply:**
+
+```
+# note a chunk name and its hash
+ls .next/static/chunks | head -3
+md5sum .next/static/chunks/<name>.js
+# change one line of a client component, rebuild, compare
+npm run build
+md5sum .next/static/chunks/<name>.js
+```
+
+If the same filename comes back with a different hash, the assumption is wrong
+and the fix is to make that branch stale-while-revalidate, or to key the static
+cache on the build id so a deploy retires the previous generation.

@@ -115,6 +115,8 @@ export default async function SalesPage() {
       // ignore a shop that moved its threshold.
       today={today}
       expiryWarningDays={storeExpiryWarningDays(store)}
+      storeId={store.id}
+      userId={profile.id}
     />
   )
 }

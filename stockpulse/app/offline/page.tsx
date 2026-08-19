@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import OfflineProducts from '@/components/offline/OfflineProducts'
 
 export const metadata: Metadata = {
   title: 'Offline',
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
 export default function OfflinePage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-surface px-6 py-16">
-      <div className="w-full max-w-md text-center">
+      <div className="w-full max-w-xl text-center">
         <p className="sp-eyebrow">StockPulse</p>
         <h1 className="sp-title mt-3">No connection</h1>
         <p className="sp-body mt-3">
@@ -39,6 +40,11 @@ export default function OfflinePage() {
             <li>Move somewhere with signal and reload this page.</li>
           </ul>
         </div>
+
+        {/* The cached product list, filled from IndexedDB at runtime. The
+            document itself stays static and personalised with nothing, which
+            is what lets the service worker cache it at all. */}
+        <OfflineProducts />
 
         {/* A plain link, not a button with an onClick. This document is served
             by the service worker and must work whether or not any JavaScript

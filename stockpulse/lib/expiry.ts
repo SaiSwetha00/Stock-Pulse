@@ -1,4 +1,4 @@
-import type { Product, ProductBatch } from '@/types'
+import type { Product } from '@/types'
 import { shiftDays } from '@/lib/reportingTimezone'
 
 /**
@@ -49,7 +49,16 @@ export type ExpiryTone = 'expired' | 'soon' | 'ok'
  * a date. Those are the same answer to the question this asks ("what is the
  * next thing to go off?"), and the list shows the same em dash for both.
  */
-export function nextExpiry(batches: ProductBatch[] | undefined): string | null {
+export function nextExpiry(
+  /**
+   * Only the two fields this reads, not the whole ProductBatch. `ProductBatch`
+   * satisfies it structurally, and so does the offline cache's trimmed lot -
+   * which is the point: the offline list must compute "what expires next" with
+   * the same function as the online one, and a nominal type would have forced
+   * a cast at that call site instead.
+   */
+  batches: { quantity: number; expiry_date: string | null }[] | undefined,
+): string | null {
   if (!batches || batches.length === 0) return null
   let earliest: string | null = null
   for (const b of batches) {

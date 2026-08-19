@@ -16,7 +16,7 @@ import {
   Archive,
   Users,
 } from 'lucide-react'
-import { logout } from '@/app/auth/actions'
+import { signOutEverywhereLocal } from '@/lib/offline/signOut'
 import type { Profile } from '@/types'
 import EditProfileModal from './EditProfileModal'
 import ChangePasswordModal from './ChangePasswordModal'
@@ -76,7 +76,7 @@ export default function ProfileClient({
                 <Pencil className="h-4 w-4" aria-hidden="true" />
                 Edit Profile
               </Button>
-              <form action={logout}>
+              <form action={signOutEverywhereLocal}>
                 <button
                   type="submit"
                   className="flex control-h items-center gap-2 rounded-lg bg-danger-bg px-4 text-sm font-semibold text-danger hover:brightness-95"

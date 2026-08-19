@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { canManage } from '@/lib/permissions'
 import { Search, Plus, Pencil, Trash2, Wallet, AlertTriangle, PackageX, X, Upload, ScanLine } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { deleteProduct, findProductByBarcode } from '@/app/(dashboard)/inventory/actions'
+import { deleteProduct } from '@/app/(dashboard)/inventory/actions'
 import type { Product, Role } from '@/types'
 import { categoryLabel, labelMap, type CategoryOption } from '@/lib/categories'
 import { formatCurrency } from '@/lib/format'
@@ -24,6 +24,8 @@ import ProductModal from './ProductModal'
 import ProductThumb from '@/components/ui/ProductThumb'
 import ImportProductsModal from './ImportProductsModal'
 import ScannerPrototype from '@/components/scan/ScannerPrototype'
+import OfflineStatus from '@/components/offline/OfflineStatus'
+import { lookupBarcode } from '@/lib/offline/barcodeLookup'
 
 // `CATEGORY_FILTERS` was a fourth hardcoded copy of the list — and the labels
 // were re-typed by hand here, so it could disagree with the product form's
@@ -171,6 +173,7 @@ export default function InventoryClient({
   categories,
   today,
   expiryWarningDays,
+  userId,
 }: {
   // storeId is no longer needed: mutations go through Server Actions that read
   // the store from the session.
@@ -188,6 +191,9 @@ export default function InventoryClient({
   /** This store's warning window (0017). Phase 4: the list column and the
    *  scan both tone against the shop's own number rather than a constant. */
   expiryWarningDays: number
+  /** Recorded on the offline snapshot so a shared handset cannot silently
+   *  reuse one person's cached list under another's session. */
+  userId: string
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -242,9 +248,24 @@ export default function InventoryClient({
     setScanBusy(true)
     setScanError('')
     try {
-      const result = await findProductByBarcode(value)
+      // The unified lookup, not the Server Action directly: online it IS the
+      // Server Action, and offline it answers from this store's cached list
+      // using the same validation and the same store scoping.
+      const result = await lookupBarcode(value, storeId)
       if (!result.ok) {
         setScanError(result.message)
+        return
+      }
+      if (result.source === 'cache') {
+        // Found, but only in the cache. Inventory's whole purpose here is to
+        // EDIT the product, and a save cannot reach the server offline - so
+        // this refuses clearly rather than opening a form whose Save button
+        // would fail. Scope item 5: fail clearly, never silently.
+        setScanError(
+          result.product
+            ? `${result.product.name} is in your saved list, but editing stock needs a connection.`
+            : `No saved product has the barcode ${value}. Reconnect to search the full list.`,
+        )
         return
       }
       setScanOpen(false)
@@ -362,6 +383,7 @@ export default function InventoryClient({
 
   return (
     <div className="sp-page">
+      <OfflineStatus storeId={storeId} userId={userId} products={products} />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="sp-eyebrow">Stock</p>
