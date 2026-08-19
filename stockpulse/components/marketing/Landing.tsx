@@ -3,7 +3,6 @@
 import './landing.css'
 import { outfit, plusJakartaSans, cinzelDecorative, cinzel, jetbrainsMono } from './fonts'
 import ShaderBackground from './ShaderBackground'
-import CustomCursor from './CustomCursor'
 import LandingNav from './LandingNav'
 import HeroSection from './HeroSection'
 import TrustedByStats from './TrustedByStats'
@@ -42,8 +41,25 @@ export default function Landing() {
       {/* Background WebGL Shader & Film Grain */}
       <ShaderBackground />
 
-      {/* Custom Mouse Cursor */}
-      <CustomCursor />
+      {/*
+        `CustomCursor` used to render here and has been removed.
+
+        It drew TWO marks that followed the pointer: an 8px gold dot at the
+        cursor position (z-index 10000) and, trailing it on a 0.15 lerp, a
+        32px ring holding a 6px crimson dot. Nothing set `cursor: none`
+        anywhere in this project, so those were drawn ON TOP of the visitor's
+        own cursor rather than replacing it — three marks in the same spot.
+
+        It was reported as a suspected rendering artifact by someone looking
+        at the hero, which is the verdict that matters: a decoration nobody
+        can tell apart from a bug is doing the job of a bug. Measured before
+        removing, with the pointer on the hero CTA: the gold dot's centre sat
+        exactly on the pointer at (636, 533), the ring at z-index 9999.
+
+        It also contradicts the hero it now sits above, which is deliberately
+        still. Restoring it is one import and one line, but decide about
+        `cursor: none` at the same time.
+      */}
 
       {/* Modular Navbar */}
       <LandingNav />

@@ -1421,3 +1421,61 @@ want to survive. This is the opposite of the habit most CSS is written with,
 which is why it is worth a numbered entry rather than a comment alone — though
 `landing.css` carries the comment too, immediately above the rules, because
 the next person to tidy that block will otherwise put it straight back.
+
+## D59 — A decoration nobody can distinguish from a bug is doing a bug's job
+
+The landing page mounted `CustomCursor`, which drew two marks that followed
+the pointer: an 8px gold dot at the cursor position (z-index 10000) and, one
+lerp step behind it, a 32px ring holding a 6px crimson dot (z-index 9999).
+
+**Nothing in this project ever set `cursor: none`.** So those were not a custom
+cursor in the sense the name implies — they were drawn ON TOP of the visitor's
+own pointer, which stayed exactly where it was. Three marks in the same place,
+one of them lagging.
+
+It came back not as a design complaint but as a **suspected rendering
+artifact**: someone reviewing the new hero saw "two small dot-shaped marks near
+the cursor" and could not tell whether they were the page, their screen, or
+their camera. That is the finding. A decoration a careful viewer reports as a
+possible defect has already failed, whatever it looks like in isolation —
+because the cost is not the pixels, it is that the next real artifact in that
+area gets dismissed as "probably that dot thing again".
+
+Measured before removing it, pointer parked on the hero CTA: the gold dot's
+centre sat at (636, 533), exactly the button's centre; the ring resolved at
+z-index 9999 with its crimson child at 6×6. Both confirmed in a headless
+screenshot at their rest position.
+
+Removed from `Landing.tsx`; the file is kept and marked unreferenced, because
+restoring it is one import. **If it is ever restored, `cursor: none` goes in
+the same change** — half-installed is what made it read as a fault rather than
+as a choice.
+
+The second reason it goes is that it no longer agrees with the page. The hero
+it sat above is deliberately still: one 34s background drift, no hover lift,
+one control. A gold dot with a trailing crimson ring chasing the pointer is
+the opposite argument, made on top of it.
+
+## D60 — Contrast is a property of the rendered pixel, not of the token
+
+Lifting the nav's link colour for the hero's new top glow, the first pass
+modelled the background by compositing the gradient stops by hand: three
+radial layers over black gave `#9d3a2e` behind the nav bar, and `#a39c8a` on
+that is 2.49:1 — an emphatic fail, and an easy fix to justify.
+
+**The rendered pixel is `#691715`, and the real ratio was 4.43:1.**
+
+The model was wrong because it left out `.sp-entry-veil`, the separate element
+composited over the glow, which takes most of the colour back. Both numbers
+argue for the same change, so nothing shipped wrong — but they are different
+kinds of finding. 2.49:1 is a glaring fault. 4.43:1 against a 4.5 threshold is
+the marginal kind that survives review precisely because it looks fine, and
+saying "2.49" in a code comment would have left the next reader with a false
+picture of how much headroom the design has.
+
+So the numbers in these comments are now read off a screenshot. A 60-line PNG
+reader (IHDR, inflate the IDATs, undo the row filters) is enough to sample any
+pixel of a headless Chrome capture, and it turns "this looks readable" into a
+figure. Where a comment in this codebase quotes a contrast ratio against a
+gradient, a photograph, or anything else that is not a flat token, it should
+be sampled and not computed.

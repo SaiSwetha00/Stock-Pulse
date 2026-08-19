@@ -478,57 +478,82 @@
   --sp-red-hover: #b3111b;
 }
 
-/* Full-bleed atmosphere behind the hero. Pure CSS gradients — no image,
-   no canvas, no second WebGL context on top of ShaderBackground. The
-   hero is the first paint a visitor gets, and it should not wait on
-   anything or cost a phone a rendering library (D50). */
-.sp-landing .sp-hero-atmosphere {
+/* ---------------------------------------------------------------
+   THE ENTRY GLOW — one background for the whole way in.
+
+   Used by the landing hero AND by AuthShell, which is what /login,
+   /signup, /forgot-password and /reset-password render inside. Those
+   four pages already sit in `.sp-landing`, so they get this by adding
+   two divs and nothing else. One definition rather than two that agree
+   today: the entry flow is the one journey where a visitor sees the
+   marketing page and the sign-up form within seconds of each other, and
+   a background that drifts apart between them is visible in a way that
+   a mismatch between two distant pages never is.
+
+   DIRECTIONAL, top-anchored: warm and bright at the top edge, falling
+   through red to near-black by the lower third. Every stop is drawn
+   from the palette already in this file — --sp-gold-light #f0d78c at
+   the core, --sp-red #d81f26 through the body, --sp-crimson #93000a in
+   the skirt. Nothing was sampled from anywhere else.
+
+   The colour lives here and the darkening lives in `.sp-entry-veil`,
+   as two elements rather than one background stack. In a single stack
+   the fall-to-black would have to sit above the colour layers to darken
+   them, and would then also dim the glow it is supposed to be falling
+   away from. Composited as separate layers, the veil darkens the page
+   and the glow keeps its top.
+   --------------------------------------------------------------- */
+.sp-landing .sp-entry-glow {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
   background:
-    /* Red rising from below the fold — the CTA's colour, diffused, so the
-       button reads as the bright point of a field rather than a sticker. */
-    radial-gradient(ellipse 120% 68% at 50% 118%, rgba(216, 31, 38, 0.4) 0%, rgba(147, 0, 10, 0.22) 34%, transparent 68%),
-    /* Gold whisper from above, tying the new hero to the rest of the page. */
-    radial-gradient(ellipse 90% 55% at 50% -18%, rgba(201, 162, 39, 0.13) 0%, transparent 62%),
-    /* Warm floor lift so the black does not go dead flat at the bottom. */
-    radial-gradient(ellipse 140% 40% at 50% 100%, rgba(64, 32, 12, 0.35) 0%, transparent 70%);
-  animation: sp-hero-drift 34s ease-in-out infinite;
-  will-change: transform;
+    /* Warm core, tight against the top edge — the brightest point. */
+    radial-gradient(ellipse 56% 26% at 50% -5%, rgba(240, 215, 140, 0.3) 0%, transparent 70%),
+    /* The red body of the glow, at its widest just below the top. */
+    radial-gradient(ellipse 112% 60% at 50% -7%, rgba(216, 31, 38, 0.6) 0%, rgba(147, 0, 10, 0.32) 38%, transparent 74%),
+    /* Crimson skirt, so the fall away from the glow lands on a colour
+       rather than fading through grey. */
+    radial-gradient(ellipse 160% 70% at 50% 2%, rgba(147, 0, 10, 0.3) 0%, transparent 66%);
 }
 
-/* Vignette and the fade into whatever section follows. Separate element
-   so it composites over the colour layers rather than joining the same
-   background stack, where the bottom fade would tint the glows. */
-.sp-landing .sp-hero-vignette {
+/* Vignette, and the fall to black. Sits above the glow. */
+.sp-landing .sp-entry-veil {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 1;
   background:
-    radial-gradient(ellipse 78% 70% at 50% 45%, transparent 40%, rgba(0, 0, 0, 0.55) 100%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.72) 0%, transparent 22%, transparent 74%, var(--sp-black) 100%);
+    radial-gradient(ellipse 86% 78% at 50% 34%, transparent 46%, rgba(0, 0, 0, 0.5) 100%),
+    linear-gradient(180deg, transparent 0%, transparent 32%, rgba(0, 0, 0, 0.48) 62%, var(--sp-black) 94%);
 }
 
-/* Very slow drift. 34s and 4% of scale — at that rate it is atmosphere,
-   not animation, and it never moves fast enough to pull the eye off the
-   headline. */
-@keyframes sp-hero-drift {
+/* Very slow drift, and ONLY on the marketing hero — hence a modifier
+   rather than a property of the glow itself. A background that breathes
+   is atmosphere on a page someone is reading; behind a sign-in form,
+   where the eye is fixed on two fields, the same movement is something
+   to notice and be bothered by. 34s and 4% of scale even where it does
+   run: at that rate it never pulls the eye off the headline. */
+.sp-landing .sp-entry-glow--drift {
+  animation: sp-entry-drift 34s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes sp-entry-drift {
   0%,
   100% {
     transform: scale(1) translate3d(0, 0, 0);
     opacity: 0.94;
   }
   50% {
-    transform: scale(1.04) translate3d(0, -1.5%, 0);
+    transform: scale(1.04) translate3d(0, 1.5%, 0);
     opacity: 1;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sp-landing .sp-hero-atmosphere {
+  .sp-landing .sp-entry-glow--drift {
     animation: none;
   }
 }

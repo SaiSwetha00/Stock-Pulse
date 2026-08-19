@@ -51,6 +51,20 @@ export function AuthShell({ hero, children }: { hero?: ReactNode; children: Reac
     <div
       className={`sp-landing ${FONT_VARIABLES} relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-background px-5 py-16 font-sans`}
     >
+      {/* THE ENTRY GLOW — the same two elements and the same two classes the
+          landing hero renders, defined once in landing.css, which this file
+          already imports. A visitor crosses from that hero to this form in
+          one click; of every pair of pages in this product, these are the two
+          most likely to be compared, and the only pair a person sees within
+          seconds of each other. They now share a background rather than each
+          having their own version of the same idea.
+
+          No `--drift` here. Behind a headline a breathing background is
+          atmosphere; behind two input fields it is movement in the corner of
+          the eye of someone typing a password. */}
+      <div className="sp-entry-glow" aria-hidden="true" />
+      <div className="sp-entry-veil" aria-hidden="true" />
+
       {/* Quiet backdrop: a faint dot-grid for structure and one soft gold
           bloom behind the card — replacing the earlier gold-silk SVG paths
           and stacked radial gradients, which read as decoration for its own
@@ -82,21 +96,21 @@ export function AuthShell({ hero, children }: { hero?: ReactNode; children: Reac
         }}
       />
 
-      {/* Vignette. Darkening the corners pushes the middle forward and gives
-          the card somewhere to sit, which one flat bloom on its own did not. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(ellipse 90% 70% at 50% 45%, transparent 0%, rgba(0,0,0,0.55) 100%)',
-        }}
-      />
+      {/* The vignette that used to be here is gone: `sp-entry-veil` above is
+          the same device, and two overlapping corner-darkenings compound into
+          a heavier frame than either was drawn to be. */}
+      {/* The gold bloom behind the card, kept but taken down from 0.16 to
+          0.07. Its documented job was to give the card somewhere to sit, and
+          that still holds — but the entry glow is now the page's light
+          source, and a second bloom at full strength in the middle read as a
+          competing one. Weakened rather than deleted, because deleting it
+          leaves the card floating in flat black exactly where the glow has
+          already fallen away. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute left-1/2 top-1/2 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{
-          background: 'radial-gradient(circle, rgba(201,162,39,0.16) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(201,162,39,0.07) 0%, transparent 70%)',
           filter: 'blur(70px)',
         }}
       />

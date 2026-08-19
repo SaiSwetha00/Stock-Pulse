@@ -43,9 +43,11 @@ export default function HeroSection() {
   // hero exists for below the fold on the commonest short screen there is.
   return (
     <section className="relative min-h-[100svh] flex flex-col items-center justify-center overflow-hidden px-6 pt-28 pb-20 text-center">
-      {/* Two decorative layers, both aria-hidden: colour, then vignette. */}
-      <div className="sp-hero-atmosphere" aria-hidden="true" />
-      <div className="sp-hero-vignette" aria-hidden="true" />
+      {/* Two decorative layers, both aria-hidden: colour, then vignette.
+          Shared verbatim with AuthShell — see `.sp-entry-glow` in
+          landing.css. The `--drift` modifier is the hero's alone. */}
+      <div className="sp-entry-glow sp-entry-glow--drift" aria-hidden="true" />
+      <div className="sp-entry-veil" aria-hidden="true" />
 
       <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center">
         {/*
@@ -89,12 +91,21 @@ export default function HeroSection() {
             Ready to see the whole shop in one place? Setting it up takes about a minute.
           </p>
 
+          {/*
+            THE one filled button on the landing page. It was px-9 py-5 at
+            18px, which made it the loudest thing on screen at the same time
+            as the nav carried a second red "Get started" — two controls
+            shouting the same word. The nav's is now a plain text link, so
+            this one no longer has to out-shout anything and can be sized to
+            be read rather than to win. Still full-width on mobile: that is a
+            tap target, not emphasis.
+          */}
           <Link
             href="/signup"
-            className="sp-cta-red group mt-6 inline-flex w-full items-center justify-center gap-2.5 rounded-2xl px-9 py-5 font-sans text-lg font-semibold sm:w-auto"
+            className="sp-cta-red group mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl px-7 py-3.5 font-sans text-[15px] font-semibold sm:w-auto"
           >
             Get Started
-            <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
 
           {/* #8f8877, not the #6e6858 the old hero used for labels this small.

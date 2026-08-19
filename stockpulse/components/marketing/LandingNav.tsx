@@ -42,37 +42,73 @@ export default function LandingNav() {
           <StockPulseLogo size="md" showSubtitle={false} />
         </Link>
 
-        {/* Desktop Navigation Links — quiet, no mono/uppercase/tracking noise */}
-        <nav className="hidden lg:flex items-center gap-9 font-sans text-[14.5px] font-medium text-[#a39c8a] mx-auto">
+        {/* Desktop Navigation Links — quiet, no mono/uppercase/tracking noise.
+
+            #e6e1d5, not the #a39c8a these were. That warm grey was chosen
+            against black, and the nav is no longer over black: the hero's
+            entry glow puts a lit red field directly behind this bar.
+
+            Measured off the rendered pixels rather than modelled — the model
+            was wrong by a lot, predicting #9d3a2e behind the bar where the
+            screenshot actually shows #691715, because the veil sits over the
+            glow and takes most of it back. On that real background #a39c8a
+            reads 4.43:1 behind "How it works" and 4.54:1 behind "Features":
+            a fail at 14.5px, but a marginal one, which is the kind that
+            survives review because it looks fine. #e6e1d5 is 9.28:1 there
+            and 16.9:1 against the scrolled glass nav.
+
+            The colour hierarchy this used to carry (muted links, bright CTA)
+            is gone because the background cannot support it — a tone quiet
+            enough to recede on black is illegible on the glow. Weight and the
+            arrow carry it instead: these are medium, "Get started" is
+            semibold with an arrow. */}
+        <nav className="hidden lg:flex items-center gap-9 font-sans text-[14.5px] font-medium text-[#e6e1d5] mx-auto">
           {LINKS.map((link) => (
             <button
               key={link.id}
               onClick={() => scrollToSection(link.id)}
-              className="hover:text-[#f2efe6] transition-colors cursor-pointer"
+              className="hover:text-[var(--sp-gold)] transition-colors cursor-pointer"
             >
               {link.label}
             </button>
           ))}
         </nav>
 
-        {/* Right side: one quiet link, one real button */}
+        {/* Right side: two text links, NO filled button.
+
+            This carried a filled "Get started" — first gold, then red to
+            match the hero's. Both were wrong for the same reason: the hero
+            below it has a "Get Started" of its own, and a fixed nav means
+            the two are on screen together for the whole first viewport. Two
+            filled controls competing for one action is exactly the problem
+            the single-CTA hero was built to remove, so making them agree on
+            a colour only made the competition tidier.
+
+            The hero's is the one that stays, because it is the one with the
+            page's argument attached — a headline, a reason, and a line
+            saying what it costs. A nav button has none of that; it is a
+            shortcut for someone already convinced, and a text link serves
+            that person perfectly.
+
+            Demoted rather than deleted, because this nav is `fixed`: past
+            the hero it is the only always-reachable way in, and the next
+            sign-up control is eight sections down at Pricing. A visitor who
+            decides while reading Features should not have to hunt.
+
+            The two links are not peers. "Get started" keeps the foreground
+            colour and the arrow; "Sign in" stays muted. Hierarchy without
+            a fill. */}
         <div className="hidden md:flex items-center gap-7">
           <Link
             href="/login"
-            className="font-sans text-[14.5px] font-medium text-[#a39c8a] hover:text-[#f2efe6] transition-colors cursor-pointer"
+            className="font-sans text-[14.5px] font-medium text-[#e6e1d5] hover:text-[var(--sp-gold)] transition-colors cursor-pointer"
           >
             Sign in
           </Link>
 
-          {/* Red, not gold, and only this one button on the page is.
-
-              It is the same action as the hero's CTA and is on screen at the
-              same time as it; two colours for one action inside one viewport
-              is the inconsistency, not the red. Every other button on the
-              landing page stays gold. */}
           <Link
             href="/signup"
-            className="sp-cta-red group inline-flex items-center gap-2 rounded-lg px-5 py-2.5 font-sans text-[14.5px] font-semibold cursor-pointer"
+            className="group inline-flex items-center gap-1.5 font-sans text-[14.5px] font-semibold text-[#f2efe6] hover:text-[var(--sp-gold)] transition-colors cursor-pointer"
           >
             Get started
             <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -110,10 +146,12 @@ export default function LandingNav() {
             >
               Sign in
             </Link>
+            {/* Same rule in the mobile menu: red fill appears exactly once
+                on this page, and that once is the hero. */}
             <Link
               href="/signup"
               onClick={() => setMobileMenuOpen(false)}
-              className="sp-cta-red w-full py-3 rounded-lg text-center font-semibold"
+              className="w-full py-3 rounded-lg border border-[var(--sp-gold)]/40 text-center font-semibold text-[#f2efe6]"
             >
               Get started
             </Link>

@@ -2,6 +2,17 @@
 
 import { useEffect, useState } from 'react'
 
+/**
+ * UNREFERENCED AS OF 2026-08-20. `Landing.tsx` no longer mounts this; the
+ * reasoning is recorded at the removal site and in D59. In short: it drew a
+ * gold dot and a trailing crimson-dotted ring over the visitor's own cursor
+ * (nothing in this project sets `cursor: none`), and a reviewer of the new
+ * hero reported the pair as a suspected rendering artifact.
+ *
+ * Left in place so restoring it is one import if that judgement is reversed.
+ * If it is, set `cursor: none` on `.sp-landing` in the same change — the
+ * component was only ever half-installed without it.
+ */
 export default function CustomCursor() {
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [trailingPos, setTrailingPos] = useState({ x: 0, y: 0 })
