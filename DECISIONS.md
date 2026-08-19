@@ -1479,3 +1479,85 @@ pixel of a headless Chrome capture, and it turns "this looks readable" into a
 figure. Where a comment in this codebase quotes a contrast ratio against a
 gradient, a photograph, or anything else that is not a flat token, it should
 be sampled and not computed.
+
+## D61 - A scroll listener with no initial read is wrong on every load that is not at the top
+
+`LandingNav` held `useState(false)` and added a scroll listener on mount with
+no initial call. `scrolled` was therefore false until a scroll event happened
+to fire, whatever the page's real offset was.
+
+At the top of the page that is the right answer by luck, which is why it
+survived. It is wrong the moment the page paints already scrolled - and that
+is not an edge case. Browsers restore scroll position on reload, and every
+`#features` / `#pricing` / `#faq` deep link lands mid-page.
+
+**Reproduced before fixing**, because the symptom reported and the symptom the
+bug produces were not the same thing: scrolled to y=900, reloaded, the page
+repainted at y=930 with the nav still transparent, sitting on top of the
+features cards with both sets of text overlapping into an unreadable strip.
+One 60px wheel tick snapped it correct.
+
+**Scripted `scrollTo` cannot test this.** It moves the offset without
+dispatching a scroll event, so the listener never runs and the component looks
+permanently broken instead of intermittently broken. The same is true of any
+browser that is not compositing frames: an environment with a hidden or
+non-rendering tab fires no scroll events at all - measured, a freshly attached
+listener got zero events while `documentElement.scrollTop` genuinely read 500.
+This has to be driven with real input (CDP `Input.dispatchMouseEvent` with
+`type: 'mouseWheel'`) or it is not being tested.
+
+The fix is `useSyncExternalStore`, not a one-off call to the handler inside the
+effect. The client snapshot IS the first render's value, so there is no window
+in which the component believes something it never checked - and no state
+written from an effect, which this project's lint rules flag. `ThemeToggle` in
+`components/auth/AuthUI.tsx` already reads an external value this way.
+
+The server snapshot must be `false`, because a server cannot know a scroll
+offset. That is a real limit and not a guess, and it is why the nav's
+BACKGROUND no longer depends on this value at all - only its padding does, and
+padding correcting itself on hydration is invisible. **If a future state must
+be correct in the server-rendered HTML, it cannot come from this hook.**
+
+## D62 - The reported symptom and the reproduced bug were two different faults
+
+The nav was reported as "doesn't render its solid background on load, correct
+after scrolling". The diagnosis offered with it - a scroll toggle never
+checking its initial state - was exactly right about the code (see D61) and
+did not explain the symptom.
+
+Measured with real wheel input: at y=0 the nav rendered `bg-transparent`
+because that is what the code asked for at y=0, and scrolling back up returned
+it to `bg-transparent` correctly. There was no state that "stuck" solid. What
+was actually being reported was a *design* choice - a fixed bar that is a
+surface over the page and a hole over the hero - which over the new entry glow
+reads as a rendering fault the first time you see it.
+
+So two changes, not one: the initial-state bug is fixed because it is a bug,
+and the background is now unconditional because the transparent state was the
+thing being complained about. Fixing only the first would have left the report
+open; making only the second would have left a real defect in the tree with
+nothing pointing at it any more.
+
+The lesson is the ordering. Reproduce the reported symptom before accepting a
+diagnosis of it, even a correct-sounding one from someone looking at the same
+screen - a plausible cause that is genuinely a bug is the easiest way to close
+a ticket without fixing what was wrong.
+
+## D63 - Making the bar opaque moved the glow, so the glow moved with it
+
+`.sp-entry-glow` put its warm core at `50% -5%`, peaking in the strip the nav
+occupies. That was correct while the nav was transparent and wrong the instant
+it became opaque: measured on the rendered pixels, the brightest visible point
+went from `#8b3328` to `#520609`. The bug fix would have quietly undone the
+"bright warm glow at the top" it was built for, and nothing would have failed.
+
+The centres are now anchored in **pixels** at the nav's lower edge (`50% 92px`),
+not in percent. The nav is a fixed height and the viewport is not, so as a
+percentage the peak drifts out from under the bar on a tall screen and hides
+behind it on a short one. Measured after: `#a24736` at y=95, brighter than the
+original and carrying further down the page (`#4c0206` at y=240 against
+`#1d0001` before).
+
+Hero text is unaffected - it sits at x-offsets where the field is much darker.
+Sampled beside the glyphs: headline 14.90:1, the gold word's darkest stop
+7.50:1, subline 7.26:1.

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { Menu, X, ArrowRight } from 'lucide-react'
 import StockPulseLogo from './StockPulseLogo'
@@ -13,16 +13,47 @@ const LINKS = [
 ]
 
 export default function LandingNav() {
-  const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20)
-    }
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
+  /**
+   * Where the page actually is, read on the FIRST render rather than waited
+   * for.
+   *
+   * This was `useState(false)` plus a scroll listener added on mount, with no
+   * initial read — so `scrolled` was false until a scroll event happened to
+   * fire, whatever the real offset was. At the top of the page that is the
+   * right answer by luck. It is wrong the moment the page loads already
+   * scrolled, which is not an edge case: browsers restore scroll position on
+   * reload, and a deep link to #pricing or #faq lands mid-page too.
+   *
+   * Reproduced with a real browser before fixing (scripted `scrollTo` is not
+   * enough — it moves the offset without dispatching scroll, so the listener
+   * never runs and the bug looks like it is everywhere): scrolled to y=900,
+   * reloaded, page repainted at y=930 with the nav still in its transparent
+   * state, sitting on top of the features cards with both sets of text
+   * overlapping. One wheel tick of 60px snapped it back to correct.
+   *
+   * `useSyncExternalStore` rather than an effect that calls the handler once.
+   * The client snapshot IS the initial value, so there is no window in which
+   * the component believes something it never checked, and no state written
+   * from an effect. `ThemeToggle` in components/auth/AuthUI.tsx already reads
+   * an external value this way; this is that shape, not a new one.
+   *
+   * The server snapshot is false because a server cannot know a scroll
+   * offset. That is a real limit, not a guess, and it is why the BACKGROUND
+   * no longer depends on this value at all (see the header below) — only the
+   * padding does, and padding correcting itself on hydration is invisible.
+   */
+  const subscribe = useCallback((onChange: () => void) => {
+    window.addEventListener('scroll', onChange, { passive: true })
+    return () => window.removeEventListener('scroll', onChange)
   }, [])
+
+  const scrolled = useSyncExternalStore(
+    subscribe,
+    () => window.scrollY > 20,
+    () => false,
+  )
 
   const scrollToSection = (id: string) => {
     setMobileMenuOpen(false)
@@ -31,9 +62,26 @@ export default function LandingNav() {
   }
 
   return (
+    /*
+      `glass-nav` is UNCONDITIONAL now. It used to be `scrolled ? 'glass-nav
+      py-4' : 'bg-transparent py-6'`, so at the top of the page the bar had no
+      background of its own and the hero's entry glow read straight through it
+      — reported as the nav "not rendering its background on load".
+
+      That part was not the initial-state bug above; transparent at y=0 was
+      what the code asked for, and it correctly returned to transparent on
+      scrolling back up (measured: the class flips back). It was a design
+      choice, and the choice is now reversed: a fixed bar that is sometimes a
+      surface and sometimes a hole has to be read twice, and over a lit
+      background it reads as a rendering fault the first time.
+
+      Only the padding still varies with scroll — the shrink-on-scroll is
+      worth keeping, and it is the one thing that can be wrong for a frame
+      after hydration without anyone noticing.
+    */
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? 'glass-nav py-4' : 'bg-transparent py-6'
+      className={`fixed top-0 left-0 right-0 z-50 glass-nav transition-all duration-300 ${
+        scrolled ? 'py-4' : 'py-6'
       }`}
     >
       <div className="max-w-6xl mx-auto px-6 md:px-10 flex items-center justify-between">

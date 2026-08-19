@@ -509,13 +509,22 @@
   pointer-events: none;
   z-index: 0;
   background:
-    /* Warm core, tight against the top edge — the brightest point. */
-    radial-gradient(ellipse 56% 26% at 50% -5%, rgba(240, 215, 140, 0.3) 0%, transparent 70%),
-    /* The red body of the glow, at its widest just below the top. */
-    radial-gradient(ellipse 112% 60% at 50% -7%, rgba(216, 31, 38, 0.6) 0%, rgba(147, 0, 10, 0.32) 38%, transparent 74%),
+    /* Warm core — the brightest point.
+
+       Anchored in PIXELS at the nav's lower edge (92px unscrolled), not at a
+       percentage above the top. It used to sit at 50% -5%, which put its peak
+       in the strip the nav now covers: making the bar opaque moved the
+       brightest visible pixel from #8b3328 to #520609, quietly undoing the
+       "bright at the top" this glow was built for. px rather than % because
+       the nav is a fixed height and the viewport is not — as a percentage
+       this would drift out from under the bar on a tall screen and hide
+       behind it on a short one. */
+    radial-gradient(ellipse 56% 26% at 50% 92px, rgba(240, 215, 140, 0.3) 0%, transparent 70%),
+    /* The red body of the glow, at its widest just below the bar. */
+    radial-gradient(ellipse 112% 60% at 50% 84px, rgba(216, 31, 38, 0.6) 0%, rgba(147, 0, 10, 0.32) 38%, transparent 74%),
     /* Crimson skirt, so the fall away from the glow lands on a colour
        rather than fading through grey. */
-    radial-gradient(ellipse 160% 70% at 50% 2%, rgba(147, 0, 10, 0.3) 0%, transparent 66%);
+    radial-gradient(ellipse 160% 70% at 50% 140px, rgba(147, 0, 10, 0.3) 0%, transparent 66%);
 }
 
 /* Vignette, and the fall to black. Sits above the glow. */
