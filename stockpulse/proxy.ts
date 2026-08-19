@@ -43,7 +43,14 @@ export const config = {
     //     that the site has no manifest, so it is not installable;
     //   - registration of /sw.js fails on MIME type, because a worker script
     //     must not be served as text/html.
-    // Both were curled unauthenticated before this line was written.
-    '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|sw.js|opengraph-image|twitter-image|icon|apple-icon|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|mp4|webm|mov|woff|woff2|wasm)$).*)',
+    // `offline.html` joins them for the same reason and was found the same
+    // way. It is a plain file under public/, and `.html` is not among the
+    // extensions listed below, so without this the auth middleware answers the
+    // service worker's precache request with a redirect to /login - and the
+    // worker would then cache THE SIGN-IN PAGE as its offline document. A
+    // cashier who lost signal would be shown a login form they cannot submit,
+    // on a device that was already signed in.
+    // All three were curled unauthenticated before this line was written.
+    '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|sw.js|offline.html|opengraph-image|twitter-image|icon|apple-icon|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|mp4|webm|mov|woff|woff2|wasm)$).*)',
   ],
 }

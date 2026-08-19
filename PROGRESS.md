@@ -3661,3 +3661,162 @@ worker with a `fetch` handler that controls the page.
 4. **No cross-browser check.** Safari handles service workers and storage
    eviction differently, and it is the platform the decoder already carries an
    untested assumption about.
+
+---
+
+# OFFLINE MODE — Phase 2 of 5: offline reads (2026-08-19)
+
+## The auth decision this is built on
+
+Phase 1's section 5 was never actually picked, so it was put back to the owner
+before any code was written. Both answers are implemented here:
+
+- **An expired session offline keeps serving cached reads.** A token the device
+  cannot refresh is not evidence of anything except no signal, and blocking
+  would stop a till for a reason the cashier cannot fix. Accepted cost, stated
+  plainly: a server-side revocation is not felt until signal returns.
+- **Signing out wipes the cache immediately.** `signOutEverywhereLocal` clears
+  IndexedDB *before* calling `logout()`, because that Server Action ends in a
+  `redirect()` which throws to unwind the render - anything after it never runs.
+
+## /offline is a plain static document, not an App Router page
+
+It began as `app/offline/page.tsx`. Offline it loaded, showed the right
+`<title>`, and then rendered **an error boundary**: hydrating an App Router page
+needs its RSC payload, and the worker deliberately refuses to cache RSC payloads
+so that no signed-in page data is ever stored on a shared shop phone.
+
+Caching a data-less shell for it would have carved an exception into that rule.
+`public/offline.html` removes the need for one - no React, no route, no server
+data, just a file the worker caches whole and serves byte-for-byte.
+
+It still does Phase 2's actual job: it opens IndexedDB in plain JavaScript and
+renders the cached list, with search, barcode lookup and a staleness line.
+
+**Declared duplication.** Three rules are restated in vanilla JS there, because
+a static file cannot import the app's TypeScript: the barcode shape test
+(`isValidBarcode`), exact barcode matching (`matchCachedBarcode`), and
+expired/expiring-soon (`nextExpiry` + `expiryTone`). Each is marked in the file.
+They must change together - the same standing hazard CLAUDE.md records for the
+app-layer and database-layer barcode rules.
+
+## What is cached, and what is not
+
+An **allowlist**, not a convenience type. `CachedProduct` names ten fields:
+`id, name, barcode, unit_price, unit, stock, category, image_url,
+low_stock_threshold, batches`. Persisting the whole `Product` would have been
+shorter and would have quietly kept every column the query happened to select,
+forever, on a shared phone.
+
+Not cached, deliberately: reports, analytics, audit, sales history, customers,
+suppliers, staff.
+
+Stored in **IndexedDB keyed by `storeId`** - not the worker's HTTP cache. The
+key IS the tenancy rule: there is no code path that reads "the snapshot"
+without saying whose, so a second store's data cannot be returned by a caller
+that forgot a filter, because there is no filter to forget.
+
+## The refresh policy
+
+- **The server render is the sync.** Whenever `OfflineStatus` mounts with
+  products from a server component, that list is written. There is no separate
+  fetch loop, so the cache cannot disagree with what the page is showing.
+- **Regaining connectivity calls `router.refresh()`**, which re-runs the server
+  component, which rewrites the snapshot. One path, not two.
+- **Nothing polls.** A till on a metered connection should not fetch a product
+  list every thirty seconds to learn nothing changed.
+- **An empty product list is never written.** A server render that produced
+  nothing is not evidence the shop has nothing - it is also what a failed fetch
+  looks like, and writing it would lose the list exactly when the network is
+  flaky.
+
+## One lookup, online and off
+
+`lookupBarcode` is the single entry point. Online it *is* the Server Action;
+offline it answers from the cache. It shares `isValidBarcode` with the action -
+which carried its own inline copy of that regex until this phase - and applies
+the same store scoping and the same discriminated result, where `product: null`
+is a successful "no product has this barcode" rather than a failure.
+
+Callers must branch on `source`, and that is deliberate rather than a leak: a
+cached product is enough to NAME something at a shelf and not enough to sell it.
+Inventory's scan refuses a cache hit with a sentence saying editing needs a
+connection, instead of opening a form whose Save would fail.
+
+## Verified — observed, not assumed
+
+**The cache populates, with the app doing the writing:** 1 record, store
+`e47fe6eb`, **42 products**, `syncedAt` set, `userId` recorded, and the fields
+exactly the allowlist - `barcode, batches, category, id, image_url,
+low_stock_threshold, name, stock, unit, unit_price`. No reports, staff, sales or
+customers. All 42 carried expiry lots.
+
+**Cross-store isolation, adversarially.** A second store's snapshot was planted
+on the same device carrying **the same barcode** (legal since 0014 makes
+uniqueness per store). My store's list held 42 products and did **not** contain
+the other store's item; `2000000000183` resolved to `Basmati Rice 5kg` in my
+store and to the other store's product in theirs.
+
+**Offline render - the origin was genuinely killed, not simulated.** `curl`
+confirmed the port dead, then navigating to `/inventory` produced:
+
+| checked | result |
+|---|---|
+| served by worker | yes, title `Offline · StockPulse` |
+| error boundary | **gone** |
+| product rows from IndexedDB | **4 of 4** |
+| staleness indicator | "Saved list from 13:22 · prices and stock may have changed since" |
+| expired / soon / far-future | `Expired 12 Aug 2026`, `Expires 22 Aug 2026`, `Expires 24 Sep 2026` |
+| other store's product visible | **no** |
+
+**Barcode lookup offline**, in the same dead-origin state:
+
+| input | result |
+|---|---|
+| `2000000000183` (exists in BOTH stores) | 1 row - **my** store's Basmati Rice; the other store's product not shown |
+| `9999999999999` | "Nothing in the saved list matches that." |
+| `123` (too short) | falls through to name search, no barcode match |
+| `milk` | Whole Milk 1L |
+
+**Restoring the network** dispatched `online`, and the offline page left itself
+for the app: `/dashboard`, title `Dashboard · StockPulse`.
+
+**No route regressed**, curled unauthenticated on a production build:
+`/offline.html` 200 `text/html`, `/manifest.webmanifest` 200, `/sw.js` 200,
+`/dashboard` `/inventory` `/sales` 307, `/` `/login` 200.
+
+`tsc --noEmit`, `eslint .`, `next build` all green.
+
+## The bug that was not a bug, and the two that were
+
+**"The cache never populates" was the instrument, not the app.** `OfflineStatus`
+was not running because the page had not HYDRATED - measured `hydrated: false`
+on the React fiber, in a Chrome tab that was not the active tab in its window.
+With the tab activated, the same build wrote the snapshot immediately. This is
+the same background-throttle fault that has recurred across this project's
+harness work, and it cost most of a session before being named.
+
+**Three of my own probes were wrong before the app ever was.**
+`indexedDB.open(name)` on a missing database **creates** it, so early checks
+pre-empted the app's own upgrade and left a schema-less v1 database that then
+made every real write fail silently. `lib/offline/db.ts` now logs its failures
+rather than swallowing them: a cache that never writes must not look identical
+to one that works.
+
+**And one real defect, found by measurement:** the worker precached the offline
+document but never its JavaScript, because those chunks are only requested when
+somebody visits `/offline` - which normally happens only when already offline.
+`router.prefetch('/offline')` was tried and did **not** fix it, which is what
+narrowed the cause to the RSC payload and led to the static-document rewrite.
+
+## NOT verified, carried forward
+
+1. **The offline banner inside the app was not seen rendering.** The cache write
+   it performs is measured; the amber bar itself was never observed, because the
+   harness tab would not hydrate on demand.
+2. **The rendering test used a seeded snapshot**, not one written by the app in
+   the same unbroken run. Both halves are measured - the app writes the correct
+   record, and the page renders that record shape - but not end to end at once.
+3. **No phone, and no real barcode scanner** with the worker active.
+4. **Safari is untested**, and it treats service workers and storage eviction
+   differently.

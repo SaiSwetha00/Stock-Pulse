@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Offline · StockPulse</title>
+<!--
+  A PLAIN STATIC DOCUMENT, and that is the architectural point.
+
+  This was an App Router page. It loaded offline, showed the right <title>, and
+  then rendered an error boundary - because hydrating an App Router page needs
+  its RSC payload, and the service worker deliberately refuses to cache RSC
+  payloads so that no signed-in page data is ever stored on what is often a
+  shared shop phone. Caching a data-less shell for it would have carved an
+  exception into that rule. This removes the need for the exception: no React,
+  no route, no server data - just a file the worker caches whole and serves
+  byte-for-byte with no network.
+
+  It still does the job Phase 2 exists for: the cached product list is read
+  from IndexedDB in plain JavaScript and rendered below.
+
+  DUPLICATION, DECLARED. Three rules are restated here in plain JS because a
+  static file cannot import the app's TypeScript modules:
+    - the barcode shape test, mirroring `isValidBarcode`
+    - exact barcode matching, mirroring `matchCachedBarcode`
+    - expired / expiring-soon, mirroring `nextExpiry` + `expiryTone`
+  Each is marked below. If the app's versions change, these must change with
+  them - the same standing hazard CLAUDE.md records for the app-layer and
+  database-layer barcode rules.
+-->
+<style>
+  :root {
+    --bg: #f7f7f8; --surface: #ffffff;
+    --fg: #16181d; --muted: #6b7280; --muted-strong: #374151;
+    --border: #e5e7eb; --warning: #92400e; --warning-bg: #fef3c7;
+    --danger: #b42318;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --surface: #16181d;
+      --fg: #f3f4f6; --muted: #9ca3af; --muted-strong: #d1d5db;
+      --border: #2a2e37; --warning: #fbbf24; --warning-bg: #3a2c07;
+      --danger: #f87171;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 24px 16px 48px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  .eyebrow { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+  h1 { font-size: 26px; margin: 8px 0 6px; }
+  p.lede { color: var(--muted-strong); margin: 0 0 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; }
+  .stale { display: flex; gap: 8px; align-items: center; color: var(--warning); background: var(--warning-bg);
+           border: 1px solid var(--warning); border-radius: 12px; padding: 10px 14px; font-size: 13px; font-weight: 600; }
+  .search { display: flex; align-items: center; gap: 8px; margin-top: 14px;
+            border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 0 12px; }
+  .search input { flex: 1; border: 0; outline: 0; background: transparent; color: var(--fg); font-size: 15px; min-height: 44px; }
+  ul.rows { list-style: none; margin: 12px 0 0; padding: 0; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--surface); }
+  ul.rows li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--border); }
+  ul.rows li:first-child { border-top: 0; }
+  .name { font-weight: 600; }
+  .sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .right { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .price { font-weight: 600; }
+  .expired { color: var(--danger); font-weight: 600; }
+  .soon { color: var(--warning); font-weight: 600; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 20px;
+         border-radius: 10px; background: var(--fg); color: var(--bg); text-decoration: none; font-weight: 600; margin-top: 18px; }
+  .muted { color: var(--muted); }
+  .notes { list-style: none; margin: 8px 0 0; padding: 0; }
+  .notes li { padding: 2px 0; color: var(--muted); }
+  a:focus-visible, input:focus-visible, .btn:focus-visible { outline: 2px solid var(--warning); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">StockPulse</p>
+  <h1>No connection</h1>
+  <p class="lede">
+    Your shop&rsquo;s data is safe on the server &mdash; nothing has been lost. Below is the product
+    list saved on this device, so you can still look up a price or a barcode.
+  </p>
+
+  <div id="status" class="card muted">Opening your saved product list&hellip;</div>
+
+  <div id="live" hidden>
+    <div class="stale" id="stale" role="status"></div>
+    <label class="search">
+      <span aria-hidden="true">&#128269;</span>
+      <input id="q" type="search" autocomplete="off"
+             placeholder="Search a name, or scan/type a barcode"
+             aria-label="Search saved products" />
+    </label>
+    <ul class="rows" id="list"></ul>
+    <p class="sub" id="count"></p>
+  </div>
+
+  <div class="card" style="margin-top:18px">
+    <strong>While you are offline</strong>
+    <ul class="notes">
+      <li>Sales and stock changes cannot be saved yet.</li>
+      <li>Prices and stock below may have changed since they were saved.</li>
+      <li>Move somewhere with signal and reload.</li>
+    </ul>
+  </div>
+
+  <a class="btn" href="/dashboard">Try again</a>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var DB_NAME = 'stockpulse-offline';
+  var STORE = 'snapshots';
+  var POINTER = 'sp-last-store';
+  var WARNING_DAYS = 7; // mirrors EXPIRY_WARNING_DAYS_DEFAULT
+
+  // --- mirrors isValidBarcode in lib/validation/product.ts ---------------
+  function isValidBarcode(v) { return /^[0-9]{8,14}$/.test(String(v).trim()); }
+
+  // --- mirrors matchCachedBarcode in lib/offline/barcodeLookup.ts --------
+  function matchBarcode(products, value) {
+    var wanted = String(value).trim();
+    for (var i = 0; i < products.length; i++) {
+      if (String(products[i].barcode || '').trim() === wanted) return products[i];
+    }
+    return null;
+  }
+
+  // --- mirrors nextExpiry + expiryTone in lib/expiry.ts ------------------
+  // String comparison throughout, never Date: new Date('2026-08-24') is UTC
+  // midnight and renders as the 23rd anywhere ahead of UTC.
+  function nextExpiry(batches) {
+    var earliest = null;
+    for (var i = 0; i < (batches || []).length; i++) {
+      var b = batches[i];
+      if (!b.expiry_date || b.quantity <= 0) continue;
+      if (earliest === null || b.expiry_date < earliest) earliest = b.expiry_date;
+    }
+    return earliest;
+  }
+  function isoToday(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' +
+           String(d.getDate()).padStart(2, '0');
+  }
+  function shiftDays(isoDate, days) {
+    var p = isoDate.split('-');
+    var d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+  function expiryTone(date, today) {
+    if (date < today) return 'expired';
+    if (date <= shiftDays(today, WARNING_DAYS)) return 'soon';
+    return 'ok';
+  }
+  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function formatExpiry(d) {
+    var p = d.split('-');
+    return Number(p[2]) + ' ' + (MONTHS[Number(p[1]) - 1] || '?') + ' ' + p[0];
+  }
+  function money(n) {
+    try { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(n); }
+    catch (e) { return '₹' + Number(n).toFixed(2); }
+  }
+
+  var statusEl = document.getElementById('status');
+  var liveEl = document.getElementById('live');
+  var staleEl = document.getElementById('stale');
+  var listEl = document.getElementById('list');
+  var countEl = document.getElementById('count');
+  var qEl = document.getElementById('q');
+  var snapshot = null;
+  var today = isoToday(new Date());
+
+  function fail(msg) { statusEl.textContent = msg; statusEl.hidden = false; liveEl.hidden = true; }
+
+  function render() {
+    var q = qEl.value.trim().toLowerCase();
+    var items = snapshot.products;
+    if (q) {
+      // A scanned or typed barcode goes through the same exact-match rule the
+      // online lookup uses, so "which product is this" cannot mean two things.
+      if (isValidBarcode(q)) {
+        var hit = matchBarcode(items, q);
+        items = hit ? [hit] : [];
+      } else {
+        items = items.filter(function (p) {
+          return p.name.toLowerCase().indexOf(q) > -1 ||
+                 String(p.barcode || '').indexOf(q) > -1;
+        });
+      }
+    }
+    var shown = items.slice(0, 50);
+    listEl.innerHTML = '';
+    if (!shown.length) {
+      var none = document.createElement('li');
+      none.className = 'muted';
+      none.textContent = 'Nothing in the saved list matches that.';
+      listEl.appendChild(none);
+    }
+    shown.forEach(function (p) {
+      var li = document.createElement('li');
+      var left = document.createElement('div');
+      var nm = document.createElement('div');
+      nm.className = 'name'; nm.textContent = p.name;
+      left.appendChild(nm);
+      if (p.barcode) {
+        var bc = document.createElement('div');
+        bc.className = 'sub'; bc.textContent = p.barcode;
+        left.appendChild(bc);
+      }
+      var due = nextExpiry(p.batches);
+      if (due) {
+        var tone = expiryTone(due, today);
+        var ex = document.createElement('div');
+        ex.className = 'sub' + (tone === 'expired' ? ' expired' : tone === 'soon' ? ' soon' : '');
+        ex.textContent = (tone === 'expired' ? 'Expired ' : 'Expires ') + formatExpiry(due);
+        left.appendChild(ex);
+      }
+      var right = document.createElement('div');
+      right.className = 'right';
+      var pr = document.createElement('div');
+      pr.className = 'price'; pr.textContent = money(p.unit_price);
+      var st = document.createElement('div');
+      st.className = 'sub'; st.textContent = p.stock + ' in stock';
+      right.appendChild(pr); right.appendChild(st);
+      li.appendChild(left); li.appendChild(right);
+      listEl.appendChild(li);
+    });
+    countEl.textContent = 'Showing ' + shown.length + ' of ' + items.length +
+      (q ? ' matching' : ' saved') + ' product' + (items.length === 1 ? '' : 's') + '.';
+  }
+
+  function start() {
+    var storeId = null;
+    try { storeId = window.localStorage.getItem(POINTER); } catch (e) {}
+    if (!storeId) {
+      // No pointer means no snapshot has ever been written on this device.
+      // Guessing "the first record in the database" is exactly how one store's
+      // products would appear under another's login, so it is not done.
+      fail('No saved product list on this device yet. Sign in once with a connection and open Inventory or Sales; the list is saved automatically after that.');
+      return;
+    }
+    var req;
+    try { req = indexedDB.open(DB_NAME); } catch (e) {
+      fail('This browser will not let StockPulse save data offline.');
+      return;
+    }
+    req.onerror = function () { fail('Could not open the saved product list on this device.'); };
+    req.onsuccess = function () {
+      var db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        fail('No saved product list on this device yet. Reconnect once to download it.');
+        return;
+      }
+      var tx = db.transaction(STORE, 'readonly');
+      var get = tx.objectStore(STORE).get(storeId);
+      get.onerror = function () { fail('Could not read the saved product list.'); };
+      get.onsuccess = function () {
+        var snap = get.result;
+        // Keyed by store, and the body is checked against the key as well. A
+        // record that disagrees with its own key is corrupt and is refused
+        // rather than shown.
+        if (!snap || snap.storeId !== storeId || !snap.products || !snap.products.length) {
+          fail('No saved product list for this store yet. Reconnect once to download it.');
+          return;
+        }
+        snapshot = snap;
+        var t = new Date(snap.syncedAt);
+        var clock = isNaN(t.getTime()) ? 'an unknown time'
+          : String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
+        staleEl.textContent = 'Saved list from ' + clock + ' · prices and stock may have changed since';
+        statusEl.hidden = true;
+        liveEl.hidden = false;
+        render();
+      };
+    };
+  }
+
+  qEl.addEventListener('input', function () { if (snapshot) render(); });
+
+  // Return to the app the moment signal comes back, so a cashier is not left
+  // reading a stale list after the network is up again.
+  window.addEventListener('online', function () { location.replace('/dashboard'); });
+
+  start();
+})();
+</script>
+</body>
+</html>

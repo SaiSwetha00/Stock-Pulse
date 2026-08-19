@@ -77,22 +77,6 @@ export default function OfflineStatus({
     })
   }, [storeId, userId, products])
 
-  // --- warm the offline page WHILE THERE IS STILL SIGNAL ----------------
-  useEffect(() => {
-    // Measured defect, not a precaution. The service worker precaches the
-    // /offline DOCUMENT at install, but never its JavaScript - because those
-    // chunks are only requested when somebody actually visits /offline, and
-    // that normally happens only when they are already offline. The result was
-    // an offline page that loaded, showed the right <title>, and then rendered
-    // "Something went wrong" from an error boundary, because the component
-    // that fills it from IndexedDB had no code to run.
-    //
-    // `router.prefetch` pulls that route's chunks through the worker while the
-    // network is up, so the static cache holds them by the time they are
-    // needed. Fired once, on the surfaces a cashier already visits.
-    router.prefetch('/offline')
-  }, [router])
-
   // --- connectivity -----------------------------------------------------
   useEffect(() => {
     const update = () => setOffline(navigator.onLine === false)

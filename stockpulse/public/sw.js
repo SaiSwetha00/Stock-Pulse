@@ -52,7 +52,12 @@
 
 const STATIC_CACHE = 'stockpulse-static-v1'
 const SHELL_CACHE = 'stockpulse-shell-v1'
-const OFFLINE_URL = '/offline'
+// A STATIC FILE, not a route. An App Router page cannot be served offline
+// from a precached document: hydrating one needs its RSC payload, which this
+// worker refuses to cache so that no signed-in page data is ever stored on a
+// shared shop phone. Pointing at a plain .html file removes the conflict
+// instead of carving an exception into that rule.
+const OFFLINE_URL = '/offline.html'
 
 /** Same-origin path prefixes safe to serve cache-first. */
 const STATIC_PREFIXES = ['/_next/static/', '/icons/', '/wasm/', '/assets/']
