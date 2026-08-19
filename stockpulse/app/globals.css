@@ -1259,6 +1259,15 @@ body {
   color: var(--danger);
 }
 
+/* The step below it. Stock that is about to turn can still be sold, so it
+   takes the warning colour rather than the alert one — using deep red for
+   both would leave a shop unable to tell "you have lost this" from "you have
+   a few days to move this", which is the only distinction that matters on
+   that tile. */
+.sp-kpi-warning {
+  color: var(--warning);
+}
+
 /* ---------------------------------------------------------------
    QUICK ACTIONS.
 

@@ -13,11 +13,25 @@
  * the point where a stray paste breaks a layout.
  */
 
+import { MAX_EXPIRY_WARNING_DAYS, MIN_EXPIRY_WARNING_DAYS } from '@/lib/expiry'
+
 /** Raw form values, as the inputs hold them: strings, possibly blank. */
 export type StoreSettingsInput = {
   name: string
   address: string
   phone: string
+  /**
+   * Already a number — it comes from a range input, not a text box.
+   *
+   * Validated anyway, and this is the one field here that mirrors a database
+   * CHECK rather than setting the app's own limit: `stores_expiry_warning_days_check`
+   * in migration 0017 is `between 1 and 90`, and CLAUDE.md records a past bug
+   * where an app-layer rule and a database rule drifted. These two must be
+   * changed together. It matters more than usual here because this page writes
+   * `stores` straight from the browser, so a crafted request meets the CHECK
+   * with no Server Action in between to give it a readable message first.
+   */
+  expiryWarningDays: number
 }
 
 export type StoreSettingsErrors = Partial<Record<keyof StoreSettingsInput, string>>
@@ -57,6 +71,15 @@ export function validateStoreSettings(values: StoreSettingsInput): StoreSettings
     else if (!PHONE_SHAPE.test(phone)) {
       errors.phone = 'Use digits, spaces and + ( ) - only.'
     }
+  }
+
+  const days = values.expiryWarningDays
+  if (
+    !Number.isInteger(days) ||
+    days < MIN_EXPIRY_WARNING_DAYS ||
+    days > MAX_EXPIRY_WARNING_DAYS
+  ) {
+    errors.expiryWarningDays = `Choose between ${MIN_EXPIRY_WARNING_DAYS} and ${MAX_EXPIRY_WARNING_DAYS} days.`
   }
 
   return errors

@@ -2983,3 +2983,236 @@ The healthy scenario that produces all of it is *a correct page in a window
 that is not painting*, which is what it was. Re-measured in real Chrome, where
 forcing a screenshot supplies the missing frame, everything worked first time.
 Nothing was changed in the app on the strength of the first reading.
+
+## Phase 3 — alerts and surfacing (this branch)
+
+### Where the threshold lives, and the dead column it replaces
+
+`stores.perishables_warning_hours integer not null default 48` has existed
+since `schema.sql:14`. /settings has always shown a slider for it reading
+"48 Hours". **Nothing has ever read it** — measured across the whole tree, the
+only references were SettingsClient writing it back and two marketing
+paragraphs promising the feature. A D5-shaped column: created in anticipation,
+dead ever since.
+
+So the threshold did not need a new home. It needed the one it already had,
+connected, in the unit the data supports. `0017_store_expiry_warning_days.sql`
+adds `stores.expiry_warning_days integer not null default 7`, CHECK 1–90.
+
+Three things it does NOT do, each deliberate:
+
+- **It does not convert the old value.** `greatest(1, round(hours/24.0))` looks
+  respectful and is not: no query ever read that column, so no shop has ever
+  seen a warning at 48 hours or formed an expectation about it. Converting the
+  untouched default would ship every store a 2-day window while the feature
+  they are being given is specified as 7. Preserving a number that never had an
+  effect is inheriting a placeholder, not honouring a preference.
+- **It does not drop `perishables_warning_hours`.** `main`'s SettingsClient
+  still writes that column; dropping it would break saving settings on
+  production for the whole window between apply and merge. One line, the moment
+  nothing on `main` references it.
+- **It is not hours.** `product_batches.expiry_date` is a `date`. There is no
+  hour on it to compare against, so 12 hours and 23 hours were the same query.
+  A unit finer than the data is a control promising precision it cannot
+  deliver. The marketing copy that said "12 hours to a week" is corrected on
+  this branch.
+
+### The list is the low-stock list, not a parallel one
+
+| low stock | expiring |
+|---|---|
+| `supabase.rpc('low_stock_products')` | `getExpiringStock()` in `lib/expiringStock.ts` |
+| one scoped call, already ordered scarcest-first | one scoped call, already ordered earliest-first |
+| `Archive` + "Low Stock Alerts" card | `CalendarClock` + "Expiring Soon" card |
+| same table-collapses-to-cards shape | the same shape, one column swapped |
+| `EmptyState` · "All products are well stocked" · "Items fall into this list once they drop to their low-stock threshold." | `EmptyState` · "Nothing is expiring soon" · "Items fall into this list once they come within N days of their expiry date." |
+| capped at `slice(0, 6)` | capped at `slice(0, 6)` |
+
+**One deliberate departure: it is a query, not an RPC.** `low_stock_products`
+had to be a function because its test is column-to-column —
+`stock <= low_stock_threshold` — which PostgREST's filter syntax cannot
+express. This test is column-to-constant: the cutoff is computed in Node and
+passed down. A function would have cost a second migration and bought nothing.
+
+Undated lots fall out of the filter without a second condition, because
+`null <= cutoff` is null rather than true — which also lets Postgres use
+0016's partial index, whose `expiry_date is not null` predicate the comparison
+implies. Zero-quantity lots are excluded: 0016 keeps them for their history,
+and warning about stock that is not on the shelf is how a warning becomes
+noise. Rows are grouped to one entry per product, carrying the **at-risk**
+quantity rather than the product's total stock — 6 in a lot dated Friday is 6
+at risk, and saying 40 would overstate every line.
+
+### Where it surfaces, and the colour rule it inherits
+
+`Today's Sales` keeps the hero and the only gold hairline in the app. The KPI
+row goes from five columns to six: the hero still spans two, and **Low Stock
+and Expiring Soon are now a pair**. Below `xl` they are one column each rather
+than the full-width tile Low Stock used to be, so on a phone the two
+"go and do something" figures land on the same row instead of stacking with
+7-day revenue between them.
+
+The zero rule is inherited verbatim from the comment already sitting on the
+Low Stock tile — *"Deep red only when there is something to act on. Zero items
+low on stock is the good outcome, and colouring it as an alert made an empty
+store look like a failing one."* So:
+
+| state | treatment |
+|---|---|
+| expiring soon, count > 0 | `sp-kpi-warning` (`--warning`) — it can still be sold |
+| expiring soon, count = 0 | **no colour class at all** |
+| already expired, count > 0 | `--danger` foot line, "N already expired" |
+| already expired, count = 0 | no red at all — not even a reassuring "0 expired"; the foot line becomes the neutral "within N days" |
+
+`ALERT_STYLES` gains **two** entries rather than one with a flag, for the same
+reason: `expired` takes the danger border, danger icon field and a `CalendarX`;
+`expiring` takes the warning border, warning field and a `CalendarClock`.
+Giving both the warning triangle would make the state that still has a remedy
+look like the one that does not.
+
+### Reports — no natural place, and it is not forced in
+
+Every panel on /reports is a **sales-period aggregate** over a range picker,
+compared against the equally-long period before it: revenue by day, category
+mix, payment methods, top products, four KPIs. `lib/reports.ts` is entirely
+`ReportSale` / `ReportItem` over a from/to window.
+
+Expiry is **point-in-time stock state**. It has no period, and no prior-period
+comparison that means anything — "expiries in the last 30 days versus the 30
+before" is not a question a grocer asks. Adding it would give either a panel
+that ignores the date range the whole page is built around, or an invented
+metric to justify the range. Both are worse than the dashboard surface it
+already has, so nothing was added to /reports.
+
+### Verified — observed, not assumed
+
+**0017, all four post-apply checks (applied by the owner in the SQL editor):**
+
+| check | result |
+|---|---|
+| column in PostgREST schema cache | `true` |
+| every store = 7 | `true` — all four stores |
+| bound bites | `0` → 23514 · `400` → 23514 · `91` → 23514 · `90` → 200·1 row · `7` → 200·1 row |
+| RLS unchanged, rows affected (D24) | owner 200 · **1 row**; manager 200 · **0 rows**; staff 200 · **0 rows** |
+
+No policy was added and none was needed — `stores` already carried the one
+/settings saves through, and the new column inherits it. Manager and staff
+getting zero rows is correct and matches `low_stock_threshold_units`: /settings
+is an owner-only route.
+
+**Buckets** (today 2026-08-18, window 7, cutoff 2026-08-25). The seed already
+spanned all three ranges, so the added lot is a two-state control on the
+boundary itself rather than bulk seeding:
+
+| boundary lot | tile "Expiring Soon" | tile "already expired" |
+|---|---|---|
+| 2026-08-24 (inside) | 4 | 10 |
+| 2026-08-25 (**exactly the cutoff**) | 4 | 10 |
+| 2026-08-26 (one day past) | **3** | 10 |
+
+The cutoff is inclusive, and the expired count never moves — the control
+showing only the intended bucket changed. Products beyond the cutoff
+(Fresh Curd 08-26, Salted Butter 08-27, Spiced Buttermilk 08-27) appear **0
+times** in the rendered page. `Ghee` matches once, but that is `Pure Ghee
+500ml` in the Low Stock table — a substring, not the 2026-09-24 Ghee lot.
+
+**Empty state**, by moving all dated lots out of range and restoring: tile `0`,
+the red foot line **absent** and replaced by the neutral "within 7 days", both
+expiry entries gone from Recent Alerts, and *"Nothing is expiring soon — Items
+fall into this list once they come within 7 days of their expiry date."*
+
+**The zero-colour rule, with Low Stock as the control:**
+
+| state | `sp-kpi-alert` | `sp-kpi-warning` |
+|---|---|---|
+| 4 expiring, 5 low | 2 | **2** |
+| 0 expiring, 5 low | 2 | **0** |
+
+Zero expiring carries no colour class. Low Stock stayed at 5 across both and
+its count never moved, which is what makes the counting method trustworthy.
+
+Every restore was verified row by row against the captured originals — 18/18
+and 17/17, every row matching its own value, the probe lot deleted, and the
+0016 mirror clean at 42 products / 0 drifted afterwards.
+
+### The 20-state harness
+
+Real Chrome, real keyboard, rings measured **serially** per D30 — focus one
+element, read that element, move on; never focus-all-then-read.
+
+Widths: **1439px** (target 1440; one pixel of window quantisation at 90% browser
+zoom) and **400px** (target 390 — Chrome clamps its window at ~500 physical px,
+so 400 CSS is the floor reachable without device emulation. Both sit below the
+`sm` 640 breakpoint, so it is the same phone layout under test).
+
+| # | route | w | theme | CLS | overflow | rings |
+|---|---|---|---|---|---|---|
+| 1 | /dashboard | 1439 | light | 0.0003 | 0 | 40/40 |
+| 2 | /settings | 1439 | light | 0 | 0 | 31/31 |
+| 3 | /inventory | 1439 | light | 0 | 0 | 58/58 |
+| 4 | /dashboard | 1439 | dark | 0.0003 | 0 | 40/40 |
+| 5 | /settings | 1439 | dark | 0 | 0 | 31/31 |
+| 6 | /inventory | 1439 | dark | 0 | 0 | 58/58 |
+| 7 | /dashboard | 400 | light | 0 | 0 | 32/32 |
+| 8 | /settings | 400 | light | 0 | 0 | 23/23 |
+| 9 | /inventory | 400 | light | 0 | 0 | 44/44 |
+| 10 | /dashboard | 400 | dark | **0.004** | 0 | 32/32 |
+| 11 | /settings | 400 | dark | 0 | 0 | 23/23 |
+| 12 | /inventory | 400 | dark | 0 | 0 | 44/44 |
+| 13 | /dashboard **expiry empty** | 400 | light | 0 | 0 | 24/24 |
+| 14 | /dashboard **expiry empty** | 400 | dark | 0 | 0 | 24/24 |
+| 15 | /dashboard **expiry empty** | 1439 | light | 0 | 0 | 32/32 |
+| 16 | /dashboard **expiry empty** | 1439 | dark | 0 | 0 | 32/32 |
+| 17 | / (signed out) | 1439 | light | 0 | 0 | 49/49 |
+| 18 | / (signed out) | 1439 | dark | 0 | 0 | 49/49 |
+| 19 | / (signed out) | 400 | light | 0 | 0 | 44/44 |
+| 20 | / (signed out) | 400 | dark | 0 | 0 | 44/44 |
+
+- **CLS**: worst state **0.004**, on the mobile dashboard. Everything else is 0
+  or 0.0003. The "good" threshold is 0.1, so the worst state is 25x inside it.
+- **Horizontal overflow**: **0px in all 20**, no offender element found in any.
+- **Focus rings**: **751 / 751** focusable elements across the 20 states show a
+  visible ring. Zero misses.
+- **Console**: 26 messages across /login, /dashboard, /settings and /inventory,
+  **all INFO/LOG** — React DevTools notice, `[HMR] connected`, `[Fast Refresh]`.
+  Zero errors, zero warnings, zero exceptions.
+
+`tsc --noEmit`, `eslint .` and `next build` all green.
+
+### Three instrument faults, no app defect behind any of them (D38)
+
+1. **Focus rings read 8/40.** Before touching anything: what healthy system
+   produces that? This app styles focus with `:focus-visible`, and a
+   programmatic `.focus()` does not set it in Chrome unless the last input
+   modality was keyboard. One real `Tab` keypress, re-measure, **40/40**, and
+   `document.activeElement.matches(':focus-visible')` is `true`. Every state
+   above sends a real Tab first. Had this been "fixed" in the app it would have
+   meant bolting always-on outlines onto a correct focus system.
+2. **`sp-kpi-warning` reported absent in both states.** Low Stock is 5 and must
+   carry `sp-kpi-alert`, so the probe was wrong. The RSC flight payload is
+   chunked mid-token across `__next_f.push` script tags — the literal string was
+   split as `"sp-kpi mt-2 sp"` + `"-kpi-alert"`. Reassembling the payload before
+   counting produced the table above.
+3. **"No console errors found."** The tool says tracking starts when it is first
+   called, so an empty buffer is produced equally by a clean page and by a
+   listener that was not running. Re-ran the routes with tracking live; the
+   26 captured messages are the control that makes the zero meaningful.
+
+Plus the one that cost the most: **both browser surfaces measured a correct app
+as broken** because the window was minimised and then backgrounded —
+`visibilityState: "hidden"`, `requestAnimationFrame` never firing, every element
+0x0, hydration never completing. The foreground window was the Claude app
+itself, which is the catch-22: the operator has to be in Claude to ask for the
+run, and Chrome has to be in front for the run to be measurable. Resolved by
+fronting Chrome from the Win32 API for the duration and restoring it after.
+
+### NOT verified, carried forward
+
+1. **`log_sale` still does not touch lots** — unchanged from Phase 2, closes
+   with FEFO. Expiry warnings therefore read batch quantities that no sale has
+   decremented, so a lot sold out today still warns until someone edits it.
+2. **`perishables_warning_hours` is still on the table**, now unread by any
+   branch except `main`'s SettingsClient. One line drops it once this merges.
+3. **390px was not reachable** — 400px is Chrome's floor without device
+   emulation, and the in-app pane that can emulate never composites.
+4. **No phone.** Every state above is a desktop Chrome window.

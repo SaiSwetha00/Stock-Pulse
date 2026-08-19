@@ -38,7 +38,7 @@ export default function HowItWorksSection() {
       title: 'Catch Perishables Before They Turn',
       subtitle: 'Less Waste',
       description:
-        'Record an expiry date against perishable lines and choose how far ahead you want warning — anywhere from 12 hours to a week — so they surface while you can still sell them.',
+        'Record an expiry date against perishable lines and choose how far ahead you want warning — anywhere from a day to a month — so they surface while you can still sell them.',
       iconName: 'BarChart3',
       detailPoints: ['Expiry dates per product', 'Warning window you choose', 'Low-stock thresholds'],
     },

@@ -16,11 +16,15 @@ import {
   BellOff,
   PackageCheck,
   FileText,
+  CalendarClock,
+  CalendarX,
   type LucideIcon,
 } from 'lucide-react'
 import EmptyState from '@/components/ui/EmptyState'
 import { formatCurrency } from '@/lib/format'
 import type { Product, Sale } from '@/types'
+import type { ExpiringProduct, ExpiringStock } from '@/lib/expiringStock'
+import { expiryRelative, formatExpiry } from '@/lib/expiry'
 import { categoryLabel } from '@/lib/categories'
 import SalesTrendChart from '@/components/dashboard/SalesTrendChartLazy'
 import AutoRefresh from '@/components/dashboard/AutoRefresh'
@@ -31,7 +35,7 @@ import CountUp from '@/components/ui/CountUp'
 
 export interface DashboardAlert {
   id: string
-  kind: 'stock' | 'device' | 'delivery'
+  kind: 'stock' | 'expired' | 'expiring' | 'device' | 'delivery'
   title: string
   description: string
   /** Fallback label for alerts with no timestamp (e.g. "now"). */
@@ -71,6 +75,27 @@ const ALERT_STYLES = {
     iconWrap: 'rounded-lg bg-danger-bg',
     icon: 'text-danger',
     Icon: AlertTriangle,
+    href: '/inventory',
+  },
+  // Two entries, not one with a flag, because the two states are not degrees
+  // of the same thing. `expired` is loss that has already happened and takes
+  // the danger treatment the low-stock alert takes. `expiring` is stock that
+  // can still be sold, so it takes the warning tokens — a softer border, an
+  // amber icon field, and a calendar rather than a warning triangle. Giving
+  // both the triangle would make the one that still has a remedy look like
+  // the one that does not.
+  expired: {
+    border: 'border-l-4 border-danger',
+    iconWrap: 'rounded-lg bg-danger-bg',
+    icon: 'text-danger',
+    Icon: CalendarX,
+    href: '/inventory',
+  },
+  expiring: {
+    border: 'border-l-4 border-warning',
+    iconWrap: 'rounded-lg bg-warning-bg',
+    icon: 'text-warning',
+    Icon: CalendarClock,
     href: '/inventory',
   },
   device: {
@@ -224,6 +249,9 @@ export default function DashboardView({
   trendData,
   recentSales,
   lowStockItems,
+  expiring,
+  expiryWarningDays,
+  today,
   categoryLabels,
   alerts,
 }: {
@@ -244,10 +272,22 @@ export default function DashboardView({
   trendData: { label: string; value: number }[]
   recentSales: Sale[]
   lowStockItems: Product[]
+  /** Already bucketed and urgency-ordered by getExpiringStock. */
+  expiring: ExpiringStock
+  /** This store's window, for the copy that has to name it. */
+  expiryWarningDays: number
+  /** The shop's calendar date, from the server — see lib/expiry.ts. */
+  today: string
   /** slug -> display name, from the store's own categories. */
   categoryLabels: Record<string, string>
   alerts: DashboardAlert[]
 }) {
+  // Expired first, then expiring — the list is read top-down and loss that has
+  // already happened outranks loss that can still be prevented. Capped at six
+  // exactly as the Low Stock table is: a dashboard panel is a prompt to go and
+  // look, not the inventory screen.
+  const expiringRows: ExpiringProduct[] = [...expiring.expired, ...expiring.soon].slice(0, 6)
+
   return (
     <div className="sp-page">
       {/* The greeting replaces the old eyebrow + "Dashboard Overview" title.
@@ -270,7 +310,12 @@ export default function DashboardView({
       </div>
 
       {/* ---- Metrics ---- */}
-      <div className="mt-6 grid grid-cols-2 gap-4 xl:grid-cols-5">
+      {/* Six columns at xl, not five: the hero still takes two, and Low Stock
+          and Expiring Soon are now a pair. Below xl they are one column each
+          rather than the full-width tile Low Stock used to be, so the two
+          action figures land on the same row on a phone instead of stacking
+          with the week's revenue between them. */}
+      <div className="mt-6 grid grid-cols-2 gap-4 xl:grid-cols-6">
         {/* One card shell for all four tiles.
 
             These were three different cards — white, solid black, and a pink
@@ -365,7 +410,7 @@ export default function DashboardView({
             hover. `sp-lift` is the shared affordance: shadow-sm to shadow-md
             plus 2px of travel, and a press state that also fires on touch,
             where there is no hover to rely on. */}
-        <Link href="/inventory" className={`${STAT_CARD} sp-delay-4 col-span-2 xl:col-span-1`}>
+        <Link href="/inventory" className={`${STAT_CARD} sp-delay-4`}>
           <div className="flex items-center justify-between gap-2">
             <div className={`${STAT_ICON} bg-danger-bg`}>
               <AlertTriangle className="h-5 w-5 text-danger" aria-hidden="true" />
@@ -381,6 +426,43 @@ export default function DashboardView({
           <p className={`${STAT_VALUE} ${lowStockItems.length > 0 ? 'sp-kpi-alert' : ''}`}>
             <CountUp value={lowStockItems.length} />
           </p>
+        </Link>
+
+        {/* Beside Low Stock, deliberately. These are the two "go and do
+            something about it" figures on the page, and a shopkeeper reads
+            them as a pair in the morning. Today's takings keeps the hero and
+            the only gold hairline; nothing here competes with it. */}
+        <Link href="/inventory" className={`${STAT_CARD} sp-delay-5`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className={`${STAT_ICON} bg-warning-bg`}>
+              <CalendarClock className="h-5 w-5 text-warning" aria-hidden="true" />
+            </div>
+            <span className="text-xs font-semibold text-warning">View all</span>
+          </div>
+          <p className={STAT_LABEL}>Expiring Soon</p>
+          {/* Amber, not red, and only when there is something in it — the same
+              rule the tile above learned. Zero expiring is a good outcome and
+              a coloured zero would make a well-run shop look like a failing
+              one. Expiring stock is also not the same problem as expired
+              stock: this can still be sold, so it warns rather than alarms. */}
+          <p
+            className={`${STAT_VALUE} ${expiring.soon.length > 0 ? 'sp-kpi-warning' : ''}`}
+          >
+            <CountUp value={expiring.soon.length} />
+          </p>
+          {/* Deep red, and only when it exists. Already-expired stock is loss
+              that has happened, so it reads in the alert colour rather than
+              the warning one — and a shop with none of it is shown no red at
+              all rather than a reassuring "0 expired". */}
+          {expiring.expired.length > 0 ? (
+            <p className={`${STAT_FOOT} font-semibold text-danger`}>
+              {expiring.expired.length} already expired
+            </p>
+          ) : (
+            <p className={STAT_FOOT}>
+              within {expiryWarningDays} day{expiryWarningDays === 1 ? '' : 's'}
+            </p>
+          )}
         </Link>
       </div>
 
@@ -619,6 +701,104 @@ export default function DashboardView({
                         className="inline-flex control-h items-center text-sm font-semibold text-muted-strong hover:underline"
                       >
                         Restock
+                      </Link>
+                    </td>
+                  )}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ---- Expiring ---- */}
+      {/* The Low Stock card above, with one column swapped. Same shell, same
+          table-collapses-to-cards shape, same EmptyState, same sentence
+          pattern for the empty copy — this is the other half of "what needs
+          attention today", not a second system that happens to look similar. */}
+      <div className="mt-7 sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+        <div className="flex items-center gap-2">
+          <CalendarClock className="h-5 w-5 text-warning" />
+          <h2 className="sp-heading">Expiring Soon</h2>
+        </div>
+
+        {/* A failed read is said out loud. An empty table would read as
+            "nothing is expiring", which is the one wrong answer this panel
+            must never give silently. */}
+        {expiring.error && (
+          <p role="alert" className="mt-4 rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">
+            Expiry dates could not be read just now, so this list may be
+            incomplete. Reload to try again.
+          </p>
+        )}
+
+        <table className="sp-table mt-4 block w-full text-left text-sm lg:table">
+          <thead className="hidden lg:table-header-group">
+            <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
+              <th className="pb-3 pr-4 font-semibold">Item Name</th>
+              <th className="pb-3 pr-4 font-semibold">Category</th>
+              <th className="pb-3 pr-4 font-semibold">Expires</th>
+              {isOwner && <th className="pb-3 font-semibold">Action</th>}
+            </tr>
+          </thead>
+          <tbody className="block space-y-3 lg:table-row-group lg:space-y-0">
+            {expiringRows.length === 0 && !expiring.error && (
+              <tr className="block lg:table-row">
+                <td colSpan={isOwner ? 4 : 3} className="block lg:table-cell">
+                  <EmptyState
+                    icon={PackageCheck}
+                    title="Nothing is expiring soon"
+                    description={`Items fall into this list once they come within ${expiryWarningDays} day${expiryWarningDays === 1 ? '' : 's'} of their expiry date.`}
+                    className="py-8"
+                  />
+                </td>
+              </tr>
+            )}
+            {expiringRows.map((p) => {
+              const isExpired = p.expiry_date < today
+              return (
+                <tr
+                  key={p.id}
+                  className="block rounded-xl border border-border p-4 lg:table-row lg:rounded-none lg:border-0 lg:border-b lg:border-border lg:p-0 lg:last:border-0"
+                >
+                  <td className="block font-medium text-foreground lg:table-cell lg:py-3.5 lg:pr-4">
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <ProductThumb name={p.name} imageUrl={p.image_url} size={32} />
+                      <span className="truncate">{p.name}</span>
+                    </span>
+                  </td>
+                  <td className="mt-2 block lg:mt-0 lg:table-cell lg:py-3.5 lg:pr-4">
+                    <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-muted-strong">
+                      {categoryLabel(p.category, categoryLabels)}
+                    </span>
+                  </td>
+                  <td className="mt-3 block lg:mt-0 lg:table-cell lg:py-3.5 lg:pr-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`h-2 w-2 shrink-0 rounded-full ${isExpired ? 'bg-danger' : 'bg-warning'}`}
+                      />
+                      <span
+                        className={`whitespace-nowrap text-sm font-semibold ${isExpired ? 'text-danger' : 'text-warning'}`}
+                      >
+                        {formatExpiry(p.expiry_date)}
+                      </span>
+                      {/* The date alone makes the reader do the subtraction.
+                          "5 days ago" and "in 2 days" are the same fact said
+                          the way the decision is actually made. */}
+                      <span className="whitespace-nowrap text-xs text-muted">
+                        {isExpired ? 'expired' : 'expires'} {expiryRelative(p.expiry_date, today)}
+                        {' · '}
+                        {p.quantity} unit{p.quantity === 1 ? '' : 's'}
+                      </span>
+                    </div>
+                  </td>
+                  {isOwner && (
+                    <td className="mt-1 block lg:mt-0 lg:table-cell lg:py-3.5">
+                      <Link
+                        href="/inventory"
+                        className="inline-flex control-h items-center text-sm font-semibold text-muted-strong hover:underline"
+                      >
+                        {isExpired ? 'Write off' : 'Discount'}
                       </Link>
                     </td>
                   )}

@@ -53,7 +53,7 @@ npm run lint      # eslint
 - **`findProductByBarcode` is a Server Action deliberately, even though `InventoryClient` already holds every product in memory.** That array is a page-load snapshot; a product added at the till seconds ago is absent from it, so a client-side match would offer to create a duplicate — and the unique index would then refuse the save while naming a product that is not on screen.
 - `proxy.ts`'s matcher must exclude every static extension served from `public/`. `wasm` was added for the barcode decoder after measuring 307→`/login` on `/wasm/zxing_reader.wasm` without a session; the file's own comments record the same bug for `mp4` (a black hero) and `opengraph-image` (blank link previews). If you add a binary asset type, curl it unauthenticated before assuming it is served.
 - No test suite is configured in this project.
-- Database schema/migrations live in `stockpulse/supabase/` (`schema.sql` + `schema_phase2-4.sql` for the base schema, then `migrations/0001`–`0016`) — run these in the Supabase SQL editor, there's no migration CLI wired up. There is also **no DDL path from an agent**: no `psql` on this machine, no `pg`/`postgres` driver in the project, and the service-role key reaches PostgREST, which is the data plane only. Applying a migration is always a request to the owner.
+- Database schema/migrations live in `stockpulse/supabase/` (`schema.sql` + `schema_phase2-4.sql` for the base schema, then `migrations/0001`–`0017`) — run these in the Supabase SQL editor, there's no migration CLI wired up. There is also **no DDL path from an agent**: no `psql` on this machine, no `pg`/`postgres` driver in the project, and the service-role key reaches PostgREST, which is the data plane only. Applying a migration is always a request to the owner.
 
 **Do not trust a doc about which migrations are applied — measure.** `PROGRESS.md` carried "0009 NOT APPLIED" for weeks after it had in fact been applied, and this file briefly repeated it. The storage API and PostgREST both answer the question directly in one call, so the check costs nothing:
 
@@ -176,6 +176,60 @@ same rule the `Barcode` column follows. A CSV row describes one lot, so
 importing a file **with** a Stock or Expiry column replaces a product's lots,
 and a file with **neither** now leaves them alone (it previously wrote stock 0
 over every matched product, silently).
+
+
+### The expiry threshold is `stores.expiry_warning_days`, and it is NOT hours
+
+`0017_store_expiry_warning_days.sql` (2026-08-19) — **applied and verified by
+measurement**: the column is in the PostgREST schema cache, all four stores
+hold 7, and `stores_expiry_warning_days_check` bites exactly at the boundary
+(`90` → 200 · 1 row, `91` → 23514).
+
+It lives on `stores` because that is where `low_stock_threshold_units` already
+lives and where /settings already edits a threshold. Read it through
+`storeExpiryWarningDays()` in `lib/expiry.ts`, **never off the property** — the
+field is optional in the type so the app renders against an unmigrated
+database, and `undefined` would reach `shiftDays` as NaN and report that
+nothing is expiring, which is the worst way an alerting feature can fail
+because it looks exactly like good news.
+
+**`stores.perishables_warning_hours` is the dead column this replaces.** It has
+existed since `schema.sql:14` with a /settings slider reading "48 Hours", and
+nothing has ever read it — a D5-shaped column. 0017 deliberately does **not**
+convert its value (no query ever read it, so 48 is a placeholder and not a
+preference) and does **not** drop it (`main`'s SettingsClient still writes it;
+dropping breaks saving settings until the Phase 3 branch merges). Drop it with
+one line once nothing on `main` references it.
+
+Hours could not work: `product_batches.expiry_date` is a `date`, so 12 hours
+and 23 hours are the same query. A unit finer than the data is a control
+promising precision it cannot deliver.
+
+**Reading it: `lib/expiringStock.ts#getExpiringStock`.** Same shape as
+`low_stock_products` — one scoped call returning rows already ordered
+urgency-first, so no page filters or sorts. It is a plain query rather than an
+RPC because `low_stock_products` only had to be a function for its
+column-to-column test (`stock <= low_stock_threshold`); this one compares a
+column to a constant. Undated lots drop out without a second filter, since
+`null <= cutoff` is null — which also lets Postgres use 0016's partial index.
+Zero-quantity lots are excluded. Rows group to one entry per product carrying
+the **at-risk** quantity, not the product's total stock.
+
+**The colour rule, and the mistake it comes from.** Expired is `--danger`;
+expiring-soon is `--warning` (`.sp-kpi-warning`, added beside `.sp-kpi-alert`).
+`ALERT_STYLES` carries two entries, `expired` and `expiring`, not one with a
+flag — the state that can still be sold must not look like the state that
+cannot. And **zero is never coloured**: the Low Stock tile already carries the
+comment recording that colouring a zero "made an empty store look like a
+failing one", and the expiry tile follows it, dropping even the red
+"N already expired" line when that count is 0.
+
+**Nothing was added to /reports, deliberately.** Every panel there is a
+sales-period aggregate over a range picker with a prior-period comparison.
+Expiry is point-in-time stock state with no period and no meaningful
+prior-period figure, so it would need either a panel ignoring the page's own
+date range or an invented metric. If a later phase wants expiry reporting, it
+needs its own surface, not a panel wedged into that one.
 
 ### Environment variables (`stockpulse/.env.local`)
 

@@ -86,3 +86,65 @@ export function formatExpiry(isoDate: string): string {
   if (!month) return isoDate
   return `${Number(d)} ${month} ${y}`
 }
+
+/**
+ * The default window, and the fallback when 0017 has not been applied.
+ *
+ * Seven days is the brief's number and it is also the one a grocer can act on:
+ * long enough to discount and move a crate, short enough that the list is not
+ * everything perishable in the shop.
+ */
+export const EXPIRY_WARNING_DAYS_DEFAULT = 7
+
+/** The widest the setting may be, mirroring 0017's CHECK exactly. */
+export const MIN_EXPIRY_WARNING_DAYS = 1
+export const MAX_EXPIRY_WARNING_DAYS = 90
+
+/**
+ * This store's warning window.
+ *
+ * Read through here, never off the property, because `expiry_warning_days` is
+ * optional in the type: the app has to render against a database where 0017
+ * has not been applied, and `undefined * 1` silently becomes NaN, which would
+ * make `shiftDays` produce "NaN-aN-aN" and every comparison false — a
+ * dashboard that quietly reports nothing expiring, which is the worst possible
+ * failure for an alerting feature because it looks exactly like good news.
+ */
+export function storeExpiryWarningDays(store: { expiry_warning_days?: number }): number {
+  const days = store.expiry_warning_days
+  if (typeof days !== 'number' || !Number.isFinite(days) || days < MIN_EXPIRY_WARNING_DAYS) {
+    return EXPIRY_WARNING_DAYS_DEFAULT
+  }
+  return Math.min(days, MAX_EXPIRY_WARNING_DAYS)
+}
+
+/**
+ * How many days from `today` until `isoDate`. Negative when already past.
+ *
+ * Whole days on the calendar, not elapsed time — `shiftDays` walks date fields
+ * in UTC precisely so DST cannot make a day 23 or 25 hours long here.
+ */
+export function daysUntil(isoDate: string, today: string): number {
+  // Linear search would be silly; step by comparing shifted strings instead.
+  // Bounded either side by the widest window plus a year of already-expired
+  // stock, which is far past the point where the exact number stops mattering.
+  const [ty, tm, td] = today.split('-').map(Number)
+  const [ey, em, ed] = isoDate.split('-').map(Number)
+  const MS = 24 * 60 * 60 * 1000
+  return Math.round((Date.UTC(ey, em - 1, ed) - Date.UTC(ty, tm - 1, td)) / MS)
+}
+
+/**
+ * "in 3 days" / "today" / "5 days ago".
+ *
+ * Said in words rather than left as a date, because the whole point of the
+ * list is urgency and a reader should not be subtracting dates in their head.
+ */
+export function expiryRelative(isoDate: string, today: string): string {
+  const d = daysUntil(isoDate, today)
+  if (d === 0) return 'today'
+  if (d === 1) return 'tomorrow'
+  if (d > 1) return `in ${d} days`
+  if (d === -1) return 'yesterday'
+  return `${Math.abs(d)} days ago`
+}
