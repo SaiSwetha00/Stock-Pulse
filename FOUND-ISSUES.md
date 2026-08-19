@@ -1505,3 +1505,48 @@ for a human, not grounds to refuse a sale that already happened.
 had just written. Both reads had returned exactly 1000 rows — PostgREST's
 default page cap — so the new row fell outside the window. A count taken from a
 truncated page is not a count.
+
+## FIXED 2026-08-19 — the offline till queued a sale that could never sync
+
+`public/offline.html` stamped `userId: snapshot.userId || 'unknown'` on every
+sale made from the offline till. That value is sent to `replay_sale`'s
+`p_sold_by uuid`. Measured:
+
+    p_sold_by="unknown" -> HTTP 400 "invalid input syntax for type uuid: \"unknown\""
+
+A sale made on a device whose snapshot carried no user would therefore sit in
+the queue **forever** — retried on every reconnect, failing identically each
+time, and showing a shopkeeper a raw Postgres error. It is precisely the outcome
+the queue exists to prevent.
+
+Fixed in `offline.html`: `null` instead of the placeholder. Measured after:
+`p_sold_by=null` returns `status="created"`. `lib/offline/sync.ts` additionally
+refuses to send anything that is not a UUID, and now names both the uuid error
+and an expired session in plain words.
+
+**How it escaped four phases:** every offline test either drove `offline.html`
+directly (never reaching `replay_sale`, which did not exist until Phase 4) or
+drove `sync.ts` with fixtures built in the probe, which always carried a real
+user id. The two halves were each exercised; the join between them never was.
+
+## OPEN — `replay_sale` does not default `p_sold_by` to the caller
+
+Found 2026-08-19 while fixing the above. Measured: calling `replay_sale` with
+`p_sold_by = null` returns `status="created"` and stores the sale with
+`sold_by` **not** set to the caller.
+
+Consequence is bounded — the sale, its lines, its total and its stock effect are
+all correct; only the attribution is missing. But a sale with no seller is a gap
+in the audit trail, and after the fix above, `null` is now the value the offline
+till sends whenever a snapshot lacks a user.
+
+**Fix:** one line in `replay_sale`, in a new migration (0018 and 0019 are both
+applied, so neither may be edited):
+
+```sql
+-- inside replay_sale, where sold_by is written
+coalesce(p_sold_by, auth.uid())
+```
+
+Deliberately not done in Phase 5, which was scoped to investigation and bugfix
+rather than schema change.

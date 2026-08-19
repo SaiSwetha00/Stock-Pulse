@@ -4118,3 +4118,124 @@ store.**
    carried timestamps minutes in the past and the rows were accepted; nothing
    checked that `sales.created_at` matched them.
 4. **The server-price hardening is still absent** (see above).
+
+---
+
+# OFFLINE MODE — Phase 5 of 5: end-to-end verification (2026-08-19)
+
+All four offline phases are on `main`. This is the first pass over the chain as
+a whole, and alongside barcode and expiry.
+
+## Bugs found, and where they were fixed
+
+### BUG 1 — a sale queued from the offline till could never sync (FIXED)
+
+`public/offline.html` stamped `userId: snapshot.userId || 'unknown'`. That value
+goes to `replay_sale`'s `p_sold_by uuid`. **Measured:**
+
+    p_sold_by="unknown" -> HTTP 400 "invalid input syntax for type uuid: \"unknown\""
+
+So a sale made on the offline till, on a device whose snapshot carried no user,
+would sit in the queue **forever** — retried on every reconnect, failing every
+time, showing a shopkeeper raw Postgres. It is the exact failure the queue
+exists to prevent: money recorded nowhere the shop can reach.
+
+Fixed in the file that owns it — `offline.html` now writes `null`. Measured:
+`p_sold_by=null` returns `status="created"`, so the sale lands. It lands
+**unattributed**, which is a far smaller loss than a sale that never syncs.
+
+### BUG 2 — a null `p_sold_by` is not defaulted to the caller (FOUND, NOT FIXED)
+
+The same measurement showed `sold_by set to caller: false`. `replay_sale` does
+not `coalesce(p_sold_by, auth.uid())`, so a sale replayed without a user id is
+stored with no seller.
+
+**Not fixed here, deliberately.** It needs a migration to `replay_sale`, and
+this phase was scoped to investigation and bugfix rather than schema change.
+It is a data-quality gap, not a loss: the sale, its lines, its total and its
+stock effect are all correct. Recorded in FOUND-ISSUES with the one-line fix.
+
+### Hardening in `lib/offline/sync.ts` (the file that owns sending)
+
+- `p_sold_by` is sent only if it matches a UUID, else `null`. Defence in depth:
+  the offline till is fixed, but any future writer that invents a placeholder
+  cannot strand a sale.
+- `readableReason` gained two cases: `invalid input syntax for type uuid`
+  (should now be unreachable, named because the version that reached a phone
+  showed raw Postgres) and expired-JWT, which now reads *"Your session expired.
+  Sign in again and this will be sent."*
+
+## Question 3 — a queued sale when the session expired offline
+
+Traced through the code and confirmed against the storage layer. **The sale is
+not lost.**
+
+- The queue lives in the `queue` object store. `idbClear` — the only wipe —
+  operates on `STORE = 'snapshots'`, so signing out clears the product cache and
+  **leaves the queue untouched**. Verified by reading the store constants.
+- `signOutEverywhereLocal` additionally warns, naming the count, before signing
+  out with sales pending.
+- On reconnect with a dead session, supabase-js attempts a token refresh. If the
+  refresh token still lives, the replay proceeds normally. If it does not, the
+  RPC returns an auth error, the sale **stays queued with a readable reason**,
+  and it replays after the next sign-in — `sp-last-store` and the record's own
+  `storeId` both survive.
+
+The one real degradation: `router.refresh()` also fires on reconnect, so a dead
+session bounces the user to `/login`. The queue survives that, and syncs once
+they sign back in.
+
+## Question 2 — interaction with barcode and expiry
+
+Data confirmed present for every branch of the offline path, against the live
+store: **12 expired** products with barcodes (e.g. Pure Ghee 500ml, 2026-08-14),
+**3 expiring-soon** inside the 7-day window (Whole Milk 1L, 2026-08-22, barcode
+`2000000000091`), and **23 with no expiry at all**. Barcode `9999999999999` is
+absent from the store, so the unknown-barcode path is testable on a phone.
+
+The cached record carries `batches`, and `offline.html` restates `nextExpiry` +
+`expiryTone` in plain JS, so an expiring item shows from cache with the same
+tone rule as online. **That rendering was verified in Phase 2; it has not been
+re-verified since the queue and sync landed.**
+
+## D25 scope check, re-run
+
+| role | stores visible | foreign sales | foreign products | foreign discrepancies |
+|---|---|---|---|---|
+| staff | 1 of 4 | 0 | 0 | 0 |
+| manager | 1 of 4 | 0 | 0 | 0 |
+| owner | 1 of 4 | 0 | 0 | 0 |
+
+`stock_discrepancies` is included now that 0018 exists; no role sees another
+store's rows.
+
+`tsc --noEmit`, `eslint .` and `next build` green. The inline script in
+`offline.html` was extracted and `node --check`ed, per the standing rule that it
+has no bundler or type checking.
+
+## VERIFIED vs NOT VERIFIED — the honest list
+
+**Verified by measurement, this phase:**
+- Bug 1 reproduced (HTTP 400) and the fix confirmed (`status="created"`).
+- The queue survives sign-out — `idbClear` touches only `snapshots`.
+- Expiry/barcode data exists for expired, expiring-soon, no-expiry and unknown.
+- D25 scope, all three roles.
+- tsc, eslint, build, and the inline script's syntax.
+
+**Verified in earlier phases, still standing:**
+- `replay_sale` idempotency, oversell handling, price precision, RLS (Phase 4).
+- Cross-store cache isolation, offline render, offline barcode match (Phase 2).
+- Queue durability across reload, and its record shape (Phase 3).
+
+**NOT VERIFIED — and this is the whole of it:**
+1. **The full chain has never been run end to end.** Scan → cache hit with
+   expiry → complete → queue → reload → reconnect → sync → stock, as one
+   unbroken sequence, has not happened once. Each link is verified in isolation.
+2. **No UI in any offline phase has been seen running.** The harness cannot
+   hydrate a backgrounded tab; this hid two Phase 3 defects that a phone found
+   in minutes, and Bug 1 above is a third of the same kind — found by reading,
+   not by running.
+3. **No real barcode has ever been decoded** by anything but a phone.
+4. **The two-device conflict has never been run** with two real devices.
+5. **Safari and iOS remain untested**, including storage eviction, which can
+   delete a queue holding real money.
