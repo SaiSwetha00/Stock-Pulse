@@ -31,6 +31,19 @@ export const config = {
     // but an expired or absent session answers a 1 MB wasm request with the
     // sign-in page as HTML, and the scanner then fails with a module
     // instantiation error rather than with anything about being logged out.
-    '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|opengraph-image|twitter-image|icon|apple-icon|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|mp4|webm|mov|woff|woff2|wasm)$).*)',
+    // `manifest.webmanifest` and `sw.js` are the FOURTH and FIFTH instances of
+    // the bug above, added by Offline Phase 1 and predicted from it rather
+    // than found afterwards. Neither matches any extension rule here:
+    // `.webmanifest` is not in the list, and `sw.js` is a plain file under
+    // public/ that `_next/static` does not cover. Without these two names the
+    // auth middleware answers both with the sign-in page as HTML - a 200 with
+    // content-type text/html - and the consequences are silent in the same way
+    // the others were:
+    //   - the browser parses the manifest as HTML, finds no JSON, and reports
+    //     that the site has no manifest, so it is not installable;
+    //   - registration of /sw.js fails on MIME type, because a worker script
+    //     must not be served as text/html.
+    // Both were curled unauthenticated before this line was written.
+    '/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|sw.js|opengraph-image|twitter-image|icon|apple-icon|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|mp4|webm|mov|woff|woff2|wasm)$).*)',
   ],
 }

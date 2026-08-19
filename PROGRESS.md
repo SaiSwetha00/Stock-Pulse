@@ -3216,3 +3216,235 @@ fronting Chrome from the Win32 API for the duration and restoring it after.
 3. **390px was not reachable** — 400px is Chrome's floor without device
    emulation, and the in-app pane that can emulate never composites.
 4. **No phone.** Every state above is a desktop Chrome window.
+
+---
+
+# OFFLINE MODE — Phase 1 of 5: investigate and propose (2026-08-19)
+
+Minimal code by design: a service worker, a manifest and an offline page. No
+queue, no replay, no offline writes. The rest of this section is the
+investigation the later phases depend on.
+
+## 1. What happens today when the network drops
+
+**Measured, and the headline is that there is no offline story at all.** Before
+this branch: `navigator.serviceWorker.controller === 0` in the running app, and
+a tree-wide grep finds no `navigator.onLine`, no online/offline listener, no
+Cache Storage use, and nothing persisted client-side except `sp-theme` in
+localStorage. A navigation with no signal never reaches app code — the browser
+shows its own error page.
+
+**In-session writes fail softly, and nothing already typed is lost.** Measured
+against an unreachable host with the project's own `@supabase/postgrest-js`:
+
+    rpc('log_sale') -> RESOLVES (does not throw)
+      data   = null
+      error  = { message: "TypeError: fetch failed", code: "" }
+      status = 0
+
+`executeWithRetry` appears in the stack, so the client retries before giving up.
+Tracing that through `LogSaleModal#handleSubmit`: `rpcError` is truthy, so it
+calls `setError(...)` and `toast.error('Could not log sale', ...)` and returns —
+**`onClose()` and `router.refresh()` are never reached, so the modal stays open
+and the cart survives on screen.** A cashier can retry when signal returns. Two
+problems: the message shown is the literal string `TypeError: fetch failed`, and
+the cart lives only in React state, so a reload or a tab eviction loses the sale
+silently.
+
+**Server Actions are the worse path, and this one is NOT measured.**
+`saveProduct`, `deleteProduct` and `importProducts` are called from
+`startTransition(async () => { const result = await saveProduct(...) })` with
+**no try/catch**. A Server Action whose POST cannot reach the server rejects,
+which inside a transition is an unhandled rejection reaching the nearest error
+boundary — losing the form. I could not drive the modal to confirm it, because
+the harness browser would not render dialogs, so this is read from the code and
+the Server Action contract rather than observed. **Phase 2 should confirm it
+first.**
+
+## 2. Which writes actually need offline support
+
+| write path | needs offline? | why |
+|---|---|---|
+| `log_sale` (till) | **Yes — the only must** | A customer is standing there. The one write where waiting is not an option and failure loses money rather than time. |
+| stock adjust via `saveProduct` | Useful, not urgent | Receiving a delivery can wait minutes. Worth having once a queue exists; not worth building one for. |
+| product create/edit metadata | No | Naming and pricing a new line is desk work. |
+| categories, suppliers, customers, staff, leave, settings, support, profile, monitoring, notifications, AI | **No** | Exactly the owner-editing-supplier-details case. Each one added to a queue is another conflict surface for no benefit a shop would notice. |
+
+**Recommendation: Phase 2 queues `log_sale` and nothing else.**
+
+## 3. The conflict question — I argue for server-authoritative replay of intents
+
+The scenario: a sale goes through offline on the back-room phone while the same
+last two units sell on the till. On reconnect, stock would go to -1.
+
+**Queue the INTENT, never the resulting number.** The queued item is
+"sold 2 x product X at 14:32", not "set stock to 3". This one choice decides
+everything else, because stock is a **counter**, not a value.
+
+- **Last-write-wins is wrong here, and not marginally.** Applied to a counter it
+  discards one of the two sales outright: whichever device syncs second
+  overwrites the other's decrement, and a real transaction that took real money
+  vanishes from the ledger. LWW is defensible for a product's *name*. It is
+  indefensible for money.
+- **Reject-and-flag is also wrong**, for a reason easy to miss: the sale
+  physically happened. The goods left the shop. Refusing it on reconciliation
+  asks the shopkeeper to un-sell something they cannot un-sell, and leaves the
+  takings understated.
+- **Server-authoritative replay** applies each queued intent through `log_sale`,
+  which is already `security definer` and already atomic. Both sales land. Both
+  decrements apply.
+
+**And then stock goes to -1, so say what happens next honestly.** Replay must
+NOT refuse the sale. It should clamp the stock floor at 0 and write a
+discrepancy row — product, expected, actual, both sale ids, the device — that
+surfaces as a task in the app. That is the trade-off, stated plainly:
+
+> The software cannot prevent the oversell, because it already happened in the
+> physical shop before either device could know. It can only record it
+> faithfully and put it in front of a human. Anything that "resolves" it
+> automatically is inventing a fact about a shelf it cannot see.
+
+Two consequences to accept up front. **Stock is briefly wrong** between the
+offline sale and reconnection — unavoidable, since the authoritative count lives
+on a server the device cannot reach. And **replay must be idempotent**: each
+queued sale carries a client-generated UUID and the server refuses a duplicate.
+Without that, one flaky reconnect deducts the same stock twice.
+
+## 4. What to cache for offline reads, and how it stays fresh
+
+**Cache** (the till's minimum): product `id`, `name`, `barcode`, `unit_price`,
+`unit`, `category`, `image_url`, a **stock snapshot**, and the store's own
+settings. That is exactly what `addToCart` and `findProductByBarcode` read.
+
+**Do not cache**: reports, analytics, audit, sales history, customers,
+suppliers, staff. A cashier needs to ring up a tin of ghee, not last month's
+category mix, and every extra table is more to keep fresh and more to leak on a
+shared handset.
+
+**Where**: IndexedDB keyed by `store_id`, cleared on sign-out — **not** the
+service worker's HTTP cache. That distinction is already enforced by this
+phase's worker, which refuses to cache authenticated HTML at all: a grocery
+phone is shared between owner and staff, and a cached `/dashboard` would show
+the next person the previous person's takings before the network could answer,
+with RLS unable to help because those bytes never reach the server.
+
+**Freshness**: pull on sign-in, on regaining connectivity, and on app focus,
+using an `updated_at` high-water mark so a refresh is a delta rather than 42
+rows each time. **The cached stock number is advisory** — shown so the cashier
+sees something, never used to authorise a sale; the server decides on replay
+(section 3). The till should carry a quiet "prices as of 14:07" line, because a
+shopkeeper who knows the data is ten minutes old can work around it, while one
+who assumes it is live cannot.
+
+## 5. Auth offline — the part most likely to bite
+
+Supabase issues a short-lived JWT (about an hour) and refreshes it over the
+network. A cashier mid-shift with no signal hits this sequence: the access token
+expires, the refresh cannot reach Supabase, and `updateSession` in `proxy.ts`
+would redirect to `/login` — except no request reaches the server anyway, so
+this phase's worker shows the offline page instead.
+
+Three rules the queue design must follow, all easy to get wrong:
+
+1. **Queueing must not require a valid session.** The queue is local. A sale is
+   written to IndexedDB with the user id captured **at the time of the sale**,
+   not at replay time, so an expired token cannot block the till or misattribute
+   the sale to whoever signs in next.
+2. **Signing out must not silently discard unreplayed entries.** It is the one
+   action guaranteed to destroy money and it is one tap away. It needs an
+   explicit warning naming the count.
+3. **Replay may need a fresh sign-in, and must survive it.** Refresh tokens
+   rotate and expire; a device offline long enough comes back needing a real
+   login. The queue must outlive that and replay afterwards, still attributed to
+   the recorded user.
+
+An honest limit: an offline device cannot verify a role. A staff member whose
+access is revoked while offline will still ring up sales, and those sales will
+replay. RLS catches it at replay time, not at the till — so the discrepancy
+surface from section 3 must handle "rejected at replay" as well as "oversold".
+
+## What actually shipped this phase
+
+`app/manifest.ts`, `public/sw.js`, `app/offline/page.tsx`,
+`components/pwa/RegisterServiceWorker.tsx`, four generated icons, and two
+one-line changes to the auth path. Nothing else. The worker caches static
+assets and serves an offline page; it queues nothing.
+
+**The worker refuses to cache authenticated HTML, and that is a security
+decision rather than a caching one.** A grocery phone is shared. Only `/offline`
+is precached, and it is personalised with nothing.
+
+## Verified — observed, not assumed
+
+Production build on a real server, curled **unauthenticated**:
+
+| path | status | content-type |
+|---|---|---|
+| `/manifest.webmanifest` | 200 | `application/manifest+json` |
+| `/sw.js` | 200 | `application/javascript` |
+| `/offline` | 200 | (after the fix below) |
+| `/dashboard`, `/inventory`, `/sales` | 307 | auth boundary intact |
+| `/`, `/login`, `/privacy` | 200 | unchanged |
+
+In a real browser against the production build: worker `registered`, `active`,
+`scope /`, and **`controller: true`**. After a controlled reload, 2 caches and 3
+entries; `/offline` precached; **`authedHtmlCached: false`, `strayHtml: 0`**;
+`/wasm/zxing_reader.wasm` cached at **1,093,289 bytes**, byte-for-byte the size
+this repo already records for the decoder — so the cached copy is the real wasm
+and not an HTML impostor.
+
+**The offline test was real, not simulated**: the server process was killed,
+`curl` confirmed the origin was dead, and a navigation to `/inventory` rendered
+"No connection" with `document.title === 'Offline · StockPulse'`, served by the
+worker.
+
+`tsc --noEmit`, `eslint .`, `next build` all green.
+
+## Two defects this phase found in its own work (D38)
+
+1. **`/offline` returned 307 to `/login`.** Caught by curling it
+   unauthenticated. Signed in it returns 200 and looks perfect, and the build
+   reports the route as generated either way — so nothing upstream shows it.
+   The consequence would have been silent and permanent: the worker precaches
+   with `cache.add('/offline')`, so it would have cached **the sign-in page** as
+   the offline document, and a cashier who lost signal would be shown a login
+   form they cannot submit, forever, on an already-signed-in device. Fixed in
+   `lib/supabase/middleware.ts`. This is the sixth instance of the bug class
+   `proxy.ts` documents; two more (`manifest.webmanifest`, `sw.js`) were
+   predicted from that comment and excluded before they could bite.
+2. **The worker cached nothing at all.** `/icons/icon-192.png` and the wasm both
+   fetched `200 / ok / basic` with correct content-types, and the static cache
+   still held **0 entries**. The cause was in my own `putIfCacheable`: it awaited
+   `caches.open()` **before** calling `response.clone()`, by which time the page
+   had begun consuming the body, so the clone threw and the write never
+   happened — silently, because the call was not awaited. Fixed by cloning
+   synchronously and moving the write inside `event.waitUntil`. Re-measured:
+   3 entries, wasm at the correct byte count.
+
+## Lighthouse — the asked-for number does not exist any more
+
+**Lighthouse 12.8.2 has no PWA category.** Measured: its categories are
+`performance, accessibility, best-practices, seo`, and the
+`installable-manifest`, `service-worker`, `maskable-icon`, `themed-omnibox`,
+`splash-screen` and `apple-touch-icon` audits are all absent from this version —
+the PWA category was removed in Lighthouse 12. Reporting a PWA score would mean
+inventing one.
+
+Chrome's installability criteria were checked directly instead, and all hold:
+served over a secure origin (localhost); manifest parses as JSON with `name`,
+`short_name`, `start_url`, `display: standalone`, `theme_color`, and 192px plus
+512px icons in both `any` and `maskable` purposes; and a registered service
+worker with a `fetch` handler that controls the page.
+
+## NOT verified, carried forward
+
+1. **Nothing was installed on a phone.** Desktop Chrome only, localhost only.
+2. **The Server Action failure path is unmeasured** (section 1) — the harness
+   browser would not render dialogs, so the unhandled-rejection claim is read
+   from code, not observed.
+3. **The barcode scanner was not run.** The wasm is cached at the right byte
+   count and the decoder's route is untouched, but no barcode was decoded with
+   the worker active.
+4. **No cross-browser check.** Safari handles service workers and storage
+   eviction differently, and it is the platform the decoder already carries an
+   untested assumption about.

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cinzel, Inter } from "next/font/google";
 import { siteUrl } from "@/lib/site";
 import "./globals.css";
+import RegisterServiceWorker from '@/components/pwa/RegisterServiceWorker'
 
 const inter = Inter({
   variable: "--font-inter",
@@ -73,7 +74,15 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        {/* Renders nothing. Mounted at the root rather than in the (dashboard)
+            layout so the worker is registered on the public pages too — the
+            landing page is where someone is most likely to install the app,
+            and a worker that only registers after sign-in cannot cache the
+            shell for the sign-in screen itself. */}
+        <RegisterServiceWorker />
+      </body>
     </html>
   );
 }
