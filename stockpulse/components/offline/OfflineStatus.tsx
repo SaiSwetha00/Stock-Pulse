@@ -11,6 +11,7 @@ import {
   type StoreSnapshot,
 } from '@/lib/offline/snapshot'
 import { listQueuedSales, type QueuedSale } from '@/lib/offline/queue'
+import { loadDecoder } from '@/lib/barcode/decoder'
 import type { Product } from '@/types'
 
 /**
@@ -79,6 +80,45 @@ export default function OfflineStatus({
       }
     })
   }, [storeId, userId, products])
+
+  // --- warm the barcode decoder WHILE THERE IS STILL SIGNAL --------------
+  useEffect(() => {
+    // A measured defect, reported from a phone: scanning offline failed with
+    // "Failed to load chunk /_next/static/chunks/<hash>.js".
+    //
+    // `lib/barcode/decoder.ts` loads zxing through `await import(...)`, so the
+    // bundler splits it into its own chunk, and ScannerPrototype only calls
+    // `loadDecoder()` when it MOUNTS - that is, when somebody opens the
+    // scanner. The service worker precaches only /offline.html and caches
+    // everything else opportunistically, on first fetch. So on a device that
+    // has never decoded a barcode in this browser, the chunk is in no cache at
+    // all, and the first request for it happens at the exact moment there is
+    // no network to serve it.
+    //
+    // Warming it here fixes the cause rather than the symptom: `loadDecoder`
+    // memoises, so this is the same promise the scanner will later await, and
+    // doing it now costs a fetch that would have happened anyway.
+    if (navigator.onLine === false) return
+
+    const warm = () => {
+      // Failures are ignored on purpose. This is opportunistic - the scanner
+      // still loads the decoder itself, and reporting a warm-up failure would
+      // tell a shopkeeper about work they never asked for.
+      void loadDecoder().catch(() => undefined)
+      // The wasm is a separate 1 MB request that `prepareZXingModule` defers
+      // until the first decode, so warming the module alone would still leave
+      // the binary missing offline. It is under /wasm/, which the worker
+      // caches cache-first.
+      void fetch('/wasm/zxing_reader.wasm').catch(() => undefined)
+    }
+
+    // On idle, so a 1 MB binary never competes with the first paint of a page
+    // a cashier is trying to read.
+    const ric = (window as Window & { requestIdleCallback?: (cb: () => void) => number })
+      .requestIdleCallback
+    if (typeof ric === 'function') ric(warm)
+    else window.setTimeout(warm, 3000)
+  }, [])
 
   // --- the queue ---------------------------------------------------------
   // Polled rather than pushed, and slowly. A sale can be queued from the
@@ -198,3 +238,4 @@ export default function OfflineStatus({
     </div>
   )
 }
+

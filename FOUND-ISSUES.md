@@ -1388,3 +1388,66 @@ them would have put made-up values into a record that becomes a queued sale.
 path could not be observed in a browser either. It is confirmed by code, by the
 shipped bundle carrying the offline branch, and by `tsc`/`eslint`/`build` —
 and it needs the same phone test that found it.
+
+## PARTLY FIXED 2026-08-19 — the decoder chunk is never precached, so a first scan offline fails
+
+Found on a phone. Opening Log a Sale and scanning showed **"The decoder could
+not be loaded — Failed to load chunk /_next/static/chunks/2fkawohtxai6r.js from
+module 35113."**
+
+`2fkawohtxai6r.js` is confirmed to be the zxing reader chunk (36,727 bytes;
+identified by grepping the build output for `readBarcodesFromImageData`).
+
+### What was measured, and what it rules out
+
+| measured | result |
+|---|---|
+| does `install` precache any chunk? | **no** — it precached `/offline.html` and nothing else |
+| is the decoder chunk in cache after a normal page load? | **no** (`precachedAtInstall: false`) |
+| ONLINE, cache miss: does cache-first fall through to network? | **yes** — 200, 36,727 bytes, from a cleared cache |
+| are chunk filenames content-addressed? | **yes** — changing one client component produced new filenames and retired the old ones; no name was reused with different content |
+
+Two hypotheses die on that evidence. **Cache-first does fall through correctly
+on a miss**, so the strategy is not broken online. And **stale chunks are not
+possible**, so the parked `/_next/static/*` staleness worry (recorded above) is
+answered: filenames change when contents change.
+
+### The actual cause
+
+`lib/barcode/decoder.ts` loads zxing with `await import('zxing-wasm/reader')`,
+so the bundler splits it into its own chunk — and `ScannerPrototype` calls
+`loadDecoder()` only when it MOUNTS, i.e. when somebody opens the scanner. The
+worker caches opportunistically, on first fetch. So on a device that has never
+decoded a barcode in that browser, **the very first request for that chunk
+happens at the moment the scanner opens — and if that moment is offline, no
+cache holds it and there is no network.** That is the ordinary phone case:
+install the app, walk into a back room with no signal, scan.
+
+**Online was not reproducible here**, and the measurement says why: the network
+fallback works. A plausible explanation for the report is a degraded connection
+rather than a clean one — `navigator.onLine` returns true on a captive portal or
+a phone showing bars with no route, which is exactly the state the offline path
+is not entered for. Recorded as unexplained rather than dismissed.
+
+### One trap worth keeping
+
+An early probe "proved" the chunk loaded offline: the origin was killed and the
+fetch still returned 200 · 36,727 bytes. That was the **browser's own HTTP
+cache**, not the service worker — Next serves `/_next/static/*` as `immutable`,
+so once fetched it is covered for a year independently of any worker. A probe
+that cannot tell the two caches apart will report a broken thing as working.
+
+### Fix
+
+1. **`/wasm/zxing_reader.wasm` is now precached at install** — its URL is known
+   at author time (`decoder.ts` pins it via `locateFile`). Verified: 1,093,289
+   bytes, `application/wasm`, present on a device that has never opened the
+   scanner.
+2. **The JS chunk is warmed from the app while online**, on idle, from
+   `OfflineStatus` (mounted on Inventory and Sales). `loadDecoder()` memoises,
+   so this is the same promise the scanner later awaits. It cannot be precached
+   by the worker because only the bundler knows its hashed name.
+
+**Not verified:** the warm-up is a React effect, and this harness cannot hydrate
+a backgrounded tab — the same limit that hid the previous Sales-scan defect. The
+wasm half is verified; the JS half needs the phone test that found this.
