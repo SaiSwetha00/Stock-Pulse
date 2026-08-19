@@ -11,10 +11,12 @@ import { createClient } from '@/lib/supabase/client'
 import { formatCurrency } from '@/lib/format'
 import { REPORTING_TIMEZONE, reportingDate } from '@/lib/reportingTimezone'
 import { notify } from '@/app/(dashboard)/notifications/actions'
-import { findProductByBarcode } from '@/app/(dashboard)/inventory/actions'
+import { lookupBarcode } from '@/lib/offline/barcodeLookup'
+import type { CachedProduct } from '@/lib/offline/snapshot'
 import ScannerPrototype from '@/components/scan/ScannerPrototype'
 import ExpiryTag from '@/components/ui/ExpiryTag'
 import { expiryRelative, expiryTone, formatExpiry, nextExpiry } from '@/lib/expiry'
+import { enqueueSale, newSaleId, type QueuedSale } from '@/lib/offline/queue'
 import type { Product } from '@/types'
 
 /**
@@ -70,12 +72,43 @@ function expiryToastSuffix(date: string, today: string, warningDays: number): st
  * "+N more lots" hint with sold-out rows 0016 keeps for their history and with
  * undated rows that can never be the nearest expiry.
  */
-function atRiskLots(product: Product): number {
+function atRiskLots(product: SellableProduct): number {
   return (product.product_batches ?? []).filter((b) => b.quantity > 0 && b.expiry_date).length
 }
 
+/**
+ * The only fields a cart line actually needs.
+ *
+ * Introduced when the offline scan was fixed. A cached product is NOT a
+ * `Product` - it has no `store_id`, `created_at` or `updated_at`, because
+ * Phase 2's snapshot is a deliberate allowlist. The alternative was to
+ * fabricate those three fields when hydrating a cache hit, which would have put
+ * invented values into a record that later becomes a queued sale. Narrowing the
+ * type instead means both a server `Product` and a cached one satisfy it
+ * honestly, and nothing has to be made up.
+ */
+type SellableProduct = {
+  id: string
+  name: string
+  unit_price: number
+  stock: number
+  product_batches?: { quantity: number; expiry_date: string | null }[]
+}
+
+/** A cached product, in the shape the cart understands. `batches` is the
+ *  snapshot's name for what the server calls `product_batches`. */
+function fromCache(c: CachedProduct): SellableProduct {
+  return {
+    id: c.id,
+    name: c.name,
+    unit_price: c.unit_price,
+    stock: c.stock,
+    product_batches: c.batches,
+  }
+}
+
 interface CartLine {
-  product: Product
+  product: SellableProduct
   quantity: number
 }
 
@@ -89,9 +122,15 @@ export default function LogSaleModal({
   products,
   today,
   expiryWarningDays,
+  storeId,
+  userId,
   onClose,
 }: {
   products: Product[]
+  /** Stamped onto a queued sale at the moment it is made, never at sync time
+   *  — an expired session or a shift change must not reattribute takings. */
+  storeId: string
+  userId: string
   /** Shop's calendar date and warning window, decided server-side. */
   today: string
   expiryWarningDays: number
@@ -129,7 +168,7 @@ export default function LogSaleModal({
 
   const total = cart.reduce((sum, l) => sum + l.product.unit_price * l.quantity, 0)
 
-  function addToCart(product: Product) {
+  function addToCart(product: SellableProduct) {
     setCart((prev) => {
       const existing = prev.find((l) => l.product.id === product.id)
       if (existing) {
@@ -166,24 +205,56 @@ export default function LogSaleModal({
     setScanBusy(true)
     setScanError('')
     try {
-      const result = await findProductByBarcode(value)
+      // `lookupBarcode`, NOT `findProductByBarcode`.
+      //
+      // This was a real defect, found on a phone rather than by any harness:
+      // the Server Action is network-only, so scanning offline rejected its
+      // fetch, the catch below surfaced the raw "Failed to fetch", and the
+      // scanner's own placeholder text stayed on screen because handleScanned
+      // never completed. The product was never added and the total stayed at
+      // zero, with the camera having decoded perfectly.
+      //
+      // The offline signal was already in this file - `handleSubmit` reads
+      // `navigator.onLine` - it simply never reached the scan path. This is
+      // Inventory's pattern, which had it right since Phase 2: one entry point
+      // that IS the Server Action online and reads the store-scoped cache off.
+      const result = await lookupBarcode(value, storeId)
       if (!result.ok) {
         setScanError(result.message)
         return
       }
-      if (!result.product) {
-        setScanError(`No product in this store has the barcode ${value}. Nothing was added.`)
+
+      // The cache and the server answer the same question, so the rules after
+      // this point are stated ONCE over a common shape rather than duplicated
+      // per branch - which is how the two would drift.
+      const found: SellableProduct | null =
+        result.source === 'cache'
+          ? result.product
+            ? fromCache(result.product)
+            : null
+          : result.product
+
+      if (!found) {
+        // Named differently offline, because "no product in this store" would
+        // be a claim this device cannot make - it can only speak for the list
+        // it has saved.
+        setScanError(
+          result.source === 'cache'
+            ? `No saved product has the barcode ${value}. Nothing was added.`
+            : `No product in this store has the barcode ${value}. Nothing was added.`,
+        )
         return
       }
       // Manual search only lists products with stock > 0, so a scan must not
       // be a way round that. Same rule, stated once more because the search
-      // filter cannot reach here.
-      if (result.product.stock <= 0) {
-        setScanError(`${result.product.name} is out of stock. Nothing was added.`)
+      // filter cannot reach here. Offline this reads the cached number, which
+      // the offline till has already reduced by anything queued.
+      if (found.stock <= 0) {
+        setScanError(`${found.name} is out of stock. Nothing was added.`)
         return
       }
 
-      addToCart(result.product)
+      addToCart(found)
       setScanned((n) => n + 1)
       setScanError('')
       // The toast names the expiry state as well as the price, because it is
@@ -193,15 +264,20 @@ export default function LogSaleModal({
       // nobody has asked for — a shopkeeper may well be selling it knowingly
       // at a discount. The line stays on the cart row afterwards, so the
       // information does not vanish with the toast.
-      const scannedExpiry = nextExpiry(result.product.product_batches)
+      const scannedExpiry = nextExpiry(found.product_batches)
       toast.success(
-        'Added to sale',
-        `${result.product.name} · ${formatCurrency(result.product.unit_price)}${
+        result.source === 'cache' ? 'Added from saved list' : 'Added to sale',
+        `${found.name} · ${formatCurrency(found.unit_price)}${
           scannedExpiry ? ` · ${expiryToastSuffix(scannedExpiry, today, expiryWarningDays)}` : ''
         }`,
       )
     } catch (err) {
-      setScanError(err instanceof Error ? err.message : 'The lookup failed. Try again.')
+      // `lookupBarcode` falls back to the cache on a network failure, so
+      // reaching here means something else broke. A raw "Failed to fetch" is
+      // what this defect showed a shopkeeper on a phone; it is not a sentence
+      // anybody can act on, so the real message is kept for the console.
+      console.warn('[sales] barcode lookup failed:', err)
+      setScanError('That scan could not be looked up. Try again, or search by name.')
     } finally {
       setScanBusy(false)
     }
@@ -234,12 +310,63 @@ export default function LogSaleModal({
       p_payment_method: paymentMethod,
     })
 
-    setSaving(false)
     if (rpcError) {
+      // Could this have been the network? postgrest-js RESOLVES rather than
+      // throws when a fetch fails, handing back `status: 0` and a message that
+      // is a raw TypeError — measured in Offline Phase 1. That, or an explicit
+      // offline flag, is the only case worth queueing: a 23514 or an RLS
+      // refusal is the server saying no, and queueing it would replay a sale
+      // the server has already rejected.
+      const looksOffline =
+        navigator.onLine === false ||
+        /fetch|network|Failed to fetch/i.test(rpcError.message ?? '')
+
+      if (looksOffline) {
+        const sale: QueuedSale = {
+          id: newSaleId(),
+          storeId,
+          userId,
+          createdAt: new Date().toISOString(),
+          paymentMethod,
+          total,
+          items: cart.map((l) => ({
+            product_id: l.product.id,
+            product_name: l.product.name,
+            quantity: l.quantity,
+            // The price CHARGED, captured now. See lib/offline/queue.ts.
+            unit_price: l.product.unit_price,
+          })),
+        }
+        const stored = await enqueueSale(sale)
+        setSaving(false)
+
+        if (!stored) {
+          // The one outcome that must never be silent: the sale is neither on
+          // the server nor on the device. The modal stays open with the cart
+          // intact so it can be written down or retried.
+          const msg =
+            'This sale could NOT be saved on this device. Do not let the customer go without writing it down.'
+          setError(msg)
+          toast.error('Sale not saved', msg)
+          return
+        }
+
+        toast.success(
+          'Saved on this device',
+          `${cart.length} line item${cart.length === 1 ? '' : 's'} · ${formatCurrency(total)} — will sync when you are back online.`,
+        )
+        // No router.refresh(): there is nothing new on the server to fetch, and
+        // offline it would fail. The queue badge updates from its own storage.
+        onClose()
+        return
+      }
+
       setError(rpcError.message)
       toast.error('Could not log sale', rpcError.message)
       return
     }
+
+    setSaving(false)
     toast.success(
       'Sale logged',
       `${cart.length} line item${cart.length === 1 ? '' : 's'} · ${formatCurrency(total)}`

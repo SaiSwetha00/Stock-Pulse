@@ -1299,3 +1299,155 @@ md5sum .next/static/chunks/<name>.js
 If the same filename comes back with a different hash, the assumption is wrong
 and the fix is to make that branch stale-while-revalidate, or to key the static
 cache on the build id so a deploy retires the previous generation.
+
+## OPEN — the precached `offline.html` is never revalidated after a deploy
+
+Found 2026-08-19 during Offline Phase 3, by walking into it: the offline page
+had been rewritten with a till, the build was fresh, the worker was serving the
+document — and `#cart` was null, because the copy on disk was the PREVIOUS
+`offline.html`.
+
+`public/sw.js` precaches `OFFLINE_URL` in its `install` handler. A browser only
+re-runs `install` when **`sw.js` itself changes byte-for-byte**. So a deploy
+that changes `offline.html` and nothing else leaves every returning device
+serving the old offline page indefinitely — including, now, an old till.
+
+That matters more than it did in Phase 2. The offline document is no longer a
+courtesy message; it is where offline sales are made, and it writes to a queue
+whose schema the app also reads. A device stuck on an old copy could be writing
+last month's record shape.
+
+Same family as the `/_next/static/*` entry above, and worth fixing together.
+
+**Options, cheapest first:**
+
+1. Put a version constant in `sw.js` and bump it whenever `offline.html`
+   changes. Correct, and relies on a human remembering — which is exactly the
+   kind of coupling this codebase has been bitten by before.
+2. Derive it: have the build inject a hash of `offline.html` into `sw.js`, so
+   the worker's bytes change whenever the document does. No memory required.
+3. Re-fetch `offline.html` on `activate` as well as `install`, and fall back to
+   the cached copy when offline. Revalidates on every worker start without a
+   build step.
+
+Option 2 is the one that cannot be forgotten. Until then, a deploy touching
+`offline.html` should also touch `sw.js`.
+
+## FIXED 2026-08-19 — the Sales scan was network-only, so scanning offline did nothing
+
+Found on a phone, by the owner, offline. Not by any harness.
+
+**Symptom.** With no signal: open Log a Sale, scan a real seeded barcode
+(`8906010366896`). The camera decodes it — confirmed by the scanner's own
+diagnostics — and then nothing happens. The product is never added, the total
+stays ₹0.00, Complete Sale stays disabled, and the screen shows **"Failed to
+fetch"** next to ScannerPrototype's leftover placeholder text.
+
+**Cause.** `LogSaleModal#handleScanned` called `findProductByBarcode` — a
+Server Action, and therefore network-only. Offline its POST rejects, the
+handler's `catch` put the raw `TypeError` on screen, and because the handler
+never completed, the scanner's own placeholder was never overtaken. The stale
+message was a symptom, not a second bug.
+
+The galling part: **the offline signal was already in that file.**
+`handleSubmit` a few dozen lines below reads `navigator.onLine` to decide
+whether to queue. It simply never reached the scan path. And Phase 2 had already
+built and verified `lookupBarcode` — one entry point that IS the Server Action
+online and reads the store-scoped IndexedDB cache offline — and wired it into
+**Inventory** only.
+
+**Fix.** `handleScanned` now calls `lookupBarcode(value, storeId)`, matching
+Inventory's pattern rather than adding a second matcher. Where Sales differs
+from Inventory is deliberate and is written down in the code: Inventory
+*refuses* a cache hit, because its purpose is to edit a product and a save
+cannot reach the server offline; Sales *accepts* one, because Phase 3 can queue
+the sale. The `catch` no longer shows a raw network error.
+
+The cart's line type was narrowed to `SellableProduct` so a cached product can
+enter it without fabricating `store_id`, `created_at` and `updated_at` — those
+three are absent from Phase 2's snapshot allowlist on purpose, and inventing
+them would have put made-up values into a record that becomes a queued sale.
+
+### Why no harness caught it, which is the part worth keeping
+
+1. **Every automated check of the offline path went through `offline.html`.**
+   That document has its own vanilla till and never calls `lookupBarcode`. The
+   React scan path was tested only *online*, where `findProductByBarcode` works
+   perfectly — so both halves passed and the combination was never exercised.
+2. **The browser harness cannot hydrate a backgrounded tab.** Phases 2 and 3
+   both recorded `hydrated: false` and both explicitly carried "the in-app
+   banner / LogSaleModal's offline branch was never seen running" as NOT
+   VERIFIED. This defect lived exactly there. The gap was declared and then not
+   closed, which is the lesson: a carried-forward "not verified" on a path a
+   shopkeeper actually uses is a bug waiting to be reported by a human.
+3. **No camera.** Nothing in the harness has ever decoded a barcode; every
+   barcode test has called the lookup by value. A scan-specific failure could
+   not surface.
+
+**Still not closed by this fix:** the same harness limits mean the corrected
+path could not be observed in a browser either. It is confirmed by code, by the
+shipped bundle carrying the offline branch, and by `tsc`/`eslint`/`build` —
+and it needs the same phone test that found it.
+
+## PARTLY FIXED 2026-08-19 — the decoder chunk is never precached, so a first scan offline fails
+
+Found on a phone. Opening Log a Sale and scanning showed **"The decoder could
+not be loaded — Failed to load chunk /_next/static/chunks/2fkawohtxai6r.js from
+module 35113."**
+
+`2fkawohtxai6r.js` is confirmed to be the zxing reader chunk (36,727 bytes;
+identified by grepping the build output for `readBarcodesFromImageData`).
+
+### What was measured, and what it rules out
+
+| measured | result |
+|---|---|
+| does `install` precache any chunk? | **no** — it precached `/offline.html` and nothing else |
+| is the decoder chunk in cache after a normal page load? | **no** (`precachedAtInstall: false`) |
+| ONLINE, cache miss: does cache-first fall through to network? | **yes** — 200, 36,727 bytes, from a cleared cache |
+| are chunk filenames content-addressed? | **yes** — changing one client component produced new filenames and retired the old ones; no name was reused with different content |
+
+Two hypotheses die on that evidence. **Cache-first does fall through correctly
+on a miss**, so the strategy is not broken online. And **stale chunks are not
+possible**, so the parked `/_next/static/*` staleness worry (recorded above) is
+answered: filenames change when contents change.
+
+### The actual cause
+
+`lib/barcode/decoder.ts` loads zxing with `await import('zxing-wasm/reader')`,
+so the bundler splits it into its own chunk — and `ScannerPrototype` calls
+`loadDecoder()` only when it MOUNTS, i.e. when somebody opens the scanner. The
+worker caches opportunistically, on first fetch. So on a device that has never
+decoded a barcode in that browser, **the very first request for that chunk
+happens at the moment the scanner opens — and if that moment is offline, no
+cache holds it and there is no network.** That is the ordinary phone case:
+install the app, walk into a back room with no signal, scan.
+
+**Online was not reproducible here**, and the measurement says why: the network
+fallback works. A plausible explanation for the report is a degraded connection
+rather than a clean one — `navigator.onLine` returns true on a captive portal or
+a phone showing bars with no route, which is exactly the state the offline path
+is not entered for. Recorded as unexplained rather than dismissed.
+
+### One trap worth keeping
+
+An early probe "proved" the chunk loaded offline: the origin was killed and the
+fetch still returned 200 · 36,727 bytes. That was the **browser's own HTTP
+cache**, not the service worker — Next serves `/_next/static/*` as `immutable`,
+so once fetched it is covered for a year independently of any worker. A probe
+that cannot tell the two caches apart will report a broken thing as working.
+
+### Fix
+
+1. **`/wasm/zxing_reader.wasm` is now precached at install** — its URL is known
+   at author time (`decoder.ts` pins it via `locateFile`). Verified: 1,093,289
+   bytes, `application/wasm`, present on a device that has never opened the
+   scanner.
+2. **The JS chunk is warmed from the app while online**, on idle, from
+   `OfflineStatus` (mounted on Inventory and Sales). `loadDecoder()` memoises,
+   so this is the same promise the scanner later awaits. It cannot be precached
+   by the worker because only the bundler knows its hashed name.
+
+**Not verified:** the warm-up is a React effect, and this harness cannot hydrate
+a backgrounded tab — the same limit that hid the previous Sales-scan defect. The
+wasm half is verified; the JS half needs the phone test that found this.

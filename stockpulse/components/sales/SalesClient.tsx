@@ -455,6 +455,8 @@ export default function SalesClient({
           products={products}
           today={today}
           expiryWarningDays={expiryWarningDays}
+          storeId={storeId}
+          userId={userId}
           onClose={() => setModalOpen(false)}
         />
       )}

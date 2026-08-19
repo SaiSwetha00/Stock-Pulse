@@ -14,8 +14,14 @@
  */
 
 const DB_NAME = 'stockpulse-offline'
-const DB_VERSION = 1
+// Bumped to 2 by Offline Phase 3, which added the sale queue. The upgrade is
+// ADDITIVE - `snapshots` is left untouched - so a device that already holds a
+// product cache keeps it across the upgrade rather than re-downloading on a
+// connection it may not have.
+const DB_VERSION = 2
 const STORE = 'snapshots'
+/** Queued offline sales. See lib/offline/queue.ts for the record shape. */
+export const QUEUE_STORE = 'queue'
 
 function openDb(): Promise<IDBDatabase | null> {
   if (typeof indexedDB === 'undefined') return Promise.resolve(null)
@@ -34,6 +40,15 @@ function openDb(): Promise<IDBDatabase | null> {
         // Keyed by storeId: one snapshot per store, which makes the tenancy
         // rule structural rather than a filter every reader must remember.
         db.createObjectStore(STORE, { keyPath: 'storeId' })
+      }
+      if (!db.objectStoreNames.contains(QUEUE_STORE)) {
+        // Keyed by the CLIENT-generated id, which is what makes a replay
+        // idempotent: the same sale can be handed to the server twice and be
+        // recognised as one. `storeId` is indexed rather than used as the key
+        // because a device can hold many queued sales for one store.
+        const q = db.createObjectStore(QUEUE_STORE, { keyPath: 'id' })
+        q.createIndex('by_store', 'storeId', { unique: false })
+        q.createIndex('by_created', 'createdAt', { unique: false })
       }
     }
     req.onsuccess = () => resolve(req.result)
@@ -56,14 +71,15 @@ function openDb(): Promise<IDBDatabase | null> {
 function tx<T>(
   mode: IDBTransactionMode,
   run: (store: IDBObjectStore) => IDBRequest<T>,
+  storeName: string = STORE,
 ): Promise<T | null> {
   return openDb().then(
     (db) =>
       new Promise<T | null>((resolve) => {
         if (!db) return resolve(null)
         try {
-          const t = db.transaction(STORE, mode)
-          const req = run(t.objectStore(STORE))
+          const t = db.transaction(storeName, mode)
+          const req = run(t.objectStore(storeName))
           req.onsuccess = () => resolve(req.result as T)
           req.onerror = () => resolve(null)
           t.oncomplete = () => db.close()
@@ -83,12 +99,32 @@ export function idbPut(record: { storeId: string }): Promise<unknown> {
   return tx('readwrite', (s) => s.put(record) as IDBRequest<unknown>)
 }
 
+/** Queue reads and writes. Same failure policy as the snapshot helpers. */
+export function queuePut(record: { id: string }): Promise<unknown> {
+  return tx('readwrite', (s) => s.put(record) as IDBRequest<unknown>, QUEUE_STORE)
+}
+
+export function queueGetAll<T>(): Promise<T[] | null> {
+  return tx<T[]>('readonly', (s) => s.getAll() as IDBRequest<T[]>, QUEUE_STORE)
+}
+
+export function queueDelete(id: string): Promise<unknown> {
+  return tx('readwrite', (s) => s.delete(id) as IDBRequest<unknown>, QUEUE_STORE)
+}
+
 /**
  * Wipe everything. Called on sign-out, and that is a decision rather than
  * tidiness: the owner and two staff share one handset, so one person's product
  * list, prices and stock must not stay readable on the device after they have
  * signed out.
  */
-export function idbClear(): Promise<unknown> {
+export async function idbClear(): Promise<unknown> {
+  // Snapshots only. The QUEUE IS DELIBERATELY NOT CLEARED HERE.
+  //
+  // A queued sale is money the shop has already taken, and sign-out is one tap
+  // away on a shared handset. Wiping unsent sales because somebody changed
+  // shift would destroy real transactions with no warning and no way back.
+  // The caller is responsible for refusing to sign out - or for asking first -
+  // while the queue is non-empty; see lib/offline/signOut.ts.
   return tx('readwrite', (s) => s.clear() as IDBRequest<unknown>)
 }

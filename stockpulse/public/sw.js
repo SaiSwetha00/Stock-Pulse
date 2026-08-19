@@ -33,7 +33,19 @@
  * WHAT IS CACHED
  * ------------------------------------------------------------------
  * - `/_next/static/*` — content-hashed by the build, so a stale entry is
- *   impossible by construction: a changed file has a different URL.
+ *   impossible by construction: a changed file has a different URL. MEASURED
+ *   rather than assumed: changing one client component produced new chunk
+ *   filenames and retired the old ones, with no name reused for different
+ *   content.
+ *
+ *   NOTE what this does NOT do: nothing here is PRECACHED except the offline
+ *   document. Chunks are stored opportunistically, on first fetch. A chunk
+ *   reached through `await import(...)` is therefore absent until something
+ *   actually imports it - which for the barcode decoder is the moment the
+ *   scanner opens. On a device that has never scanned, that first request can
+ *   land while offline, and no cache can answer it. The fix is to warm those
+ *   modules while there is still signal (see components/offline/OfflineStatus.tsx),
+ *   not to widen this file.
  * - `/icons/*`, `/assets/*` and the immutable file types under public/.
  * - `/wasm/zxing_reader.wasm` — the barcode decoder. Cache-first is a real
  *   improvement rather than a risk: 1 MB, fetched on every visit to a scanning
@@ -59,6 +71,18 @@ const SHELL_CACHE = 'stockpulse-shell-v1'
 // instead of carving an exception into that rule.
 const OFFLINE_URL = '/offline.html'
 
+/**
+ * Precached at install, because its URL is KNOWN at author time and it is
+ * needed offline.
+ *
+ * The barcode decoder is two pieces: a JS chunk whose filename the bundler
+ * generates (so this file cannot name it) and this 1 MB wasm binary, whose
+ * path `lib/barcode/decoder.ts` pins via `locateFile`. The JS half has to be
+ * warmed from the app while online; this half does not, and precaching it here
+ * means it is present on a device that has never opened the scanner.
+ */
+const PRECACHE_URLS = [OFFLINE_URL, '/wasm/zxing_reader.wasm']
+
 /** Same-origin path prefixes safe to serve cache-first. */
 const STATIC_PREFIXES = ['/_next/static/', '/icons/', '/wasm/', '/assets/']
 
@@ -72,10 +96,19 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(SHELL_CACHE)
-      .then((cache) => cache.add(new Request(OFFLINE_URL, { cache: 'reload' })))
-      // A failed precache must not abort installation. The offline page is a
-      // courtesy; refusing to install without it would mean one bad deploy
-      // leaves users with no worker at all.
+      .then((cache) =>
+        // Individually, not `cache.addAll`: that rejects the whole batch if any
+        // one request fails, so a hiccup fetching a 1 MB binary would cost the
+        // offline page too.
+        Promise.all(
+          PRECACHE_URLS.map((url) =>
+            cache.add(new Request(url, { cache: 'reload' })).catch(() => undefined),
+          ),
+        ),
+      )
+      // A failed precache must not abort installation. These are a courtesy;
+      // refusing to install without them would mean one bad deploy leaves
+      // users with no worker at all.
       .catch(() => undefined)
       .then(() => self.skipWaiting()),
   )

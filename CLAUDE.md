@@ -364,6 +364,53 @@ lost most of a session to `OfflineStatus` "not writing" - measured
 Activate the tab, and the same build writes immediately. `lib/offline/db.ts`
 logs its failures now precisely so this is distinguishable next time.
 
+
+### Offline sales are queued in IndexedDB, and the till lives in offline.html
+
+Offline Phase 3 (2026-08-19). **Measured first, because it decides where code
+goes: a cold navigation to `/sales` with no signal serves `public/offline.html`,
+not React.** The worker's navigation branch is network-only, since Phases 1 and
+2 both refused to cache authenticated HTML. So a cashier who opens the app with
+no signal never reaches React — which is why the offline till is in
+`offline.html` and `LogSaleModal` only covers the narrower "page was already
+open when signal dropped" case. Both write the same queue.
+
+**`stockpulse-offline` is at version 2.** The added `queue` store is keyed by
+the sale's **client-generated v4 UUID** and indexed on `storeId` and
+`createdAt`. The upgrade is additive so an existing product cache survives it.
+
+**`idbClear` does NOT clear the queue, and must not start.** Sign-out wipes
+snapshots only. A queued sale is money the shop has already taken, held nowhere
+else, and sign-out is one tap away on a shared handset;
+`signOutEverywhereLocal` additionally asks for confirmation, naming the count,
+when sales are pending.
+
+**Every queue write is read back before success is reported.** "The put did not
+throw" is not "the record is there" — a quota refusal can surface late. Both
+callers show an explicit *write it down before the customer leaves* refusal when
+the write cannot be confirmed. A sale that exists neither on the server nor on
+the device, while the cashier is told it is safe, is the one unacceptable
+outcome.
+
+**Prices and product names are COPIED into each queued line, never referenced.**
+`unit_price` is the price charged at the time of sale; replaying against the
+current price would silently re-price a completed transaction. `userId` is
+captured at sale time, not sync time, so a shift change cannot reattribute
+takings.
+
+**Optimistic stock is derived from the queue**, never stored as a running total,
+so it cannot drift. It renders as `7 left (3 pending)` in the warning colour and
+never goes below zero.
+
+**Phase 3 does not sync.** Both surfaces say so in words. Do not add a
+background flush here; conflicts are Phase 4 and need the discrepancy handling
+argued for in Phase 1's section 3.
+
+**The inline script in `offline.html` has no bundler and no type checking.**
+Syntax-check it with `node --check` on the extracted fragment when you change
+it, and remember it restates the barcode, matching and expiry rules in plain JS
+(see the Phase 2 note) plus now a UUID generator and the queue record shape.
+
 ### Environment variables (`stockpulse/.env.local`)
 
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase project, used by all three client variants (see below).
