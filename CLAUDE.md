@@ -454,6 +454,13 @@ order deletes a sale that never landed.
 it, so a staff member can cause one without being able to forge one. Staff CAN
 call `replay_sale` — they work the till.
 
+**Never put a placeholder where a `uuid` goes.** `public/offline.html` stamped
+`userId: snapshot.userId || 'unknown'` on queued sales, and `replay_sale`'s
+`p_sold_by uuid` rejects that with `invalid input syntax for type uuid` - which
+stranded the sale in the queue permanently. It now writes `null`, and
+`lib/offline/sync.ts` sends `p_sold_by` only when it matches a UUID. A sale that
+lands unattributed is recoverable; a sale that can never sync is not.
+
 ### Environment variables (`stockpulse/.env.local`)
 
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase project, used by all three client variants (see below).

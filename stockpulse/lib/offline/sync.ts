@@ -51,6 +51,8 @@ export interface SyncReport {
   outcomes: SyncOutcome[]
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 /** Codes worth naming rather than surfacing raw to somebody at a till. */
 function readableReason(error: { code?: string; message?: string }): string {
   const message = error.message ?? 'The sale could not be sent.'
@@ -68,6 +70,15 @@ function readableReason(error: { code?: string; message?: string }): string {
   }
   if (/fetch|network|Failed to fetch/i.test(message)) {
     return 'No connection. It will be sent when you are back online.'
+  }
+  if (/invalid input syntax for type uuid/i.test(message)) {
+    // Should now be unreachable - the guard below sends null rather than a
+    // malformed id. Named anyway, because the version of this that reached a
+    // phone showed a shopkeeper raw Postgres.
+    return 'This sale was saved without a valid user. It needs recording by hand.'
+  }
+  if (/JWT|expired|not authenticated/i.test(message)) {
+    return 'Your session expired. Sign in again and this will be sent.'
   }
   return message
 }
@@ -116,7 +127,12 @@ export async function syncQueue(storeId: string): Promise<SyncReport> {
           unit_price: i.unit_price,
         })),
         p_payment_method: sale.paymentMethod,
-        p_sold_by: sale.userId,
+        // Only a real uuid, never a placeholder. The offline till used to write
+        // the string 'unknown' when a snapshot carried no user, and
+        // `p_sold_by uuid` rejects that outright - stranding the sale forever.
+        // Sending null lets the sale land unattributed, which is recoverable;
+        // a stuck sale is not.
+        p_sold_by: UUID_RE.test(String(sale.userId ?? '')) ? sale.userId : null,
         p_created_at: sale.createdAt,
       })
 

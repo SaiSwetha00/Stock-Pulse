@@ -299,7 +299,12 @@
     var sale = {
       id: uuid(),
       storeId: currentStoreId,
-      userId: snapshot.userId || 'unknown',
+      // NEVER a placeholder string. This goes to replay_sale's `p_sold_by uuid`,
+      // and 'unknown' is rejected with `invalid input syntax for type uuid` -
+      // measured - which would leave the sale stuck in the queue forever with a
+      // raw Postgres message. null is accepted, so the sale still lands; it just
+      // lands unattributed, which is a smaller loss than a sale that never syncs.
+      userId: snapshot.userId || null,
       createdAt: new Date().toISOString(),
       paymentMethod: 'cash',
       total: cartTotal(),
