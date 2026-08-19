@@ -3820,3 +3820,147 @@ narrowed the cause to the RSC payload and led to the static-document rewrite.
 3. **No phone, and no real barcode scanner** with the worker active.
 4. **Safari is untested**, and it treats service workers and storage eviction
    differently.
+
+---
+
+# OFFLINE MODE — Phase 3 of 5: queueing sales offline (2026-08-19)
+
+## Where this phase's code had to live, measured first
+
+The question was whether `/sales` loads from an app-shell cache offline (so this
+phase adds queueing to a working React page) or falls back to the static
+document. **Measured: it falls back.** With the origin killed, a cold navigation
+to `/sales` kept the URL but served `offline.html` — no React root, no Log Sale
+button. The worker's navigation branch is network-only by design, because
+Phase 1 and Phase 2 both refused to cache authenticated HTML.
+
+The consequence decided the architecture: **a cashier who opens the app with no
+signal never reaches React at all.** Queueing implemented only in
+`LogSaleModal` would be unreachable in the common case — a phone in a back room
+with no bars. So:
+
+- the queue lives in **IndexedDB**, reachable from both worlds;
+- the **till lives in `offline.html`**, because that is where an offline sale
+  actually happens;
+- `LogSaleModal` **also** queues, for the narrower case where the page was
+  already open when signal dropped.
+
+## Durability first, because a queued sale is money
+
+`stockpulse-offline` goes to **version 2**, adding a `queue` object store keyed
+by the sale's client-generated id and indexed on `storeId` and `createdAt`. The
+upgrade is additive — `snapshots` is untouched — so a device that already holds
+a product cache keeps it rather than re-downloading over a connection it may not
+have.
+
+Four decisions that exist because losing a record here loses a real transaction:
+
+- **`idbClear` does NOT clear the queue.** Sign-out wipes snapshots only.
+  Unsent sales are money the shop has already taken, and sign-out is one tap
+  away on a shared handset.
+- **Signing out with sales pending asks first**, naming the count. It still
+  does not delete them; it only makes sure nobody walks past them.
+- **Every write is read back before success is claimed.** "The put did not
+  throw" is not "the record is there" — a quota refusal can surface late.
+- **A failed queue write is loud.** Both callers show *"could NOT be saved —
+  write it down before the customer leaves"* and keep the cart. The one
+  unacceptable outcome is a sale that exists neither on the server nor on the
+  device while the cashier is told it is safe.
+
+## What a queued sale carries, and why
+
+`{ id, storeId, userId, createdAt, paymentMethod, total, items[] }`, each item
+`{ product_id, product_name, quantity, unit_price }`.
+
+- **`unit_price` is the price CHARGED**, copied per line. Replaying against
+  whatever the product costs at sync time would silently re-price a completed
+  transaction: raise a price on Tuesday and Monday's queued sales would quietly
+  increase.
+- **`product_name` is copied** so the queue stays legible to a human after a
+  rename or a delete.
+- **`userId` is captured at sale time**, not at sync time, so an expired session
+  or a shift change cannot reattribute somebody's takings.
+- **`id` is client-generated** — a v4 UUID from `crypto.randomUUID`, with a
+  `getRandomValues` fallback rather than `Math.random`, because a collision here
+  is a duplicate transaction. Phase 4 hands it to the server so a replayed queue
+  cannot deduct stock twice.
+
+## Optimistic stock, marked as such
+
+Pending units are **derived from the queue** rather than kept as a running
+total, so they cannot drift: remove a queued sale and the number is right again
+with no bookkeeping. The till shows `7 left (3 pending)` in the warning colour —
+never a bare adjusted figure, which would read as the truth, and never below
+zero, because a negative on a till reads as a bug.
+
+**This phase does not sync.** The banner and the offline page both say so
+outright; a cashier who assumed otherwise would stop checking.
+
+## Verified — observed, not assumed
+
+The origin was **killed**, not throttled: `curl` confirmed the port dead before
+every offline step.
+
+**Three sales made through the offline till**, cold, on the static document:
+
+| | |
+|---|---|
+| cold nav to `/sales` | served `offline.html` — 3 products, 3 Add buttons, Complete button |
+| after sale 1 (2x Basmati) | `8 left (2 pending)` |
+| after sale 3 | `7 left (3 pending)` |
+| queue header | `3 sales waiting to sync · ₹40.45` |
+| confirmation | "Saved on this device · ₹13.45 · will sync when back online." |
+
+**Survived a reload while still offline** — read back from IndexedDB, not the
+DOM:
+
+| check | result |
+|---|---|
+| sales still queued | **3** |
+| ids unique | true |
+| ids valid UUID v4 | true |
+| ordered by `createdAt` | true |
+| carries every replay field | true |
+| contents distinct | `2x Basmati Rice 5kg` · `1x Whole Milk 1L` · `1x Basmati + 1x Drinking Water` |
+| optimistic stock after reload | `7 left (3 pending)` |
+
+**Id uniqueness at scale**, using the same generator the till uses: **20,000
+generated, 20,000 distinct, 0 collisions**, all matching the v4 shape, and
+`crypto.randomUUID` was the path taken.
+
+**Nothing reached the database.** With three sales completed offline, the store
+had **0 `sales` rows in the previous 30 minutes**, and its total row count stood
+unchanged at 381.
+
+`tsc --noEmit`, `eslint .`, `next build` green. The offline document's inline
+script is syntax-checked separately with `node --check`, since no bundler sees
+it.
+
+## A real defect this phase walked into
+
+**The precached `offline.html` is never revalidated.** The till was built, the
+build was fresh, the worker was serving the document — and `#cart` was null,
+because the cached copy was the previous version. A browser re-runs a service
+worker's `install` only when `sw.js` itself changes, so a deploy that touches
+only `offline.html` leaves returning devices on the old page. That now matters
+much more than in Phase 2: the offline document is where sales are made and it
+writes a queue the app reads. Recorded in FOUND-ISSUES.md with three fixes;
+until one lands, a deploy touching `offline.html` must also touch `sw.js`.
+
+## NOT verified, carried forward
+
+1. **The in-app queue banner was never seen rendering.** `OfflineStatus` gained
+   an itemised pending list, and it type-checks and builds, but the harness tab
+   reported `hydrated: false` again — the same background-throttle that has
+   dogged this project's browser work. The queue it reads is verified; the amber
+   bar is not.
+2. **`LogSaleModal`'s offline branch is unverified for the same reason.** The
+   React till could not be driven. The code path is small and shares
+   `enqueueSale` with the offline document, which IS verified — but it has not
+   been run.
+3. **A browser restart and a phone restart were not tested.** A reload was.
+   IndexedDB is durable across both by specification, but that is a claim about
+   the platform rather than an observation of this app.
+4. **`total` is a float.** `13.450000000000001` appeared in a queued record.
+   Harmless today — the figure is display-only and Phase 4 will let the server
+   recompute from the lines — but it must not become the number a shop is paid.

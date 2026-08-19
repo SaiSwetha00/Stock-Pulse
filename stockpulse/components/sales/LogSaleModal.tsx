@@ -15,6 +15,7 @@ import { findProductByBarcode } from '@/app/(dashboard)/inventory/actions'
 import ScannerPrototype from '@/components/scan/ScannerPrototype'
 import ExpiryTag from '@/components/ui/ExpiryTag'
 import { expiryRelative, expiryTone, formatExpiry, nextExpiry } from '@/lib/expiry'
+import { enqueueSale, newSaleId, type QueuedSale } from '@/lib/offline/queue'
 import type { Product } from '@/types'
 
 /**
@@ -89,9 +90,15 @@ export default function LogSaleModal({
   products,
   today,
   expiryWarningDays,
+  storeId,
+  userId,
   onClose,
 }: {
   products: Product[]
+  /** Stamped onto a queued sale at the moment it is made, never at sync time
+   *  — an expired session or a shift change must not reattribute takings. */
+  storeId: string
+  userId: string
   /** Shop's calendar date and warning window, decided server-side. */
   today: string
   expiryWarningDays: number
@@ -234,12 +241,63 @@ export default function LogSaleModal({
       p_payment_method: paymentMethod,
     })
 
-    setSaving(false)
     if (rpcError) {
+      // Could this have been the network? postgrest-js RESOLVES rather than
+      // throws when a fetch fails, handing back `status: 0` and a message that
+      // is a raw TypeError — measured in Offline Phase 1. That, or an explicit
+      // offline flag, is the only case worth queueing: a 23514 or an RLS
+      // refusal is the server saying no, and queueing it would replay a sale
+      // the server has already rejected.
+      const looksOffline =
+        navigator.onLine === false ||
+        /fetch|network|Failed to fetch/i.test(rpcError.message ?? '')
+
+      if (looksOffline) {
+        const sale: QueuedSale = {
+          id: newSaleId(),
+          storeId,
+          userId,
+          createdAt: new Date().toISOString(),
+          paymentMethod,
+          total,
+          items: cart.map((l) => ({
+            product_id: l.product.id,
+            product_name: l.product.name,
+            quantity: l.quantity,
+            // The price CHARGED, captured now. See lib/offline/queue.ts.
+            unit_price: l.product.unit_price,
+          })),
+        }
+        const stored = await enqueueSale(sale)
+        setSaving(false)
+
+        if (!stored) {
+          // The one outcome that must never be silent: the sale is neither on
+          // the server nor on the device. The modal stays open with the cart
+          // intact so it can be written down or retried.
+          const msg =
+            'This sale could NOT be saved on this device. Do not let the customer go without writing it down.'
+          setError(msg)
+          toast.error('Sale not saved', msg)
+          return
+        }
+
+        toast.success(
+          'Saved on this device',
+          `${cart.length} line item${cart.length === 1 ? '' : 's'} · ${formatCurrency(total)} — will sync when you are back online.`,
+        )
+        // No router.refresh(): there is nothing new on the server to fetch, and
+        // offline it would fail. The queue badge updates from its own storage.
+        onClose()
+        return
+      }
+
       setError(rpcError.message)
       toast.error('Could not log sale', rpcError.message)
       return
     }
+
+    setSaving(false)
     toast.success(
       'Sale logged',
       `${cart.length} line item${cart.length === 1 ? '' : 's'} · ${formatCurrency(total)}`

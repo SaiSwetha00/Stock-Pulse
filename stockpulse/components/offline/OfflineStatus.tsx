@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CloudOff, RefreshCw } from 'lucide-react'
+import { formatCurrency } from '@/lib/format'
 import {
   saveSnapshot,
   snapshotClock,
   toCachedProducts,
   type StoreSnapshot,
 } from '@/lib/offline/snapshot'
+import { listQueuedSales, type QueuedSale } from '@/lib/offline/queue'
 import type { Product } from '@/types'
 
 /**
@@ -48,6 +50,7 @@ export default function OfflineStatus({
   const router = useRouter()
   const [offline, setOffline] = useState(false)
   const [syncedAt, setSyncedAt] = useState<string | null>(null)
+  const [queued, setQueued] = useState<QueuedSale[]>([])
 
   // --- sync -------------------------------------------------------------
   useEffect(() => {
@@ -77,6 +80,27 @@ export default function OfflineStatus({
     })
   }, [storeId, userId, products])
 
+  // --- the queue ---------------------------------------------------------
+  // Polled rather than pushed, and slowly. A sale can be queued from the
+  // static offline page, which shares the database but not this React tree, so
+  // there is no event to subscribe to across that boundary. Ten seconds is far
+  // below the rate at which a human notices and far above the rate at which
+  // reading a handful of rows costs anything.
+  useEffect(() => {
+    let alive = true
+    const read = () => {
+      void listQueuedSales(storeId).then((rows) => {
+        if (alive) setQueued(rows)
+      })
+    }
+    read()
+    const t = setInterval(read, 10000)
+    return () => {
+      alive = false
+      clearInterval(t)
+    }
+  }, [storeId])
+
   // --- connectivity -----------------------------------------------------
   useEffect(() => {
     const update = () => setOffline(navigator.onLine === false)
@@ -97,34 +121,80 @@ export default function OfflineStatus({
     }
   }, [router])
 
-  // Silence while online is correct: a permanent "you are connected" badge is
-  // noise, and the brief's point is that silence beats a warning only when
-  // there is nothing to warn about.
-  if (!offline) return null
+  const pendingTotal = queued.reduce((sum, s) => sum + s.total, 0)
+
+  // Silence while online AND with an empty queue. Unsent sales are never
+  // silent, even with signal: until Phase 4 syncs them they exist on one phone
+  // and nowhere else, and a cashier must be able to see that nothing was
+  // swallowed.
+  if (!offline && queued.length === 0) return null
 
   return (
     <div
       role="status"
       aria-live="polite"
-      className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-warning bg-warning-bg px-4 py-3 text-sm text-warning"
+      className="mb-4 rounded-xl border border-warning bg-warning-bg px-4 py-3 text-sm text-warning"
     >
-      <CloudOff className="h-4 w-4 shrink-0" aria-hidden="true" />
-      <span className="font-semibold">You are offline.</span>
-      <span>
-        {/* Named precisely, because a vague "some features unavailable" leaves
-            a cashier guessing which. */}
-        Showing saved products
-        {syncedAt ? ` from ${snapshotClock(syncedAt)}` : ''}. Sales and stock changes cannot be
-        saved until signal returns.
-      </span>
-      <button
-        type="button"
-        onClick={() => router.refresh()}
-        className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2 py-1 font-semibold underline underline-offset-2"
-      >
-        <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-        Try again
-      </button>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <CloudOff className="h-4 w-4 shrink-0" aria-hidden="true" />
+        {offline ? (
+          <>
+            <span className="font-semibold">You are offline.</span>
+            <span>
+              {/* Named precisely, because a vague "some features unavailable"
+                  leaves a cashier guessing which. */}
+              Showing saved products
+              {syncedAt ? ` from ${snapshotClock(syncedAt)}` : ''}. Sales you complete are saved on
+              this device.
+            </span>
+          </>
+        ) : (
+          <span className="font-semibold">Back online.</span>
+        )}
+        <button
+          type="button"
+          onClick={() => router.refresh()}
+          className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2 py-1 font-semibold underline underline-offset-2"
+        >
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+          Try again
+        </button>
+      </div>
+
+      {/* The queue, itemised rather than counted. "3 sales pending" tells a
+          cashier a number; naming them lets somebody check the till against
+          the list, which is what they will actually do if they are worried. */}
+      {queued.length > 0 && (
+        <div className="mt-2 border-t border-warning/40 pt-2">
+          <p className="font-semibold">
+            {queued.length} sale{queued.length === 1 ? '' : 's'} waiting to sync ·{' '}
+            {formatCurrency(pendingTotal)}
+          </p>
+          <ul className="mt-1 space-y-0.5">
+            {queued.slice(0, 5).map((s) => (
+              <li key={s.id} className="sp-num text-xs">
+                {new Date(s.createdAt).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}{' '}
+                · {s.items.length} item{s.items.length === 1 ? '' : 's'} ·{' '}
+                {formatCurrency(s.total)}
+                <span className="ml-1 opacity-70">
+                  ({s.items.map((i) => `${i.quantity}x ${i.product_name}`).join(', ')})
+                </span>
+              </li>
+            ))}
+          </ul>
+          {queued.length > 5 && (
+            <p className="mt-1 text-xs opacity-80">and {queued.length - 5} more.</p>
+          )}
+          {/* Said plainly, because Phase 3 does not sync and a cashier who
+              assumed it did would stop checking. */}
+          <p className="mt-1 text-xs opacity-80">
+            These stay on this device until syncing is switched on.
+          </p>
+        </div>
+      )}
     </div>
   )
 }

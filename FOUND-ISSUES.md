@@ -1299,3 +1299,36 @@ md5sum .next/static/chunks/<name>.js
 If the same filename comes back with a different hash, the assumption is wrong
 and the fix is to make that branch stale-while-revalidate, or to key the static
 cache on the build id so a deploy retires the previous generation.
+
+## OPEN — the precached `offline.html` is never revalidated after a deploy
+
+Found 2026-08-19 during Offline Phase 3, by walking into it: the offline page
+had been rewritten with a till, the build was fresh, the worker was serving the
+document — and `#cart` was null, because the copy on disk was the PREVIOUS
+`offline.html`.
+
+`public/sw.js` precaches `OFFLINE_URL` in its `install` handler. A browser only
+re-runs `install` when **`sw.js` itself changes byte-for-byte**. So a deploy
+that changes `offline.html` and nothing else leaves every returning device
+serving the old offline page indefinitely — including, now, an old till.
+
+That matters more than it did in Phase 2. The offline document is no longer a
+courtesy message; it is where offline sales are made, and it writes to a queue
+whose schema the app also reads. A device stuck on an old copy could be writing
+last month's record shape.
+
+Same family as the `/_next/static/*` entry above, and worth fixing together.
+
+**Options, cheapest first:**
+
+1. Put a version constant in `sw.js` and bump it whenever `offline.html`
+   changes. Correct, and relies on a human remembering — which is exactly the
+   kind of coupling this codebase has been bitten by before.
+2. Derive it: have the build inject a hash of `offline.html` into `sw.js`, so
+   the worker's bytes change whenever the document does. No memory required.
+3. Re-fetch `offline.html` on `activate` as well as `install`, and fall back to
+   the cached copy when offline. Revalidates on every worker start without a
+   build step.
+
+Option 2 is the one that cannot be forgotten. Until then, a deploy touching
+`offline.html` should also touch `sw.js`.

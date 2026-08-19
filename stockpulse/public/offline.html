@@ -74,7 +74,19 @@
   .muted { color: var(--muted); }
   .notes { list-style: none; margin: 8px 0 0; padding: 0; }
   .notes li { padding: 2px 0; color: var(--muted); }
-  a:focus-visible, input:focus-visible, .btn:focus-visible { outline: 2px solid var(--warning); outline-offset: 2px; }
+  a:focus-visible, input:focus-visible, .btn:focus-visible, button:focus-visible { outline: 2px solid var(--warning); outline-offset: 2px; }
+  .add { border: 1px solid var(--border); background: var(--surface); color: var(--fg); border-radius: 8px;
+         min-height: 36px; padding: 0 12px; font-weight: 600; cursor: pointer; margin-top: 4px; }
+  .link { border: 0; background: none; color: var(--muted); text-decoration: underline; cursor: pointer;
+          font-size: 12px; padding: 2px 0; }
+  .pending { color: var(--warning); font-weight: 600; }
+  .panel { margin-top: 18px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); padding: 14px 16px; }
+  .panel h2 { font-size: 15px; margin: 0 0 8px; }
+  .totrow { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-weight: 700; }
+  .primary { display: block; width: 100%; margin-top: 12px; min-height: 46px; border: 0; border-radius: 10px;
+             background: var(--fg); color: var(--bg); font-weight: 700; font-size: 15px; cursor: pointer; }
+  #till-msg { margin-top: 10px; padding: 8px 12px; border-radius: 8px; background: var(--warning-bg);
+              color: var(--warning); font-size: 13px; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -98,6 +110,26 @@
     </label>
     <ul class="rows" id="list"></ul>
     <p class="sub" id="count"></p>
+
+    <!-- The till. A cold navigation with no signal lands on this document
+         rather than /sales, so this is where an offline sale is actually made. -->
+    <div class="panel" id="cart" hidden>
+      <h2>This sale</h2>
+      <ul class="rows" id="cart-list"></ul>
+      <div class="totrow"><span>Total</span><span id="cart-total"></span></div>
+      <button type="button" class="primary" id="complete">Complete sale (save on this device)</button>
+    </div>
+
+    <p id="till-msg" hidden role="status"></p>
+
+    <div class="panel" id="queue" hidden>
+      <h2 id="queue-head"></h2>
+      <ul class="rows" id="queue-list"></ul>
+      <p class="sub" style="margin-top:8px">
+        Saved on this device only. They stay here - including through a reload or a restart -
+        until syncing is switched on.
+      </p>
+    </div>
   </div>
 
   <div class="card" style="margin-top:18px">
@@ -170,6 +202,200 @@
     catch (e) { return '₹' + Number(n).toFixed(2); }
   }
 
+
+  // ===================== OFFLINE TILL (Phase 3) =====================
+  // A cold navigation with no signal lands HERE, not on /sales - measured:
+  // the worker's navigation branch is network-only and falls back to this
+  // document, because Phases 1 and 2 both refused to cache authenticated HTML.
+  // So this is where an offline sale is actually made, and the queue has to
+  // live somewhere both this file and the React app can reach: IndexedDB.
+  var QUEUE_STORE = 'queue';
+  var cart = [];      // [{product, qty}]
+  var queued = [];    // QueuedSale[]
+  var pending = {};   // product_id -> units owed, derived from `queued`
+
+  function uuid() {
+    var c = window.crypto;
+    if (c && c.randomUUID) return c.randomUUID();
+    var b = new Uint8Array(16);
+    if (c && c.getRandomValues) c.getRandomValues(b);
+    else for (var i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256);
+    b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+    var h = Array.prototype.map.call(b, function (x) {
+      return x.toString(16).padStart(2, '0');
+    }).join('');
+    return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20);
+  }
+
+  function withDb(fn) {
+    // Opened WITHOUT a version so this file never triggers an upgrade. The app
+    // owns the schema; a static page that guessed a version could create a
+    // store-less database and make every real write fail silently - which is
+    // exactly how Phase 2 lost a session.
+    var q = indexedDB.open(DB_NAME);
+    q.onsuccess = function () { fn(q.result); };
+    q.onerror = function () { fn(null); };
+  }
+
+  function readQueue(cb) {
+    withDb(function (db) {
+      if (!db || !db.objectStoreNames.contains(QUEUE_STORE)) return cb([]);
+      var t = db.transaction(QUEUE_STORE, 'readonly');
+      var r = t.objectStore(QUEUE_STORE).getAll();
+      r.onsuccess = function () {
+        var mine = (r.result || []).filter(function (s) { return s.storeId === currentStoreId; });
+        mine.sort(function (a, b) { return a.createdAt < b.createdAt ? -1 : 1; });
+        cb(mine);
+      };
+      r.onerror = function () { cb([]); };
+    });
+  }
+
+  // Stock owed, derived from the queue rather than stored as a running total,
+  // so it cannot drift out of step with the sales that caused it.
+  function recomputePending() {
+    pending = {};
+    queued.forEach(function (s) {
+      s.items.forEach(function (i) {
+        pending[i.product_id] = (pending[i.product_id] || 0) + i.quantity;
+      });
+    });
+  }
+
+  function effectiveStock(p) {
+    // What is really on the shelf, as far as this device knows: the cached
+    // number minus everything queued but unsent. Never below zero - a negative
+    // on a till reads as a bug, and the true reconciliation is Phase 4's job.
+    return Math.max(0, p.stock - (pending[p.id] || 0));
+  }
+
+  function addToCart(p) {
+    var avail = effectiveStock(p);
+    if (avail <= 0) { flash(p.name + ' is out of stock.'); return; }
+    for (var i = 0; i < cart.length; i++) {
+      if (cart[i].product.id === p.id) {
+        if (cart[i].qty >= avail) { flash('Only ' + avail + ' left of ' + p.name + '.'); return; }
+        cart[i].qty++; renderCart(); return;
+      }
+    }
+    cart.push({ product: p, qty: 1 });
+    renderCart();
+  }
+
+  function cartTotal() {
+    return cart.reduce(function (s, l) { return s + l.product.unit_price * l.qty; }, 0);
+  }
+
+  function flash(msg) {
+    var el = document.getElementById('till-msg');
+    el.textContent = msg;
+    el.hidden = false;
+    window.clearTimeout(flash._t);
+    flash._t = window.setTimeout(function () { el.hidden = true; }, 4000);
+  }
+
+  function completeSale() {
+    if (!cart.length) return;
+    var sale = {
+      id: uuid(),
+      storeId: currentStoreId,
+      userId: snapshot.userId || 'unknown',
+      createdAt: new Date().toISOString(),
+      paymentMethod: 'cash',
+      total: cartTotal(),
+      items: cart.map(function (l) {
+        return {
+          product_id: l.product.id,
+          product_name: l.product.name,   // copied: legible after a rename
+          quantity: l.qty,
+          unit_price: l.product.unit_price // the price CHARGED, not today's
+        };
+      })
+    };
+
+    withDb(function (db) {
+      if (!db || !db.objectStoreNames.contains(QUEUE_STORE)) {
+        flash('This sale could NOT be saved. Write it down before the customer leaves.');
+        return;
+      }
+      var t = db.transaction(QUEUE_STORE, 'readwrite');
+      t.objectStore(QUEUE_STORE).put(sale);
+      t.oncomplete = function () {
+        // Read back before telling anyone it is safe. "The put did not throw"
+        // is not "the record is there", and this store is the only copy of the
+        // money until Phase 4 syncs it.
+        readQueue(function (rows) {
+          var saved = rows.some(function (s) { return s.id === sale.id; });
+          if (!saved) {
+            flash('This sale could NOT be saved. Write it down before the customer leaves.');
+            return;
+          }
+          queued = rows; recomputePending();
+          cart = [];
+          renderCart(); renderQueue(); render();
+          flash('Saved on this device · ' + money(sale.total) + ' · will sync when back online.');
+        });
+      };
+      t.onerror = function () {
+        flash('This sale could NOT be saved. Write it down before the customer leaves.');
+      };
+    });
+  }
+
+  function renderCart() {
+    var box = document.getElementById('cart');
+    var list = document.getElementById('cart-list');
+    var tot = document.getElementById('cart-total');
+    list.innerHTML = '';
+    if (!cart.length) { box.hidden = true; return; }
+    box.hidden = false;
+    cart.forEach(function (l, idx) {
+      var li = document.createElement('li');
+      var left = document.createElement('div');
+      left.innerHTML = '<div class="name"></div><div class="sub"></div>';
+      left.querySelector('.name').textContent = l.qty + ' x ' + l.product.name;
+      left.querySelector('.sub').textContent = money(l.product.unit_price) + ' each';
+      var right = document.createElement('div');
+      right.className = 'right';
+      var amt = document.createElement('div');
+      amt.className = 'price';
+      amt.textContent = money(l.product.unit_price * l.qty);
+      var rm = document.createElement('button');
+      rm.type = 'button'; rm.className = 'link'; rm.textContent = 'Remove';
+      rm.addEventListener('click', function () { cart.splice(idx, 1); renderCart(); });
+      right.appendChild(amt); right.appendChild(rm);
+      li.appendChild(left); li.appendChild(right);
+      list.appendChild(li);
+    });
+    tot.textContent = money(cartTotal());
+  }
+
+  function renderQueue() {
+    var box = document.getElementById('queue');
+    var list = document.getElementById('queue-list');
+    var head = document.getElementById('queue-head');
+    list.innerHTML = '';
+    if (!queued.length) { box.hidden = true; return; }
+    box.hidden = false;
+    var total = queued.reduce(function (s, q) { return s + q.total; }, 0);
+    head.textContent = queued.length + ' sale' + (queued.length === 1 ? '' : 's') +
+      ' waiting to sync · ' + money(total);
+    queued.forEach(function (s) {
+      var li = document.createElement('li');
+      var when = new Date(s.createdAt);
+      var t = isNaN(when.getTime()) ? '--:--'
+        : String(when.getHours()).padStart(2, '0') + ':' + String(when.getMinutes()).padStart(2, '0');
+      var names = s.items.map(function (i) { return i.quantity + 'x ' + i.product_name; }).join(', ');
+      li.innerHTML = '<div><div class="name"></div><div class="sub"></div></div>' +
+                     '<div class="right"><div class="price"></div></div>';
+      li.querySelector('.name').textContent = t + ' · ' + s.items.length + ' item' +
+        (s.items.length === 1 ? '' : 's');
+      li.querySelector('.sub').textContent = names;
+      li.querySelector('.price').textContent = money(s.total);
+      list.appendChild(li);
+    });
+  }
+
   var statusEl = document.getElementById('status');
   var liveEl = document.getElementById('live');
   var staleEl = document.getElementById('stale');
@@ -177,6 +403,7 @@
   var countEl = document.getElementById('count');
   var qEl = document.getElementById('q');
   var snapshot = null;
+  var currentStoreId = null;
   var today = isoToday(new Date());
 
   function fail(msg) { statusEl.textContent = msg; statusEl.hidden = false; liveEl.hidden = true; }
@@ -228,9 +455,19 @@
       right.className = 'right';
       var pr = document.createElement('div');
       pr.className = 'price'; pr.textContent = money(p.unit_price);
+      var owed = pending[p.id] || 0;
       var st = document.createElement('div');
-      st.className = 'sub'; st.textContent = p.stock + ' in stock';
-      right.appendChild(pr); right.appendChild(st);
+      st.className = 'sub' + (owed ? ' pending' : '');
+      // The optimistic number, and the reason for it in the same line. A bare
+      // adjusted figure would look like the truth; naming the pending part
+      // lets a cashier reconcile the shelf against the queue.
+      st.textContent = owed
+        ? effectiveStock(p) + ' left (' + owed + ' pending)'
+        : p.stock + ' in stock';
+      var addBtn = document.createElement('button');
+      addBtn.type = 'button'; addBtn.className = 'add'; addBtn.textContent = 'Add to sale';
+      addBtn.addEventListener('click', function () { addToCart(p); });
+      right.appendChild(pr); right.appendChild(st); right.appendChild(addBtn);
       li.appendChild(left); li.appendChild(right);
       listEl.appendChild(li);
     });
@@ -273,18 +510,27 @@
           return;
         }
         snapshot = snap;
+        currentStoreId = storeId;
         var t = new Date(snap.syncedAt);
         var clock = isNaN(t.getTime()) ? 'an unknown time'
           : String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
         staleEl.textContent = 'Saved list from ' + clock + ' · prices and stock may have changed since';
         statusEl.hidden = true;
         liveEl.hidden = false;
-        render();
+        // The queue is read BEFORE the first render, so the optimistic stock
+        // numbers are right on the first paint rather than jumping a moment
+        // later.
+        readQueue(function (rows) {
+          queued = rows; recomputePending();
+          renderQueue();
+          render();
+        });
       };
     };
   }
 
   qEl.addEventListener('input', function () { if (snapshot) render(); });
+  document.getElementById('complete').addEventListener('click', completeSale);
 
   // Return to the app the moment signal comes back, so a cashier is not left
   // reading a stale list after the network is up again.
