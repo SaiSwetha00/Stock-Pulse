@@ -8,7 +8,7 @@ import { deleteProduct, findProductByBarcode } from '@/app/(dashboard)/inventory
 import type { Product, Role } from '@/types'
 import { categoryLabel, labelMap, type CategoryOption } from '@/lib/categories'
 import { formatCurrency } from '@/lib/format'
-import { expiryTone, formatExpiry, nextExpiry } from '@/lib/expiry'
+import { expiryRelative, expiryTone, formatExpiry, nextExpiry } from '@/lib/expiry'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import Badge, { type BadgeTone } from '@/components/ui/Badge'
@@ -122,9 +122,17 @@ const csvColumns = (labels: Record<string, string>): CsvColumn<Product>[] => [
  * `today` is a prop all the way from the server so this renders identically
  * before and after hydration — see the header of lib/expiry.ts.
  */
-function ExpiryValue({ date, today }: { date: string | null; today: string }) {
+function ExpiryValue({
+  date,
+  today,
+  warningDays,
+}: {
+  date: string | null
+  today: string
+  warningDays: number
+}) {
   if (!date) return <span className="text-muted">—</span>
-  const tone = expiryTone(date, today)
+  const tone = expiryTone(date, today, warningDays)
   return (
     <span
       className={
@@ -162,6 +170,7 @@ export default function InventoryClient({
   initialProducts,
   categories,
   today,
+  expiryWarningDays,
 }: {
   // storeId is no longer needed: mutations go through Server Actions that read
   // the store from the session.
@@ -176,6 +185,9 @@ export default function InventoryClient({
    *  render across midnight, and React would swap an "Expired" label under
    *  the reader between the two passes. */
   today: string
+  /** This store's warning window (0017). Phase 4: the list column and the
+   *  scan both tone against the shop's own number rather than a constant. */
+  expiryWarningDays: number
 }) {
   const router = useRouter()
   const toast = useToast()
@@ -239,7 +251,21 @@ export default function InventoryClient({
       if (result.product) {
         setScanBarcode('')
         setEditing(result.product)
-        toast.info('Product found', `${result.product.name} — update the stock and save.`)
+        // Phase 4: the scan says what state the stock is in, not just that a
+        // row was found. `findProductByBarcode` now returns the lots with the
+        // product, so this needs no extra round trip between the beep and the
+        // answer. Display only — a scan still opens the same edit form it
+        // always did, whatever the date says.
+        const scannedExpiry = nextExpiry(result.product.product_batches)
+        const tone = scannedExpiry ? expiryTone(scannedExpiry, today, expiryWarningDays) : null
+        toast.info(
+          'Product found',
+          scannedExpiry
+            ? `${result.product.name} — ${
+                tone === 'expired' ? 'EXPIRED' : 'expires'
+              } ${formatExpiry(scannedExpiry)}, ${expiryRelative(scannedExpiry, today)}.`
+            : `${result.product.name} — no expiry date. Update the stock and save.`,
+        )
       } else {
         setEditing(null)
         setScanBarcode(value)
@@ -619,7 +645,11 @@ export default function InventoryClient({
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
                       Expiry
                     </span>
-                    <ExpiryValue date={nextExpiry(p.product_batches)} today={today} />
+                    <ExpiryValue
+                      date={nextExpiry(p.product_batches)}
+                      today={today}
+                      warningDays={expiryWarningDays}
+                    />
                   </td>
                   <td className="mt-3 block lg:mt-0 lg:table-cell lg:px-4 lg:py-4">
                     <Badge tone={badge.tone}>{badge.label}</Badge>
@@ -712,6 +742,8 @@ export default function InventoryClient({
           storeId={storeId}
           categories={categories}
           initialBarcode={scanBarcode}
+          today={today}
+          expiryWarningDays={expiryWarningDays}
           onClose={() => {
             setModalOpen(false)
             setEditing(null)

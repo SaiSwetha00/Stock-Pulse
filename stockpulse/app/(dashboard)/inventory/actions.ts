@@ -460,7 +460,14 @@ export async function findProductByBarcode(
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('products')
-    .select('*')
+    // The lots come back with the product, in the same round trip, resolved
+    // through 0016's composite FK so a lot cannot arrive from another store.
+    // Phase 4 needs them: both scan flows show the nearest expiry, and a
+    // second query per scan would put a round trip between the beep and the
+    // answer on exactly the two screens where someone is standing holding
+    // something. Adding them here rather than at each call site also means the
+    // till and the shelf cannot disagree about which lots a product has.
+    .select('*, product_batches(*)')
     .eq('store_id', store.id)
     .eq('barcode', value)
     .maybeSingle()

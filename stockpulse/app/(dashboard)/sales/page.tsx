@@ -6,6 +6,7 @@ import { REPORTING_TIMEZONE, reportingDate, shiftDays, weekdayIndex } from '@/li
 import type { Product, Sale } from '@/types'
 import { categoryLabel, getStoreCategories, labelMap } from '@/lib/categories'
 import SalesClient from '@/components/sales/SalesClient'
+import { storeExpiryWarningDays } from '@/lib/expiry'
 
 export const metadata: Metadata = {
   title: "Sales",
@@ -39,7 +40,11 @@ export default async function SalesPage() {
     { data: categories },
     { data: top },
   ] = await Promise.all([
-    supabase.from('products').select('*').eq('store_id', store.id),
+    // Lots embedded for the same reason /inventory embeds them: the cart
+    // shows each line's nearest expiry, and a product reached by SEARCH must
+    // carry the same information as one reached by SCAN — otherwise the same
+    // milk would show a date when beeped and nothing when typed.
+    supabase.from('products').select('*, product_batches(*)').eq('store_id', store.id),
     supabase
       .from('sales')
       .select('*, profiles(full_name)')
@@ -104,6 +109,12 @@ export default async function SalesPage() {
       topSelling={topSelling}
       weekTotal={weekTotal}
       avgOrder={avgOrder}
+      // Both decided on the server, for the reason lib/expiry.ts gives: a
+      // client that read its own clock could tone the same lot differently
+      // before and after hydration, and a client that assumed 7 days would
+      // ignore a shop that moved its threshold.
+      today={today}
+      expiryWarningDays={storeExpiryWarningDays(store)}
     />
   )
 }

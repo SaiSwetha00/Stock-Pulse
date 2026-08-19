@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowUpRight, Plus, Trash2 } from 'lucide-react'
+import ExpiryTag from '@/components/ui/ExpiryTag'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import { Field, Input, Select } from '@/components/ui/Field'
@@ -77,9 +78,15 @@ export default function ProductModal({
    * stored barcode with whatever was last held up to the camera.
    */
   initialBarcode,
+  today,
+  expiryWarningDays,
   onClose,
   onSaved,
 }: {
+  /** Shop's calendar date and warning window, from the server — the modal
+   *  never reads a clock, for the reason lib/expiry.ts sets out. */
+  today: string
+  expiryWarningDays: number
   /** Only the Storage path prefix. Not a permission — migration 0009's
    *  policies re-check it against current_store_id(). */
   storeId: string
@@ -147,6 +154,17 @@ export default function ProductModal({
       lots: lots.map(({ quantity, expiryDate, id }) => ({ quantity, expiryDate, id })),
     }
   }
+
+  // Derived from the FORM's rows, not from `product.product_batches`, so the
+  // line answers "what is on the shelf according to what is on screen" — edit
+  // a date and the tag re-tones immediately, rather than describing the row as
+  // it was when the modal opened.
+  const datedLots = lots.filter((l) => l.expiryDate && Number(l.quantity.trim() || '0') > 0)
+  const nearestLotExpiry =
+    datedLots.length > 0
+      ? datedLots.reduce((a, b) => (a.expiryDate <= b.expiryDate ? a : b)).expiryDate
+      : null
+  const datedLotCount = datedLots.length
 
   function updateLot(index: number, patch: Partial<LotRow>) {
     setLots((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)))
@@ -341,6 +359,26 @@ export default function ProductModal({
             <p className="mb-3 text-xs text-muted">
               One row per delivery. Leave the date blank for anything that does not expire.
             </p>
+
+            {/* The state of what is already on the shelf, said once at the top
+                in Phase 3's colour language, before the rows that let you
+                change it.
+
+                This is the payoff for the Inventory scan: a scan opens this
+                modal in edit mode, and without this line the reader would have
+                to compare a column of dates against today in their head to
+                learn the one thing the scan was asking about. The rows below
+                still carry every lot — this only names the nearest. */}
+            {nearestLotExpiry !== null && (
+              <p className="mb-3">
+                <ExpiryTag
+                  date={nearestLotExpiry}
+                  today={today}
+                  warningDays={expiryWarningDays}
+                  lots={datedLotCount}
+                />
+              </p>
+            )}
 
             {errors.lots && (
               <p role="alert" className="mb-3 text-xs font-medium text-danger">

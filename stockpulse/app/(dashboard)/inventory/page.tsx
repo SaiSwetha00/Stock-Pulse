@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import { getStoreCategories } from '@/lib/categories'
 import { reportingDate } from '@/lib/reportingTimezone'
+import { storeExpiryWarningDays } from '@/lib/expiry'
 import InventoryClient from '@/components/inventory/InventoryClient'
 import type { Product } from '@/types'
 
@@ -42,6 +43,11 @@ export default async function InventoryPage() {
       // client component can differ between the server render and hydration
       // for anyone browsing near midnight, and React would swap it under them.
       today={reportingDate()}
+      // Phase 4: the tone of an expiry has to follow the SHOP's window, not a
+      // constant. Until now expiryTone() carried its own hardcoded 7, so a
+      // store that moved this setting would have seen the dashboard and this
+      // list disagree about the same lot.
+      expiryWarningDays={storeExpiryWarningDays(store)}
     />
   )
 }

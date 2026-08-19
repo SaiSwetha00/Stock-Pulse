@@ -81,6 +81,8 @@ function searchIndex(s: Sale): string {
 export default function SalesClient({
   role,
   products,
+  today,
+  expiryWarningDays,
   sales,
   trendData,
   categoryBreakdown,
@@ -90,6 +92,9 @@ export default function SalesClient({
 }: {
   role: Role
   products: Product[]
+  /** The shop's calendar date and warning window, from the server. */
+  today: string
+  expiryWarningDays: number
   sales: Sale[]
   trendData: { label: string; value: number }[]
   categoryBreakdown: { label: string; pct: number }[]
@@ -439,7 +444,14 @@ export default function SalesClient({
         )}
       </div>
 
-      {modalOpen && <LogSaleModal products={products} onClose={() => setModalOpen(false)} />}
+      {modalOpen && (
+        <LogSaleModal
+          products={products}
+          today={today}
+          expiryWarningDays={expiryWarningDays}
+          onClose={() => setModalOpen(false)}
+        />
+      )}
     </div>
   )
 }

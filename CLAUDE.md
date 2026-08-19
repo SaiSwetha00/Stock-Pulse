@@ -231,6 +231,41 @@ prior-period figure, so it would need either a panel ignoring the page's own
 date range or an invented metric. If a later phase wants expiry reporting, it
 needs its own surface, not a panel wedged into that one.
 
+
+### Scanning shows expiry, and `expiryTone` takes the store's window
+
+**Phase 4 (2026-08-19) — expiry tracking is CLOSED.** `findProductByBarcode`
+is the ONE place a scanned product is looked up, shared by Inventory and Sales,
+so it is where the lots were added: `select('*, product_batches(*)')`. Both
+scan flows get expiry with no extra round trip between the beep and the answer,
+and neither gained a new code path — Inventory still opens `ProductModal`,
+Sales still enters through `addToCart`.
+
+`components/ui/ExpiryTag.tsx` renders it: the **nearest at-risk date only**,
+with extra lots as a count ("+2 more lots"), never a list. Both scan surfaces
+are places where someone is holding something — a phone at a shelf or a
+customer's shopping at a till — and neither can afford a table. The full lot
+list already lives in ProductModal, which is what a scan opens.
+
+`/sales` search results carry the tag too, deliberately: a cart line does not
+remember how it got there, so a product reached by typing must say the same
+thing as one reached by beeping.
+
+**`expiryTone()` now takes `warningDays`, and that fixed a real bug.** Phase 3
+made the window per-store (`stores.expiry_warning_days`) and taught the
+dashboard to read it, but `expiryTone` kept a hardcoded `EXPIRY_SOON_DAYS = 7`
+— so a shop that set 14 would have seen the dashboard call a lot "expiring
+soon" while the inventory list showed it neutral until day 7. Nothing surfaced
+it because every store still holds 7, so the two agreed by coincidence.
+`EXPIRY_SOON_DAYS` is gone. Every caller passes
+`storeExpiryWarningDays(store)`; if you add a surface that tones an expiry,
+pass it too rather than accepting the default.
+
+**Phase 4 is display only.** An expired scan still adds to the cart and still
+opens the edit form. Refusing to sell expired stock is a policy nobody has
+asked for — a shopkeeper may well be selling it knowingly at a discount — and
+`log_sale` was not touched.
+
 ### Environment variables (`stockpulse/.env.local`)
 
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase project, used by all three client variants (see below).
