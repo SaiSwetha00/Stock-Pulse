@@ -1323,3 +1323,58 @@ turn out to matter, shipment-sourced batches is a separate future decision with
 its own scope — `shipment_items`, a receiving screen, and a migration to
 attach existing batches — and it should be taken on its own merits rather than
 smuggled into an expiry phase.
+
+## D56 — A replayed sale is idempotent because the DATABASE refuses the second one
+
+Offline Phase 4, 2026-08-19. The rule: **a client cannot decide whether it has
+already sent something.**
+
+The obvious design is for the sync loop to ask "does a sale with this id exist?"
+and insert if not. It is wrong in the exact case it needs to be right: a request
+that times out may well have committed, and two devices holding the same queue
+— or one device retrying while its first request is still in flight — both pass
+that check and both insert. A duplicate sale is not a cosmetic bug; it deducts
+stock twice and overstates a shop's takings.
+
+So idempotency lives in a **unique index on `(store_id, client_id)`**, and
+`replay_sale` catches the refusal and reports `duplicate`. The lookup survives
+only as a fast path that saves work in the common case. The client generates the
+id before the sale is ever sent, which is what makes the sale nameable before it
+is sendable.
+
+This is D24 raised from a row to an operation. D24 says a write that can be
+refused silently must ask what it changed; this says a write that can be
+*repeated* must let the database decide whether it already happened. Both refuse
+to let the client's belief stand in for the server's answer.
+
+**A corollary worth stating, because it looks like a bug:** `duplicate` is a
+SUCCESS. It means an earlier attempt committed and this one proved it. The queue
+entry is removed, and the cashier is told "already recorded" rather than having
+it folded silently into the sent count — a number that drops without explanation
+is indistinguishable from money going missing.
+
+## D57 — When physical reality has already diverged, record it; do not reconcile it
+
+Offline Phase 4, 2026-08-19. A sale made offline replays for three units and the
+server has two, because another till sold one meanwhile.
+
+Three answers were available and two are wrong. **Refusing the sale** asks the
+shopkeeper to un-sell something they cannot un-sell, and understates the
+takings. **Clamping stock to zero quietly** produces a tidy database and hides a
+real inventory problem — the shop is short a unit and nobody is told.
+
+The third is the one taken: **the sale lands, stock floors at zero, and the gap
+is written down and surfaced.** `stock_discrepancies` records how many units
+were sold, how many were available, and the shortfall; `replay_sale` returns
+those rows so the app raises an error toast naming the product at the moment it
+happens.
+
+The reasoning generalises past stock. **The software cannot prevent the
+oversell, because it already happened in the physical shop before either device
+could know.** It can only record it faithfully and put it in front of a human.
+Anything that "resolves" it automatically is inventing a fact about a shelf it
+cannot see.
+
+Note this overrode the Phase 1 proposal, which said clamp and flag. The owner's
+brief was sharper: do not clamp *silently*. The distinction is the whole
+decision — the clamp is fine, the silence is not.

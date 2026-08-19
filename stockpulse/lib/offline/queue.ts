@@ -43,6 +43,16 @@ export interface QueuedSale {
    *  copied — it is what the customer actually paid. */
   total: number
   items: QueuedSaleItem[]
+
+  // --- set by Phase 4's sync when a replay FAILS ---------------------------
+  // Stored on the record rather than held in memory, because the reason has to
+  // survive the reload that a cashier will do before asking why a sale is
+  // stuck. A sale is never dropped for failing; it is annotated and retried.
+  /** Readable reason from the last attempt. */
+  lastError?: string
+  /** ISO-8601 UTC. */
+  lastTriedAt?: string
+  attempts?: number
 }
 
 /**
