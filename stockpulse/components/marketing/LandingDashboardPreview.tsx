@@ -283,7 +283,7 @@ export default function LandingDashboardPreview() {
                             p.status === 'critical'
                               ? 'bg-danger-bg text-danger border border-danger'
                               : p.status === 'warning'
-                              ? 'bg-[var(--sp-gold)]/20 text-[var(--sp-gold)] border border-[var(--sp-gold)]/40'
+                              ? 'bg-warning-bg text-warning border border-warning'
                               : 'bg-success-bg text-success border border-success'
                           }`}
                         >
