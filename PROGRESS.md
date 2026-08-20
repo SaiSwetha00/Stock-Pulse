@@ -4464,3 +4464,120 @@ a genuine iOS eviction, cannot be settled without a real iPhone. The risk is now
 *detectable* rather than silent — a queue that loses sales will say so — but it
 is not *prevented*. Until someone runs it on a device, offline mode should be
 treated as verified on Android and Chrome only.
+
+---
+
+# LANDING PAGE REDESIGN — CLOSED (2026-08-20)
+
+Merged as PR #16 (`hero/minimal-cta` -> `main`, merge commit `31a427a`), five
+commits, Vercel production deploy green. This was the last open item from V3's
+plan.
+
+Verified on the production domain rather than assumed: the served HTML carries
+five `sp-band-night` sections, five `sp-band-paper`, zero of the retired
+`sp-band-ember` / `cream` / `coffee`, and exactly **one** `sp-cta-red`.
+
+## What changed, in three passes
+
+**1. The hero.** The two-column layout — copy left, a three.js grocery shelf
+right, two floating telemetry cards over it — is gone, and the
+shelf-of-products concept with it. Three attempts had been made at that idea
+(`hero/photo-shelf`, `hero/stocked-shelf`, the 3D one); putting product imagery
+back into this section reopens a decision rather than making a new one. What
+replaced it is the shape sign-up pages have settled on: a full-bleed
+atmospheric background, a short headline, and exactly one thing to press.
+
+Red joined the palette for that one thing and nothing else. Gold keeps the
+headline gradient and every other button (D11 intact). Red is used **only as a
+fill** — 5.07:1 under white; as text on black it would be 4.14:1, large-text
+only, which is why it is not used that way.
+
+`HeroShelf`, `ThreeGroceryVisual` and the `three` dependency (~133 KB gz) are
+now unreferenced. They were left in place and marked, so the review was a
+readable diff rather than a 780-line deletion. **They are still there and are
+now safe to delete.**
+
+**2. Colour rhythm across sections.** Scrolling read as disconnected patches.
+The cause was not contrast but three unrelated hue families: coffee `#2b211a`
+and cream `#f5f1e8` are both siblings of the **gold**, which was correct while
+gold was the only accent. The hero then became red and nothing below the fold
+was related to anything above it.
+
+The first attempt (D65) re-derived every band from the hero's crimson and
+dissolved each seam through a 120px ramp. Rendered, the ramps were a smoky
+smear across every join, and the page still ran **dark-under-dark twice** —
+hero into TrustedByStats, and FinalCTA into the footer. The first of those is
+the very first scroll anyone makes.
+
+D66 corrected all of it: seam elements deleted, sections meet on a hard line,
+and the rule is now stated positively — *no two adjacent sections share a
+lightness*. That is not a local fix. With eleven sections, hero dark and footer
+dark, **exactly one assignment alternates**, and nine sections had to change
+band to reach it. Four tones collapsed to two, `sp-band-night` `#1c0c10` (a
+deep oxblood carrying the same blue-over-green lean as `--sp-crimson`) and
+`sp-band-paper` `#f6efeb`.
+
+**3. Auth redesigned, not refined.** `/login`, `/signup`, `/forgot-password`
+and `/reset-password` are a light/dark split — brand and signature on the dark
+half, the form on paper with no card and no glass. This **revises** the
+stay-fully-dark note in `AuthUI.tsx` rather than deleting it; the dark half
+preserves the thread that note cared about. D64 states the revision plainly.
+Functionality was untouched: the three-step wizard, its validation and its
+Server Actions were not edited.
+
+## The real bugs found along the way
+
+| Bug | How it presented | Where |
+|---|---|---|
+| **Light-on-light contrast regression** | Five sections had never once been rendered on a light ground and were full of hardcoded light colours — `text-[#e0e2ed]`, `text-[#d1c5b0]`, `text-[#edc155]` — invisible on paper the moment their band flipped | D66 |
+| **`text-accent-ink` on a gold fill** | Correct only when the gold is *bright*. On paper `--accent` is a dark gold `#8b6508` and `--accent-ink` is also dark `#5c4206` — measured **~1.1:1**, an invisible button label. The token cannot be repointed, because `bg-accent-soft text-accent-ink` on the same band genuinely needs the dark value | D66 |
+| **Opacity-thinned text** | `text-muted-strong/60` and `/40` are comfortable on dark and fall to ~3.9:1 and ~2.5:1 on paper | D66 |
+| **No glass surface had ever blurred** | Lightning CSS keeps the last of two equivalent declarations; all three glass rules wrote `-webkit-backdrop-filter` last, and Chromium 148 does not support that alias | D58 |
+| **Two dots near the cursor** | Reported as a suspected rendering artifact. It was `CustomCursor`, drawing a gold dot at the pointer and a trailing crimson-dotted ring — and nothing set `cursor: none`, so both were painted *over* the visitor's own pointer | D59 |
+| **Nav wrong on every load that is not at the top** | `useState(false)` with no initial read. Reproduced: scrolled to y=900, reloaded, page repainted at y=930 with the nav still transparent, sitting on the features cards with both sets of text overlapping | D61 |
+
+Two of those deserve the emphasis they got in the decisions. The
+light-on-light regression is the important one: **a token system only protects
+the surfaces it is actually used on.** Nine sections had passed every review
+carrying colours that would break the instant their band changed, and nothing
+could have surfaced that except changing the band and looking. The
+`accent-ink` case is the same shape one level down — a token that is correct
+for one polarity of its own band and wrong for the other.
+
+## Cross-references
+
+| Decision | Subject |
+|---|---|
+| D58 | Prefixed property written last silently deletes the standard one |
+| D59 | A decoration nobody can distinguish from a bug is doing a bug's job |
+| D60 | Contrast is a property of the rendered pixel, not of the token |
+| D61 | A scroll listener with no initial read is wrong on every load that is not at the top |
+| D62 | The reported symptom and the reproduced bug were two different faults |
+| D63 | Making the bar opaque moved the glow, so the glow moved with it |
+| D64 | The auth screens are a light/dark split — **revises** the stay-fully-dark note |
+| D65 | Three hue families made the page read as patches |
+| **D66** | **Strict alternation, hard edges, one dark tone — corrects D65** |
+
+D11 (the landing keeps its own gold) and D50 (a hero decoration must not cost
+every visitor a rendering library) both still hold and were reasoned from
+throughout: red was added *beside* gold rather than replacing it, and the new
+hero background is CSS gradients rather than a second WebGL context.
+
+## Method note, worth keeping
+
+Two measurement habits were established here and should carry forward.
+
+**Contrast against a gradient must be sampled, not computed.** Modelling the
+nav's background by compositing gradient stops by hand gave `#9d3a2e` and
+2.49:1; the rendered pixel is `#691715` and the real figure was 4.43:1. Both
+argued for the same change, but 4.43 against a 4.5 threshold is the *marginal*
+kind of failure that survives review because it looks fine. A ~60-line PNG
+reader over a headless screenshot settles it (D60).
+
+**Scroll behaviour cannot be tested with scripted `scrollTo`.** It moves the
+offset without dispatching a scroll event, so a listener never runs and an
+intermittent bug looks total. Worse, a browser that is not compositing frames
+fires no scroll events at all — measured, a freshly attached listener got zero
+while `documentElement.scrollTop` genuinely read 500. Drive it with real input
+(CDP `Input.dispatchMouseEvent`, `type: 'mouseWheel'`) or it is not being
+tested (D61).
