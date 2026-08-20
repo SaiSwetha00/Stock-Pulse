@@ -375,7 +375,7 @@
   /* Gold has to darken considerably to hold contrast on paper; the
      bright #c9a227 measures 2.0:1 here and would be unreadable. */
   --sp-gold: #7d5a07;
-  --sp-gold-light: #a87f18;
+  --sp-gold-light: #8f640d;
   --sp-gold-deep: #6f5006;
   --sp-crimson-light: #9c1f18;
   --sp-violet: #6f4f8a;
