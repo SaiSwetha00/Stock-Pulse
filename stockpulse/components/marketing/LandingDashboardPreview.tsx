@@ -130,7 +130,7 @@ export default function LandingDashboardPreview() {
           <div className="flex items-center gap-4">
             <button
               onClick={handleSimulateScan}
-              className="px-6 py-3 rounded-xl bg-[var(--sp-surface-card)] border border-[var(--sp-gold)]/40 text-[var(--sp-gold)] hover:bg-[var(--sp-gold)] hover:text-accent-ink font-mono text-xs uppercase tracking-wider font-semibold transition-all flex items-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(201,162,39,0.2)]"
+              className="px-6 py-3 rounded-xl bg-[var(--sp-surface-card)] border border-[var(--sp-gold)]/40 text-[var(--sp-gold)] hover:bg-[var(--sp-gold)] hover:text-[var(--surface)] font-mono text-xs uppercase tracking-wider font-semibold transition-all flex items-center gap-2 cursor-pointer shadow-[0_0_15px_rgba(201,162,39,0.2)]"
             >
               <RefreshCw className="w-4 h-4" /> TRIGGER AUTOMATED AI SCAN
             </button>
@@ -181,7 +181,7 @@ export default function LandingDashboardPreview() {
               <button
                 onClick={() => setActiveTab('all')}
                 className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  activeTab === 'all' ? 'bg-[var(--sp-gold)] text-accent-ink font-bold' : 'text-muted-strong hover:text-foreground'
+                  activeTab === 'all' ? 'bg-[var(--sp-gold)] text-[var(--surface)] font-bold' : 'text-muted-strong hover:text-foreground'
                 }`}
               >
                 ALL STOCK ({products.length})
@@ -189,7 +189,7 @@ export default function LandingDashboardPreview() {
               <button
                 onClick={() => setActiveTab('warning')}
                 className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'warning' ? 'bg-[#93000a] text-foreground font-bold' : 'text-danger hover:text-foreground'
+                  activeTab === 'warning' ? 'bg-danger text-[var(--surface)] font-bold' : 'text-danger hover:text-foreground'
                 }`}
               >
                 <AlertTriangle className="w-3.5 h-3.5" /> SPOILAGE ALERTS (2)
@@ -197,7 +197,7 @@ export default function LandingDashboardPreview() {
               <button
                 onClick={() => setActiveTab('optimal')}
                 className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  activeTab === 'optimal' ? 'bg-success text-foreground font-bold' : 'text-success hover:text-foreground'
+                  activeTab === 'optimal' ? 'bg-success text-[var(--surface)] font-bold' : 'text-success hover:text-foreground'
                 }`}
               >
                 OPTIMAL
@@ -281,7 +281,7 @@ export default function LandingDashboardPreview() {
                         <span
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-mono text-[10px] uppercase font-bold ${
                             p.status === 'critical'
-                              ? 'bg-[#93000a]/40 text-danger border border-[#93000a]'
+                              ? 'bg-danger-bg text-danger border border-danger'
                               : p.status === 'warning'
                               ? 'bg-[var(--sp-gold)]/20 text-[var(--sp-gold)] border border-[var(--sp-gold)]/40'
                               : 'bg-success-bg text-success border border-success'

@@ -30,7 +30,7 @@ export default function TrustedByStats() {
         </motion.div>
 
         {/* Real Module Grid with 3D Stagger */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 items-center justify-center opacity-80 mb-20 preserve-3d">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 items-center justify-center mb-20 preserve-3d">
           {modules.map((mod, i) => (
             <motion.div
               key={i}
@@ -110,8 +110,8 @@ export default function TrustedByStats() {
             whileHover={{ translateZ: 30, rotateY: 3, scale: 1.02 }}
             className="glass-card p-7 rounded-2xl border border-border bg-[var(--sp-surface-card)]/40 relative overflow-hidden group"
           >
-            <div className="absolute top-0 left-0 w-1 h-full bg-[#A882C1]" />
-            <div className="font-mono text-xs text-[#A882C1] uppercase tracking-wider mb-2 flex items-center gap-2">
+            <div className="absolute top-0 left-0 w-1 h-full bg-[var(--sp-violet)]" />
+            <div className="font-mono text-xs text-[var(--sp-violet)] uppercase tracking-wider mb-2 flex items-center gap-2">
               <Award className="w-4 h-4" /> Access
             </div>
             <div className="font-display font-bold text-4xl text-foreground mb-1">3 Roles</div>

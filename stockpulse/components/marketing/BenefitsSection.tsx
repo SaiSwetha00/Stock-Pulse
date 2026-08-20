@@ -99,7 +99,7 @@ export default function BenefitsSection() {
           viewport={{ once: true }}
           transition={{ duration: 0.8, delay: 0.2 }}
           whileHover={{ translateZ: 20 }}
-          className="glass-card p-10 md:p-14 rounded-2xl border border-[var(--sp-gold)]/40 bg-gradient-to-r from-[var(--sp-surface-card)]/90 via-black/95 to-[var(--sp-surface-card)]/90 relative overflow-hidden preserve-3d animate-3d-glow"
+          className="glass-card p-10 md:p-14 rounded-2xl border border-[var(--sp-gold)]/40 bg-gradient-to-r from-[var(--sp-surface-card)]/90 via-[var(--sp-surface-alt)]/95 to-[var(--sp-surface-card)]/90 relative overflow-hidden preserve-3d animate-3d-glow"
         >
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             <div className="lg:col-span-7">

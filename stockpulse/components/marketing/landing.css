@@ -32,6 +32,7 @@
   --sp-ink: #070405;
   --sp-night: #1c0c10;
   --sp-paper: #f6efeb;
+  --sp-violet: #a882c1;
 
   --sp-black: #000000;
   --sp-surface: #0a0a0a;
@@ -373,24 +374,25 @@
   --sp-surface-elevated: #ffffff;
   /* Gold has to darken considerably to hold contrast on paper; the
      bright #c9a227 measures 2.0:1 here and would be unreadable. */
-  --sp-gold: #8b6508;
+  --sp-gold: #7d5a07;
   --sp-gold-light: #a87f18;
   --sp-gold-deep: #6f5006;
   --sp-crimson-light: #9c1f18;
+  --sp-violet: #6f4f8a;
 
   --background: #f6efeb;
   --surface: #fdf8f6;
   --surface-muted: #efe4df;
   --foreground: #1a1211;
   --muted-strong: #4a3a37;
-  --muted: #6e5b57;
+  --muted: #64524e;
   --border: #e0d2cd;
   --border-strong: #c9b7b1;
-  --accent: #8b6508;
+  --accent: #7d5a07;
   --accent-hover: #6f5006;
   --accent-soft: #f4e9d2;
   --accent-ink: #5c4206;
-  --success: #157a3a;
+  --success: #126a32;
   --success-bg: #e8f3ec;
   --success-ink: #0d4f26;
   --danger: #9c1f18;
@@ -404,6 +406,26 @@
 
 /* A translucent dark pane on paper reads as a smudge, so glass-card
    needs its own light variant here. */
+/* glass-panel needs a paper variant for exactly the reason glass-card does,
+   and not having one was the single biggest contrast fault on this page.
+
+   It is hardcoded rgba(10, 10, 10, 0.75) - a near-black pane. glass-card got
+   its light variant when the bands were built; glass-panel was overlooked
+   because only two components use it. Both of them, LandingDashboardPreview
+   and BenefitsSection, are sections that flipped to paper, so both were
+   painting a dark card on a light band while every token inside them resolved
+   to paper's DARK text. Measured on the rendered pixel: product titles came
+   out #1a1211 on #454342 (1.87:1) and the ERP comparison column #64524e on
+   #454342 (1.54:1). That is the "dim orange on a dark card" and the "faint
+   grey left column" both reported by eye.
+
+   A translucent dark pane over a light band is never right, so this is not a
+   tuning - it is the missing half of a pair. */
+.sp-landing .sp-band-paper .glass-panel {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(26, 18, 17, 0.12);
+}
+
 .sp-landing .sp-band-paper .glass-card {
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid rgba(26, 18, 17, 0.1);

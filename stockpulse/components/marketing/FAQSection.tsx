@@ -88,7 +88,7 @@ export default function FAQSection() {
                   <span className="font-sans font-medium text-base sm:text-lg text-foreground">{faq.question}</span>
                   <div
                     className={`w-8 h-8 rounded-full bg-background border border-[var(--sp-gold)]/30 flex items-center justify-center text-[var(--sp-gold)] shrink-0 transition-transform duration-300 ${
-                      isOpen ? 'rotate-180 bg-[var(--sp-gold)] text-accent-ink' : ''
+                      isOpen ? 'rotate-180 bg-[var(--sp-gold)] text-[var(--surface)]' : ''
                     }`}
                   >
                     <ChevronDown className="w-5 h-5" />

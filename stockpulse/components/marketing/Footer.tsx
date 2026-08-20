@@ -41,7 +41,7 @@ export default function Footer() {
 
             <Link
               href="/signup"
-              className="px-7 py-3.5 rounded-lg bg-gradient-to-r from-[var(--sp-gold)] to-[var(--sp-gold-deep)] text-accent-ink font-mono text-xs uppercase tracking-widest font-bold inline-flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(237,193,85,0.4)] transition-all shrink-0"
+              className="px-7 py-3.5 rounded-lg bg-gradient-to-r from-[var(--sp-gold)] via-[var(--sp-gold-light)] to-[var(--sp-gold)] text-[var(--surface)] font-mono text-xs uppercase tracking-widest font-bold inline-flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(237,193,85,0.4)] transition-all shrink-0"
             >
               Create your store <ArrowRight className="w-4 h-4" />
             </Link>
