@@ -49,7 +49,7 @@ export default function TestimonialsSection() {
   const current = scenarios[activeIndex]
 
   return (
-    <section id="testimonials" className="relative py-32 sp-band-cream overflow-hidden perspective-1500">
+    <section id="testimonials" className="relative py-32 sp-band-night overflow-hidden perspective-1500">
       {/* Background flare */}
       <div className="absolute top-1/2 right-10 w-96 h-96 bg-[var(--sp-gold)]/10 rounded-full blur-[160px] pointer-events-none" />
 
@@ -94,7 +94,7 @@ export default function TestimonialsSection() {
               {/* `text-foreground`, not a hard-coded hex. This was
                   `text-[#e8e5da]` — a pale cream chosen when this section sat
                   on a dark band, and never re-checked after it moved into
-                  `.sp-band-cream`, which flips `--sp-surface-card` to #fbf8f1.
+                  `.sp-band-night`, which flips `--sp-surface-card` to #fbf8f1.
                   Pale cream on cream measured 1.12:1 against a 4.5 minimum, on
                   all three slides: the quote was very nearly invisible.
 

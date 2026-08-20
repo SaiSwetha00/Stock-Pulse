@@ -105,7 +105,7 @@ export default function LandingDashboardPreview() {
   }
 
   return (
-    <section id="dashboard-preview" className="relative py-32 sp-band-gradient-a overflow-hidden border-t border-border perspective-1500">
+    <section id="dashboard-preview" className="relative py-32 sp-band-paper overflow-hidden border-t border-border perspective-1500">
       {/* Background Flare */}
       <div className="absolute top-1/3 right-0 w-[500px] h-[500px] bg-[#93000a]/10 rounded-full blur-[180px] pointer-events-none" />
 
@@ -122,7 +122,7 @@ export default function LandingDashboardPreview() {
             <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-border">
               <Activity className="w-3.5 h-3.5" /> THE INVENTORY TABLE, FOR REAL
             </div>
-            <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#e0e2ed]">
+            <h2 className="font-display font-semibold text-3xl sm:text-4xl text-foreground">
               The Inventory Table You&rsquo;ll Actually Use
             </h2>
           </div>
@@ -136,7 +136,7 @@ export default function LandingDashboardPreview() {
             </button>
             <Link
               href="/dashboard"
-              className="px-7 py-3 rounded-xl bg-gradient-to-r from-[var(--sp-gold)] to-[var(--sp-gold-deep)] text-accent-ink font-mono text-xs uppercase tracking-wider font-semibold hover:shadow-[0_0_25px_rgba(201,162,39,0.5)] transition-all flex items-center gap-2 cursor-pointer"
+              className="px-7 py-3 rounded-xl bg-gradient-to-r from-[var(--sp-gold)] to-[var(--sp-gold-deep)] text-[var(--surface)] font-mono text-xs uppercase tracking-wider font-semibold hover:shadow-[0_0_25px_rgba(201,162,39,0.5)] transition-all flex items-center gap-2 cursor-pointer"
             >
               FULL SCREEN COMMAND APP <ArrowRight className="w-4 h-4" />
             </Link>
@@ -171,7 +171,7 @@ export default function LandingDashboardPreview() {
                 <div className="w-3 h-3 rounded-full bg-[var(--sp-gold)]" />
                 <div className="w-3 h-3 rounded-full bg-success" />
               </div>
-              <span className="font-mono text-xs text-[#d1c5b0] tracking-wider uppercase pl-2">
+              <span className="font-mono text-xs text-muted-strong tracking-wider uppercase pl-2">
                 STOCK_PULSE_HQ // LIVE_LEDGER_NODE_01
               </span>
             </div>
@@ -181,7 +181,7 @@ export default function LandingDashboardPreview() {
               <button
                 onClick={() => setActiveTab('all')}
                 className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  activeTab === 'all' ? 'bg-[var(--sp-gold)] text-accent-ink font-bold' : 'text-[#d1c5b0] hover:text-[#e0e2ed]'
+                  activeTab === 'all' ? 'bg-[var(--sp-gold)] text-accent-ink font-bold' : 'text-muted-strong hover:text-foreground'
                 }`}
               >
                 ALL STOCK ({products.length})
@@ -189,7 +189,7 @@ export default function LandingDashboardPreview() {
               <button
                 onClick={() => setActiveTab('warning')}
                 className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'warning' ? 'bg-[#93000a] text-foreground font-bold' : 'text-[#ffb4ab] hover:text-foreground'
+                  activeTab === 'warning' ? 'bg-[#93000a] text-foreground font-bold' : 'text-danger hover:text-foreground'
                 }`}
               >
                 <AlertTriangle className="w-3.5 h-3.5" /> SPOILAGE ALERTS (2)
@@ -208,19 +208,19 @@ export default function LandingDashboardPreview() {
           {/* Search & Stats Bar inside Console */}
           <div className="p-7 border-b border-border bg-[var(--sp-surface-elevated)] flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="relative w-full md:w-80">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-[#d1c5b0]/40" />
+              <Search className="absolute left-3 top-3 w-4 h-4 text-muted" />
               <input
                 type="text"
                 placeholder="Search SKU, product or category..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 rounded-lg bg-background border border-[#4e4636] text-xs text-[#e0e2ed] placeholder-[#d1c5b0]/40 outline-none focus:border-[var(--sp-gold)]"
+                className="w-full pl-9 pr-4 py-2.5 rounded-lg bg-background border border-border text-xs text-foreground placeholder-muted outline-none focus:border-[var(--sp-gold)]"
               />
             </div>
 
-            <div className="flex items-center gap-6 font-mono text-xs text-[#d1c5b0]">
+            <div className="flex items-center gap-6 font-mono text-xs text-muted-strong">
               <div>
-                <span className="text-[#d1c5b0]/60">Total Value: </span>
+                <span className="text-muted">Total Value: </span>
                 {/* Rupees, and grouped the Indian way, because this mock is
                     the first thing a prospective shopkeeper sees — a preview
                     quoting dollars sells a different product than the one
@@ -229,7 +229,7 @@ export default function LandingDashboardPreview() {
                 <span className="text-[var(--sp-gold)] font-bold">₹14,89,250</span>
               </div>
               <div>
-                <span className="text-[#d1c5b0]/60">Avg Temp: </span>
+                <span className="text-muted">Avg Temp: </span>
                 <span className="text-success font-bold">4.2°C</span>
               </div>
             </div>
@@ -239,7 +239,7 @@ export default function LandingDashboardPreview() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[var(--sp-surface-alt)]/80 font-mono text-[11px] uppercase tracking-wider text-[#d1c5b0]/60 border-b border-border">
+                <tr className="bg-[var(--sp-surface-alt)]/80 font-mono text-[11px] uppercase tracking-wider text-muted border-b border-border">
                   <th className="py-3.5 px-6">SKU Code</th>
                   <th className="py-3.5 px-6">Product Title</th>
                   <th className="py-3.5 px-6">Category</th>
@@ -255,8 +255,8 @@ export default function LandingDashboardPreview() {
                   return (
                     <tr key={p.id} className="hover:bg-[var(--sp-surface-card)]/80 transition-colors cursor-pointer">
                       <td className="py-4 px-6 font-mono font-semibold text-[var(--sp-gold)]">{p.id}</td>
-                      <td className="py-4 px-6 font-semibold text-[#e0e2ed]">{p.name}</td>
-                      <td className="py-4 px-6 text-[#d1c5b0]/70">{p.category}</td>
+                      <td className="py-4 px-6 font-semibold text-foreground">{p.name}</td>
+                      <td className="py-4 px-6 text-muted">{p.category}</td>
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-2">
                           <div className="w-24 bg-background h-2 rounded-full overflow-hidden border border-border">
@@ -267,13 +267,13 @@ export default function LandingDashboardPreview() {
                               style={{ width: `${stockPct}%` }}
                             />
                           </div>
-                          <span className="font-mono text-[11px] text-[#e0e2ed]">
+                          <span className="font-mono text-[11px] text-foreground">
                             {p.stock} {p.unit}
                           </span>
                         </div>
                       </td>
                       <td className="py-4 px-6 font-mono text-[11px]">
-                        <span className={p.expiringDays <= 3 ? 'text-[#ffb4ab] font-bold' : 'text-[#d1c5b0]'}>
+                        <span className={p.expiringDays <= 3 ? 'text-danger font-bold' : 'text-muted-strong'}>
                           {p.expiringDays} Days Left
                         </span>
                       </td>
@@ -281,7 +281,7 @@ export default function LandingDashboardPreview() {
                         <span
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-mono text-[10px] uppercase font-bold ${
                             p.status === 'critical'
-                              ? 'bg-[#93000a]/40 text-[#ffb4ab] border border-[#93000a]'
+                              ? 'bg-[#93000a]/40 text-danger border border-[#93000a]'
                               : p.status === 'warning'
                               ? 'bg-[var(--sp-gold)]/20 text-[var(--sp-gold)] border border-[var(--sp-gold)]/40'
                               : 'bg-success-bg text-success border border-success'
@@ -292,7 +292,7 @@ export default function LandingDashboardPreview() {
                           {p.status}
                         </span>
                       </td>
-                      <td className="py-4 px-6 font-mono font-bold text-right text-[#e0e2ed]">${p.price.toFixed(2)}</td>
+                      <td className="py-4 px-6 font-mono font-bold text-right text-foreground">${p.price.toFixed(2)}</td>
                     </tr>
                   )
                 })}
@@ -301,7 +301,7 @@ export default function LandingDashboardPreview() {
           </div>
 
           {/* Footer Bar */}
-          <div className="p-5 bg-[var(--sp-surface-elevated)] border-t border-border flex items-center justify-between font-mono text-[11px] text-[#d1c5b0]/60">
+          <div className="p-5 bg-[var(--sp-surface-elevated)] border-t border-border flex items-center justify-between font-mono text-[11px] text-muted">
             <div>Click any product row to edit it</div>
             <div className="text-[var(--sp-gold)]">Illustrative example</div>
           </div>

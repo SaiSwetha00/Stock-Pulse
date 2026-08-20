@@ -4,6 +4,17 @@ import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 
 /**
+ * UNREFERENCED AS OF 2026-08-19. Nothing imports this file, and nothing
+ * imports the `ThreeGroceryVisual` it gates — the hero that mounted it was
+ * replaced by a minimal background-headline-CTA layout, and the
+ * shelf-of-products concept was dropped outright rather than attempted a
+ * fourth time. Together with `three` (~133 KB gz) these are dead weight and
+ * should be deleted once the new hero is confirmed. They are left in place
+ * only so the review of that hero is a readable diff rather than a 780-line
+ * deletion; do not read their presence as the concept still being open.
+ *
+ * Everything below describes how it worked while it was live.
+ *
  * The hero shelf, and the gate in front of it.
  *
  * WHY THIS FILE EXISTS. `ThreeGroceryVisual` is a three.js WebGL scene, and

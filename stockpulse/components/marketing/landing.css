@@ -27,6 +27,12 @@
   /* True neutral black scale — no blue bias, replacing the prototype's
      #10131b-family (its blue channel was literally the highest of the
      three, which is what read as "navy" rather than black). */
+  /* Two stations, and the page alternates between them. See the section
+     rhythm block below. --sp-ink is the hero's own floor. */
+  --sp-ink: #070405;
+  --sp-night: #1c0c10;
+  --sp-paper: #f6efeb;
+
   --sp-black: #000000;
   --sp-surface: #0a0a0a;
   --sp-surface-alt: #121212;
@@ -138,18 +144,37 @@
   animation: sp-pulseGlow3D 5s ease-in-out infinite;
 }
 
+/*
+ * PREFIX ORDER HERE IS LOAD-BEARING: `-webkit-backdrop-filter` FIRST, the
+ * unprefixed property LAST. Do not "tidy" it back the other way.
+ *
+ * This file is compiled by Lightning CSS (Next 16 / Turbopack), which treats
+ * the two as the same declaration and keeps whichever comes last. With the
+ * unprefixed one written first — which is how all three glass rules below
+ * were written until 2026-08-19 — the emitted CSS contained ONLY
+ * `-webkit-backdrop-filter`. Measured on the served stylesheet, not guessed:
+ * `.sp-landing .glass-card { -webkit-backdrop-filter: blur(16px); ... }` with
+ * no unprefixed line at all.
+ *
+ * Chromium 148 does not support the `-webkit-` alias
+ * (`CSS.supports('-webkit-backdrop-filter','blur(2px)')` -> false, while the
+ * unprefixed form -> true), so every "glass" surface on this page — the nav,
+ * the feature cards, the hero panel — was a flat translucent rectangle with
+ * no blur behind it in current Chrome. It looked deliberate, which is why it
+ * survived this long.
+ */
 /* Glassmorphism Utilities */
 .sp-landing .glass-panel {
   background: rgba(10, 10, 10, 0.75);
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border: 1px solid rgba(237, 193, 85, 0.18);
 }
 
 .sp-landing .glass-card {
   background: rgba(22, 22, 22, 0.65);
-  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   transform-style: preserve-3d;
@@ -164,8 +189,8 @@
 
 .sp-landing .glass-nav {
   background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
   border-bottom: 1px solid rgba(237, 193, 85, 0.15);
 }
 
@@ -231,83 +256,144 @@
   animation: sp-shimmer 4s linear infinite;
 }
 
-/* Section Background Rhythm — distinct dark "bands" so each section reads
-   as its own block while scrolling, rather than one flat black wall. All
-   stops stay within the dark palette; no light/cream tones. */
-.sp-landing .sp-band-lifted {
-  background: var(--sp-surface-alt);
+/* ---------------------------------------------------------------
+   SECTION RHYTHM - two tones, strictly alternating, hard edges.
+
+   THE RULE: no two adjacent sections share a lightness. Dark, light,
+   dark, light, all the way down. Eleven sections, hero dark and footer
+   dark, so the alternation resolves exactly.
+
+     hero          night (with its own glow treatment on top)
+     TrustedBy     paper
+     Features      night
+     DashboardPrev paper
+     HowItWorks    night
+     Benefits      paper
+     Testimonials  night
+     Pricing       paper
+     FAQ           night
+     FinalCTA      paper
+     Footer        night
+
+   WHAT THIS REPLACES, TWICE OVER.
+
+   First: the page ran dark-under-dark in two places - hero into
+   TrustedByStats, and FinalCTA into the footer. The first of those is
+   the very first scroll a visitor makes, so the page announced itself
+   as "dark, then more dark" exactly where it meant to announce a
+   rhythm. Fixing it is not a local patch: with hero and footer both
+   dark and eleven sections between them, only one assignment
+   alternates, and it is the one above. Nine sections change band.
+
+   Second: the soft 120px dissolves between bands are GONE. They were an
+   attempt to make every seam invisible, and they read as a smoky smear
+   across each join instead - most of the page's colour change happened
+   inside a blur rather than at an edge. Sections now meet on a hard
+   line. Under strict alternation that line is always dark against
+   light, which the eye reads as intentional. No ::before/::after seam
+   elements remain anywhere in this file, which is also why the
+   `sp-band-flat` escape hatch AuthShell needed is gone.
+
+   THE DARK TONE IS #1c0c10, a deep oxblood. It replaces a warm brown
+   (#2a1615) that read as milk chocolate rather than as anything in this
+   product's palette. R28 G12 B16 carries the same blue-over-green lean
+   as --sp-crimson #93000a, so it is a member of the hero's family and
+   not a fourth hue introduced to sit beside it.
+
+   It is dark enough to take the landing's OWN gold - #c9a227 measures
+   7.82:1 here - so the dark bands and the hero now share one gold
+   instead of the lifted #e0b551 the brown band had to use.
+
+   Measured on #1c0c10: foreground 16.64:1, muted 7.00, gold 7.82,
+   success 12.26, danger 11.15. All AA.
+   Measured on #f6efeb: foreground 16.22:1, muted 5.60, gold 4.66,
+   success 4.76, danger 7.04. All AA.
+   --------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------
+   Night - the dark band.
+
+   A full token inversion, not a background colour: every semantic token
+   AND every --sp-* variable is redefined for the subtree, so a card,
+   border, muted line or gold accent inside resolves correctly without
+   any component knowing where it sits. That is what keeps this a
+   background pass - `bg-[var(--sp-surface-card)]` appears throughout
+   these sections and is never edited.
+   --------------------------------------------------------------- */
+.sp-landing .sp-band-night {
+  --sp-black: #1c0c10;
+  --sp-surface: #1c0c10;
+  --sp-surface-alt: #160809;
+  --sp-surface-card: #271317;
+  --sp-surface-elevated: #31191e;
+
+  --background: #1c0c10;
+  --surface: #271317;
+  --surface-muted: #160809;
+  --foreground: #f6efeb;
+  --muted-strong: #dcc9c9;
+  --muted: #a89a9c;
+  --border: #3a1f24;
+  --border-strong: #4d2b31;
+  --accent: #c9a227;
+  --accent-hover: #edc155;
+  --accent-soft: #2a1d10;
+  --accent-ink: #edc155;
+  --success: #6ee7a0;
+  --success-bg: #16281f;
+  --success-ink: #6ee7a0;
+  --danger: #ffb4ab;
+  --danger-bg: #33161a;
+  --warning: #e0912f;
+  --warning-bg: #2e1f10;
+
+  background: var(--background);
+  color: var(--foreground);
 }
 
-.sp-landing .sp-band-card {
-  background: var(--sp-surface-card);
+.sp-landing .sp-band-night .glass-card {
+  background: rgba(39, 19, 23, 0.6);
+  border: 1px solid rgba(246, 239, 235, 0.09);
 }
 
-.sp-landing .sp-band-gradient-a {
-  background: linear-gradient(180deg, var(--sp-black) 0%, var(--sp-surface-alt) 100%);
-}
-
-.sp-landing .sp-band-gradient-b {
-  background: linear-gradient(180deg, var(--sp-surface-alt) 0%, var(--sp-black) 100%);
-}
-
-.sp-landing .sp-band-warm {
-  background: linear-gradient(160deg, var(--sp-surface-card) 0%, #17130a 55%, var(--sp-surface-alt) 100%);
-}
-
-.sp-landing .sp-band-finale {
-  background: radial-gradient(ellipse 640px 360px at 50% -10%, rgba(201, 162, 39, 0.14) 0%, transparent 70%),
-    var(--sp-surface-alt);
+.sp-landing .sp-band-night .glass-card:hover {
+  background: rgba(39, 19, 23, 0.85);
 }
 
 /* ---------------------------------------------------------------
-   Cream bands — the light half of the page's rhythm.
-
-   The note above used to end "no light/cream tones", and the result
-   was a page black from the nav to the footer with nothing to break
-   the fall. These alternate with the dark sections, never two light
-   in a row.
-
-   This is a full inversion, not a background swap. Every semantic
-   token AND every --sp-* variable is redefined for the subtree, so a
-   card, border, muted line or gold accent inside a cream section
-   resolves light without any component knowing where it sits. That
-   matters: `bg-[var(--sp-surface-card)]` appears throughout these
-   sections and would otherwise paint a near-black card on cream.
-
-   Measured on #f5f1e8 — foreground 15.85:1, muted-strong 8.68:1,
-   muted 4.92:1, gold 4.70:1, danger 7.28:1, success 4.81:1. All AA.
+   Paper - the light band. Same full token inversion. A rose-cast
+   off-white rather than a yellow-cast beige, so it is a light member
+   of the hero's family rather than of the gold's.
    --------------------------------------------------------------- */
-.sp-landing .sp-band-cream {
-  /* Landing-specific variables, so hardcoded var() references flip too. */
-  --sp-black: #f5f1e8;
-  --sp-surface: #f5f1e8;
-  --sp-surface-alt: #efe9dc;
-  --sp-surface-card: #fbf8f1;
+.sp-landing .sp-band-paper {
+  --sp-black: #f6efeb;
+  --sp-surface: #f6efeb;
+  --sp-surface-alt: #efe4df;
+  --sp-surface-card: #fdf8f6;
   --sp-surface-elevated: #ffffff;
-  /* Gold has to darken considerably to hold contrast on cream; the bright
-     #c9a227 measures 2.0:1 here and would be unreadable as text. */
+  /* Gold has to darken considerably to hold contrast on paper; the
+     bright #c9a227 measures 2.0:1 here and would be unreadable. */
   --sp-gold: #8b6508;
   --sp-gold-light: #a87f18;
   --sp-gold-deep: #6f5006;
-  --sp-crimson-light: #9a1d14;
+  --sp-crimson-light: #9c1f18;
 
-  /* Semantic tokens, inverted from the dark defaults set on .sp-landing. */
-  --background: #f5f1e8;
-  --surface: #fbf8f1;
-  --surface-muted: #efe9dc;
-  --foreground: #1a1712;
-  --muted-strong: #4a4335;
-  --muted: #6e6858;
-  --border: #ded7c6;
-  --border-strong: #c9c0aa;
+  --background: #f6efeb;
+  --surface: #fdf8f6;
+  --surface-muted: #efe4df;
+  --foreground: #1a1211;
+  --muted-strong: #4a3a37;
+  --muted: #6e5b57;
+  --border: #e0d2cd;
+  --border-strong: #c9b7b1;
   --accent: #8b6508;
   --accent-hover: #6f5006;
-  --accent-soft: #f2e8cf;
+  --accent-soft: #f4e9d2;
   --accent-ink: #5c4206;
   --success: #157a3a;
-  --success-bg: #e7f4ec;
+  --success-bg: #e8f3ec;
   --success-ink: #0d4f26;
-  --danger: #9a1d14;
+  --danger: #9c1f18;
   --danger-bg: #fbeae8;
   --warning: #8a5a06;
   --warning-bg: #fbf1de;
@@ -316,118 +402,175 @@
   color: var(--foreground);
 }
 
-/* ---------------------------------------------------------------
-   Coffee-brown bands — the warm middle of the rhythm.
-
-   Cream alone still left the page reading black-and-white. Coffee is a
-   third surface: dark enough to sit beside a cream band without
-   breaking the "never two light in a row" rule, warm enough that the
-   page stops looking monochrome.
-
-   Same full inversion as cream — every semantic token and every --sp-*
-   variable redefined for the subtree, so cards, borders and gold
-   resolve against brown without any component knowing where it sits.
-
-   Measured on #2b211a — foreground 13.73:1, muted-strong 9.87:1,
-   muted 5.59:1, gold 8.16:1, success 10.19:1, danger 9.26:1. All AA.
-   --------------------------------------------------------------- */
-.sp-landing .sp-band-coffee {
-  --sp-black: #2b211a;
-  --sp-surface: #2b211a;
-  --sp-surface-alt: #241b15;
-  --sp-surface-card: #362a21;
-  --sp-surface-elevated: #40332a;
-  /* Gold lifts against brown; the standard #c9a227 is only 3.4:1 here. */
-  --sp-gold: #e0b551;
-  --sp-gold-light: #f0d78c;
-  --sp-gold-deep: #8a6b1a;
-
-  --background: #2b211a;
-  --surface: #362a21;
-  --surface-muted: #241b15;
-  --foreground: #f4efe6;
-  --muted-strong: #d9cbb8;
-  --muted: #a89880;
-  --border: #453529;
-  --border-strong: #57432f;
-  --accent: #e0b551;
-  --accent-hover: #f0d78c;
-  --accent-soft: #3a2c1a;
-  --accent-ink: #f0d78c;
-  --success: #6ee7a0;
-  --success-bg: #16281f;
-  --success-ink: #6ee7a0;
-  --danger: #ffb4ab;
-  --danger-bg: #3a1f1b;
-  --warning: #e0912f;
-  --warning-bg: #33240f;
-
-  background: var(--background);
-  color: var(--foreground);
-}
-
-.sp-landing .sp-band-coffee .glass-card {
-  background: rgba(64, 51, 42, 0.6);
-  border: 1px solid rgba(244, 239, 230, 0.09);
-}
-
-.sp-landing .sp-band-coffee .glass-card:hover {
-  background: rgba(64, 51, 42, 0.85);
-}
-
-/* Soft boundary at each colour change, matching the cream bands. */
-.sp-landing .sp-band-coffee::before,
-.sp-landing .sp-band-coffee::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 88px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.sp-landing .sp-band-coffee::before {
-  top: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.32) 0%, transparent 100%);
-}
-
-.sp-landing .sp-band-coffee::after {
-  bottom: 0;
-  background: linear-gradient(0deg, rgba(0, 0, 0, 0.32) 0%, transparent 100%);
-}
-
-/* glass-card is hardcoded rgba, so it needs a cream variant — a translucent
-   dark pane on cream reads as a smudge. */
-.sp-landing .sp-band-cream .glass-card {
+/* A translucent dark pane on paper reads as a smudge, so glass-card
+   needs its own light variant here. */
+.sp-landing .sp-band-paper .glass-card {
   background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(26, 23, 18, 0.1);
+  border: 1px solid rgba(26, 18, 17, 0.1);
 }
 
-.sp-landing .sp-band-cream .glass-card:hover {
+.sp-landing .sp-band-paper .glass-card:hover {
   background: rgba(255, 255, 255, 0.92);
 }
 
-/* Soft boundary at every colour change. A hard edge between black and cream
-   reads as a rendering seam; a short gradient lets the eye cross it. Done
-   with pseudo-elements so it costs no extra markup. */
-.sp-landing .sp-band-cream::before,
-.sp-landing .sp-band-cream::after {
-  content: '';
+/* ---------------------------------------------------------------
+   Red accent, and the minimal hero it was added for.
+
+   The palette above is unchanged: black surfaces, gold accent. Red is
+   a THIRD colour layered on top for one job — the single entry point
+   into sign-up — not a repaint. Gold keeps the headline gradient and
+   every other button on the page (D11's rule is intact); red marks the
+   one thing a first-time visitor is meant to press.
+
+   It is a sibling of the --sp-crimson that has been in this file since
+   the port, not a new family: --sp-crimson (#93000a) is the deep end of
+   the same gradient the CTA is filled with, and the shader background
+   already washes that crimson across the page.
+
+   Measured, white text on the fill: #d81f26 -> 5.07:1, #b3111b (hover)
+   -> 6.97:1. Both clear AA for normal text, so the CTA label does not
+   depend on being large. Red is used ONLY as a fill here, never as text
+   on black — #d81f26 as text measures 4.14:1 on #000, which passes for
+   large text only and would be a trap the first time someone set it at
+   14px.
+   --------------------------------------------------------------- */
+:root {
+  --sp-red: #d81f26;
+  --sp-red-deep: #93000a;
+  --sp-red-hover: #b3111b;
+}
+
+/* ---------------------------------------------------------------
+   THE ENTRY GLOW — one background for the whole way in.
+
+   Used by the landing hero AND by AuthShell, which is what /login,
+   /signup, /forgot-password and /reset-password render inside. Those
+   four pages already sit in `.sp-landing`, so they get this by adding
+   two divs and nothing else. One definition rather than two that agree
+   today: the entry flow is the one journey where a visitor sees the
+   marketing page and the sign-up form within seconds of each other, and
+   a background that drifts apart between them is visible in a way that
+   a mismatch between two distant pages never is.
+
+   DIRECTIONAL, top-anchored: warm and bright at the top edge, falling
+   through red to near-black by the lower third. Every stop is drawn
+   from the palette already in this file — --sp-gold-light #f0d78c at
+   the core, --sp-red #d81f26 through the body, --sp-crimson #93000a in
+   the skirt. Nothing was sampled from anywhere else.
+
+   The colour lives here and the darkening lives in `.sp-entry-veil`,
+   as two elements rather than one background stack. In a single stack
+   the fall-to-black would have to sit above the colour layers to darken
+   them, and would then also dim the glow it is supposed to be falling
+   away from. Composited as separate layers, the veil darkens the page
+   and the glow keeps its top.
+   --------------------------------------------------------------- */
+.sp-landing .sp-entry-glow {
   position: absolute;
-  left: 0;
-  right: 0;
-  height: 88px;
+  inset: 0;
   pointer-events: none;
   z-index: 0;
+  background:
+    /* Warm core — the brightest point.
+
+       Anchored in PIXELS at the nav's lower edge (92px unscrolled), not at a
+       percentage above the top. It used to sit at 50% -5%, which put its peak
+       in the strip the nav now covers: making the bar opaque moved the
+       brightest visible pixel from #8b3328 to #520609, quietly undoing the
+       "bright at the top" this glow was built for. px rather than % because
+       the nav is a fixed height and the viewport is not — as a percentage
+       this would drift out from under the bar on a tall screen and hide
+       behind it on a short one. */
+    radial-gradient(ellipse 56% 26% at 50% 92px, rgba(240, 215, 140, 0.3) 0%, transparent 70%),
+    /* The red body of the glow, at its widest just below the bar. */
+    radial-gradient(ellipse 112% 60% at 50% 84px, rgba(216, 31, 38, 0.6) 0%, rgba(147, 0, 10, 0.32) 38%, transparent 74%),
+    /* Crimson skirt, so the fall away from the glow lands on a colour
+       rather than fading through grey. */
+    radial-gradient(ellipse 160% 70% at 50% 140px, rgba(147, 0, 10, 0.3) 0%, transparent 66%);
 }
 
-.sp-landing .sp-band-cream::before {
-  top: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, transparent 100%);
+/* Vignette, and the fall to black. Sits above the glow. */
+.sp-landing .sp-entry-veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse 86% 78% at 50% 34%, transparent 46%, rgba(0, 0, 0, 0.5) 100%),
+    linear-gradient(180deg, transparent 0%, transparent 32%, rgba(0, 0, 0, 0.48) 62%, var(--sp-night) 94%);
 }
 
-.sp-landing .sp-band-cream::after {
-  bottom: 0;
-  background: linear-gradient(0deg, rgba(0, 0, 0, 0.28) 0%, transparent 100%);
+/* Very slow drift, and ONLY on the marketing hero — hence a modifier
+   rather than a property of the glow itself. A background that breathes
+   is atmosphere on a page someone is reading; behind a sign-in form,
+   where the eye is fixed on two fields, the same movement is something
+   to notice and be bothered by. 34s and 4% of scale even where it does
+   run: at that rate it never pulls the eye off the headline. */
+.sp-landing .sp-entry-glow--drift {
+  animation: sp-entry-drift 34s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes sp-entry-drift {
+  0%,
+  100% {
+    transform: scale(1) translate3d(0, 0, 0);
+    opacity: 0.94;
+  }
+  50% {
+    transform: scale(1.04) translate3d(0, 1.5%, 0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-landing .sp-entry-glow--drift {
+    animation: none;
+  }
+}
+
+/* The glass panel around the CTA.
+
+   `glass-card` already exists and is close, but it carries a hover
+   transform (lift + rotate + scale) meant for a grid of feature cards.
+   A panel whose only job is to hold the one button on the page must not
+   move when the pointer crosses it — the button inside it is the thing
+   that responds. Hence its own class rather than a modifier. */
+.sp-landing .sp-hero-glass {
+  background: linear-gradient(160deg, rgba(28, 28, 28, 0.62) 0%, rgba(10, 10, 10, 0.5) 100%);
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
+  backdrop-filter: blur(22px) saturate(135%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.07) inset,
+    0 30px 70px -30px rgba(0, 0, 0, 0.9),
+    0 0 60px -20px rgba(216, 31, 38, 0.28);
+}
+
+/* The one red control. Gradient rather than flat fill so it holds shape
+   against a background that is itself red-tinted. */
+.sp-landing .sp-cta-red {
+  background: linear-gradient(160deg, var(--sp-red) 0%, #b81a20 62%, var(--sp-red-deep) 100%);
+  color: #ffffff;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.22) inset,
+    0 14px 34px -12px rgba(216, 31, 38, 0.62);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.sp-landing .sp-cta-red:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.28) inset,
+    0 18px 44px -12px rgba(216, 31, 38, 0.72);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-landing .sp-cta-red {
+    transition: none;
+  }
+  .sp-landing .sp-cta-red:hover {
+    transform: none;
+  }
 }

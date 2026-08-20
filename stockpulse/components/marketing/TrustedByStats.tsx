@@ -14,7 +14,7 @@ export default function TrustedByStats() {
   ]
 
   return (
-    <section className="relative py-24 sp-band-coffee border-y border-border overflow-hidden perspective-1000">
+    <section className="relative py-24 sp-band-paper border-y border-border overflow-hidden perspective-1000">
       <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
         {/* Header Label */}
         <motion.div
@@ -24,7 +24,7 @@ export default function TrustedByStats() {
           transition={{ duration: 0.8 }}
           className="text-center mb-12"
         >
-          <span className="font-mono text-xs uppercase tracking-[0.25em] text-[#d1c5b0]/60">
+          <span className="font-mono text-xs uppercase tracking-[0.25em] text-muted">
             EVERYTHING YOU NEED TO RUN THE STORE, IN ONE PLACE
           </span>
         </motion.div>
@@ -42,10 +42,10 @@ export default function TrustedByStats() {
               className="glass-card p-5 rounded-xl border border-border hover:border-[var(--sp-gold)]/35 flex flex-col items-center justify-center text-center transition-all group animate-3d-float"
               style={{ animationDelay: `${i * 0.4}s` }}
             >
-              <div className="font-display font-bold tracking-widest text-[#e0e2ed] group-hover:text-[var(--sp-gold)] text-sm md:text-base">
+              <div className="font-display font-bold tracking-widest text-foreground group-hover:text-[var(--sp-gold)] text-sm md:text-base">
                 {mod.name}
               </div>
-              <div className="font-mono text-[9px] tracking-widest text-[#d1c5b0]/40 uppercase mt-0.5">
+              <div className="font-mono text-[9px] tracking-widest text-muted uppercase mt-0.5">
                 {mod.subtitle}
               </div>
             </motion.div>
@@ -66,8 +66,8 @@ export default function TrustedByStats() {
             <div className="font-mono text-xs text-[var(--sp-gold)] uppercase tracking-wider mb-2 flex items-center gap-2">
               <TrendingUp className="w-4 h-4" /> Pricing
             </div>
-            <div className="font-display font-bold text-4xl text-[#e0e2ed] mb-1">Free</div>
-            <p className="text-[#d1c5b0]/70 text-xs">Full feature access while Stock Pulse is in beta — no card required.</p>
+            <div className="font-display font-bold text-4xl text-foreground mb-1">Free</div>
+            <p className="text-muted text-xs">Full feature access while Stock Pulse is in beta — no card required.</p>
           </motion.div>
 
           <motion.div
@@ -82,8 +82,8 @@ export default function TrustedByStats() {
             <div className="font-mono text-xs text-success uppercase tracking-wider mb-2 flex items-center gap-2">
               <Zap className="w-4 h-4" /> Setup
             </div>
-            <div className="font-display font-bold text-4xl text-[#e0e2ed] mb-1">No Hardware</div>
-            <p className="text-[#d1c5b0]/70 text-xs">Runs in the browser — nothing to install, nothing to wire up.</p>
+            <div className="font-display font-bold text-4xl text-foreground mb-1">No Hardware</div>
+            <p className="text-muted text-xs">Runs in the browser — nothing to install, nothing to wire up.</p>
           </motion.div>
 
           <motion.div
@@ -95,11 +95,11 @@ export default function TrustedByStats() {
             className="glass-card p-7 rounded-2xl border border-border bg-[var(--sp-surface-card)]/40 relative overflow-hidden group"
           >
             <div className="absolute top-0 left-0 w-1 h-full bg-[#93000a]" />
-            <div className="font-mono text-xs text-[#ffb4ab] uppercase tracking-wider mb-2 flex items-center gap-2">
+            <div className="font-mono text-xs text-danger uppercase tracking-wider mb-2 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4" /> Accountability
             </div>
-            <div className="font-display font-bold text-4xl text-[#e0e2ed] mb-1">Owner-Only Audit</div>
-            <p className="text-[#d1c5b0]/70 text-xs">Every manager action is logged with before/after values, visible only to the owner.</p>
+            <div className="font-display font-bold text-4xl text-foreground mb-1">Owner-Only Audit</div>
+            <p className="text-muted text-xs">Every manager action is logged with before/after values, visible only to the owner.</p>
           </motion.div>
 
           <motion.div
@@ -114,8 +114,8 @@ export default function TrustedByStats() {
             <div className="font-mono text-xs text-[#A882C1] uppercase tracking-wider mb-2 flex items-center gap-2">
               <Award className="w-4 h-4" /> Access
             </div>
-            <div className="font-display font-bold text-4xl text-[#e0e2ed] mb-1">3 Roles</div>
-            <p className="text-[#d1c5b0]/70 text-xs">Owner, manager, and staff each see exactly what their job needs.</p>
+            <div className="font-display font-bold text-4xl text-foreground mb-1">3 Roles</div>
+            <p className="text-muted text-xs">Owner, manager, and staff each see exactly what their job needs.</p>
           </motion.div>
         </div>
       </div>

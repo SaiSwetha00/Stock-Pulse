@@ -1378,3 +1378,369 @@ cannot see.
 Note this overrode the Phase 1 proposal, which said clamp and flag. The owner's
 brief was sharper: do not clamp *silently*. The distinction is the whole
 decision — the clamp is fine, the silence is not.
+
+## D58 — A vendor-prefixed property written LAST silently deletes the standard one
+
+`landing.css` had carried, in three separate glass rules since the port:
+
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+
+That is the order every tutorial writes, and it is the wrong order here.
+Lightning CSS (Next 16 / Turbopack) treats the pair as one declaration and
+keeps whichever comes last. Measured on the served stylesheet, not inferred:
+
+    .sp-landing .glass-card {
+      -webkit-backdrop-filter: blur(16px);
+      transform-style: preserve-3d;
+      ...
+    }
+
+No unprefixed line at all. Chromium 148 does not support the `-webkit-` alias
+— `CSS.supports('-webkit-backdrop-filter','blur(2px)')` returns false while
+the unprefixed form returns true — so **every glass surface on the landing
+page had been a flat translucent rectangle with no blur behind it**: the nav,
+the feature cards, the pricing card, all of them.
+
+Nothing surfaced it because a translucent panel over a near-black page looks
+plausible without blur. It reads as a slightly lighter box, which is a thing
+someone might have designed on purpose. There was no error, no warning, and
+no visual that announced itself as broken — the failure mode was *looking
+fine*, which is why it survived every review of these components.
+
+The fix is the order, not a build flag: prefix FIRST, standard LAST, so the
+compiler keeps the standard one and re-adds the prefix for the targets that
+need it. Verified after the change — computed `backdrop-filter` is
+`blur(16px)` on `.glass-card` and `blur(22px) saturate(1.35)` on the hero
+panel, and the emitted CSS now carries both lines.
+
+**The general rule: when a prefixed and an unprefixed property say the same
+thing, the standard one goes last.** A minifier is allowed to drop the earlier
+of two equivalent declarations, and "the earlier one" is the one you actually
+want to survive. This is the opposite of the habit most CSS is written with,
+which is why it is worth a numbered entry rather than a comment alone — though
+`landing.css` carries the comment too, immediately above the rules, because
+the next person to tidy that block will otherwise put it straight back.
+
+## D59 — A decoration nobody can distinguish from a bug is doing a bug's job
+
+The landing page mounted `CustomCursor`, which drew two marks that followed
+the pointer: an 8px gold dot at the cursor position (z-index 10000) and, one
+lerp step behind it, a 32px ring holding a 6px crimson dot (z-index 9999).
+
+**Nothing in this project ever set `cursor: none`.** So those were not a custom
+cursor in the sense the name implies — they were drawn ON TOP of the visitor's
+own pointer, which stayed exactly where it was. Three marks in the same place,
+one of them lagging.
+
+It came back not as a design complaint but as a **suspected rendering
+artifact**: someone reviewing the new hero saw "two small dot-shaped marks near
+the cursor" and could not tell whether they were the page, their screen, or
+their camera. That is the finding. A decoration a careful viewer reports as a
+possible defect has already failed, whatever it looks like in isolation —
+because the cost is not the pixels, it is that the next real artifact in that
+area gets dismissed as "probably that dot thing again".
+
+Measured before removing it, pointer parked on the hero CTA: the gold dot's
+centre sat at (636, 533), exactly the button's centre; the ring resolved at
+z-index 9999 with its crimson child at 6×6. Both confirmed in a headless
+screenshot at their rest position.
+
+Removed from `Landing.tsx`; the file is kept and marked unreferenced, because
+restoring it is one import. **If it is ever restored, `cursor: none` goes in
+the same change** — half-installed is what made it read as a fault rather than
+as a choice.
+
+The second reason it goes is that it no longer agrees with the page. The hero
+it sat above is deliberately still: one 34s background drift, no hover lift,
+one control. A gold dot with a trailing crimson ring chasing the pointer is
+the opposite argument, made on top of it.
+
+## D60 — Contrast is a property of the rendered pixel, not of the token
+
+Lifting the nav's link colour for the hero's new top glow, the first pass
+modelled the background by compositing the gradient stops by hand: three
+radial layers over black gave `#9d3a2e` behind the nav bar, and `#a39c8a` on
+that is 2.49:1 — an emphatic fail, and an easy fix to justify.
+
+**The rendered pixel is `#691715`, and the real ratio was 4.43:1.**
+
+The model was wrong because it left out `.sp-entry-veil`, the separate element
+composited over the glow, which takes most of the colour back. Both numbers
+argue for the same change, so nothing shipped wrong — but they are different
+kinds of finding. 2.49:1 is a glaring fault. 4.43:1 against a 4.5 threshold is
+the marginal kind that survives review precisely because it looks fine, and
+saying "2.49" in a code comment would have left the next reader with a false
+picture of how much headroom the design has.
+
+So the numbers in these comments are now read off a screenshot. A 60-line PNG
+reader (IHDR, inflate the IDATs, undo the row filters) is enough to sample any
+pixel of a headless Chrome capture, and it turns "this looks readable" into a
+figure. Where a comment in this codebase quotes a contrast ratio against a
+gradient, a photograph, or anything else that is not a flat token, it should
+be sampled and not computed.
+
+## D61 - A scroll listener with no initial read is wrong on every load that is not at the top
+
+`LandingNav` held `useState(false)` and added a scroll listener on mount with
+no initial call. `scrolled` was therefore false until a scroll event happened
+to fire, whatever the page's real offset was.
+
+At the top of the page that is the right answer by luck, which is why it
+survived. It is wrong the moment the page paints already scrolled - and that
+is not an edge case. Browsers restore scroll position on reload, and every
+`#features` / `#pricing` / `#faq` deep link lands mid-page.
+
+**Reproduced before fixing**, because the symptom reported and the symptom the
+bug produces were not the same thing: scrolled to y=900, reloaded, the page
+repainted at y=930 with the nav still transparent, sitting on top of the
+features cards with both sets of text overlapping into an unreadable strip.
+One 60px wheel tick snapped it correct.
+
+**Scripted `scrollTo` cannot test this.** It moves the offset without
+dispatching a scroll event, so the listener never runs and the component looks
+permanently broken instead of intermittently broken. The same is true of any
+browser that is not compositing frames: an environment with a hidden or
+non-rendering tab fires no scroll events at all - measured, a freshly attached
+listener got zero events while `documentElement.scrollTop` genuinely read 500.
+This has to be driven with real input (CDP `Input.dispatchMouseEvent` with
+`type: 'mouseWheel'`) or it is not being tested.
+
+The fix is `useSyncExternalStore`, not a one-off call to the handler inside the
+effect. The client snapshot IS the first render's value, so there is no window
+in which the component believes something it never checked - and no state
+written from an effect, which this project's lint rules flag. `ThemeToggle` in
+`components/auth/AuthUI.tsx` already reads an external value this way.
+
+The server snapshot must be `false`, because a server cannot know a scroll
+offset. That is a real limit and not a guess, and it is why the nav's
+BACKGROUND no longer depends on this value at all - only its padding does, and
+padding correcting itself on hydration is invisible. **If a future state must
+be correct in the server-rendered HTML, it cannot come from this hook.**
+
+## D62 - The reported symptom and the reproduced bug were two different faults
+
+The nav was reported as "doesn't render its solid background on load, correct
+after scrolling". The diagnosis offered with it - a scroll toggle never
+checking its initial state - was exactly right about the code (see D61) and
+did not explain the symptom.
+
+Measured with real wheel input: at y=0 the nav rendered `bg-transparent`
+because that is what the code asked for at y=0, and scrolling back up returned
+it to `bg-transparent` correctly. There was no state that "stuck" solid. What
+was actually being reported was a *design* choice - a fixed bar that is a
+surface over the page and a hole over the hero - which over the new entry glow
+reads as a rendering fault the first time you see it.
+
+So two changes, not one: the initial-state bug is fixed because it is a bug,
+and the background is now unconditional because the transparent state was the
+thing being complained about. Fixing only the first would have left the report
+open; making only the second would have left a real defect in the tree with
+nothing pointing at it any more.
+
+The lesson is the ordering. Reproduce the reported symptom before accepting a
+diagnosis of it, even a correct-sounding one from someone looking at the same
+screen - a plausible cause that is genuinely a bug is the easiest way to close
+a ticket without fixing what was wrong.
+
+## D63 - Making the bar opaque moved the glow, so the glow moved with it
+
+`.sp-entry-glow` put its warm core at `50% -5%`, peaking in the strip the nav
+occupies. That was correct while the nav was transparent and wrong the instant
+it became opaque: measured on the rendered pixels, the brightest visible point
+went from `#8b3328` to `#520609`. The bug fix would have quietly undone the
+"bright warm glow at the top" it was built for, and nothing would have failed.
+
+The centres are now anchored in **pixels** at the nav's lower edge (`50% 92px`),
+not in percent. The nav is a fixed height and the viewport is not, so as a
+percentage the peak drifts out from under the bar on a tall screen and hides
+behind it on a short one. Measured after: `#a24736` at y=95, brighter than the
+original and carrying further down the page (`#4c0206` at y=240 against
+`#1d0001` before).
+
+Hero text is unaffected - it sits at x-offsets where the field is much darker.
+Sampled beside the glyphs: headline 14.90:1, the gold word's darkest stop
+7.50:1, subline 7.26:1.
+
+## D64 — The auth screens are a light/dark split. This REVISES the stay-fully-dark note, it does not delete it
+
+`components/auth/AuthUI.tsx` carried this reasoning, and it was sound when
+written:
+
+> The palette is fixed near-black rather than following the app's theme. These
+> two screens sit either side of the landing page in the flow, and a form that
+> flipped to warm white between a dark hero and a dark dashboard would break
+> the thread.
+
+The redesign puts the form on a **light** panel, so that note is partly
+overruled. Recording it here rather than quietly rewriting the comment,
+because the concern it names is real and the next person to touch these
+screens needs to know it was weighed rather than missed.
+
+**Why it is answered rather than dismissed.** The screen is a split, not an
+inversion: an ember panel occupies ~38% of the viewport at all times, carrying
+the wordmark, the pull-quote and the signature column. The thread the old note
+protected is a *dark surface continuing through the flow*, and it is still
+there on every one of these screens. What changed is that the form no longer
+floats on it.
+
+**Why the change was worth overruling a standing decision at all.** The
+previous treatment was a glass card, centred, on a gradient — dark ground, one
+bright accent, blurred panel. That combination is the current default look of
+generated interfaces. It was executed well and it still read as templated,
+which is a problem no amount of refining the same shape can fix. The
+distinctiveness had to be spent on something structural:
+
+1. **No container at all.** Every SaaS auth screen is a centred card; a form
+   that simply is not in one reads as considered before a word is read.
+2. **The convention is inverted** — brand on the dark side, form on the light.
+3. **A red margin rule** down the left edge of the form: the rule of a shop's
+   ruled register. It is the only red on that side other than the submit
+   button, and it makes the mono field labels that were already there stop
+   reading as "technical" and start reading as a register.
+
+Both halves use the landing page's own `sp-band-ember` and `sp-band-paper`
+stations (D65), so the flow stays coherent through the PALETTE rather than by
+repeating a background. Those classes redefine every semantic token for their
+subtree, which is why `AuthField`, `AuthError` and the rest resolve correctly
+on a light ground without being edited at all.
+
+**The signature is `DayColumn`, and it is deliberately not a heartbeat.** The
+product is called StockPulse, so an ECG trace is the obvious move and the
+wrong one: it reads medical, it is the most templated "pulse" visual there is,
+and it would be there because the name invites it rather than because it says
+anything. A grocery's pulse is its trading day. The column is one bar per
+hour, 07 to 21, with the peak hour in red — the dashboard's own vocabulary.
+
+It earns its place by meaning something different on each screen: sign-in
+draws the whole day once and rests; sign-up starts at one third and fills as
+the wizard advances, so the shop's first day appears as it is created.
+Measured: 5 rows at step 1, 10 at step 2, 15 at step 3. It starts at one third
+rather than empty because a column drawn at zero reads as "failed to load".
+
+**Nothing functional moved.** `AuthField`, `SubmitButton` and `AuthError` keep
+their signatures; the three-step wizard, its validation and its server actions
+are untouched; `dayFill` is read from step state and cannot feed back into it.
+`GlassCard` is renamed `FormPanel` because it is no longer glass, and a name
+that lies outlives whoever wrote it. `SubmitButton`'s primary fill moved from
+gold to red so the whole entry flow has one action colour — gold stays the
+brand accent on the wordmark, the seam hairline and focus rings.
+
+## D65 — Three hue families made the page read as patches; one family with four stations fixed it
+
+Scrolling the landing page read as disconnected patches: black under the hero,
+then brown, then beige. The diagnosis that matters is not "the contrast is too
+high" — it is that the page was built from **three unrelated hue families**.
+Coffee `#2b211a` and cream `#f5f1e8` are both siblings of the GOLD, which was
+correct while gold was the only accent. Then the hero became red (D63's
+lineage), and nothing below the fold was related to anything above it.
+
+**The alternation was not the problem and is kept.** An all-dark page is the
+documented original failure here — "black from the nav to the footer with
+nothing to break the fall" — so removing the light bands would have re-created
+a bug this project already fixed once. They are simply re-derived from the
+hero's crimson instead of from the gold.
+
+Four stations, measured so they stay apart on the luminance ladder:
+
+| station | hex | L | role |
+|---|---|---|---|
+| ink | `#070405` | 0.0014 | hero floor, the trough, the footer |
+| ash | `#120c0d` | 0.0042 | deep surfaces inside dark bands |
+| ember | `#2a1615` | 0.0112 | the warm dark band, and the seam colour |
+| paper | `#f6efeb` | 0.8732 | the light band |
+
+Ember is slightly darker than the coffee it replaces (0.0112 against 0.0168)
+and still 2.7x ash, so the two dark stations remain as distinguishable as they
+were. Every token was re-measured on the new grounds; all pass AA — on ember,
+foreground 15.09:1, muted 5.96, gold 8.90; on paper, foreground 16.22:1,
+muted 5.60, gold 4.66.
+
+**The rule that makes it one piece: every band begins and ends on ember.**
+What happens between those edges is the band's identity — paper rises to
+light, deep sinks to ink, ember stays put. Every seam on the page is therefore
+ember-meeting-ember, and there is nothing to cover. The old approach was the
+opposite: hard swaps with an 88px `rgba(0,0,0,0.28)` scrim thrown over each
+join, which is exactly why every boundary read as a shadow rather than as a
+transition. The scrims are gone; ember bands need no pseudo-elements at all.
+
+Two consequences worth naming:
+
+- **The footer had to join the ramp.** It was a flat `#0a0a0a` neutral, and
+  once the rest of the page obeyed the rule it was the one remaining hard step
+  — visible in the seam capture. It now enters on ember and settles to ink.
+- **`sp-band-paper` outside the rhythm needs `sp-band-flat`.** AuthShell reuses
+  the paper token set for a full-height column with no band above or below,
+  where the two seam ramps painted dark bars across the top and bottom of the
+  sign-in form. Caught on the first capture of that screen. The token set is
+  the reusable part; the seam is not.
+
+The classes are renamed `paper` / `ember` / `deep` rather than redefined in
+place. A class called `cream` that paints rose, or `coffee` that paints red,
+is the kind of lie that survives for years. `lifted`, `card`, `warm` and
+`finale` were deleted in the same pass — grep found no user of any of them.
+
+## D66 — Strict alternation, hard edges, and one dark tone
+
+Three corrections to D65, all from looking at the rendered page.
+
+**1. The soft seams were wrong.** D65 dissolved every boundary through a 120px
+ember ramp so no seam would have a step in it. Rendered, that is not a
+transition — it is a smoky smear across each join, and most of the page's
+colour change was happening inside a blur rather than at an edge. All seam
+pseudo-elements are deleted. Sections meet on a hard line, and under strict
+alternation that line is always dark against light, which reads as intentional
+rather than as a fade someone forgot to finish. `sp-band-flat`, the escape
+hatch AuthShell needed to opt out of those ramps, is deleted with them.
+
+**2. The page ran dark-under-dark, twice.** Hero into TrustedByStats, and
+FinalCTA into the footer. The first of those is the very first scroll anyone
+makes, so the page announced "dark, then more dark" precisely where it meant
+to announce a rhythm.
+
+That is not locally fixable. With eleven sections, hero dark and footer dark,
+**exactly one assignment alternates**, and nine sections have to change band to
+reach it. The rule is now stated positively — no two adjacent sections share a
+lightness — because a rule phrased that way is checkable at a glance, and the
+old one ("never two light in a row") was silent about the case that actually
+broke.
+
+**3. Four tones became two.** ink/ash/ember/paper existed to give the ramp
+somewhere to travel. With hard edges and strict alternation there is nowhere to
+travel: every section is either the dark or the light. `sp-band-deep` and
+`sp-band-settle` were gradients whose only job was handing off, so they are
+gone too. Two classes remain, `sp-band-night` and `sp-band-paper`.
+
+**The dark tone is #1c0c10, and the brown is the thing being corrected.**
+#2a1615 read as milk chocolate rather than as anything in this product's
+palette. #1c0c10 carries the same blue-over-green lean as --sp-crimson
+#93000a, so it belongs to the hero's family. It is also dark enough to take the
+landing's OWN gold — #c9a227 measures 7.82:1 — so the dark bands and the hero
+now share one gold instead of the lifted #e0b551 the brown band had to use.
+
+**What flipping nine sections exposed, and this is the useful part.** Five
+sections had never once been rendered on a light ground, and they were full of
+hardcoded light colours that the token system was supposed to make impossible:
+`text-[#e0e2ed]`, `text-[#d1c5b0]`, `text-[#edc155]` — invisible on paper. All
+converted to `text-foreground` / `text-muted-strong` / `text-[var(--sp-gold)]`,
+which is what they should always have been.
+
+Two subtler faults came with them:
+
+- **`text-accent-ink` on a gold fill is only correct when the gold is bright.**
+  On paper `--accent` is a DARK gold (#8b6508) and `--accent-ink` is also dark
+  (#5c4206) — measured ~1.1:1, the same invisible-label bug this project
+  already fixed once on the final CTA. `--accent-ink` cannot be repointed,
+  because `bg-accent-soft text-accent-ink` on the same band genuinely needs the
+  dark value. The fix is `text-[var(--surface)]`, which inverts correctly in
+  both directions: near-white on paper's dark gold, near-black on night's
+  bright gold.
+- **Opacity-thinned text does not survive a band flip.** `text-muted-strong/60`
+  and `/40` were comfortable on a dark ground and fall to roughly 3.9:1 and
+  2.5:1 on paper. Replaced with the full-strength `text-muted`, which is a
+  token chosen per band and measures 5.60:1 there.
+
+The general lesson: a token system only protects the surfaces it is actually
+used on. Nine sections had passed every review while carrying colours that
+would break the moment their band changed, and nothing could have surfaced that
+except changing the band and looking.
