@@ -25,7 +25,7 @@ const FEATURES = [
 
 export default function PricingPreviewSection() {
   return (
-    <section id="pricing" className="relative py-32 sp-band-deep border-t border-border overflow-hidden perspective-1500">
+    <section id="pricing" className="relative py-32 sp-band-paper border-t border-border overflow-hidden perspective-1500">
       {/* Glow flare */}
       <div className="absolute top-1/4 left-1/3 w-[600px] h-[600px] bg-[#93000a]/10 rounded-full blur-[180px] pointer-events-none" />
 
@@ -41,10 +41,10 @@ export default function PricingPreviewSection() {
           <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-border">
             OPEN ACCESS & COMMUNITY TIER
           </div>
-          <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#e0e2ed] tracking-tight mb-5">
+          <h2 className="font-display font-semibold text-3xl sm:text-4xl text-foreground tracking-tight mb-5">
             100% Free & Open Access Grocery Platform
           </h2>
-          <p className="text-[#d1c5b0] text-base sm:text-lg leading-relaxed">
+          <p className="text-muted-strong text-base sm:text-lg leading-relaxed">
             All Stock Pulse core features are available completely free for store operators, researchers, and retail teams.
           </p>
         </motion.div>
@@ -60,17 +60,17 @@ export default function PricingPreviewSection() {
         >
           <div className="font-mono text-xs tracking-widest text-[var(--sp-gold)] uppercase mb-3">Free</div>
           <div className="flex items-baseline gap-2 mb-5">
-            <span className="font-display font-semibold text-5xl text-[#e0e2ed]">Free</span>
+            <span className="font-display font-semibold text-5xl text-foreground">Free</span>
             <span className="font-mono text-xs text-success font-semibold px-2 py-0.5 rounded bg-success/10 border border-success">
               ₹0 / Unlimited
             </span>
           </div>
 
-          <p className="text-[#d1c5b0] text-sm leading-relaxed mb-8 border-b border-border pb-7">
+          <p className="text-muted-strong text-sm leading-relaxed mb-8 border-b border-border pb-7">
             100% free for every grocery store — no tiers, no catches.
           </p>
 
-          <div className="space-y-4 mb-10 font-sans text-sm text-[#d1c5b0]">
+          <div className="space-y-4 mb-10 font-sans text-sm text-muted-strong">
             {FEATURES.map((feat) => (
               <div key={feat} className="flex items-start gap-3">
                 <Check className="w-4 h-4 text-[var(--sp-gold)] shrink-0 mt-0.5" />
@@ -81,7 +81,7 @@ export default function PricingPreviewSection() {
 
           <Link
             href="/signup"
-            className="w-full py-4 rounded-xl font-mono text-xs uppercase tracking-widest font-bold flex items-center justify-center gap-2 transition-all cursor-pointer text-accent-ink bg-gradient-to-r from-[var(--sp-gold)] to-[var(--sp-gold-deep)] shadow-[0_0_20px_rgba(201,162,39,0.4)] hover:shadow-[0_0_30px_rgba(201,162,39,0.7)]"
+            className="w-full py-4 rounded-xl font-mono text-xs uppercase tracking-widest font-bold flex items-center justify-center gap-2 transition-all cursor-pointer text-[var(--surface)] bg-gradient-to-r from-[var(--sp-gold)] to-[var(--sp-gold-deep)] shadow-[0_0_20px_rgba(201,162,39,0.4)] hover:shadow-[0_0_30px_rgba(201,162,39,0.7)]"
           >
             Get Started Free <ArrowRight className="w-4 h-4" />
           </Link>

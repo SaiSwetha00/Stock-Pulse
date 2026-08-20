@@ -6,7 +6,7 @@ import StockPulseLogo from './StockPulseLogo'
 
 export default function Footer() {
   return (
-    <footer className="relative sp-band-settle text-[#e0e2ed] pt-28 pb-16 overflow-hidden">
+    <footer className="relative sp-band-night text-foreground pt-28 pb-16 overflow-hidden">
       {/* Background glow flares */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-[#edc155] to-transparent opacity-50" />
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#93000a]/10 rounded-full blur-[140px] pointer-events-none" />
@@ -27,13 +27,13 @@ export default function Footer() {
         <div className="glass-card p-10 md:p-14 rounded-2xl mb-20 border border-[#edc155]/25 bg-gradient-to-br from-[var(--sp-surface-card)]/80 to-black/90">
           <div className="flex flex-col items-start gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="flex items-center gap-2 font-mono text-xs uppercase text-[#edc155] tracking-[0.2em] mb-3">
+              <div className="flex items-center gap-2 font-mono text-xs uppercase text-[var(--sp-gold)] tracking-[0.2em] mb-3">
                 <Sparkles className="w-4 h-4" /> Free to use
               </div>
-              <h3 className="font-display text-2xl md:text-3xl font-bold text-[#e0e2ed] mb-3">
+              <h3 className="font-display text-2xl md:text-3xl font-bold text-foreground mb-3">
                 Run your shop from one dashboard
               </h3>
-              <p className="text-[#d1c5b0] text-sm leading-relaxed max-w-xl">
+              <p className="text-muted-strong text-sm leading-relaxed max-w-xl">
                 Stock, sales, suppliers and staff in one place. No hardware, no card, no tiers —
                 set up your stock and start.
               </p>
@@ -71,34 +71,34 @@ export default function Footer() {
 
           {/* Navigation Column 1 */}
           <div>
-            <h4 className="font-mono text-xs uppercase tracking-[0.2em] text-[#edc155] mb-4">Platform</h4>
-            <ul className="space-y-3 font-sans text-sm text-[#d1c5b0]">
+            <h4 className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-4">Platform</h4>
+            <ul className="space-y-3 font-sans text-sm text-muted-strong">
               {/* Named after modules that exist. "Shelf Telemetry", "AI
                   Spoilage Predictor", "Cold-Chain Hardware" and "Multi-Store
                   Sync" were none of them built — verified by grep across lib,
                   app and components. */}
               <li>
-                <a href="#features" className="hover:text-[#edc155] transition-colors cursor-pointer">
+                <a href="#features" className="hover:text-[var(--sp-gold)] transition-colors cursor-pointer">
                   Inventory &amp; Low Stock
                 </a>
               </li>
               <li>
-                <a href="#features" className="hover:text-[#edc155] transition-colors cursor-pointer">
+                <a href="#features" className="hover:text-[var(--sp-gold)] transition-colors cursor-pointer">
                   Sales &amp; Daily Takings
                 </a>
               </li>
               <li>
-                <a href="#features" className="hover:text-[#edc155] transition-colors cursor-pointer">
+                <a href="#features" className="hover:text-[var(--sp-gold)] transition-colors cursor-pointer">
                   Suppliers &amp; Deliveries
                 </a>
               </li>
               <li>
-                <a href="#features" className="hover:text-[#edc155] transition-colors cursor-pointer">
+                <a href="#features" className="hover:text-[var(--sp-gold)] transition-colors cursor-pointer">
                   Staff &amp; Shifts
                 </a>
               </li>
               <li>
-                <Link href="/login" className="hover:text-[#edc155] transition-colors cursor-pointer">
+                <Link href="/login" className="hover:text-[var(--sp-gold)] transition-colors cursor-pointer">
                   Sign in
                 </Link>
               </li>
@@ -107,20 +107,20 @@ export default function Footer() {
 
           {/* Navigation Column 2 */}
           <div>
-            <h4 className="font-mono text-xs uppercase tracking-[0.2em] text-[#edc155] mb-4">Company & Roles</h4>
-            <ul className="space-y-3 font-sans text-sm text-[#d1c5b0]">
+            <h4 className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-4">Company & Roles</h4>
+            <ul className="space-y-3 font-sans text-sm text-muted-strong">
               <li>
-                <a href="#features" className="hover:text-[#edc155] transition-colors">
+                <a href="#features" className="hover:text-[var(--sp-gold)] transition-colors">
                   Store Operators
                 </a>
               </li>
               <li>
-                <a href="#features" className="hover:text-[#edc155] transition-colors">
+                <a href="#features" className="hover:text-[var(--sp-gold)] transition-colors">
                   Category Managers
                 </a>
               </li>
               <li>
-                <a href="#testimonials" className="hover:text-[#edc155] transition-colors">
+                <a href="#testimonials" className="hover:text-[var(--sp-gold)] transition-colors">
                   Client Success
                 </a>
               </li>
@@ -129,12 +129,12 @@ export default function Footer() {
                   there is no partner portal, that link pointed at the ordinary
                   sign-in page. */}
               <li>
-                <a href="#pricing" className="hover:text-[#edc155] transition-colors">
+                <a href="#pricing" className="hover:text-[var(--sp-gold)] transition-colors">
                   Pricing
                 </a>
               </li>
               <li>
-                <Link href="/login" className="hover:text-[#edc155] transition-colors cursor-pointer">
+                <Link href="/login" className="hover:text-[var(--sp-gold)] transition-colors cursor-pointer">
                   Sign in
                 </Link>
               </li>
@@ -143,35 +143,35 @@ export default function Footer() {
 
           {/* Navigation Column 3 */}
           <div>
-            <h4 className="font-mono text-xs uppercase tracking-[0.2em] text-[#edc155] mb-4">Resources & Legal</h4>
-            <ul className="space-y-3 font-sans text-sm text-[#d1c5b0]">
+            <h4 className="font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-4">Resources & Legal</h4>
+            <ul className="space-y-3 font-sans text-sm text-muted-strong">
               {/* Every entry here goes somewhere real. Four of these were
                   href="#" — API Documentation, Privacy Policy, Terms of
                   Service, Hardware Compatibility — for pages that do not
                   exist. A link that goes nowhere is worse than an absent one:
                   it reads as broken rather than as not-yet-written. */}
               <li>
-                <a href="#faq" className="hover:text-[#edc155] transition-colors">
+                <a href="#faq" className="hover:text-[var(--sp-gold)] transition-colors">
                   Frequently Asked Questions
                 </a>
               </li>
               <li>
-                <Link href="/help" className="hover:text-[#edc155] transition-colors">
+                <Link href="/help" className="hover:text-[var(--sp-gold)] transition-colors">
                   Help Centre
                 </Link>
               </li>
               <li>
-                <Link href="/help" className="hover:text-[#edc155] transition-colors">
+                <Link href="/help" className="hover:text-[var(--sp-gold)] transition-colors">
                   Contact Support
                 </Link>
               </li>
               <li>
-                <Link href="/privacy" className="hover:text-[#edc155] transition-colors">
+                <Link href="/privacy" className="hover:text-[var(--sp-gold)] transition-colors">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className="hover:text-[#edc155] transition-colors">
+                <Link href="/terms" className="hover:text-[var(--sp-gold)] transition-colors">
                   Terms of Service
                 </Link>
               </li>
@@ -180,14 +180,14 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar with Status and Copyright */}
-        <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4 font-mono text-xs text-[#d1c5b0]/60">
+        <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4 font-mono text-xs text-muted">
           {/* Removed: a pulsing green "US-East Cloud Active" dot wired to
               nothing, and "Version 4.8.2-Release", a version this software has
               never had. A status light that cannot go red is not a status
               light — it is decoration that will be believed during an outage,
               which is the one moment it matters. */}
           <div className="flex items-center gap-3">
-            <Link href="/help" className="hover:text-[#edc155] transition-colors">
+            <Link href="/help" className="hover:text-[var(--sp-gold)] transition-colors">
               Help &amp; support
             </Link>
           </div>
@@ -200,13 +200,13 @@ export default function Footer() {
               in FOUND-ISSUES.md, because it is a legal question rather than a
               markup one. */}
           <div className="flex items-center gap-6 text-sm">
-            <Link href="/privacy" className="hover:text-[#edc155] transition-colors">
+            <Link href="/privacy" className="hover:text-[var(--sp-gold)] transition-colors">
               Privacy
             </Link>
-            <Link href="/terms" className="hover:text-[#edc155] transition-colors">
+            <Link href="/terms" className="hover:text-[var(--sp-gold)] transition-colors">
               Terms
             </Link>
-            <Link href="/help" className="hover:text-[#edc155] transition-colors">
+            <Link href="/help" className="hover:text-[var(--sp-gold)] transition-colors">
               Contact
             </Link>
           </div>

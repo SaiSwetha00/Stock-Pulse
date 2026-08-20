@@ -27,11 +27,10 @@
   /* True neutral black scale — no blue bias, replacing the prototype's
      #10131b-family (its blue channel was literally the highest of the
      three, which is what read as "navy" rather than black). */
-  /* The four stations of the page's vertical ramp. See the section
-     rhythm block below for the ladder and the rule that uses them. */
+  /* Two stations, and the page alternates between them. See the section
+     rhythm block below. --sp-ink is the hero's own floor. */
   --sp-ink: #070405;
-  --sp-ash: #120c0d;
-  --sp-ember: #2a1615;
+  --sp-night: #1c0c10;
   --sp-paper: #f6efeb;
 
   --sp-black: #000000;
@@ -258,144 +257,113 @@
 }
 
 /* ---------------------------------------------------------------
-   SECTION RHYTHM - one hue family, four stations, one shared seam.
+   SECTION RHYTHM - two tones, strictly alternating, hard edges.
 
-   WHAT THIS REPLACES AND WHY. The page used to be built from three
-   unrelated hue families: near-black neutrals, a coffee brown
-   (#2b211a) and a beige cream (#f5f1e8). Brown and beige are both
-   siblings of the GOLD, which was right while gold was the only
-   accent. Then the hero became red, and nothing below the fold was
-   related to anything above it any more - scrolling read as
-   disconnected patches rather than one piece.
+   THE RULE: no two adjacent sections share a lightness. Dark, light,
+   dark, light, all the way down. Eleven sections, hero dark and footer
+   dark, so the alternation resolves exactly.
 
-   The alternation is NOT the problem and is kept. An all-dark page was
-   the original failure here ("black from the nav to the footer with
-   nothing to break the fall"), so light bands stay; they are simply
-   re-derived from the hero's crimson instead of from the gold.
+     hero          night (with its own glow treatment on top)
+     TrustedBy     paper
+     Features      night
+     DashboardPrev paper
+     HowItWorks    night
+     Benefits      paper
+     Testimonials  night
+     Pricing       paper
+     FAQ           night
+     FinalCTA      paper
+     Footer        night
 
-   FOUR STATIONS, measured so they stay apart on the luminance ladder:
+   WHAT THIS REPLACES, TWICE OVER.
 
-     ink    #070405   L 0.0014   hero floor, the trough, the footer
-     ash    #120c0d   L 0.0042   deep surfaces inside dark bands
-     ember  #2a1615   L 0.0112   the warm dark band, and the seam colour
-     paper  #f6efeb   L 0.8732   the light band
+   First: the page ran dark-under-dark in two places - hero into
+   TrustedByStats, and FinalCTA into the footer. The first of those is
+   the very first scroll a visitor makes, so the page announced itself
+   as "dark, then more dark" exactly where it meant to announce a
+   rhythm. Fixing it is not a local patch: with hero and footer both
+   dark and eleven sections between them, only one assignment
+   alternates, and it is the one above. Nine sections change band.
 
-   Ember is a little darker than the coffee it replaces (0.0112 against
-   0.0168) and still 2.7x ash, so the two dark stations are as
-   distinguishable as they were before.
+   Second: the soft 120px dissolves between bands are GONE. They were an
+   attempt to make every seam invisible, and they read as a smoky smear
+   across each join instead - most of the page's colour change happened
+   inside a blur rather than at an edge. Sections now meet on a hard
+   line. Under strict alternation that line is always dark against
+   light, which the eye reads as intentional. No ::before/::after seam
+   elements remain anywhere in this file, which is also why the
+   `sp-band-flat` escape hatch AuthShell needed is gone.
 
-   THE RULE THAT MAKES IT ONE PIECE:
+   THE DARK TONE IS #1c0c10, a deep oxblood. It replaces a warm brown
+   (#2a1615) that read as milk chocolate rather than as anything in this
+   product's palette. R28 G12 B16 carries the same blue-over-green lean
+   as --sp-crimson #93000a, so it is a member of the hero's family and
+   not a fourth hue introduced to sit beside it.
 
-       every band begins and ends on --sp-ember.
+   It is dark enough to take the landing's OWN gold - #c9a227 measures
+   7.82:1 here - so the dark bands and the hero now share one gold
+   instead of the lifted #e0b551 the brown band had to use.
 
-   What happens between those two edges is the band's identity - paper
-   rises to light, deep sinks to ink, ember stays where it is. So every
-   seam on the page is ember-meeting-ember and there is nothing to
-   cover. The old approach was the opposite: hard swaps with an 88px
-   rgba(0,0,0,0.28) scrim thrown over each join, which is why every
-   boundary read as a shadow rather than as a transition.
-
-   Naming: the classes are `paper`, `ember` and `deep`. `cream`,
-   `coffee` and `gradient-a`/`-b` are gone rather than redefined - a
-   class called "coffee" that paints red is the kind of lie that
-   survives for years. `lifted`, `card`, `warm` and `finale` went too;
-   grep found no user of any of them.
+   Measured on #1c0c10: foreground 16.64:1, muted 7.00, gold 7.82,
+   success 12.26, danger 11.15. All AA.
+   Measured on #f6efeb: foreground 16.22:1, muted 5.60, gold 4.66,
+   success 4.76, danger 7.04. All AA.
    --------------------------------------------------------------- */
-
-/* The trough. Starts and ends on ember, sinks to ink in the middle, so
-   the two sections that use it read as the page drawing breath rather
-   than as a black rectangle inserted between two light ones. */
-.sp-landing .sp-band-deep {
-  background: linear-gradient(
-    180deg,
-    var(--sp-ember) 0%,
-    var(--sp-ink) 42%,
-    var(--sp-ink) 58%,
-    var(--sp-ember) 100%
-  );
-}
-
-/* The close. Enters on ember like everything else, then settles to ink
-   and stays there. The footer used to be a flat #0a0a0a neutral with a
-   hard step above it - measured, the one seam on the page that still
-   had an edge after the ramp went in. */
-.sp-landing .sp-band-settle {
-  background: linear-gradient(180deg, var(--sp-ember) 0%, var(--sp-ink) 34%, var(--sp-ink) 100%);
-}
 
 /* ---------------------------------------------------------------
-   Ember - the warm dark band.
+   Night - the dark band.
 
-   A full token inversion, not a background colour: every semantic
-   token AND every --sp-* variable is redefined for the subtree, so a
-   card, border, muted line or gold accent inside resolves correctly
-   without any component knowing where it sits. That is what lets this
-   whole change stay a background pass - `bg-[var(--sp-surface-card)]`
-   appears throughout these sections and is never edited.
-
-   It needs no ::before/::after any more. Its neighbours all meet it at
-   its own colour.
-
-   Measured on #2a1615 - foreground 15.09:1, muted-strong 10.78,
-   muted 5.96, gold 8.90, success 11.11, danger 10.10, warning 6.75.
-   All AA.
+   A full token inversion, not a background colour: every semantic token
+   AND every --sp-* variable is redefined for the subtree, so a card,
+   border, muted line or gold accent inside resolves correctly without
+   any component knowing where it sits. That is what keeps this a
+   background pass - `bg-[var(--sp-surface-card)]` appears throughout
+   these sections and is never edited.
    --------------------------------------------------------------- */
-.sp-landing .sp-band-ember {
-  --sp-black: #2a1615;
-  --sp-surface: #2a1615;
-  --sp-surface-alt: #23110f;
-  --sp-surface-card: #351d1b;
-  --sp-surface-elevated: #3f2422;
-  /* Gold has to lift against a warm dark ground; the standard #c9a227
-     measures 3.1:1 here. */
-  --sp-gold: #e0b551;
-  --sp-gold-light: #f0d78c;
-  --sp-gold-deep: #8a6b1a;
+.sp-landing .sp-band-night {
+  --sp-black: #1c0c10;
+  --sp-surface: #1c0c10;
+  --sp-surface-alt: #160809;
+  --sp-surface-card: #271317;
+  --sp-surface-elevated: #31191e;
 
-  --background: #2a1615;
-  --surface: #351d1b;
-  --surface-muted: #23110f;
+  --background: #1c0c10;
+  --surface: #271317;
+  --surface-muted: #160809;
   --foreground: #f6efeb;
-  --muted-strong: #dcc9c4;
-  --muted: #ab938d;
-  --border: #45231f;
-  --border-strong: #59302b;
-  --accent: #e0b551;
-  --accent-hover: #f0d78c;
-  --accent-soft: #3a1c1a;
-  --accent-ink: #f0d78c;
+  --muted-strong: #dcc9c9;
+  --muted: #a89a9c;
+  --border: #3a1f24;
+  --border-strong: #4d2b31;
+  --accent: #c9a227;
+  --accent-hover: #edc155;
+  --accent-soft: #2a1d10;
+  --accent-ink: #edc155;
   --success: #6ee7a0;
-  --success-bg: #1a2a22;
+  --success-bg: #16281f;
   --success-ink: #6ee7a0;
   --danger: #ffb4ab;
-  --danger-bg: #3d1e1b;
+  --danger-bg: #33161a;
   --warning: #e0912f;
-  --warning-bg: #33220f;
+  --warning-bg: #2e1f10;
 
   background: var(--background);
   color: var(--foreground);
 }
 
-.sp-landing .sp-band-ember .glass-card {
-  background: rgba(63, 36, 34, 0.6);
+.sp-landing .sp-band-night .glass-card {
+  background: rgba(39, 19, 23, 0.6);
   border: 1px solid rgba(246, 239, 235, 0.09);
 }
 
-.sp-landing .sp-band-ember .glass-card:hover {
-  background: rgba(63, 36, 34, 0.85);
+.sp-landing .sp-band-night .glass-card:hover {
+  background: rgba(39, 19, 23, 0.85);
 }
 
 /* ---------------------------------------------------------------
-   Paper - the light band, and the only place the page goes light.
-
-   Same full token inversion as ember. The tone is a rose-cast
-   off-white rather than the yellow-cast beige it replaces, which is
-   the whole point: it is now a light member of the hero's family
-   instead of a light member of the gold's.
-
-   Measured on #f6efeb - foreground 16.22:1, muted-strong 9.46,
-   muted 5.60, gold 4.66, success 4.76, danger 7.04, warning 5.21.
-   All AA.
+   Paper - the light band. Same full token inversion. A rose-cast
+   off-white rather than a yellow-cast beige, so it is a light member
+   of the hero's family rather than of the gold's.
    --------------------------------------------------------------- */
 .sp-landing .sp-band-paper {
   --sp-black: #f6efeb;
@@ -443,54 +411,6 @@
 
 .sp-landing .sp-band-paper .glass-card:hover {
   background: rgba(255, 255, 255, 0.92);
-}
-
-/* THE SEAM. Paper is always adjacent to a dark band on both sides, so
-   these two ramps are the only transition device the page needs: each
-   one starts at exactly the ember tone - the colour of whatever is on
-   the other side of the join - and dissolves into paper over 120px.
-
-   Because both edges land on the same tone, no seam has a step in it
-   and no scrim is needed to hide one.
-
-   The colour is written as a literal rather than var(--sp-ember)
-   because this rule sits INSIDE the subtree that redefines the
-   palette, where the variable resolves to paper's own override. */
-.sp-landing .sp-band-paper::before,
-.sp-landing .sp-band-paper::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 120px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* `sp-band-paper` outside the landing's vertical rhythm.
-
-   The two ramps above exist to hand a page-wide band off to its
-   neighbours. AuthShell uses the same class for its right-hand column,
-   where there is no band above or below - so the ramps painted a dark
-   bar across the top and bottom of the sign-in form instead, which
-   read as a rendering fault. Measured on the first capture of that
-   screen, which is how it was caught.
-
-   The token set is the reusable part; the seam is not. This modifier
-   takes the palette without the transition. */
-.sp-landing .sp-band-flat::before,
-.sp-landing .sp-band-flat::after {
-  content: none;
-}
-
-.sp-landing .sp-band-paper::before {
-  top: 0;
-  background: linear-gradient(180deg, #2a1615 0%, rgba(42, 22, 21, 0) 100%);
-}
-
-.sp-landing .sp-band-paper::after {
-  bottom: 0;
-  background: linear-gradient(0deg, #2a1615 0%, rgba(42, 22, 21, 0) 100%);
 }
 
 /* ---------------------------------------------------------------
@@ -577,7 +497,7 @@
   z-index: 1;
   background:
     radial-gradient(ellipse 86% 78% at 50% 34%, transparent 46%, rgba(0, 0, 0, 0.5) 100%),
-    linear-gradient(180deg, transparent 0%, transparent 32%, rgba(0, 0, 0, 0.48) 62%, var(--sp-ember) 94%);
+    linear-gradient(180deg, transparent 0%, transparent 32%, rgba(0, 0, 0, 0.48) 62%, var(--sp-night) 94%);
 }
 
 /* Very slow drift, and ONLY on the marketing hero — hence a modifier

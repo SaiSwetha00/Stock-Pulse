@@ -81,7 +81,7 @@ export default function FeaturesSection() {
   ]
 
   return (
-    <section id="features" className="relative py-32 sp-band-paper overflow-hidden perspective-1500">
+    <section id="features" className="relative py-32 sp-band-night overflow-hidden perspective-1500">
       {/* Background Section Ambient Glow */}
       <div className="absolute top-1/2 left-0 w-96 h-96 bg-[var(--sp-gold)]/8 rounded-full blur-[150px] pointer-events-none" />
 

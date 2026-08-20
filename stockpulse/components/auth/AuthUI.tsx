@@ -63,7 +63,7 @@ const FONT_VARIABLES = `${outfit.variable} ${plusJakartaSans.variable} ${cinzelD
  *      were already there, stop reading as "technical" and start reading as
  *      a register.
  *
- * The two halves use the landing page's own `sp-band-ember` and
+ * The two halves use the landing page's own `sp-band-night` and
  * `sp-band-paper` stations, so the entry flow stays coherent with the
  * marketing page through the PALETTE rather than by repeating the same
  * background. Both classes redefine every semantic token for their subtree,
@@ -103,7 +103,7 @@ export function AuthShell({
           squeezed - a fifteen-row figure at 375px wide is a smear, and a
           signature that cannot be read is not one.
           --------------------------------------------------------------- */}
-      <aside className="sp-band-ember relative flex shrink-0 flex-col justify-between overflow-hidden px-7 py-8 sm:px-10 lg:w-[38%] lg:max-w-[30rem] lg:px-12 lg:py-14">
+      <aside className="sp-band-night relative flex shrink-0 flex-col justify-between overflow-hidden px-7 py-8 sm:px-10 lg:w-[38%] lg:max-w-[30rem] lg:px-12 lg:py-14">
         {/* A single gold hairline down the seam between the two panels - the
             same one-line device the landing footer uses to say "same product"
             before anything else has loaded. */}
@@ -150,7 +150,7 @@ export function AuthShell({
           The paper page. The form sits on it directly - no card, no blur, no
           border - behind a red margin rule.
           --------------------------------------------------------------- */}
-      <main className="sp-band-paper sp-band-flat relative flex flex-1 items-center justify-center px-6 py-14 sm:px-10 lg:py-16">
+      <main className="sp-band-paper relative flex flex-1 items-center justify-center px-6 py-14 sm:px-10 lg:py-16">
         {/* Ruled ground. Faint horizontal rules at the rhythm of a register,
             masked out well before the form's own edges so they read as paper
             texture and never as a table someone forgot to style. */}

@@ -33,7 +33,7 @@ export default function BenefitsSection() {
   ]
 
   return (
-    <section id="benefits" className="relative py-32 sp-band-ember border-t border-border overflow-hidden perspective-1500">
+    <section id="benefits" className="relative py-32 sp-band-paper border-t border-border overflow-hidden perspective-1500">
       <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
         {/* Header */}
         <motion.div
@@ -46,10 +46,10 @@ export default function BenefitsSection() {
           <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-5 px-3 py-1 rounded-full bg-[var(--sp-surface-card)] border border-border">
             MANUAL WORK VS. STOCK PULSE
           </div>
-          <h2 className="font-display font-semibold text-3xl sm:text-4xl text-[#e0e2ed] tracking-tight mb-7">
+          <h2 className="font-display font-semibold text-3xl sm:text-4xl text-foreground tracking-tight mb-7">
             Legacy Grocery Systems vs. Stock Pulse
           </h2>
-          <p className="text-[#d1c5b0] text-base sm:text-lg leading-relaxed">
+          <p className="text-muted-strong text-base sm:text-lg leading-relaxed">
             A side-by-side look at what changes when the manual parts of running a store move onto one platform.
           </p>
         </motion.div>
@@ -66,21 +66,21 @@ export default function BenefitsSection() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[var(--sp-surface-alt)] font-mono text-xs uppercase tracking-wider border-b border-border">
-                  <th className="py-6 px-7 text-[#d1c5b0]/60">Operational Dimension</th>
-                  <th className="py-6 px-7 text-[#ffb4ab]">Legacy Grocery ERP</th>
+                  <th className="py-6 px-7 text-muted">Operational Dimension</th>
+                  <th className="py-6 px-7 text-danger">Legacy Grocery ERP</th>
                   <th className="py-6 px-7 text-[var(--sp-gold)]">Stock Pulse Platform</th>
-                  <th className="py-6 px-7 text-[#e0e2ed] text-right">The Difference</th>
+                  <th className="py-6 px-7 text-foreground text-right">The Difference</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border font-sans text-sm">
                 {benefits.map((b, idx) => (
                   <tr key={idx} className="hover:bg-[var(--sp-surface-card)]/60 transition-colors">
-                    <td className="py-6 px-7 font-display font-bold text-[#e0e2ed]">{b.feature}</td>
-                    <td className="py-6 px-7 text-[#d1c5b0]/70 flex items-center gap-2">
-                      <XCircle className="w-4 h-4 text-[#ffb4ab] shrink-0" />
+                    <td className="py-6 px-7 font-display font-bold text-foreground">{b.feature}</td>
+                    <td className="py-6 px-7 text-muted flex items-center gap-2">
+                      <XCircle className="w-4 h-4 text-danger shrink-0" />
                       {b.legacyWay}
                     </td>
-                    <td className="py-6 px-7 text-[#e0e2ed] flex items-center gap-2 font-semibold">
+                    <td className="py-6 px-7 text-foreground flex items-center gap-2 font-semibold">
                       <CheckCircle2 className="w-4 h-4 text-[var(--sp-gold)] shrink-0" />
                       {b.stockPulseWay}
                     </td>
@@ -106,16 +106,16 @@ export default function BenefitsSection() {
               <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-4">
                 <Sparkles className="w-4 h-4" /> WHY STORES SWITCH
               </div>
-              <h3 className="font-display font-medium text-3xl text-[#e0e2ed] mb-5">
+              <h3 className="font-display font-medium text-3xl text-foreground mb-5">
                 No Hardware, No Setup Fees, No Catch
               </h3>
-              <p className="text-[#d1c5b0] text-sm leading-relaxed max-w-xl">
+              <p className="text-muted-strong text-sm leading-relaxed max-w-xl">
                 Stock Pulse runs in the browser — inventory, sales, staff, suppliers, customers, and reporting in one dashboard. Nothing to install, nothing to wire up, and it’s free while the platform is in beta.
               </p>
             </div>
 
             <div className="lg:col-span-5 flex flex-col items-center justify-center p-10 rounded-xl bg-background/90 border border-[var(--sp-gold)]/30 text-center">
-              <div className="font-mono text-xs uppercase tracking-widest text-[#d1c5b0]/70 mb-2">
+              <div className="font-mono text-xs uppercase tracking-widest text-muted mb-2">
                 PRICING TODAY
               </div>
               <div className="font-display font-black text-5xl sm:text-6xl text-gold-gradient mb-3">

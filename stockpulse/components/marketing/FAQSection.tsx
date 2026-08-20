@@ -47,7 +47,7 @@ export default function FAQSection() {
   ]
 
   return (
-    <section id="faq" className="relative py-32 sp-band-paper overflow-hidden perspective-1500">
+    <section id="faq" className="relative py-32 sp-band-night overflow-hidden perspective-1500">
       <div className="max-w-4xl mx-auto px-6 md:px-12 relative z-10">
         {/* Header */}
         <motion.div

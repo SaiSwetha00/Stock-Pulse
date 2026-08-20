@@ -1679,3 +1679,68 @@ The classes are renamed `paper` / `ember` / `deep` rather than redefined in
 place. A class called `cream` that paints rose, or `coffee` that paints red,
 is the kind of lie that survives for years. `lifted`, `card`, `warm` and
 `finale` were deleted in the same pass — grep found no user of any of them.
+
+## D66 — Strict alternation, hard edges, and one dark tone
+
+Three corrections to D65, all from looking at the rendered page.
+
+**1. The soft seams were wrong.** D65 dissolved every boundary through a 120px
+ember ramp so no seam would have a step in it. Rendered, that is not a
+transition — it is a smoky smear across each join, and most of the page's
+colour change was happening inside a blur rather than at an edge. All seam
+pseudo-elements are deleted. Sections meet on a hard line, and under strict
+alternation that line is always dark against light, which reads as intentional
+rather than as a fade someone forgot to finish. `sp-band-flat`, the escape
+hatch AuthShell needed to opt out of those ramps, is deleted with them.
+
+**2. The page ran dark-under-dark, twice.** Hero into TrustedByStats, and
+FinalCTA into the footer. The first of those is the very first scroll anyone
+makes, so the page announced "dark, then more dark" precisely where it meant
+to announce a rhythm.
+
+That is not locally fixable. With eleven sections, hero dark and footer dark,
+**exactly one assignment alternates**, and nine sections have to change band to
+reach it. The rule is now stated positively — no two adjacent sections share a
+lightness — because a rule phrased that way is checkable at a glance, and the
+old one ("never two light in a row") was silent about the case that actually
+broke.
+
+**3. Four tones became two.** ink/ash/ember/paper existed to give the ramp
+somewhere to travel. With hard edges and strict alternation there is nowhere to
+travel: every section is either the dark or the light. `sp-band-deep` and
+`sp-band-settle` were gradients whose only job was handing off, so they are
+gone too. Two classes remain, `sp-band-night` and `sp-band-paper`.
+
+**The dark tone is #1c0c10, and the brown is the thing being corrected.**
+#2a1615 read as milk chocolate rather than as anything in this product's
+palette. #1c0c10 carries the same blue-over-green lean as --sp-crimson
+#93000a, so it belongs to the hero's family. It is also dark enough to take the
+landing's OWN gold — #c9a227 measures 7.82:1 — so the dark bands and the hero
+now share one gold instead of the lifted #e0b551 the brown band had to use.
+
+**What flipping nine sections exposed, and this is the useful part.** Five
+sections had never once been rendered on a light ground, and they were full of
+hardcoded light colours that the token system was supposed to make impossible:
+`text-[#e0e2ed]`, `text-[#d1c5b0]`, `text-[#edc155]` — invisible on paper. All
+converted to `text-foreground` / `text-muted-strong` / `text-[var(--sp-gold)]`,
+which is what they should always have been.
+
+Two subtler faults came with them:
+
+- **`text-accent-ink` on a gold fill is only correct when the gold is bright.**
+  On paper `--accent` is a DARK gold (#8b6508) and `--accent-ink` is also dark
+  (#5c4206) — measured ~1.1:1, the same invisible-label bug this project
+  already fixed once on the final CTA. `--accent-ink` cannot be repointed,
+  because `bg-accent-soft text-accent-ink` on the same band genuinely needs the
+  dark value. The fix is `text-[var(--surface)]`, which inverts correctly in
+  both directions: near-white on paper's dark gold, near-black on night's
+  bright gold.
+- **Opacity-thinned text does not survive a band flip.** `text-muted-strong/60`
+  and `/40` were comfortable on a dark ground and fall to roughly 3.9:1 and
+  2.5:1 on paper. Replaced with the full-strength `text-muted`, which is a
+  token chosen per band and measures 5.60:1 there.
+
+The general lesson: a token system only protects the surfaces it is actually
+used on. Nine sections had passed every review while carrying colours that
+would break the moment their band changed, and nothing could have surfaced that
+except changing the band and looking.
