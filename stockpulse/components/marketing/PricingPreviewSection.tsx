@@ -25,7 +25,7 @@ const FEATURES = [
 
 export default function PricingPreviewSection() {
   return (
-    <section id="pricing" className="relative py-32 sp-band-gradient-b border-t border-border overflow-hidden perspective-1500">
+    <section id="pricing" className="relative py-32 sp-band-deep border-t border-border overflow-hidden perspective-1500">
       {/* Glow flare */}
       <div className="absolute top-1/4 left-1/3 w-[600px] h-[600px] bg-[#93000a]/10 rounded-full blur-[180px] pointer-events-none" />
 

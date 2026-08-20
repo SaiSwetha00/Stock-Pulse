@@ -105,7 +105,7 @@ export default function LandingDashboardPreview() {
   }
 
   return (
-    <section id="dashboard-preview" className="relative py-32 sp-band-gradient-a overflow-hidden border-t border-border perspective-1500">
+    <section id="dashboard-preview" className="relative py-32 sp-band-deep overflow-hidden border-t border-border perspective-1500">
       {/* Background Flare */}
       <div className="absolute top-1/3 right-0 w-[500px] h-[500px] bg-[#93000a]/10 rounded-full blur-[180px] pointer-events-none" />
 

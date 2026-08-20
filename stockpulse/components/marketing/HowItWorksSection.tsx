@@ -45,7 +45,7 @@ export default function HowItWorksSection() {
   ]
 
   return (
-    <section id="how-it-works" className="relative py-32 sp-band-cream overflow-hidden perspective-1500">
+    <section id="how-it-works" className="relative py-32 sp-band-paper overflow-hidden perspective-1500">
       <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
         {/* Header */}
         <motion.div

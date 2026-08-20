@@ -27,6 +27,13 @@
   /* True neutral black scale — no blue bias, replacing the prototype's
      #10131b-family (its blue channel was literally the highest of the
      three, which is what read as "navy" rather than black). */
+  /* The four stations of the page's vertical ramp. See the section
+     rhythm block below for the ladder and the rule that uses them. */
+  --sp-ink: #070405;
+  --sp-ash: #120c0d;
+  --sp-ember: #2a1615;
+  --sp-paper: #f6efeb;
+
   --sp-black: #000000;
   --sp-surface: #0a0a0a;
   --sp-surface-alt: #121212;
@@ -250,83 +257,175 @@
   animation: sp-shimmer 4s linear infinite;
 }
 
-/* Section Background Rhythm — distinct dark "bands" so each section reads
-   as its own block while scrolling, rather than one flat black wall. All
-   stops stay within the dark palette; no light/cream tones. */
-.sp-landing .sp-band-lifted {
-  background: var(--sp-surface-alt);
+/* ---------------------------------------------------------------
+   SECTION RHYTHM - one hue family, four stations, one shared seam.
+
+   WHAT THIS REPLACES AND WHY. The page used to be built from three
+   unrelated hue families: near-black neutrals, a coffee brown
+   (#2b211a) and a beige cream (#f5f1e8). Brown and beige are both
+   siblings of the GOLD, which was right while gold was the only
+   accent. Then the hero became red, and nothing below the fold was
+   related to anything above it any more - scrolling read as
+   disconnected patches rather than one piece.
+
+   The alternation is NOT the problem and is kept. An all-dark page was
+   the original failure here ("black from the nav to the footer with
+   nothing to break the fall"), so light bands stay; they are simply
+   re-derived from the hero's crimson instead of from the gold.
+
+   FOUR STATIONS, measured so they stay apart on the luminance ladder:
+
+     ink    #070405   L 0.0014   hero floor, the trough, the footer
+     ash    #120c0d   L 0.0042   deep surfaces inside dark bands
+     ember  #2a1615   L 0.0112   the warm dark band, and the seam colour
+     paper  #f6efeb   L 0.8732   the light band
+
+   Ember is a little darker than the coffee it replaces (0.0112 against
+   0.0168) and still 2.7x ash, so the two dark stations are as
+   distinguishable as they were before.
+
+   THE RULE THAT MAKES IT ONE PIECE:
+
+       every band begins and ends on --sp-ember.
+
+   What happens between those two edges is the band's identity - paper
+   rises to light, deep sinks to ink, ember stays where it is. So every
+   seam on the page is ember-meeting-ember and there is nothing to
+   cover. The old approach was the opposite: hard swaps with an 88px
+   rgba(0,0,0,0.28) scrim thrown over each join, which is why every
+   boundary read as a shadow rather than as a transition.
+
+   Naming: the classes are `paper`, `ember` and `deep`. `cream`,
+   `coffee` and `gradient-a`/`-b` are gone rather than redefined - a
+   class called "coffee" that paints red is the kind of lie that
+   survives for years. `lifted`, `card`, `warm` and `finale` went too;
+   grep found no user of any of them.
+   --------------------------------------------------------------- */
+
+/* The trough. Starts and ends on ember, sinks to ink in the middle, so
+   the two sections that use it read as the page drawing breath rather
+   than as a black rectangle inserted between two light ones. */
+.sp-landing .sp-band-deep {
+  background: linear-gradient(
+    180deg,
+    var(--sp-ember) 0%,
+    var(--sp-ink) 42%,
+    var(--sp-ink) 58%,
+    var(--sp-ember) 100%
+  );
 }
 
-.sp-landing .sp-band-card {
-  background: var(--sp-surface-card);
-}
-
-.sp-landing .sp-band-gradient-a {
-  background: linear-gradient(180deg, var(--sp-black) 0%, var(--sp-surface-alt) 100%);
-}
-
-.sp-landing .sp-band-gradient-b {
-  background: linear-gradient(180deg, var(--sp-surface-alt) 0%, var(--sp-black) 100%);
-}
-
-.sp-landing .sp-band-warm {
-  background: linear-gradient(160deg, var(--sp-surface-card) 0%, #17130a 55%, var(--sp-surface-alt) 100%);
-}
-
-.sp-landing .sp-band-finale {
-  background: radial-gradient(ellipse 640px 360px at 50% -10%, rgba(201, 162, 39, 0.14) 0%, transparent 70%),
-    var(--sp-surface-alt);
+/* The close. Enters on ember like everything else, then settles to ink
+   and stays there. The footer used to be a flat #0a0a0a neutral with a
+   hard step above it - measured, the one seam on the page that still
+   had an edge after the ramp went in. */
+.sp-landing .sp-band-settle {
+  background: linear-gradient(180deg, var(--sp-ember) 0%, var(--sp-ink) 34%, var(--sp-ink) 100%);
 }
 
 /* ---------------------------------------------------------------
-   Cream bands — the light half of the page's rhythm.
+   Ember - the warm dark band.
 
-   The note above used to end "no light/cream tones", and the result
-   was a page black from the nav to the footer with nothing to break
-   the fall. These alternate with the dark sections, never two light
-   in a row.
-
-   This is a full inversion, not a background swap. Every semantic
+   A full token inversion, not a background colour: every semantic
    token AND every --sp-* variable is redefined for the subtree, so a
-   card, border, muted line or gold accent inside a cream section
-   resolves light without any component knowing where it sits. That
-   matters: `bg-[var(--sp-surface-card)]` appears throughout these
-   sections and would otherwise paint a near-black card on cream.
+   card, border, muted line or gold accent inside resolves correctly
+   without any component knowing where it sits. That is what lets this
+   whole change stay a background pass - `bg-[var(--sp-surface-card)]`
+   appears throughout these sections and is never edited.
 
-   Measured on #f5f1e8 — foreground 15.85:1, muted-strong 8.68:1,
-   muted 4.92:1, gold 4.70:1, danger 7.28:1, success 4.81:1. All AA.
+   It needs no ::before/::after any more. Its neighbours all meet it at
+   its own colour.
+
+   Measured on #2a1615 - foreground 15.09:1, muted-strong 10.78,
+   muted 5.96, gold 8.90, success 11.11, danger 10.10, warning 6.75.
+   All AA.
    --------------------------------------------------------------- */
-.sp-landing .sp-band-cream {
-  /* Landing-specific variables, so hardcoded var() references flip too. */
-  --sp-black: #f5f1e8;
-  --sp-surface: #f5f1e8;
-  --sp-surface-alt: #efe9dc;
-  --sp-surface-card: #fbf8f1;
+.sp-landing .sp-band-ember {
+  --sp-black: #2a1615;
+  --sp-surface: #2a1615;
+  --sp-surface-alt: #23110f;
+  --sp-surface-card: #351d1b;
+  --sp-surface-elevated: #3f2422;
+  /* Gold has to lift against a warm dark ground; the standard #c9a227
+     measures 3.1:1 here. */
+  --sp-gold: #e0b551;
+  --sp-gold-light: #f0d78c;
+  --sp-gold-deep: #8a6b1a;
+
+  --background: #2a1615;
+  --surface: #351d1b;
+  --surface-muted: #23110f;
+  --foreground: #f6efeb;
+  --muted-strong: #dcc9c4;
+  --muted: #ab938d;
+  --border: #45231f;
+  --border-strong: #59302b;
+  --accent: #e0b551;
+  --accent-hover: #f0d78c;
+  --accent-soft: #3a1c1a;
+  --accent-ink: #f0d78c;
+  --success: #6ee7a0;
+  --success-bg: #1a2a22;
+  --success-ink: #6ee7a0;
+  --danger: #ffb4ab;
+  --danger-bg: #3d1e1b;
+  --warning: #e0912f;
+  --warning-bg: #33220f;
+
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.sp-landing .sp-band-ember .glass-card {
+  background: rgba(63, 36, 34, 0.6);
+  border: 1px solid rgba(246, 239, 235, 0.09);
+}
+
+.sp-landing .sp-band-ember .glass-card:hover {
+  background: rgba(63, 36, 34, 0.85);
+}
+
+/* ---------------------------------------------------------------
+   Paper - the light band, and the only place the page goes light.
+
+   Same full token inversion as ember. The tone is a rose-cast
+   off-white rather than the yellow-cast beige it replaces, which is
+   the whole point: it is now a light member of the hero's family
+   instead of a light member of the gold's.
+
+   Measured on #f6efeb - foreground 16.22:1, muted-strong 9.46,
+   muted 5.60, gold 4.66, success 4.76, danger 7.04, warning 5.21.
+   All AA.
+   --------------------------------------------------------------- */
+.sp-landing .sp-band-paper {
+  --sp-black: #f6efeb;
+  --sp-surface: #f6efeb;
+  --sp-surface-alt: #efe4df;
+  --sp-surface-card: #fdf8f6;
   --sp-surface-elevated: #ffffff;
-  /* Gold has to darken considerably to hold contrast on cream; the bright
-     #c9a227 measures 2.0:1 here and would be unreadable as text. */
+  /* Gold has to darken considerably to hold contrast on paper; the
+     bright #c9a227 measures 2.0:1 here and would be unreadable. */
   --sp-gold: #8b6508;
   --sp-gold-light: #a87f18;
   --sp-gold-deep: #6f5006;
-  --sp-crimson-light: #9a1d14;
+  --sp-crimson-light: #9c1f18;
 
-  /* Semantic tokens, inverted from the dark defaults set on .sp-landing. */
-  --background: #f5f1e8;
-  --surface: #fbf8f1;
-  --surface-muted: #efe9dc;
-  --foreground: #1a1712;
-  --muted-strong: #4a4335;
-  --muted: #6e6858;
-  --border: #ded7c6;
-  --border-strong: #c9c0aa;
+  --background: #f6efeb;
+  --surface: #fdf8f6;
+  --surface-muted: #efe4df;
+  --foreground: #1a1211;
+  --muted-strong: #4a3a37;
+  --muted: #6e5b57;
+  --border: #e0d2cd;
+  --border-strong: #c9b7b1;
   --accent: #8b6508;
   --accent-hover: #6f5006;
-  --accent-soft: #f2e8cf;
+  --accent-soft: #f4e9d2;
   --accent-ink: #5c4206;
   --success: #157a3a;
-  --success-bg: #e7f4ec;
+  --success-bg: #e8f3ec;
   --success-ink: #0d4f26;
-  --danger: #9a1d14;
+  --danger: #9c1f18;
   --danger-bg: #fbeae8;
   --warning: #8a5a06;
   --warning-bg: #fbf1de;
@@ -335,120 +434,63 @@
   color: var(--foreground);
 }
 
-/* ---------------------------------------------------------------
-   Coffee-brown bands — the warm middle of the rhythm.
-
-   Cream alone still left the page reading black-and-white. Coffee is a
-   third surface: dark enough to sit beside a cream band without
-   breaking the "never two light in a row" rule, warm enough that the
-   page stops looking monochrome.
-
-   Same full inversion as cream — every semantic token and every --sp-*
-   variable redefined for the subtree, so cards, borders and gold
-   resolve against brown without any component knowing where it sits.
-
-   Measured on #2b211a — foreground 13.73:1, muted-strong 9.87:1,
-   muted 5.59:1, gold 8.16:1, success 10.19:1, danger 9.26:1. All AA.
-   --------------------------------------------------------------- */
-.sp-landing .sp-band-coffee {
-  --sp-black: #2b211a;
-  --sp-surface: #2b211a;
-  --sp-surface-alt: #241b15;
-  --sp-surface-card: #362a21;
-  --sp-surface-elevated: #40332a;
-  /* Gold lifts against brown; the standard #c9a227 is only 3.4:1 here. */
-  --sp-gold: #e0b551;
-  --sp-gold-light: #f0d78c;
-  --sp-gold-deep: #8a6b1a;
-
-  --background: #2b211a;
-  --surface: #362a21;
-  --surface-muted: #241b15;
-  --foreground: #f4efe6;
-  --muted-strong: #d9cbb8;
-  --muted: #a89880;
-  --border: #453529;
-  --border-strong: #57432f;
-  --accent: #e0b551;
-  --accent-hover: #f0d78c;
-  --accent-soft: #3a2c1a;
-  --accent-ink: #f0d78c;
-  --success: #6ee7a0;
-  --success-bg: #16281f;
-  --success-ink: #6ee7a0;
-  --danger: #ffb4ab;
-  --danger-bg: #3a1f1b;
-  --warning: #e0912f;
-  --warning-bg: #33240f;
-
-  background: var(--background);
-  color: var(--foreground);
-}
-
-.sp-landing .sp-band-coffee .glass-card {
-  background: rgba(64, 51, 42, 0.6);
-  border: 1px solid rgba(244, 239, 230, 0.09);
-}
-
-.sp-landing .sp-band-coffee .glass-card:hover {
-  background: rgba(64, 51, 42, 0.85);
-}
-
-/* Soft boundary at each colour change, matching the cream bands. */
-.sp-landing .sp-band-coffee::before,
-.sp-landing .sp-band-coffee::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 88px;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.sp-landing .sp-band-coffee::before {
-  top: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.32) 0%, transparent 100%);
-}
-
-.sp-landing .sp-band-coffee::after {
-  bottom: 0;
-  background: linear-gradient(0deg, rgba(0, 0, 0, 0.32) 0%, transparent 100%);
-}
-
-/* glass-card is hardcoded rgba, so it needs a cream variant — a translucent
-   dark pane on cream reads as a smudge. */
-.sp-landing .sp-band-cream .glass-card {
+/* A translucent dark pane on paper reads as a smudge, so glass-card
+   needs its own light variant here. */
+.sp-landing .sp-band-paper .glass-card {
   background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(26, 23, 18, 0.1);
+  border: 1px solid rgba(26, 18, 17, 0.1);
 }
 
-.sp-landing .sp-band-cream .glass-card:hover {
+.sp-landing .sp-band-paper .glass-card:hover {
   background: rgba(255, 255, 255, 0.92);
 }
 
-/* Soft boundary at every colour change. A hard edge between black and cream
-   reads as a rendering seam; a short gradient lets the eye cross it. Done
-   with pseudo-elements so it costs no extra markup. */
-.sp-landing .sp-band-cream::before,
-.sp-landing .sp-band-cream::after {
+/* THE SEAM. Paper is always adjacent to a dark band on both sides, so
+   these two ramps are the only transition device the page needs: each
+   one starts at exactly the ember tone - the colour of whatever is on
+   the other side of the join - and dissolves into paper over 120px.
+
+   Because both edges land on the same tone, no seam has a step in it
+   and no scrim is needed to hide one.
+
+   The colour is written as a literal rather than var(--sp-ember)
+   because this rule sits INSIDE the subtree that redefines the
+   palette, where the variable resolves to paper's own override. */
+.sp-landing .sp-band-paper::before,
+.sp-landing .sp-band-paper::after {
   content: '';
   position: absolute;
   left: 0;
   right: 0;
-  height: 88px;
+  height: 120px;
   pointer-events: none;
   z-index: 0;
 }
 
-.sp-landing .sp-band-cream::before {
-  top: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, transparent 100%);
+/* `sp-band-paper` outside the landing's vertical rhythm.
+
+   The two ramps above exist to hand a page-wide band off to its
+   neighbours. AuthShell uses the same class for its right-hand column,
+   where there is no band above or below - so the ramps painted a dark
+   bar across the top and bottom of the sign-in form instead, which
+   read as a rendering fault. Measured on the first capture of that
+   screen, which is how it was caught.
+
+   The token set is the reusable part; the seam is not. This modifier
+   takes the palette without the transition. */
+.sp-landing .sp-band-flat::before,
+.sp-landing .sp-band-flat::after {
+  content: none;
 }
 
-.sp-landing .sp-band-cream::after {
+.sp-landing .sp-band-paper::before {
+  top: 0;
+  background: linear-gradient(180deg, #2a1615 0%, rgba(42, 22, 21, 0) 100%);
+}
+
+.sp-landing .sp-band-paper::after {
   bottom: 0;
-  background: linear-gradient(0deg, rgba(0, 0, 0, 0.28) 0%, transparent 100%);
+  background: linear-gradient(0deg, #2a1615 0%, rgba(42, 22, 21, 0) 100%);
 }
 
 /* ---------------------------------------------------------------
@@ -535,7 +577,7 @@
   z-index: 1;
   background:
     radial-gradient(ellipse 86% 78% at 50% 34%, transparent 46%, rgba(0, 0, 0, 0.5) 100%),
-    linear-gradient(180deg, transparent 0%, transparent 32%, rgba(0, 0, 0, 0.48) 62%, var(--sp-black) 94%);
+    linear-gradient(180deg, transparent 0%, transparent 32%, rgba(0, 0, 0, 0.48) 62%, var(--sp-ember) 94%);
 }
 
 /* Very slow drift, and ONLY on the marketing hero — hence a modifier

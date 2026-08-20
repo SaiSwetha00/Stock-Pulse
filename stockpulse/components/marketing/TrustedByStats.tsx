@@ -14,7 +14,7 @@ export default function TrustedByStats() {
   ]
 
   return (
-    <section className="relative py-24 sp-band-coffee border-y border-border overflow-hidden perspective-1000">
+    <section className="relative py-24 sp-band-ember border-y border-border overflow-hidden perspective-1000">
       <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
         {/* Header Label */}
         <motion.div

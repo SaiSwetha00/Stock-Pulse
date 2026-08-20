@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Lock, ArrowRight, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { AuthError, AuthField, AuthShell, BrandMark, GlassCard, SubmitButton } from '@/components/auth/AuthUI'
+import { AuthError, AuthField, AuthShell, FormPanel, SubmitButton } from '@/components/auth/AuthUI'
 import { fadeUp } from '@/lib/motion'
 
 const MIN_LENGTH = 8
@@ -115,9 +115,8 @@ export default function ResetPasswordPage() {
 
   return (
     <AuthShell>
-      <GlassCard>
+      <FormPanel>
         <div className="text-center">
-          <BrandMark />
 
           {status === 'success' ? (
             <>
@@ -199,7 +198,7 @@ export default function ResetPasswordPage() {
             </div>
           </form>
         )}
-      </GlassCard>
+      </FormPanel>
     </AuthShell>
   )
 }

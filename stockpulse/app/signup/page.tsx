@@ -5,13 +5,11 @@ import Link from 'next/link'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, Lock, Mail, Store, User } from 'lucide-react'
 import { signUpOwner } from '@/app/auth/actions'
-import AuthHero from '@/components/auth/AuthHero'
 import {
   AuthError,
   AuthField,
   AuthShell,
-  BrandMark,
-  GlassCard,
+  FormPanel,
   SubmitButton,
 } from '@/components/auth/AuthUI'
 import { EASE, fadeUp, slideX } from '@/lib/motion'
@@ -76,16 +74,13 @@ export default function SignupPage() {
 
   const progress = succeeded ? 3 : step + 1
 
+  // The signature column fills as the shop is created. Step one already
+  // shows the first third: a column drawn at zero reads as "failed to load"
+  // rather than as "your first day". Read-only - passing this cannot affect
+  // the wizard, its validation or its submit.
   return (
-    <AuthShell
-      hero={
-        <AuthHero
-          title="Launch Your Store in Minutes"
-          subtitle="Create your workspace and start managing inventory instantly."
-        />
-      }
-    >
-      <GlassCard>
+    <AuthShell dayFill={(succeeded ? 3 : step + 1) / 3}>
+      <FormPanel>
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between text-xs font-medium text-muted-strong">
             <span>Step {Math.min(step + 1, 3)} of 3</span>
@@ -122,7 +117,7 @@ export default function SignupPage() {
                 transition={{ type: 'spring', stiffness: 220, damping: 16 }}
                 className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#edc155]/15"
               >
-                <Check className="h-8 w-8 text-[#edc155]" strokeWidth={3} />
+                <Check className="h-8 w-8 text-[var(--sp-gold)]" strokeWidth={3} />
               </motion.div>
               <h2 className="font-serif-brand mt-5 text-[20px] font-semibold tracking-[0.01em] text-foreground">Store created</h2>
               <p className="mt-1 text-sm text-muted-strong">Taking you to your dashboard…</p>
@@ -143,8 +138,7 @@ export default function SignupPage() {
                     }
               }
             >
-              <div className="text-center">
-                <BrandMark />
+              <div>
                 <h2 className="font-serif-brand mt-5 text-[22px] font-semibold tracking-[0.01em] text-foreground">
                   {STEPS[step].title}
                 </h2>
@@ -234,14 +228,14 @@ export default function SignupPage() {
         </AnimatePresence>
 
         {!succeeded && (
-          <motion.p variants={fadeUp} className="mt-6 text-center text-sm text-muted-strong">
+          <motion.p variants={fadeUp} className="mt-6 text-sm text-muted-strong">
             Already registered?{' '}
-            <Link href="/login" className="font-semibold text-[#e0e2ed] hover:underline">
+            <Link href="/login" className="font-semibold text-foreground hover:underline">
               Sign in
             </Link>
           </motion.p>
         )}
-      </GlassCard>
+      </FormPanel>
     </AuthShell>
   )
 }

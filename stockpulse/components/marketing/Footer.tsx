@@ -6,7 +6,7 @@ import StockPulseLogo from './StockPulseLogo'
 
 export default function Footer() {
   return (
-    <footer className="relative bg-[var(--sp-surface)] text-[#e0e2ed] border-t border-[#edc155]/20 pt-28 pb-16 overflow-hidden">
+    <footer className="relative sp-band-settle text-[#e0e2ed] pt-28 pb-16 overflow-hidden">
       {/* Background glow flares */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-[#edc155] to-transparent opacity-50" />
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#93000a]/10 rounded-full blur-[140px] pointer-events-none" />

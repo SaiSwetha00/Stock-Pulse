@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useId, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useId, useState, useSyncExternalStore, type ReactNode } from 'react'
 import Link from 'next/link'
-import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { ArrowLeft, Eye, EyeOff, Moon, Sun, type LucideIcon } from 'lucide-react'
 import { EASE, fadeUp, hoverLift, scaleIn, stagger } from '@/lib/motion'
 import '@/components/marketing/landing.css'
@@ -14,6 +14,7 @@ import {
   jetbrainsMono,
 } from '@/components/marketing/fonts'
 import StockPulseLogo from '@/components/marketing/StockPulseLogo'
+import DayColumn from './DayColumn'
 
 /**
  * The auth screens, in the landing page's cinematic key.
@@ -36,95 +37,145 @@ import StockPulseLogo from '@/components/marketing/StockPulseLogo'
 const FONT_VARIABLES = `${outfit.variable} ${plusJakartaSans.variable} ${cinzelDecorative.variable} ${cinzel.variable} ${jetbrainsMono.variable}`
 
 /* ------------------------------------------------------------------ */
-/* Shell: centred card over a drawn gold-silk backdrop                  */
+/* Shell: ember panel beside a paper page                               */
 /* ------------------------------------------------------------------ */
 
-export function AuthShell({ hero, children }: { hero?: ReactNode; children: ReactNode }) {
-  // `hero` is accepted and ignored on purpose. The old 60/40 split put an
-  // illustration beside the form; this layout centres the card over a drawn
-  // gold-silk backdrop instead. Keeping the prop is what let the styling change
-  // editing the four calling pages — and so without going anywhere near their
-  // auth logic.
-  void hero
-
+/**
+ * The auth screens, redesigned as a split rather than a centred card.
+ *
+ * WHAT THIS REPLACES. Until now these pages were a glass card, centred, on a
+ * gradient background - dark ground, one bright accent, blurred panel. That
+ * combination is currently the default look of every generated interface, and
+ * being competent at it is not the same as being distinctive. So the card is
+ * gone entirely.
+ *
+ * THE DISTINCTIVE SPEND IS THE LAYOUT, and it is spent once rather than
+ * scattered. Three moves, all structural:
+ *
+ *   1. No container. The form sits directly on the surface. Every SaaS auth
+ *      screen is a centred card; a form that simply is not in one reads as
+ *      considered before a single word is read.
+ *   2. The convention is inverted. Brand on the dark side, form on the LIGHT
+ *      side, asymmetric rather than centred.
+ *   3. One red vertical rule down the left edge of the form - the margin rule
+ *      of a shop's ruled register. That is where the accent lives here:
+ *      structural, not a glow. It also makes the mono field labels, which
+ *      were already there, stop reading as "technical" and start reading as
+ *      a register.
+ *
+ * The two halves use the landing page's own `sp-band-ember` and
+ * `sp-band-paper` stations, so the entry flow stays coherent with the
+ * marketing page through the PALETTE rather than by repeating the same
+ * background. Both classes redefine every semantic token for their subtree,
+ * which is why `AuthField`, `AuthError` and the rest resolve correctly on a
+ * light ground without being edited.
+ *
+ * THIS REVISES A RECORDED DECISION - see D64. The note that used to sit here
+ * argued these screens must stay fully dark, because "a form that flipped to
+ * warm white between a dark hero and a dark dashboard would break the
+ * thread". That concern was real and is answered rather than dismissed: the
+ * ember panel keeps a dark half on screen at all times, so the thread is
+ * never actually cut. It is recorded properly rather than quietly deleted.
+ *
+ * Nothing here touches authentication. Every export keeps its name and
+ * signature except `GlassCard`, which is renamed to `FormPanel` because it is
+ * no longer glass and a name that lies outlives the person who wrote it.
+ */
+export function AuthShell({
+  children,
+  dayFill = 1,
+}: {
+  children: ReactNode
+  /**
+   * How much of the trading day the signature column has drawn, 0-1.
+   * Sign-in leaves it at 1 (a settled day); sign-up passes its step progress
+   * so the day fills as the shop is created. Read-only - see DayColumn.
+   */
+  dayFill?: number
+}) {
   return (
     <div
-      className={`sp-landing ${FONT_VARIABLES} relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-background px-5 py-16 font-sans`}
+      className={`sp-landing ${FONT_VARIABLES} flex min-h-dvh w-full flex-col font-sans lg:flex-row`}
     >
-      {/* THE ENTRY GLOW — the same two elements and the same two classes the
-          landing hero renders, defined once in landing.css, which this file
-          already imports. A visitor crosses from that hero to this form in
-          one click; of every pair of pages in this product, these are the two
-          most likely to be compared, and the only pair a person sees within
-          seconds of each other. They now share a background rather than each
-          having their own version of the same idea.
+      {/* ---------------------------------------------------------------
+          The ember panel. On desktop a fixed-width left column; on mobile it
+          collapses to a header band and the day column is DROPPED rather than
+          squeezed - a fifteen-row figure at 375px wide is a smear, and a
+          signature that cannot be read is not one.
+          --------------------------------------------------------------- */}
+      <aside className="sp-band-ember relative flex shrink-0 flex-col justify-between overflow-hidden px-7 py-8 sm:px-10 lg:w-[38%] lg:max-w-[30rem] lg:px-12 lg:py-14">
+        {/* A single gold hairline down the seam between the two panels - the
+            same one-line device the landing footer uses to say "same product"
+            before anything else has loaded. */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 hidden w-px lg:block"
+          style={{ background: 'linear-gradient(180deg, transparent, var(--sp-gold) 45%, transparent)', opacity: 0.5 }}
+        />
 
-          No `--drift` here. Behind a headline a breathing background is
-          atmosphere; behind two input fields it is movement in the corner of
-          the eye of someone typing a password. */}
-      <div className="sp-entry-glow" aria-hidden="true" />
-      <div className="sp-entry-veil" aria-hidden="true" />
+        <div className="flex items-center justify-between gap-6">
+          <Link href="/" className="inline-flex shrink-0">
+            <StockPulseLogo size="md" showSubtitle={false} />
+          </Link>
 
-      {/* Quiet backdrop: a faint dot-grid for structure and one soft gold
-          bloom behind the card — replacing the earlier gold-silk SVG paths
-          and stacked radial gradients, which read as decoration for its own
-          sake rather than a considered ground for a form. */}
-      {/* Gold hairline along the top edge, the same device the landing footer
-          uses. It is the cheapest way to say "this is the same product" before
-          anything else has loaded. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-px"
-        style={{
-          background:
-            'linear-gradient(90deg, transparent, var(--sp-gold) 50%, transparent)',
-          opacity: 0.55,
-        }}
-      />
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-muted transition-colors hover:text-foreground lg:hidden"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+            Back
+          </Link>
+        </div>
 
-      {/* Warm dot-grid. Was rgba(255,255,255,0.5) at 0.15 opacity — cold and
-          so faint it read as nothing, which is what left the card floating in
-          a void. Now tinted to the landing's warm neutral and slightly
-          stronger, so it is legible as ground without competing with the
-          form. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-[0.22]"
-        style={{
-          backgroundImage: 'radial-gradient(rgba(209,197,176,0.55) 1px, transparent 1px)',
-          backgroundSize: '26px 26px',
-        }}
-      />
+        {/* The pull-quote. Cinzel, set large and given room - the one place on
+            these screens where type is the event. */}
+        <p className="mt-10 max-w-[15ch] font-serif-brand text-[clamp(1.75rem,3.4vw,2.5rem)] font-semibold leading-[1.15] tracking-[0.01em] text-foreground lg:mt-0">
+          Open to close, in one place.
+        </p>
 
-      {/* The vignette that used to be here is gone: `sp-entry-veil` above is
-          the same device, and two overlapping corner-darkenings compound into
-          a heavier frame than either was drawn to be. */}
-      {/* The gold bloom behind the card, kept but taken down from 0.16 to
-          0.07. Its documented job was to give the card somewhere to sit, and
-          that still holds — but the entry glow is now the page's light
-          source, and a second bloom at full strength in the middle read as a
-          competing one. Weakened rather than deleted, because deleting it
-          leaves the card floating in flat black exactly where the glow has
-          already fallen away. */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-1/2 h-[560px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{
-          background: 'radial-gradient(circle, rgba(201,162,39,0.07) 0%, transparent 70%)',
-          filter: 'blur(70px)',
-        }}
-      />
+        <div className="mt-10 hidden lg:block">
+          <DayColumn fill={dayFill} />
+        </div>
 
-      {/* Back to the landing hero. */}
-      <Link
-        href="/"
-        className="absolute left-5 top-6 z-20 inline-flex h-10 items-center gap-2 rounded-full border border-border bg-surface/5 px-4 text-sm text-muted-strong backdrop-blur-xl transition-colors hover:border-border-strong hover:text-foreground sm:left-8"
-      >
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Back
-      </Link>
+        <Link
+          href="/"
+          className="mt-10 hidden items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted transition-colors hover:text-foreground lg:inline-flex"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+          Back to site
+        </Link>
+      </aside>
 
-      <main className="relative z-10 flex w-full items-center justify-center">{children}</main>
+      {/* ---------------------------------------------------------------
+          The paper page. The form sits on it directly - no card, no blur, no
+          border - behind a red margin rule.
+          --------------------------------------------------------------- */}
+      <main className="sp-band-paper sp-band-flat relative flex flex-1 items-center justify-center px-6 py-14 sm:px-10 lg:py-16">
+        {/* Ruled ground. Faint horizontal rules at the rhythm of a register,
+            masked out well before the form's own edges so they read as paper
+            texture and never as a table someone forgot to style. */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 opacity-[0.55]"
+          style={{
+            backgroundImage: 'repeating-linear-gradient(180deg, transparent 0 31px, var(--border) 31px 32px)',
+            maskImage: 'radial-gradient(ellipse 70% 60% at 50% 50%, #000 20%, transparent 78%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 70% 60% at 50% 50%, #000 20%, transparent 78%)',
+          }}
+        />
+
+        <div className="relative w-full max-w-[27rem] pl-6 sm:pl-8">
+          {/* THE MARGIN RULE. One red vertical line, full height of the form
+              block. The only red on the paper side other than the submit
+              button, and the two are the same colour on purpose. */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 left-0 w-px"
+            style={{ background: 'var(--sp-red)', opacity: 0.62 }}
+          />
+          {children}
+        </div>
+      </main>
     </div>
   )
 }
@@ -158,52 +209,25 @@ export function BrandMark() {
 /* Glassmorphism card — staggers its children in                        */
 /* ------------------------------------------------------------------ */
 
-export function GlassCard({
+export function FormPanel({
   children,
   className = '',
 }: {
   children: ReactNode
   className?: string
 }) {
-  // Mouse-follow tilt: normalised -0.5…0.5 cursor position within the card,
-  // sprung and mapped to a small rotation. Resets to flat on mouse leave.
-  const mx = useMotionValue(0)
-  const my = useMotionValue(0)
-  const springed = { stiffness: 150, damping: 18, mass: 0.5 }
-  const rotateX = useSpring(useTransform(my, [-0.5, 0.5], [7, -7]), springed)
-  const rotateY = useSpring(useTransform(mx, [-0.5, 0.5], [-7, 7]), springed)
-
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const rect = e.currentTarget.getBoundingClientRect()
-      mx.set((e.clientX - rect.left) / rect.width - 0.5)
-      my.set((e.clientY - rect.top) / rect.height - 0.5)
-    },
-    [mx, my]
-  )
-
-  const handleMouseLeave = useCallback(() => {
-    mx.set(0)
-    my.set(0)
-  }, [mx, my])
-
   return (
     <motion.div
       variants={stagger(0.1, 0.2)}
       initial="hidden"
       animate="show"
-      className={`relative w-full max-w-[26rem] ${className}`}
-      style={{ perspective: 1200 }}
+      className={`relative w-full ${className}`}
     >
-      <motion.div
-        variants={scaleIn}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        style={{ rotateX, rotateY, transformStyle: 'preserve-3d' }}
-        className="glass-card rounded-3xl p-8 shadow-[0_30px_70px_-25px_rgba(0,0,0,0.9)] backdrop-blur-2xl backdrop-saturate-150 sm:p-10"
-      >
-        {children}
-      </motion.div>
+      {/* No card, no blur, no tilt. The mouse-follow rotation that used to
+          live here belonged to a floating pane; a form printed on a page does
+          not tip toward the cursor, and the point of this redesign is that it
+          is printed on a page. */}
+      <motion.div variants={scaleIn}>{children}</motion.div>
     </motion.div>
   )
 }
@@ -251,7 +275,7 @@ export function AuthField({
       <div className="mb-2 flex items-center justify-between">
         <label
           htmlFor={id}
-          className="font-mono text-xs font-semibold uppercase tracking-wide text-muted transition-colors duration-300 group-focus-within:text-[#d8cba8]"
+          className="font-mono text-xs font-semibold uppercase tracking-wide text-muted transition-colors duration-300 group-focus-within:text-[var(--sp-gold)]"
         >
           {label}
         </label>
@@ -324,12 +348,16 @@ export function SubmitButton({
       aria-busy={loading || undefined}
       className={`group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl py-4 text-sm font-semibold transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-70 ${
         isPrimary
-          ? 'text-accent-ink shadow-[0_10px_28px_-10px_rgba(201,162,39,0.55)] hover:shadow-[0_14px_36px_-10px_rgba(201,162,39,0.75)]'
+          ? 'text-white shadow-[0_10px_28px_-10px_rgba(216,31,38,0.55)] hover:shadow-[0_14px_36px_-10px_rgba(216,31,38,0.75)]'
           : 'border border-border bg-surface/[0.04] text-muted-strong hover:border-border-strong hover:bg-surface/[0.08]'
       } ${className}`}
       style={
         isPrimary
-          ? { background: 'linear-gradient(135deg, var(--sp-gold), var(--sp-gold-deep))' }
+          ? // Red, not gold. The landing page reserves one filled red control
+            // for "the way in"; the form at the end of that journey is the
+            // same action finishing, so it is the same colour. Gold stays the
+            // brand accent - the wordmark, the seam hairline, focus rings.
+            { background: 'linear-gradient(160deg, var(--sp-red) 0%, #b81a20 62%, var(--sp-red-deep) 100%)' }
           : undefined
       }
     >
@@ -342,7 +370,7 @@ export function SubmitButton({
           <span
             aria-hidden
             className={`h-4 w-4 animate-spin rounded-full border-2 ${
-              isPrimary ? 'border-border border-t-black/70' : 'border-border-strong border-t-white'
+              isPrimary ? 'border-white/30 border-t-white' : 'border-border-strong border-t-foreground'
             }`}
           />
           {loadingLabel}

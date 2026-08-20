@@ -33,7 +33,7 @@ export default function BenefitsSection() {
   ]
 
   return (
-    <section id="benefits" className="relative py-32 sp-band-coffee border-t border-border overflow-hidden perspective-1500">
+    <section id="benefits" className="relative py-32 sp-band-ember border-t border-border overflow-hidden perspective-1500">
       <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
         {/* Header */}
         <motion.div

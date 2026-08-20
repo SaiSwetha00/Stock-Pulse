@@ -5,13 +5,11 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight, Lock, Mail } from 'lucide-react'
 import { login } from '@/app/auth/actions'
-import AuthHero from '@/components/auth/AuthHero'
 import {
   AuthError,
   AuthField,
   AuthShell,
-  BrandMark,
-  GlassCard,
+  FormPanel,
   SubmitButton,
 } from '@/components/auth/AuthUI'
 import { fadeUp } from '@/lib/motion'
@@ -88,17 +86,9 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthShell
-      hero={
-        <AuthHero
-          title="Manage Your Store Smarter"
-          subtitle="Inventory, billing, staff and analytics in one place."
-        />
-      }
-    >
-      <GlassCard>
-        <div className="text-center">
-          <BrandMark />
+    <AuthShell>
+      <FormPanel>
+        <div>
           <motion.h2
             variants={fadeUp}
             className="font-serif-brand mt-5 text-[22px] font-semibold tracking-[0.01em] text-foreground"
@@ -131,7 +121,7 @@ export default function LoginPage() {
             type="button"
             onClick={handleDemoLogin}
             disabled={loading}
-            className="mt-3 w-full rounded-lg border border-[var(--sp-gold)]/60 bg-[var(--sp-gold)]/15 px-4 py-2.5 text-sm font-semibold text-[#e0e2ed] transition-colors hover:bg-[var(--sp-gold)]/25 disabled:opacity-60"
+            className="mt-3 w-full rounded-lg border border-[var(--sp-gold)]/60 bg-[var(--sp-gold)]/15 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-[var(--sp-gold)]/25 disabled:opacity-60"
           >
             {loading ? 'Signing in…' : 'Explore the demo store'}
           </button>
@@ -164,7 +154,7 @@ export default function LoginPage() {
             action={
               <Link
                 href="/forgot-password"
-                className="text-xs font-medium text-muted-strong transition-colors hover:text-[#e0e2ed]"
+                className="text-xs font-medium text-muted-strong transition-colors hover:text-foreground"
               >
                 Forgot password?
               </Link>
@@ -179,13 +169,13 @@ export default function LoginPage() {
           </div>
         </form>
 
-        <motion.p variants={fadeUp} className="mt-6 text-center text-sm text-muted-strong">
+        <motion.p variants={fadeUp} className="mt-6 text-sm text-muted-strong">
           New store owner?{' '}
-          <Link href="/signup" className="font-semibold text-[#e0e2ed] hover:underline">
+          <Link href="/signup" className="font-semibold text-foreground hover:underline">
             Set up your store
           </Link>
         </motion.p>
-      </GlassCard>
+      </FormPanel>
     </AuthShell>
   )
 }

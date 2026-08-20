@@ -9,8 +9,7 @@ import {
   AuthError,
   AuthField,
   AuthShell,
-  BrandMark,
-  GlassCard,
+  FormPanel,
   SubmitButton,
 } from '@/components/auth/AuthUI'
 import { fadeUp } from '@/lib/motion'
@@ -36,9 +35,8 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthShell>
-      <GlassCard>
+      <FormPanel>
         <div className="text-center">
-          <BrandMark />
           <motion.h2
             variants={fadeUp}
             className="font-serif-brand mt-5 text-[22px] font-semibold tracking-[0.01em] text-foreground"
@@ -97,7 +95,7 @@ export default function ForgotPasswordPage() {
             Back to login
           </Link>
         </motion.div>
-      </GlassCard>
+      </FormPanel>
     </AuthShell>
   )
 }
