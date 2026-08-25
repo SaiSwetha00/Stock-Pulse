@@ -177,14 +177,29 @@ export default function ImportProductsModal({
               it through the parser's own HEADER_MAP, so it cannot drift from
               either. A checked-in file would be a third copy of the format.
             */}
-            <button
-              type="button"
-              onClick={() => downloadCsv(csvFilename('stockpulse-sample-import'), sampleImportCsv())}
-              className="inline-flex items-center gap-2 self-start rounded-lg border border-border px-3.5 py-2 text-sm font-semibold text-muted-strong transition-colors hover:border-border-strong hover:text-foreground"
-            >
-              <Download className="h-4 w-4" aria-hidden="true" />
-              Download sample CSV
-            </button>
+            {/*
+              Given its own panel rather than left as a quiet outline button in
+              muted text. This is the first thing a customer with no inventory
+              yet should reach for, and it was previously the least prominent
+              control in the dialog - quieter than "Choose a CSV file", which
+              is useless to someone who does not yet know what to put in the
+              file. The accent tint and the line of explanation are what make
+              it findable without a second look.
+            */}
+            <div className="flex flex-col gap-2 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+              <p className="text-sm text-muted-strong">
+                <span className="font-semibold text-foreground">New to this?</span>{' '}
+                Download the sample CSV to see the required format and example values.
+              </p>
+              <button
+                type="button"
+                onClick={() => downloadCsv(csvFilename('stockpulse-sample-import'), sampleImportCsv())}
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-[var(--surface)] transition-colors hover:bg-accent-hover"
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Download sample CSV
+              </button>
+            </div>
 
             <input
               ref={fileRef}

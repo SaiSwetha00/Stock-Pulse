@@ -118,6 +118,58 @@ const SAMPLE_ROWS: SampleRow[] = [
     // Cleaning supplies do not expire in any way a shop tracks.
     expiry: '',
   },
+  {
+    name: 'Basmati Rice 5kg',
+    brand: 'India Gate',
+    sku: 'IG-BAS-5',
+    barcode: '8901022201054',
+    category: 'Packaged Goods',
+    unitPrice: 640,
+    unit: 'bag',
+    stock: 12,
+    minStock: 4,
+    // Dry goods carry a long date rather than none, so the column shows a
+    // far-future value as well as the near ones above.
+    expiry: '2027-11-30',
+  },
+  {
+    name: 'Whole Wheat Bread',
+    brand: 'Britannia',
+    sku: 'BR-WW-400',
+    barcode: '8901063093157',
+    category: 'Packaged Goods',
+    unitPrice: 45,
+    unit: 'pcs',
+    stock: 22,
+    minStock: 6,
+    expiry: '2026-08-28',
+  },
+  {
+    name: 'Sunflower Cooking Oil 1L',
+    brand: 'Fortune',
+    sku: 'FT-SFO-1L',
+    barcode: '8901725111038',
+    category: 'Packaged Goods',
+    unitPrice: 155.75,
+    unit: 'pcs',
+    stock: 30,
+    minStock: 10,
+    expiry: '2027-01-15',
+  },
+  {
+    name: 'Farm Eggs (12)',
+    brand: '',
+    sku: 'EG-12',
+    // A second blank barcode, so the pattern reads as deliberate rather than
+    // as one row somebody forgot to fill in.
+    barcode: '',
+    category: 'Dairy & Eggs',
+    unitPrice: 84,
+    unit: 'pack',
+    stock: 15,
+    minStock: 6,
+    expiry: '2026-09-05',
+  },
 ]
 
 const H = INVENTORY_CSV_HEADERS
