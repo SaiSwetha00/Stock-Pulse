@@ -20,6 +20,9 @@ import Pagination from '@/components/ui/Pagination'
 import ExportCsvButton from '@/components/ui/ExportCsvButton'
 import { useTable, type SortAccessors } from '@/lib/useTable'
 import type { CsvColumn } from '@/lib/csv'
+// The header strings are shared with the downloadable sample so the two
+// cannot drift - see lib/inventoryCsv.ts.
+import { INVENTORY_CSV_HEADERS as H } from '@/lib/inventoryCsv'
 import ProductModal from './ProductModal'
 import ProductThumb from '@/components/ui/ProductThumb'
 import ImportProductsModal from './ImportProductsModal'
@@ -87,20 +90,20 @@ const SORT_DEFAULT_DIRS: Partial<Record<SortKey, 'asc' | 'desc'>> = {
 // Takes the label map rather than closing over a constant: the export must
 // carry the shop's own category names, and those are only known at render.
 const csvColumns = (labels: Record<string, string>): CsvColumn<Product>[] => [
-  { header: 'Name', value: (p) => p.name },
-  { header: 'Brand', value: (p) => p.brand },
-  { header: 'SKU', value: (p) => p.sku },
+  { header: H.name, value: (p) => p.name },
+  { header: H.brand, value: (p) => p.brand },
+  { header: H.sku, value: (p) => p.sku },
   // Next to SKU because it is the other identifier, and because
   // lib/importCsv.ts maps the header "barcode" straight back onto this field —
   // an export that round-trips through Excel must not silently lose it.
-  { header: 'Barcode', value: (p) => p.barcode },
-  { header: 'Category', value: (p) => categoryLabel(p.category, labels) },
+  { header: H.barcode, value: (p) => p.barcode },
+  { header: H.category, value: (p) => categoryLabel(p.category, labels) },
   // Raw numbers, not formatCurrency: "$1,234.00" reaches Excel as text and
   // will not sum. Formatting is the spreadsheet's job.
-  { header: 'Unit Price', value: (p) => p.unit_price },
-  { header: 'Unit', value: (p) => p.unit },
-  { header: 'Stock', value: (p) => p.stock },
-  { header: 'Min Stock', value: (p) => p.low_stock_threshold },
+  { header: H.unitPrice, value: (p) => p.unit_price },
+  { header: H.unit, value: (p) => p.unit },
+  { header: H.stock, value: (p) => p.stock },
+  { header: H.minStock, value: (p) => p.low_stock_threshold },
   // Column index 9, after the Stock/Min Stock pair and before Status —
   // expiry is a fact about the stock on hand, and splitting a value from its
   // threshold to make room would read worse.
@@ -113,8 +116,8 @@ const csvColumns = (labels: Record<string, string>): CsvColumn<Product>[] => [
   // One date, not the lots, because a CSV cell is one value. It is the same
   // date the list column shows: the earliest among lots that still hold
   // something. A product whose lots are all undated exports blank.
-  { header: 'Expiry Date', value: (p) => nextExpiry(p.product_batches) },
-  { header: 'Status', value: (p) => statusFor(p).label },
+  { header: H.expiry, value: (p) => nextExpiry(p.product_batches) },
+  { header: H.status, value: (p) => statusFor(p).label },
 ]
 
 /**

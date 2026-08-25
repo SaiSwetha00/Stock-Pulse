@@ -2,11 +2,13 @@
 
 import { useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, FileUp, Plus, RefreshCw } from 'lucide-react'
+import { AlertTriangle, Download, FileUp, Plus, RefreshCw } from 'lucide-react'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { buildImportPreview, type ImportPreview } from '@/lib/importCsv'
+import { csvFilename, downloadCsv } from '@/lib/csv'
+import { sampleImportCsv } from '@/lib/inventoryCsv'
 import type { CategoryOption } from '@/lib/categories'
 import { importProducts } from '@/app/(dashboard)/inventory/actions'
 import type { Product } from '@/types'
@@ -131,9 +133,28 @@ export default function ImportProductsModal({
             </p>
             <p className="text-sm text-muted">
               Recognised headers: Name, Brand, SKU, Barcode, Category, Unit Price, Unit,
-              Stock, Min Stock, Expiry. Exporting your inventory first gives you the
-              exact format back.
+              Stock, Min Stock, Expiry.
             </p>
+
+            {/*
+              This used to end "Exporting your inventory first gives you the exact
+              format back", which is only useful to someone who already has
+              inventory - i.e. never the person importing for the first time. The
+              sample is the answer to the same question without the round trip.
+
+              It is generated, not a static file in public/: lib/inventoryCsv.ts
+              builds it from the same header constants the export uses and filters
+              it through the parser's own HEADER_MAP, so it cannot drift from
+              either. A checked-in file would be a third copy of the format.
+            */}
+            <button
+              type="button"
+              onClick={() => downloadCsv(csvFilename('stockpulse-sample-import'), sampleImportCsv())}
+              className="inline-flex items-center gap-2 self-start rounded-lg border border-border px-3.5 py-2 text-sm font-semibold text-muted-strong transition-colors hover:border-border-strong hover:text-foreground"
+            >
+              <Download className="h-4 w-4" aria-hidden="true" />
+              Download sample CSV
+            </button>
 
             <input
               ref={fileRef}

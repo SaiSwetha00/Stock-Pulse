@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useTransition } from 'react'
+import { useId, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowUpRight, Plus, Trash2 } from 'lucide-react'
@@ -133,6 +133,8 @@ export default function ProductModal({
   // boolean off the moment the insert resolved and fired router.refresh()
   // without awaiting it, so the modal closed over a table that had not been
   // re-fetched yet.
+  // Ties the footer's submit button back to the form it now sits outside of.
+  const formId = useId()
   const [saving, startTransition] = useTransition()
 
   // Keyed by field and handed to the matching `Field`, which owns the message
@@ -227,8 +229,42 @@ export default function ProductModal({
   }
 
   return (
-    <Modal title={product ? 'Edit Product' : 'Add Product'} onClose={onClose} width="lg">
-        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+    <Modal
+      title={product ? 'Edit Product' : 'Add Product'}
+      onClose={onClose}
+      width="lg"
+      /*
+        The actions belong in Modal's `footer`, not at the bottom of the form.
+
+        `children` is the scrolling region; `footer` is pinned, shrink-0, and
+        carries the safe-area-inset-bottom padding. This form is taller than a
+        phone screen once the lots fieldset has a row or two, so with the
+        buttons as ordinary form content the primary action simply scrolled
+        off and there was no way to reach it without knowing to scroll a form
+        that looked finished.
+
+        The submit lives outside <form> now, so it carries `form={formId}` -
+        the HTML attribute that associates a control with a form it is not
+        nested in. That keeps native submission, native validation and the
+        Enter key working exactly as before; an onClick handler would have
+        thrown all three away.
+      */
+      footer={
+        <div className="flex gap-3">
+          {/* The ladder, not two hand-rolled buttons: secondary for the way
+              out, one primary for the commit. `loading` carries the saving
+              state, so the label no longer swaps to "Saving…" and the
+              button cannot change width mid-click. */}
+          <Button type="button" variant="secondary" fullWidth onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} fullWidth loading={saving}>
+            {product ? 'Save Changes' : 'Add Product'}
+          </Button>
+        </div>
+      }
+    >
+        <form id={formId} onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
           {/* First field: the photo is what a shopkeeper recognises a line by,
               so it is asked for before the paperwork. */}
           <ProductImageUpload storeId={storeId} value={imageUrl} onChange={setImageUrl} />
@@ -450,18 +486,6 @@ export default function ProductModal({
             </div>
           </fieldset>
 
-          <div className="flex gap-3 pt-2">
-            {/* The ladder, not two hand-rolled buttons: secondary for the way
-                out, one primary for the commit. `loading` carries the saving
-                state, so the label no longer swaps to "Saving…" and the
-                button cannot change width mid-click. */}
-            <Button type="button" variant="secondary" fullWidth onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" fullWidth loading={saving}>
-              {product ? 'Save Changes' : 'Add Product'}
-            </Button>
-          </div>
         </form>
     </Modal>
   )

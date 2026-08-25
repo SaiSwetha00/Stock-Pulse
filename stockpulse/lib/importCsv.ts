@@ -112,6 +112,15 @@ const HEADER_MAP: Record<string, ScalarField | LotField> = {
   'best before': 'lotExpiry',
 }
 
+/**
+ * Whether the parser has a mapping for this header. Exported so the downloadable
+ * sample in lib/inventoryCsv.ts can filter itself to columns that actually
+ * import, instead of a second hand-kept list that would drift from HEADER_MAP.
+ */
+export function isImportableHeader(header: string): boolean {
+  return HEADER_MAP[header.trim().toLowerCase()] !== undefined
+}
+
 function isLotField(key: ScalarField | LotField): key is LotField {
   return key === 'lotQuantity' || key === 'lotExpiry'
 }

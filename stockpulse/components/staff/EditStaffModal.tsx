@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
@@ -40,6 +40,8 @@ export default function EditStaffModal({
 }) {
   const router = useRouter()
   const toast = useToast()
+  // Ties the footer submit back to the form it now sits outside of.
+  const formId = useId()
   const [fullName, setFullName] = useState(member.full_name)
   const [jobTitle, setJobTitle] = useState(member.job_title ?? '')
   const [role, setRole] = useState<AssignableRole>(
@@ -77,8 +79,32 @@ export default function EditStaffModal({
   }
 
   return (
-    <Modal title={`Edit ${member.full_name}`} onClose={onClose} width="sm">
-      <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+    <Modal
+      title={`Edit ${member.full_name}`} onClose={onClose} width="sm"
+      /*
+        Actions live in Modal's `footer`, not at the end of the form. `children`
+        scrolls; `footer` is pinned, shrink-0, and carries the
+        safe-area-inset-bottom padding. Left inside the form these buttons
+        scroll away on a short viewport, which is the bug ProductModal was
+        reported for - this modal had the identical shape.
+
+        The submit sits outside <form> now and carries `form={formId}`, the
+        attribute that associates a control with a form it is not nested in.
+        Native submission, native validation and the Enter key all keep
+        working; an onClick handler would have discarded all three.
+      */
+      footer={
+        <div className="flex items-center justify-end gap-3 pt-1">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} loading={saving} disabled={!dirty}>
+            Save Changes
+          </Button>
+        </div>
+      }
+    >
+      <form id={formId} onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
         {error && (
           <div role="alert" className="rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">
             {error}
@@ -142,16 +168,7 @@ export default function EditStaffModal({
             {ROLE_HINTS[role]}
           </p>
         </div>
-
-        <div className="flex items-center justify-end gap-3 pt-1">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" loading={saving} disabled={!dirty}>
-            Save Changes
-          </Button>
-        </div>
-      </form>
+</form>
     </Modal>
   )
 }

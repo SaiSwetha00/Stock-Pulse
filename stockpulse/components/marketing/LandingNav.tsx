@@ -147,6 +147,15 @@ export default function LandingNav() {
             colour and the arrow; "Sign in" stays muted. Hierarchy without
             a fill. */}
         <div className="hidden md:flex items-center gap-7">
+          {/* Persists past the hero: the nav is fixed, so this is the only
+              route to the demo once someone has scrolled into the sections. */}
+          <Link
+            href="/login?demo=1"
+            className="font-sans text-[14.5px] font-medium text-[#e6e1d5] hover:text-[var(--sp-gold)] transition-colors cursor-pointer"
+          >
+            Live demo
+          </Link>
+
           <Link
             href="/login"
             className="font-sans text-[14.5px] font-medium text-[#e6e1d5] hover:text-[var(--sp-gold)] transition-colors cursor-pointer"
