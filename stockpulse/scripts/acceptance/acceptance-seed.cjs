@@ -246,6 +246,30 @@ const SUPPLIERS = [
   ['Ravi Home Essentials', 'Ravi Deshpande', 'bakery', 'inactive'],
 ]
 
+// Regulars. The Customers module was the one populated surface this seed never
+// touched — /customers opened on an empty state in a store carrying a month of
+// trade, which reads as a broken page rather than a young shop.
+//
+// Names, tiers and spend are literal rather than generated: a loyalty tier is
+// meaningless unless it agrees with the spend beside it, and a random pairing
+// (a platinum member who has spent $12) is exactly the "meaningless data" this
+// seed exists to avoid. Ordered so the tiers descend with the totals.
+const CUSTOMERS = [
+  // name, phone, tier, total spent, visits, days since last visit, note
+  ['Meenakshi Sundaram', '+91 98450 11223', 'platinum', 1284.4, 96, 0, 'Buys the week’s vegetables every Sunday morning.'],
+  ['Ramesh Bhatt', '+91 98450 22447', 'platinum', 1102.75, 88, 1, 'Runs the tiffin centre two doors down; bulk dal and rice.'],
+  ['Fatima Sheikh', '+91 98450 33961', 'gold', 742.1, 61, 1, 'Prefers a call when the Amul ghee lands.'],
+  ['Joseph D’Souza', '+91 98450 44508', 'gold', 688.35, 57, 2, 'Monthly grocery run, pays by card.'],
+  ['Anitha Reddy', '+91 98450 55172', 'gold', 601.9, 49, 3, 'Asks for coriander and curry leaves to be kept aside.'],
+  ['Vikram Shetty', '+91 98450 66284', 'silver', 418.6, 34, 4, 'Evening milk and eggs on the way home.'],
+  ['Sunita Rao', '+91 98450 77039', 'silver', 377.25, 31, 6, ''],
+  ['Imran Qureshi', '+91 98450 88615', 'silver', 341.8, 28, 7, 'Buys in bulk before festivals.'],
+  ['Kavya Nair', '+91 98450 99730', 'bronze', 196.45, 17, 9, ''],
+  ['Harish Patel', '+91 98451 10826', 'bronze', 154.9, 13, 12, 'New to the neighbourhood.'],
+  ['Divya Krishnan', '+91 98451 21344', 'bronze', 121.3, 11, 15, ''],
+  ['Abdul Rahman', '+91 98451 32907', 'bronze', 84.6, 8, 21, 'Cash only.'],
+]
+
 // Products deliberately pushed under their threshold, so /dashboard's low-stock
 // panel, the inventory filter and the notification path all have something
 // real to show. Chosen across three categories rather than one, because a
@@ -388,6 +412,25 @@ async function main() {
   }))
   await upsert(rest, 'suppliers', scoped(supplierRows))
   console.log(`suppliers    : ${supplierRows.length}`)
+
+  // -------------------------------------------------------------------------
+  // Customers
+  // -------------------------------------------------------------------------
+  // `last_visit_at` is written relative to the run, so the list still reads as
+  // a live shop weeks later instead of showing every regular as last seen on
+  // the day the seed happened to be run.
+  const customerRows = CUSTOMERS.map(([full_name, phone, loyalty_tier, total_spent, visits, daysAgo, notes], i) => ({
+    id: derivedId(`customer:${i}`),
+    full_name,
+    phone,
+    loyalty_tier,
+    total_spent,
+    visits,
+    notes: notes || null,
+    last_visit_at: new Date(Date.now() - daysAgo * 86400000).toISOString(),
+  }))
+  await upsert(rest, 'customers', scoped(customerRows))
+  console.log(`customers    : ${customerRows.length}`)
 
   // -------------------------------------------------------------------------
   // Products
