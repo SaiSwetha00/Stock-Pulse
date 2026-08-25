@@ -38,7 +38,7 @@ const APP = require('path').resolve(__dirname, '../..')
 // wrong shop, and the whole point of this file is that the blast radius is
 // decided at review time rather than at 2am.
 const HARNESS_STORE_ID = 'e47fe6eb-8825-4612-965f-cb61b9be3864'
-const HARNESS_STORE_NAME = 'sandal local store'
+const HARNESS_STORE_NAME = 'StockPulse Demo Store'
 
 // ---------------------------------------------------------------------------
 // Derived ids
@@ -127,8 +127,10 @@ function makeClient() {
 /**
  * Guard 2 checks the store row exists AND its name matches. Two independent
  * facts have to line up: if the constant above were ever edited to another
- * shop's uuid, the name check is what stops it, because nobody renames a shop
- * to "sandal local store" by accident.
+ * shop’s uuid, the name check is what stops it, because nobody renames a shop
+ * to "StockPulse Demo Store" by accident. This constant and the `stores.name`
+ * row are ONE fact in two places: rename the store and this must change in the
+ * same commit, or every acceptance script aborts on Guard 2.
  *
  * Guard 3 counts how many stores the project has and prints it. This is not a
  * check the script can fail on — it is a number a human reads in the output
