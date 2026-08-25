@@ -121,7 +121,7 @@ export default function ShiftModal({
         working; an onClick handler would have discarded all three.
       */
       footer={
-        <div className="flex gap-3 pt-2">
+        <div className="grid grid-cols-2 gap-3">
           <Button type="button" variant="secondary" fullWidth onClick={onClose}>
             Cancel
           </Button>

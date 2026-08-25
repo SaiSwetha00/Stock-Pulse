@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight, Lock, Mail } from 'lucide-react'
 import { login } from '@/app/auth/actions'
+// Shared with the dashboard layout, which marks the session as a demo.
+import { DEMO_EMAIL } from '@/lib/demo'
 import {
   AuthError,
   AuthField,
@@ -23,7 +25,7 @@ import { fadeUp } from '@/lib/motion'
  * it to that one store, everything in it is generated acceptance data, and
  * re-running the seed restores it. See the script for the full reasoning.
  */
-const DEMO_EMAIL = 'demo@stockpulse.test'
+
 const DEMO_PASSWORD = 'StockPulseDemo2026!'
 
 export default function LoginPage() {

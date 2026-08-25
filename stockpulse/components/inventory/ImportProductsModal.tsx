@@ -131,10 +131,40 @@ export default function ImportProductsModal({
               existing products by <strong>SKU</strong> — a matching SKU updates that
               product, anything else is added. Nothing is written until you confirm.
             </p>
-            <p className="text-sm text-muted">
-              Recognised headers: Name, Brand, SKU, Barcode, Category, Unit Price, Unit,
-              Stock, Min Stock, Expiry.
-            </p>
+            {/*
+              Required vs optional, stated BEFORE the upload.
+
+              This was a flat list of recognised headers, which says what the
+              importer will read but not what it needs. The only thing that
+              told you Name was mandatory was `missingRequired` — an error you
+              can reach solely by having already failed an import.
+
+              "Name" is the sole required column because that is literally what
+              the parser enforces: buildImportPreview pushes "Name" onto
+              missingRequired and nothing else. Everything below is stated to
+              match that, not to describe an ideal file.
+
+              Deliberately NOT written as a comment row inside the sample CSV,
+              which was the other option. parseCsv has no notion of comments:
+              it takes table[0] as the header row, so a leading "# required:
+              Name" line would BE the header and every real column would come
+              back unrecognised. Guidance that breaks the file it describes is
+              worse than no guidance.
+            */}
+            <div className="rounded-lg border border-border bg-surface-muted px-4 py-3 text-sm">
+              <p className="text-muted-strong">
+                <strong className="text-foreground">Required:</strong> Name.
+              </p>
+              <p className="mt-1.5 text-muted-strong">
+                <strong className="text-foreground">Optional:</strong> Brand, SKU, Barcode,
+                Category, Unit Price, Unit, Stock, Min Stock, Expiry Date.
+              </p>
+              <p className="mt-2 text-muted">
+                Dates as YYYY-MM-DD (2026-03-31). Numbers plain, with no currency symbol
+                or thousands separator (1250.50, not $1,250.50). Leave any optional cell
+                blank to skip it.
+              </p>
+            </div>
 
             {/*
               This used to end "Exporting your inventory first gives you the exact

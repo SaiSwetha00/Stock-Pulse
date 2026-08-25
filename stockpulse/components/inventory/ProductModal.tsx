@@ -250,7 +250,23 @@ export default function ProductModal({
         thrown all three away.
       */
       footer={
-        <div className="flex gap-3">
+        /*
+          grid-cols-2, not `flex gap-3`.
+
+          `Button` carries `shrink-0` in its base classes, so two `fullWidth`
+          buttons in a flex row each claim 100% of the container and neither
+          gives way — measured at 375px, the row was 666px wide inside a 327px
+          footer and the primary action sat entirely off the dialog, with a
+          real click at its centre landing on the backdrop and closing the
+          modal instead.
+
+          Inside the scrolling body this merely produced a horizontal scrollbar
+          nobody looked for; in a pinned footer with no overflow of its own it
+          put the button out of reach, so moving the actions here is what
+          exposed it. A grid item is sized by its column, so `w-full` resolves
+          to half the row and `shrink-0` has nothing to fight.
+        */
+        <div className="grid grid-cols-2 gap-3">
           {/* The ladder, not two hand-rolled buttons: secondary for the way
               out, one primary for the commit. `loading` carries the saving
               state, so the label no longer swaps to "Saving…" and the

@@ -479,8 +479,27 @@ async function main() {
     // as a rounding error rather than a working alert list, so every
     // eleventh product is forced low as well. By INDEX, not at random: the
     // set has to be the same on every run for the seed to stay idempotent.
-    if (FORCE_LOW.has(p.name) || i % 11 === 7) {
-      stock = Math.max(0, p.low_stock_threshold - between(1, 4))
+    // Out of stock, guaranteed. Before this a zero happened only when
+    // `opening - unitsSold` incidentally landed on one, and the floor in the
+    // last branch then lifted anything under its threshold back up — so a run
+    // could contain no zero-stock product at all, and "Out of stock" as a
+    // state, a filter and a badge went undemonstrated.
+    //
+    // Same shape as FORCE_LOW's index rule and for the same reason: by INDEX,
+    // never at random, or the seed stops being reproducible. Every 29th
+    // product is 5 of 135 — enough to prove the state exists without making
+    // the shop look shut.
+    //
+    // Checked FIRST because a zero is also "under the threshold", so the
+    // low-stock branch below would otherwise claim these rows and overwrite
+    // the zero with a near-threshold number.
+    if (i % 29 === 5) {
+      stock = 0
+    } else if (FORCE_LOW.has(p.name) || i % 11 === 7) {
+      // Floor of 1, not 0: this branch means "low", and a product it pushed
+      // to exactly 0 would be indistinguishable from the out-of-stock set
+      // above, making both counts unprovable.
+      stock = Math.max(1, p.low_stock_threshold - between(1, 4))
     }
     else if (stock < p.low_stock_threshold) stock = p.low_stock_threshold + between(2, 15)
     // `opening` is a working value, not a column — drop it before the insert
@@ -492,7 +511,7 @@ async function main() {
 
   await upsert(rest, 'products', scoped(productRows))
   console.log(
-    `products     : ${productRows.length} (${productRows.filter((p) => p.stock < p.low_stock_threshold).length} below threshold)`,
+    `products     : ${productRows.length} (${productRows.filter((p) => p.stock > 0 && p.stock < p.low_stock_threshold).length} low, ${productRows.filter((p) => p.stock === 0).length} out of stock)`,
   )
 
   await upsert(rest, 'sales', scoped(sales))
