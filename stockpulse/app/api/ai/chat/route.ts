@@ -128,6 +128,42 @@ export async function GET() {
     out.ms = Date.now() - started
     out.error = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
   }
+
+  // Plain fetch reaches Google fine from here. So isolate the SDK: does
+  // non-streaming work, and does STREAMING work? One of these is the hang.
+  const ai = new GoogleGenAI({ apiKey: key })
+  const probe = async (label: string, fn: () => Promise<unknown>) => {
+    const t = Date.now()
+    try {
+      await fn()
+      out[label] = `ok in ${Date.now() - t}ms`
+    } catch (e) {
+      out[label] = `${e instanceof Error ? e.name + ': ' + e.message : String(e)} after ${Date.now() - t}ms`
+    }
+  }
+
+  await probe('sdkGenerateContent', () =>
+    ai.models.generateContent({
+      model: 'gemini-flash-latest',
+      contents: [{ role: 'user', parts: [{ text: 'Say OK' }] }],
+      config: { abortSignal: AbortSignal.timeout(12_000) },
+    }),
+  )
+
+  await probe('sdkGenerateContentStream', async () => {
+    const it = await ai.models.generateContentStream({
+      model: 'gemini-flash-latest',
+      contents: [{ role: 'user', parts: [{ text: 'Say OK' }] }],
+      config: { abortSignal: AbortSignal.timeout(12_000) },
+    })
+    let chunks = 0
+    for await (const c of it) {
+      chunks++
+      void c.text
+    }
+    out.streamChunks = chunks
+  })
+
   return Response.json(out)
 }
 
