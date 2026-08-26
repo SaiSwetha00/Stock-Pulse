@@ -1,10 +1,19 @@
 'use client'
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Search, SearchX } from 'lucide-react'
+import { Package, Search, SearchX } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import EmptyState from '@/components/ui/EmptyState'
+import { useRouter } from 'next/navigation'
+import { searchProducts } from '@/app/(dashboard)/inventory/actions'
+
+export type ProductHit = {
+  id: string
+  name: string
+  sku: string | null
+  barcode: string | null
+}
 
 export type Command = {
   id: string
@@ -49,6 +58,7 @@ export default function CommandPalette({
   commands: Command[]
   onClose: () => void
 }) {
+  const router = useRouter()
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
@@ -60,18 +70,93 @@ export default function CommandPalette({
   }, [onClose])
   const listboxId = useId()
 
+  /**
+   * Products, fetched as the user types.
+   *
+   * The index used to be navigation plus three actions, so a product name
+   * could only ever match a sidebar label through the subsequence scorer -
+   * a search box labelled "Search products, sales, customers..." that could
+   * not return a product. Products are not in the client, so they come from a
+   * Server Action scoped by RLS to the viewer's own store.
+   *
+   * Debounced, and every response carries the query it was for: without that,
+   * a slow reply for "bas" can land after a fast reply for "basmati" and
+   * overwrite it, which shows results for something the user has stopped
+   * typing.
+   */
+  const [hits, setHits] = useState<{ q: string; rows: ProductHit[] }>({ q: '', rows: [] })
+  useEffect(() => {
+    const q = query.trim()
+    // The clear happens inside the timer, not in the effect body: setting
+    // state synchronously here triggers a cascading render and the lint rule
+    // rejects it.
+    const t = setTimeout(() => {
+      if (q.length < 2) {
+        setHits({ q, rows: [] })
+        return
+      }
+      void searchProducts(q).then((rows) => setHits({ q, rows }))
+    }, 160)
+    return () => clearTimeout(t)
+  }, [query])
+
+  // Results are tagged with the query they were fetched for and only used when
+  // that still matches what is typed. A slow reply for "bas" landing after a
+  // fast one for "basmati" therefore cannot overwrite it, and nothing stale is
+  // ever rendered - no cancellation flag required.
+  const productHits = useMemo(
+    () => (hits.q === query.trim() ? hits.rows : []),
+    [hits, query],
+  )
+
   const results = useMemo(() => {
-    if (!query.trim()) return commands
-    return commands
+    const q = query.trim()
+    if (!q) return commands
+
+    const scored = commands
       .map((cmd) => {
         const target = cmd.keywords ? `${cmd.label} ${cmd.keywords}` : cmd.label
-        const s = score(target, query.trim())
+        const s = score(target, q)
         return s === null ? null : { cmd, s }
       })
       .filter((r): r is { cmd: Command; s: number } => r !== null)
       .sort((a, b) => a.s - b.s)
       .map((r) => r.cmd)
-  }, [commands, query])
+
+    /**
+     * Ranking, in the order a person means them:
+     *
+     *   0  exact product name
+     *   1  product name starts with the query
+     *   2  product name contains it
+     *   3  SKU or barcode match
+     *   ...then commands, by their own score.
+     *
+     * Navigation is NOT removed - typing "Inventory" still offers the page,
+     * because at that point the nav entry is what was asked for. It simply no
+     * longer outranks a product that matches better.
+     */
+    const n = q.toLowerCase()
+    const products: Command[] = productHits
+      .map((p) => {
+        const name = p.name.toLowerCase()
+        const rank =
+          name === n ? 0 : name.startsWith(n) ? 1 : name.includes(n) ? 2 : 3
+        return { p, rank }
+      })
+      .sort((a, b) => a.rank - b.rank || a.p.name.localeCompare(b.p.name))
+      .map(({ p }) => ({
+        id: `product:${p.id}`,
+        label: p.name,
+        group: 'Products',
+        icon: Package,
+        // Clicking a product lands on Inventory pre-filtered to it, which is
+        // the closest thing this app has to a product page.
+        run: () => router.push(`/inventory?q=${encodeURIComponent(p.name)}`),
+      }))
+
+    return [...products, ...scored]
+  }, [commands, query, productHits, router])
 
   // Clamp during render rather than resetting from an effect: filtering can
   // shrink the list below the stored index, and acting on a stale index would

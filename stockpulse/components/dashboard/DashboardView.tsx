@@ -299,10 +299,21 @@ export default function DashboardView({
         lowStockCount={lowStockItems.length}
         pendingCount={pendingCount}
         counterCount={counterCount}
+        meta={
+          <>
+            {/* The server's calendar day is not necessarily the viewer's. */}
+            <p className="sp-eyebrow">
+              <LocalDate iso={nowIso} withYear />
+            </p>
+            <AutoRefresh />
+          </>
+        }
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        {/* The server's calendar day is not necessarily the viewer's. */}
+      {/* Below `sm` the header's meta slot is hidden, so the same date and
+          freshness pill render here instead - one instance visible at a time,
+          never both. */}
+      <div className="flex flex-wrap items-center justify-between gap-4 sm:hidden">
         <p className="sp-eyebrow">
           <LocalDate iso={nowIso} withYear />
         </p>

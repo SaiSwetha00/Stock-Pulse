@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { canManage } from '@/lib/permissions'
 import { Search, Plus, Pencil, Trash2, Wallet, AlertTriangle, PackageX, X, Upload, ScanLine } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { deleteProduct } from '@/app/(dashboard)/inventory/actions'
 import type { Product, Role } from '@/types'
 import { categoryLabel, labelMap, type CategoryOption } from '@/lib/categories'
@@ -211,7 +211,18 @@ export default function InventoryClient({
     () => initialProducts.filter((p) => !removedIds.includes(p.id)),
     [initialProducts, removedIds]
   )
-  const [search, setSearch] = useState('')
+  /**
+   * Seeded from `?q=`, so a product chosen in the global command palette lands
+   * on Inventory already filtered to it. This app has no per-product page, so
+   * a filtered list is the closest thing to "go to that product".
+   *
+   * Initial state only, deliberately - it is not kept in sync with the URL
+   * afterwards. Typing in the box must not rewrite history on every keystroke,
+   * and a back navigation should return to the list the user was on rather
+   * than replaying their typing.
+   */
+  const initialQuery = useSearchParams().get('q') ?? ''
+  const [search, setSearch] = useState(initialQuery)
   const [category, setCategory] = useState<string>('all')
   const [status, setStatus] = useState<StockStatus | 'all'>('all')
   const [modalOpen, setModalOpen] = useState(false)

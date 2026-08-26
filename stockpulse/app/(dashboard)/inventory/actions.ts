@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { isDemoAccount } from '@/lib/demo'
 import { getCurrentUser } from '@/lib/data'
 import { canManage } from '@/lib/permissions'
 import { getStoreCategories } from '@/lib/categories'
@@ -696,4 +697,127 @@ export async function importProducts(
   revalidatePath('/dashboard')
 
   return { ok: failed.length === 0, created, updated, failed }
+}
+
+/**
+ * Text search over the current store's products, for the global command
+ * palette.
+ *
+ * WHY THIS EXISTS. The palette's index held navigation entries and three
+ * actions and nothing else, so a query like "Basmati" could only ever match a
+ * nav label through the subsequence scorer - which is exactly what a reviewer
+ * reported: a search box labelled "Search products, sales, customers..."
+ * returning sidebar links. Products were never in the index to be found.
+ *
+ * A Server Action rather than filtering a client-side array, for the reason
+ * `findProductByBarcode` already documents: the palette is mounted in the
+ * dashboard layout, which has no product list, and shipping one to every page
+ * to power a search box would be worse than a query per keystroke-burst.
+ *
+ * `store_id` is never taken from the caller - RLS scopes the query to the
+ * viewer's own store, so this cannot read another shop's catalogue.
+ */
+export async function searchProducts(
+  query: string,
+): Promise<{ id: string; name: string; sku: string | null; barcode: string | null }[]> {
+  const q = query.trim()
+  // Two characters is the floor at which a prefix search is worth a round
+  // trip; below it almost every product matches and the list is noise.
+  if (q.length < 2) return []
+
+  const supabase = await createClient()
+  // PostgREST `or` with ilike. `%` and `,` are escaped because an unescaped
+  // comma would be read as a filter separator and change the query's shape.
+  const safe = q.replace(/[%,()]/g, ' ').trim()
+  if (!safe) return []
+
+  const { data, error } = await supabase
+    .from('products')
+    .select('id, name, sku, barcode')
+    .or(`name.ilike.%${safe}%,sku.ilike.%${safe}%,barcode.ilike.%${safe}%`)
+    .order('name')
+    .limit(8)
+
+  if (error) return []
+  return data ?? []
+}
+
+/**
+ * Remove seeded sample products from the CURRENT store, so a shop can start
+ * from its own CSV instead of clearing a demo catalogue by hand.
+ *
+ * THE SAFETY RULE, AND WHY IT IS THIS ONE. The demo is a SINGLE SHARED STORE
+ * behind a SINGLE SHARED LOGIN - every visitor who clicks "Explore the demo
+ * store" signs in as the same `demo@stockpulse.test` and lands in the same
+ * store row. There is no per-visitor copy. So a demo visitor running this
+ * would not be clearing "their" sample data, they would be deleting the
+ * catalogue for every future visitor, permanently, from a shared database.
+ *
+ * The action therefore REFUSES for the demo account. That is not a placeholder
+ * for a better mechanism - given one shared store, refusing is the correct
+ * behaviour, and the alternative (silently doing nothing) would be worse
+ * because the user would think it had worked.
+ *
+ * For a real account it does the real thing, scoped by RLS to that account's
+ * own store.
+ *
+ * WHAT COUNTS AS SAMPLE DATA: products whose SKU carries the `ACC-` prefix the
+ * seed stamps on every row it writes. That prefix is the seed's own contract -
+ * it exists so seeded stock is identifiable "in the UI, in an export, and in a
+ * database query, forever". Nothing else is touched: categories, suppliers,
+ * staff, settings and store configuration all remain, because a shop that has
+ * just cleared a sample catalogue still needs the app to work.
+ *
+ * Products referenced by a sale are SKIPPED, not force-deleted. `sale_items`
+ * declares `references products(id)` with no ON DELETE, so Postgres would
+ * refuse anyway; skipping them explicitly means the caller gets a count rather
+ * than a foreign-key error, and sales history survives either way.
+ */
+export async function removeSampleData(): Promise<
+  { ok: false; message: string } | { ok: true; removed: number; keptWithSales: number }
+> {
+  const { profile, store } = await getCurrentUser()
+
+  if (isDemoAccount(profile)) {
+    return {
+      ok: false,
+      message:
+        'The demo store is shared by everyone who tries StockPulse, so its sample data cannot be removed here — doing so would empty it for the next visitor. Create your own free store to import your catalogue.',
+    }
+  }
+
+  if (!canManage(profile.role)) {
+    return { ok: false, message: 'Only an owner or manager can remove sample data.' }
+  }
+
+  const supabase = await createClient()
+  const { data: sample, error } = await supabase
+    .from('products')
+    .select('id')
+    .eq('store_id', store.id)
+    .like('sku', 'ACC-%')
+
+  if (error) return { ok: false, message: 'Could not read the sample products.' }
+  if (!sample || sample.length === 0) {
+    return { ok: true, removed: 0, keptWithSales: 0 }
+  }
+
+  const ids = sample.map((p) => p.id)
+  const { data: sold } = await supabase
+    .from('sale_items')
+    .select('product_id')
+    .in('product_id', ids)
+  const soldIds = new Set((sold ?? []).map((r) => r.product_id))
+  const deletable = ids.filter((id) => !soldIds.has(id))
+
+  if (deletable.length > 0) {
+    // Lots first: they hang off the product and would otherwise block it.
+    await supabase.from('product_batches').delete().in('product_id', deletable)
+    const { error: delError } = await supabase.from('products').delete().in('id', deletable)
+    if (delError) return { ok: false, message: 'Could not remove the sample products.' }
+  }
+
+  revalidatePath('/inventory')
+  revalidatePath('/dashboard')
+  return { ok: true, removed: deletable.length, keptWithSales: soldIds.size }
 }
