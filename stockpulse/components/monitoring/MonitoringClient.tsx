@@ -19,10 +19,13 @@ GateGuard facts:
 
 import { useState, useSyncExternalStore } from 'react'
 import Button from '@/components/ui/Button'
+import EmptyState from '@/components/ui/EmptyState'
+import StatCard from '@/components/ui/StatCard'
 import { canManage } from '@/lib/permissions'
 import { useRouter } from 'next/navigation'
 import {
   AlertTriangle,
+  MonitorSmartphone,
   CheckCircle2,
   TrendingUp,
   Eye,
@@ -306,49 +309,60 @@ export default function MonitoringClient({
         <div className="mt-4 rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">{error}</div>
       )}
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1fr_1.6fr]">
-        <div className="sp-rise sp-delay-1 rounded-2xl bg-danger-bg p-6 shadow-sm">
-          <p className="sp-heading flex items-center gap-2 text-danger">
-            <AlertTriangle className="h-5 w-5" />
-            Active Alerts
-          </p>
-          <p className="mt-3 text-4xl font-bold text-danger">{activeAlerts}</p>
-          <p className="mt-1 text-sm text-danger">Require Immediate Attention</p>
-        </div>
+      {/*
+        These three were the only stat tiles in the app painted with filled
+        colour - a pink danger card, a green gradient card and a muted card,
+        each with its own type scale and its own icon treatment. Every other
+        page states a metric on a white surface with a hairline and a small
+        uppercase label, so this page read as belonging to a different
+        product.
 
-        <div className="sp-rise sp-delay-2 rounded-2xl bg-gradient-to-br from-success-bg to-surface-muted p-6 shadow-sm">
-          <p className="sp-heading flex items-center gap-2 text-success">
-            <CheckCircle2 className="h-5 w-5" />
-            Stations Active
-          </p>
-          <p className="mt-3 text-4xl font-bold text-success">
-            {stationsActive}/{totalStations}
-          </p>
-          <p className="sp-body mt-2">Optimal Utilization</p>
-        </div>
-
-        <div className="sp-rise sp-delay-3 rounded-2xl border border-border bg-surface-muted p-6 shadow-sm">
-          <p className="sp-heading">Current Intervention Rate</p>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <p className="text-4xl font-bold text-foreground">{interventionRate.toFixed(1)}%</p>
-            <span className="flex items-center gap-1 text-sm font-semibold text-danger">
-              <TrendingUp className="h-4 w-4" />
-              {activeAlerts} flagged now
-            </span>
-          </div>
-        </div>
+        They now use the shared StatCard, which is what the rest of the app
+        uses: white surface, hairline border, small uppercase label, the
+        figure as the focus. StatCard has no colour-tone prop and this pass
+        did not add one - the brief asks for consistency, and inventing a
+        variant for one page is how the inconsistency started.
+      */}
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard
+          label="Active Alerts"
+          value={activeAlerts}
+          icon={AlertTriangle}
+          trendLabel="Require immediate attention"
+        />
+        <StatCard
+          label="Stations Active"
+          value={`${stationsActive}/${totalStations}`}
+          icon={CheckCircle2}
+          trendLabel="Optimal utilization"
+        />
+        <StatCard
+          label="Current Intervention Rate"
+          value={`${interventionRate.toFixed(1)}%`}
+          icon={TrendingUp}
+          trendLabel={`${activeAlerts} flagged now`}
+        />
       </div>
 
+      {/* The shared EmptyState, not a bare paragraph centred in a box - so
+          this reads like every other empty surface in the app rather than
+          like a page that failed to load. */}
       {totalStations === 0 && (
-        <div className="mt-6 sp-rise sp-e1 rounded-2xl border border-border bg-surface p-12 text-center shadow-sm">
-          <p className="text-muted">No checkout stations configured yet.</p>
-          {/* The spinner carries the "working" state, so the label can stay
-              still instead of swapping to "Setting up…". */}
-          {canWrite && (
-            <Button className="mt-4" onClick={seedStations} loading={seeding}>
-              Set Up 4 Stations
-            </Button>
-          )}
+        <div className="sp-rise sp-e1 mt-6 rounded-2xl border border-border bg-surface shadow-sm">
+          <EmptyState
+            icon={MonitorSmartphone}
+            title="No checkout stations configured yet"
+            description="Set up your lanes to start monitoring live checkout activity."
+            action={
+              /* The spinner carries the "working" state, so the label can stay
+                 still instead of swapping to "Setting up…". */
+              canWrite ? (
+                <Button onClick={seedStations} loading={seeding}>
+                  Set Up 4 Stations
+                </Button>
+              ) : undefined
+            }
+          />
         </div>
       )}
 

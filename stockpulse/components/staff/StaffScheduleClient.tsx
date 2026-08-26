@@ -210,8 +210,23 @@ export default function StaffScheduleClient({
 
       <StaffTabs role={role} />
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        {/*
+          min-w-0 (via the minmax(0,1fr) track above and this class) is what
+          keeps the Staff Availability panel on screen.
+
+          A grid item defaults to `min-width: auto`, so the `1fr` track could
+          not shrink below the min-content width of what is inside it - and
+          inside it is a `min-w-[800px]` schedule grid. The track therefore sat
+          at 800px plus padding whatever the viewport was, and pushed the 320px
+          sidebar past the right edge: measured at 1482px against a 1440
+          viewport, and still clipped at 1280 and 1024.
+
+          The inner `overflow-x-auto` was already there and was doing nothing,
+          because nothing was ever narrow enough to make it scroll. With the
+          track allowed to shrink, it finally does.
+        */}
+        <div className="sp-rise sp-e1 min-w-0 rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <button
