@@ -146,11 +146,28 @@ export async function POST(req: NextRequest) {
     })
   }
 
+  /*
+    A hard deadline on the upstream call, so a stalled Gemini request fails
+    with a readable message instead of running out the function's clock.
+
+    This is not hypothetical. Measured on the deployed preview: every question
+    returned 504 FUNCTION_INVOCATION_TIMEOUT after the full maxDuration, while
+    the same GEMINI_API_KEY answers in ~550ms from a developer machine - so
+    the key is valid and the call simply never returns from the deployment's
+    region. Whatever the cause, a user should see "the assistant timed out"
+    rather than a panel that types forever and a platform error page.
+
+    Comfortably inside maxDuration, so this fires first and the route stays in
+    control of what the client is told.
+  */
+  const upstream = AbortSignal.timeout(45_000)
+
   const ai = new GoogleGenAI({ apiKey })
   const tools = [{ functionDeclarations: TOOL_DECLARATIONS as never }]
   const config = {
     systemInstruction: systemInstruction(profile.role as Role, store?.name ?? 'the store'),
     tools,
+    abortSignal: upstream,
   }
 
   const history = messages.slice(0, -1).map((m) => ({
