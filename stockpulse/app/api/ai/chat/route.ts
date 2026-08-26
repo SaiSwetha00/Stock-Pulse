@@ -150,6 +150,26 @@ export async function GET() {
     }),
   )
 
+  // The SDK is ~50x slower than plain fetch to the same host. Confirm that a
+  // DIRECT REST call with the same payload is fast, which would make the SDK's
+  // transport - not the network, the key or the region - the thing to replace.
+  await probe('restGenerateContent', async () => {
+    const t0 = Date.now()
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${encodeURIComponent(key)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Say OK' }] }] }),
+        signal: AbortSignal.timeout(12_000),
+      },
+    )
+    const j = (await r.json()) as { candidates?: unknown[] }
+    out.restStatus = r.status
+    out.restCandidates = Array.isArray(j.candidates) ? j.candidates.length : 0
+    out.restMs = Date.now() - t0
+  })
+
   await probe('sdkGenerateContentStream', async () => {
     const it = await ai.models.generateContentStream({
       model: 'gemini-flash-latest',
