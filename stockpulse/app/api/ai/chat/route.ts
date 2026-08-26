@@ -10,6 +10,33 @@ import type { Role } from '@/types'
 export const dynamic = 'force-dynamic'
 
 /**
+ * THE MODEL, AND WHY IT IS NOT `gemini-flash-latest`.
+ *
+ * That alias is what this route used, and it is what made every question on
+ * the deployment return 504 FUNCTION_INVOCATION_TIMEOUT. Measured against the
+ * project's own key:
+ *
+ *   gemini-flash-latest       503 after ~10s, or no response at all
+ *   gemini-2.5-flash          404 "no longer available"
+ *   gemini-2.5-flash-lite     404 "no longer available"
+ *   gemini-pro-latest         429 quota exceeded
+ *   gemini-flash-lite-latest  200 in ~1.0s, function calling works
+ *   gemini-3.1-flash-lite     200 in ~1.0s, function calling works
+ *
+ * So it was never the network, the region or the key - a plain fetch from the
+ * deployed function reaches Google in ~220ms. The requested MODEL was
+ * unavailable, the SDK retried a ~10s failure, and a tool-calling turn needs
+ * at least two model calls, so the retries consumed the whole function budget
+ * before anything could be streamed.
+ *
+ * Overridable by env so the next outage is a configuration change rather than
+ * a redeploy of this file. The fallback exists for the same reason: one model
+ * being unavailable should degrade the assistant's latency, not remove it.
+ */
+const PRIMARY_MODEL = process.env.GEMINI_MODEL ?? 'gemini-flash-lite-latest'
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL ?? 'gemini-3.1-flash-lite'
+
+/**
  * The assistant needs longer than a platform default.
  *
  * Measured on the deployed preview before this line existed: every question
@@ -90,103 +117,6 @@ function parseThreadId(body: unknown): string | null {
   return typeof threadId === 'string' && threadId.length > 0 ? threadId : null
 }
 
-/**
- * TEMPORARY DIAGNOSTIC - remove once the deployment's egress question is
- * settled. GET only, so it cannot disturb the POST path.
- *
- * The assistant times out after the full maxDuration on the deployment while
- * the same key answers in ~550ms from a developer machine. That leaves two
- * candidates - the key value differing in Vercel, or the pinned bom1 region
- * being unable to reach generativelanguage.googleapis.com - and guessing
- * between them is how you change infrastructure for no reason. This answers
- * it from inside the function itself.
- *
- * It never returns the key, only its length and shape.
- */
-export async function GET() {
-  const key = process.env.GEMINI_API_KEY ?? ''
-  const started = Date.now()
-  const out: Record<string, unknown> = {
-    keyPresent: key.length > 0,
-    keyLength: key.length,
-    keyLooksQuoted: key.startsWith('"') || key.startsWith("'"),
-    keyHasWhitespace: /\s/.test(key),
-    region: process.env.VERCEL_REGION ?? 'unknown',
-  }
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`,
-      { signal: AbortSignal.timeout(10_000) },
-    )
-    out.reachable = true
-    out.status = res.status
-    out.ms = Date.now() - started
-    const body = (await res.text()).slice(0, 200)
-    out.body = body
-  } catch (e) {
-    out.reachable = false
-    out.ms = Date.now() - started
-    out.error = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
-  }
-
-  // Plain fetch reaches Google fine from here. So isolate the SDK: does
-  // non-streaming work, and does STREAMING work? One of these is the hang.
-  const ai = new GoogleGenAI({ apiKey: key })
-  const probe = async (label: string, fn: () => Promise<unknown>) => {
-    const t = Date.now()
-    try {
-      await fn()
-      out[label] = `ok in ${Date.now() - t}ms`
-    } catch (e) {
-      out[label] = `${e instanceof Error ? e.name + ': ' + e.message : String(e)} after ${Date.now() - t}ms`
-    }
-  }
-
-  await probe('sdkGenerateContent', () =>
-    ai.models.generateContent({
-      model: 'gemini-flash-latest',
-      contents: [{ role: 'user', parts: [{ text: 'Say OK' }] }],
-      config: { abortSignal: AbortSignal.timeout(12_000) },
-    }),
-  )
-
-  // The SDK is ~50x slower than plain fetch to the same host. Confirm that a
-  // DIRECT REST call with the same payload is fast, which would make the SDK's
-  // transport - not the network, the key or the region - the thing to replace.
-  await probe('restGenerateContent', async () => {
-    const t0 = Date.now()
-    const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${encodeURIComponent(key)}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Say OK' }] }] }),
-        signal: AbortSignal.timeout(12_000),
-      },
-    )
-    const j = (await r.json()) as { candidates?: unknown[] }
-    out.restStatus = r.status
-    out.restCandidates = Array.isArray(j.candidates) ? j.candidates.length : 0
-    out.restMs = Date.now() - t0
-  })
-
-  await probe('sdkGenerateContentStream', async () => {
-    const it = await ai.models.generateContentStream({
-      model: 'gemini-flash-latest',
-      contents: [{ role: 'user', parts: [{ text: 'Say OK' }] }],
-      config: { abortSignal: AbortSignal.timeout(12_000) },
-    })
-    let chunks = 0
-    for await (const c of it) {
-      chunks++
-      void c.text
-    }
-    out.streamChunks = chunks
-  })
-
-  return Response.json(out)
-}
-
 export async function POST(req: NextRequest) {
   // Parsed inside a try: a malformed payload previously threw here and
   // surfaced as an unhandled 500.
@@ -257,7 +187,7 @@ export async function POST(req: NextRequest) {
     Comfortably inside maxDuration, so this fires first and the route stays in
     control of what the client is told.
   */
-  const upstream = AbortSignal.timeout(45_000)
+  const upstream = AbortSignal.timeout(20_000)
 
   const ai = new GoogleGenAI({ apiKey })
   const tools = [{ functionDeclarations: TOOL_DECLARATIONS as never }]
@@ -299,11 +229,25 @@ export async function POST(req: NextRequest) {
          * top. Gemini streams natively; this just passes it through.
          */
         async function runTurn() {
-          const iterator = await ai.models.generateContentStream({
-            model: 'gemini-flash-latest',
-            contents,
-            config,
-          })
+          // One retry on a different model. A 503 or 404 from a model alias
+          // is exactly the failure that took this route down, and it is not
+          // something the user can act on - so absorb it here rather than
+          // reporting "the assistant is unavailable" for a fault that a
+          // second model would have answered.
+          let iterator
+          try {
+            iterator = await ai.models.generateContentStream({
+              model: PRIMARY_MODEL,
+              contents,
+              config,
+            })
+          } catch {
+            iterator = await ai.models.generateContentStream({
+              model: FALLBACK_MODEL,
+              contents,
+              config,
+            })
+          }
 
           const turnCalls: NonNullable<
             Awaited<ReturnType<typeof ai.models.generateContent>>['functionCalls']
