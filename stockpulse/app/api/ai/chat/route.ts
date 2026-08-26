@@ -9,6 +9,25 @@ import type { Role } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * The assistant needs longer than a platform default.
+ *
+ * Measured on the deployed preview before this line existed: every question
+ * came back 504 FUNCTION_INVOCATION_TIMEOUT, and the panel sat on its typing
+ * indicator forever. Locally it was fine, because nothing there enforces a
+ * function limit.
+ *
+ * It is not a hang and it is not a missing key - an unset GEMINI_API_KEY
+ * returns 200 with an explanatory message a few lines below, so a 504 proves
+ * the key is present and the call is simply being cut off. A tool-calling turn
+ * is at least two round trips to Gemini with a Supabase query between them,
+ * which does not reliably fit in the default.
+ *
+ * 60 is the ceiling on Vercel's Hobby plan and well inside Pro's, so this is
+ * the largest value that cannot itself become a deployment error.
+ */
+export const maxDuration = 60
+
 interface ChatMessage {
   role: 'user' | 'model'
   text: string
