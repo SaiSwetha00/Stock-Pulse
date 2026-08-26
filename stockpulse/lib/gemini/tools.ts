@@ -1,6 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Role } from '@/types'
 import { canViewReports } from '@/lib/permissions'
+// Expiry is read through the same helpers the Inventory and dashboard
+// surfaces use, so the assistant cannot disagree with the pages about what
+// counts as "expiring soon".
+import { storeExpiryWarningDays } from '@/lib/expiry'
+import { reportingDate } from '@/lib/reportingTimezone'
 
 export interface ToolContext {
   supabase: SupabaseClient
@@ -29,6 +34,38 @@ export const TOOL_DECLARATIONS = [
   {
     name: 'getLowStockItems',
     description: 'List all products currently at or below their low-stock threshold.',
+    parameters: { type: 'object', properties: {} },
+  },
+  {
+    name: 'getExpiringItems',
+    description:
+      "List stock that is expiring soon or has already expired. Use `scope: 'expired'` for stock past its date and `scope: 'soon'` for stock inside the store's expiry warning window.",
+    parameters: {
+      type: 'object',
+      properties: {
+        scope: {
+          type: 'string',
+          enum: ['soon', 'expired'],
+          description: 'Whether to list stock expiring soon or already expired',
+        },
+      },
+    },
+  },
+  {
+    name: 'getInventoryValue',
+    description:
+      'Total retail value of stock on hand (sum of unit price times quantity), with the product and unit counts it is based on.',
+    parameters: { type: 'object', properties: {} },
+  },
+  {
+    name: 'getCustomerCount',
+    description: 'How many customers the store has, broken down by loyalty tier.',
+    parameters: { type: 'object', properties: {} },
+  },
+  {
+    name: 'getNeverSoldProducts',
+    description:
+      'Products that have never appeared on a sale. Useful for spotting dead stock.',
     parameters: { type: 'object', properties: {} },
   },
   {
@@ -129,6 +166,118 @@ export async function executeTool(
       if (error) return { error: error.message }
       const lowStock = (data ?? []).filter((p) => p.stock <= p.low_stock_threshold)
       return { low_stock_items: lowStock, count: lowStock.length }
+    }
+
+    /**
+     * Expiry reads LOTS, never `products.expiry_date` — that column is legacy
+     * and unread by the rest of the app, so answering from it would tell the
+     * shopkeeper something the Inventory page contradicts. Zero-quantity lots
+     * are excluded because stock that is gone cannot expire.
+     */
+    case 'getExpiringItems': {
+      const scope = (args.scope as 'soon' | 'expired') ?? 'soon'
+      const { data: store } = await supabase
+        .from('stores')
+        .select('expiry_warning_days')
+        .eq('id', storeId)
+        .single()
+      const days = storeExpiryWarningDays(store ?? {})
+      const today = reportingDate()
+      // Same YYYY-MM-DD string arithmetic lib/expiry.ts uses. Deliberately
+      // not `new Date(today)` + setDate: that parses as UTC midnight and
+      // renders as the previous day anywhere ahead of UTC, which is exactly
+      // the bug lib/expiry.ts documents.
+      const cutoffDate = new Date(`${today}T00:00:00`)
+      cutoffDate.setDate(cutoffDate.getDate() + days)
+      const cutoff = `${cutoffDate.getFullYear()}-${String(cutoffDate.getMonth() + 1).padStart(2, '0')}-${String(cutoffDate.getDate()).padStart(2, '0')}`
+
+      let q = supabase
+        .from('product_batches')
+        .select('quantity, expiry_date, products!inner(name, unit)')
+        .eq('store_id', storeId)
+        .gt('quantity', 0)
+        .not('expiry_date', 'is', null)
+        .order('expiry_date', { ascending: true })
+        .limit(30)
+      q = scope === 'expired' ? q.lt('expiry_date', today) : q.gte('expiry_date', today).lte('expiry_date', cutoff)
+
+      const { data, error } = await q
+      if (error) return { error: error.message }
+      const rows = (data ?? []).map((r) => {
+        const product = r.products as unknown as { name: string; unit: string | null }
+        return { name: product?.name, unit: product?.unit, quantity: r.quantity, expiry_date: r.expiry_date }
+      })
+      return { scope, warning_days: days, today, items: rows, count: rows.length }
+    }
+
+    /**
+     * Retail value, not cost — the schema has no cost price, so this is what
+     * the stock would ring up for. Said plainly in the return so the model
+     * cannot present it as margin or profit.
+     */
+    case 'getInventoryValue': {
+      const { data, error } = await supabase
+        .from('products')
+        .select('unit_price, stock')
+        .eq('store_id', storeId)
+      if (error) return { error: error.message }
+      const rows = data ?? []
+      const total = rows.reduce((sum, p) => sum + Number(p.unit_price ?? 0) * Number(p.stock ?? 0), 0)
+      return {
+        basis: 'retail selling price; the schema stores no cost price, so this is not margin',
+        total_retail_value: Math.round(total * 100) / 100,
+        product_count: rows.length,
+        units_on_hand: rows.reduce((sum, p) => sum + Number(p.stock ?? 0), 0),
+      }
+    }
+
+    case 'getCustomerCount': {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('loyalty_tier')
+        .eq('store_id', storeId)
+      if (error) return { error: error.message }
+      const rows = data ?? []
+      const by_tier: Record<string, number> = {}
+      for (const c of rows) by_tier[c.loyalty_tier] = (by_tier[c.loyalty_tier] ?? 0) + 1
+      return { total: rows.length, by_tier }
+    }
+
+    /**
+     * Two queries rather than a NOT IN subselect, because PostgREST cannot
+     * express one and the sold set is small enough to difference in memory.
+     * Capped, and the cap is REPORTED — a truncated list presented as complete
+     * is the kind of answer that gets a shopkeeper to write off live stock.
+     */
+    case 'getNeverSoldProducts': {
+      const { data: sold, error: soldError } = await supabase
+        .from('sale_items')
+        .select('product_id, sales!inner(store_id)')
+        .eq('sales.store_id', storeId)
+      if (soldError) return { error: soldError.message }
+      const soldIds = new Set((sold ?? []).map((r) => r.product_id))
+
+      const { data: products, error } = await supabase
+        .from('products')
+        .select('id, name, category, stock, unit, unit_price')
+        .eq('store_id', storeId)
+      if (error) return { error: error.message }
+
+      const never = (products ?? []).filter((p) => !soldIds.has(p.id))
+      const shown = never.slice(0, 25)
+      return {
+        // The product id is dropped: it is a uuid the model has no use for
+        // and would otherwise be free to echo back into a reply.
+        never_sold: shown.map((p) => ({
+          name: p.name,
+          category: p.category,
+          stock: p.stock,
+          unit: p.unit,
+          unit_price: p.unit_price,
+        })),
+        count: never.length,
+        truncated: never.length > shown.length,
+      }
     }
 
     case 'getSalesSummary': {

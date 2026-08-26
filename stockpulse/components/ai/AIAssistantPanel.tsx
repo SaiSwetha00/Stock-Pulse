@@ -8,6 +8,8 @@ import {
   Archive,
   TrendingUp,
   AlertTriangle,
+  CalendarClock,
+  BarChart3,
   Bot,
   History,
   Volume2,
@@ -38,10 +40,25 @@ interface Message {
   text: string
 }
 
+/**
+ * Opening suggestions.
+ *
+ * These were "Check inventory for 2% Milk", "Show today's produce sales" and
+ * "Identify low stock items". The first names a product no StockPulse store
+ * necessarily stocks - in the demo it returns nothing - so the very first
+ * thing a new user clicked could answer "I could not find that", which reads
+ * as a broken assistant rather than an empty shelf.
+ *
+ * Every suggestion below maps to a tool that answers from the store's own
+ * data whatever that store sells, so none of them can come back empty because
+ * of the wording of the prompt.
+ */
 const SUGGESTIONS = [
-  { icon: Archive, text: 'Check inventory for 2% Milk' },
-  { icon: TrendingUp, text: "Show today's produce sales" },
-  { icon: AlertTriangle, text: 'Identify low stock items' },
+  { icon: AlertTriangle, text: 'Which products are low on stock?' },
+  { icon: CalendarClock, text: 'Which products are expiring soon?' },
+  { icon: TrendingUp, text: "What were today's sales?" },
+  { icon: BarChart3, text: "Give me this week's sales summary" },
+  { icon: Archive, text: 'What is my total inventory value?' },
 ]
 
 export default function AIAssistantPanel({

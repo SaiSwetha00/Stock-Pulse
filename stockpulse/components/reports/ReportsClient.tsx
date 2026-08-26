@@ -58,26 +58,27 @@ function Kpi({
   value,
   change,
   comparable,
-  tone,
 }: {
   label: string
   value: string
   change: number | null
   /** False when the previous period predates the fetched window. */
   comparable: boolean
-  tone?: 'dark'
 }) {
-  const dark = tone === 'dark'
+  /*
+    The `tone="dark"` variant is gone.
+
+    It was applied to exactly one of the four cards - Transactions, the second
+    - and nothing about that metric earns the emphasis: Revenue is the
+    headline figure if any of them is, and the dashboard's inverted tile is
+    its FIRST card, so a dark second card here read as a rendering fault
+    rather than as a hierarchy. Four identical cards state four peer metrics,
+    which is what they are.
+  */
   return (
-    <div
-      className={`sp-rise rounded-2xl border border-border p-4 shadow-sm lg:p-6 ${
-        dark ? 'bg-foreground' : 'bg-surface'
-      }`}
-    >
+    <div className="sp-rise rounded-2xl border border-border bg-surface p-4 shadow-sm lg:p-6">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
-      <p className={`mt-2 text-2xl font-bold lg:text-3xl ${dark ? 'text-surface' : 'text-foreground'}`}>
-        {value}
-      </p>
+      <p className="mt-2 text-2xl font-bold text-foreground lg:text-3xl">{value}</p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {!comparable ? (
           <span className="text-xs text-muted">Outside compared window</span>
@@ -339,7 +340,6 @@ export default function ReportsClient({
           value={String(kpis.transactions)}
           change={prevKpis ? pctChange(kpis.transactions, prevKpis.transactions) : null}
           comparable={comparable}
-          tone="dark"
         />
         <Kpi
           label="Avg Order"
