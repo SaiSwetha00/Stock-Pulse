@@ -477,8 +477,16 @@ export default function DashboardView({
         </Link>
       </div>
 
-      {/* ---- Quick actions ---- */}
-      <h2 className="sp-heading mt-8">Quick Actions</h2>
+      {/* ---- Quick actions ----
+
+          Wrapped in a panel rather than left as loose tiles under a bare
+          heading. Six bordered white tiles sitting directly on the page read
+          as buttons someone dropped there; the same six inside one surface,
+          under the heading that names them, read as a dashboard component.
+          The tiles themselves drop to the muted fill (see `.sp-qa`) so this
+          does not become cards-on-cards. */}
+      <div className="sp-rise sp-e1 mt-8 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+      <h2 className="sp-heading">Quick Actions</h2>
       <div className="sp-qa-grid mt-4">
         {(isOwner ? [...QUICK_ACTIONS, ...OWNER_QUICK_ACTIONS] : QUICK_ACTIONS).map((action, i) => {
           const Icon = action.Icon
@@ -498,6 +506,7 @@ export default function DashboardView({
             </Link>
           )
         })}
+      </div>
       </div>
 
       {/* ---- Trend + recent sales ---- */}

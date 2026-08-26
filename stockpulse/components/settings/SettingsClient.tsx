@@ -538,7 +538,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
         because a destructive control belongs below the things people actually
         come here to change, not above them.
       */}
-      <div className="sp-card flex flex-col gap-4 border-danger/25 sm:flex-row sm:items-center sm:justify-between">
+      <div className="sp-card-p sp-rise sp-e1 mt-6 flex flex-col gap-4 rounded-2xl border border-danger/25 bg-surface shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h2 className="sp-heading flex items-center gap-2">
             <Trash2 className="h-4 w-4 text-danger" aria-hidden="true" />
