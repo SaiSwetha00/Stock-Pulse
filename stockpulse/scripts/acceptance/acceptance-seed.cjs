@@ -557,6 +557,52 @@ async function main() {
     `products     : ${productRows.length} (${productRows.filter((p) => p.stock > 0 && p.stock < p.low_stock_threshold).length} low, ${productRows.filter((p) => p.stock === 0).length} out of stock)`,
   )
 
+  // -------------------------------------------------------------------------
+  // Lots
+  // -------------------------------------------------------------------------
+  // THE SEED HAS TO OWN ITS LOTS, and until now it did not touch
+  // `product_batches` at all. That was invisible for a long time and then very
+  // visible: the app reads EXPIRY FROM LOTS, not from `products.expiry_date`
+  // (which CLAUDE.md records as legacy and unread), so every lot in the
+  // harness store was still whatever migration 0016's one-time backfill had
+  // written. Re-running the seed refreshed `products.expiry_date` and changed
+  // nothing the UI actually displays - the dashboard kept reporting the same
+  // "13 already expired" however recently the seed had been run, because those
+  // thirteen dates were frozen in a table the seed never wrote to.
+  //
+  // One lot per product, with the SAME date-relative expiry the product row
+  // carries, so re-running moves the whole shelf forward with the calendar.
+  //
+  // `quantity` is the product's own stock, and that is load-bearing rather
+  // than convenient: `products.stock` is a trigger-maintained mirror of
+  // sum(product_batches.quantity). Writing a lot fires that trigger, so any
+  // other quantity here would silently overwrite the stock this file just
+  // computed - including the forced low and zero-stock rows. Matching it means
+  // the trigger recomputes the same number, and stock finally derives from
+  // lots the way the schema intends.
+  //
+  // Ids are derived, so a re-run overwrites the same rows rather than adding a
+  // second lot per product and doubling every stock level. The pre-existing
+  // backfill lots are removed first because THEIR ids are not derived and no
+  // upsert can reach them.
+  const lotRows = productRows.map((p, i) => ({
+    id: derivedId(`lot:${i}`),
+    product_id: p.id,
+    quantity: p.stock,
+    expiry_date: p.expiry_date,
+    received_on: isoDaysAgo(between(1, 20), 9, 0).slice(0, 10),
+  }))
+  // Drop every lot on these products that this seed did not write, then upsert
+  // ours. One `not.in.(...)` over the whole derived set, rather than a request
+  // per product: 135 sequential deletes is a slow way to say the same thing.
+  const keep = lotRows.map((l) => l.id).join(',')
+  const ids = productRows.map((p) => p.id).join(',')
+  await rest('DELETE', `product_batches?product_id=in.(${ids})&id=not.in.(${keep})`, undefined, 'return=minimal')
+  await upsert(rest, 'product_batches', scoped(lotRows))
+  console.log(
+    `lots         : ${lotRows.length} (${lotRows.filter((l) => l.expiry_date).length} dated)`,
+  )
+
   await upsert(rest, 'sales', scoped(sales))
   // sale_items has no store_id — it is scoped through its sale.
   await upsert(rest, 'sale_items', items)
