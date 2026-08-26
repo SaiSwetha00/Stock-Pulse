@@ -90,6 +90,47 @@ function parseThreadId(body: unknown): string | null {
   return typeof threadId === 'string' && threadId.length > 0 ? threadId : null
 }
 
+/**
+ * TEMPORARY DIAGNOSTIC - remove once the deployment's egress question is
+ * settled. GET only, so it cannot disturb the POST path.
+ *
+ * The assistant times out after the full maxDuration on the deployment while
+ * the same key answers in ~550ms from a developer machine. That leaves two
+ * candidates - the key value differing in Vercel, or the pinned bom1 region
+ * being unable to reach generativelanguage.googleapis.com - and guessing
+ * between them is how you change infrastructure for no reason. This answers
+ * it from inside the function itself.
+ *
+ * It never returns the key, only its length and shape.
+ */
+export async function GET() {
+  const key = process.env.GEMINI_API_KEY ?? ''
+  const started = Date.now()
+  const out: Record<string, unknown> = {
+    keyPresent: key.length > 0,
+    keyLength: key.length,
+    keyLooksQuoted: key.startsWith('"') || key.startsWith("'"),
+    keyHasWhitespace: /\s/.test(key),
+    region: process.env.VERCEL_REGION ?? 'unknown',
+  }
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`,
+      { signal: AbortSignal.timeout(10_000) },
+    )
+    out.reachable = true
+    out.status = res.status
+    out.ms = Date.now() - started
+    const body = (await res.text()).slice(0, 200)
+    out.body = body
+  } catch (e) {
+    out.reachable = false
+    out.ms = Date.now() - started
+    out.error = e instanceof Error ? `${e.name}: ${e.message}` : String(e)
+  }
+  return Response.json(out)
+}
+
 export async function POST(req: NextRequest) {
   // Parsed inside a try: a malformed payload previously threw here and
   // surfaced as an unhandled 500.
