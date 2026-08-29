@@ -8,6 +8,7 @@ import { useAIAssistant } from '@/components/ai/AIAssistantProvider'
 import { navItemsFor } from '@/lib/nav'
 import type { Role } from '@/types'
 import CommandPalette, { type Command } from './CommandPalette'
+import ProductDetailsModal from '@/components/inventory/ProductDetailsModal'
 
 const CommandPaletteContext = createContext<{ open: () => void; close: () => void } | null>(null)
 
@@ -29,11 +30,25 @@ export default function CommandPaletteProvider({
   children: React.ReactNode
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  /**
+   * The product whose details are open, or null.
+   *
+   * It lives HERE and not in `CommandPalette` because choosing a result closes
+   * the palette: a dialog mounted inside it would unmount in the same tick it
+   * was asked for. Holding it at the provider also means the details open over
+   * whatever route the reader is on — `/sales`, `/reports`, anywhere — instead
+   * of navigating them to `/inventory` to see one filtered row.
+   */
+  const [detailsId, setDetailsId] = useState<string | null>(null)
   const router = useRouter()
   const { open: openAssistant } = useAIAssistant()
 
   const open = useCallback(() => setIsOpen(true), [])
   const close = useCallback(() => setIsOpen(false), [])
+  // Stable, because CommandPalette's results memo depends on it — an inline
+  // arrow would rebuild the whole result list on every keystroke.
+  const openProduct = useCallback((productId: string) => setDetailsId(productId), [])
+  const closeProduct = useCallback(() => setDetailsId(null), [])
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -94,7 +109,15 @@ export default function CommandPaletteProvider({
   return (
     <CommandPaletteContext.Provider value={value}>
       {children}
-      {isOpen && <CommandPalette commands={commands} onClose={close} />}
+      {isOpen && (
+        <CommandPalette commands={commands} onClose={close} onOpenProduct={openProduct} />
+      )}
+      {/* Mounted beside the palette, not inside it — see `detailsId` above.
+          Keyed by id so choosing a second product refetches rather than
+          reusing the first one's loaded state. */}
+      {detailsId && (
+        <ProductDetailsModal key={detailsId} productId={detailsId} onClose={closeProduct} />
+      )}
     </CommandPaletteContext.Provider>
   )
 }

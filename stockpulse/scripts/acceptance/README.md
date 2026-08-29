@@ -23,8 +23,8 @@ remembered:
 
 | | |
 |---|---|
-| Store | hard-coded to `sandal local store` (`e47fe6eb-…`), no CLI override |
-| Name check | aborts if that id is not still named `sandal local store` |
+| Store | hard-coded to `StockPulse Demo Store` (`e47fe6eb-…`), no CLI override |
+| Name check | aborts if that id is not still named `StockPulse Demo Store` |
 | Blast radius | prints how many stores exist and that it touches exactly 1 |
 | Product marker | every seeded product has an `ACC-` SKU, visible in the UI and in exports |
 | Row identity | every id is derived from a fixed namespace, so teardown removes exactly this set |

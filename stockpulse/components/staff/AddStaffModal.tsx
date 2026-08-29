@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Modal from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
@@ -15,6 +15,8 @@ const ROLE_HINTS: Record<AssignableRole, string> = {
 
 export default function AddStaffModal({ storeId, onClose }: { storeId: string; onClose: () => void }) {
   const router = useRouter()
+  // Ties the footer submit back to the form it now sits outside of.
+  const formId = useId()
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [jobTitle, setJobTitle] = useState('Cashier')
@@ -41,7 +43,26 @@ export default function AddStaffModal({ storeId, onClose }: { storeId: string; o
   }
 
   return (
-    <Modal title="Add Staff" onClose={onClose} width="sm">
+    <Modal
+      title="Add Staff" onClose={onClose} width="sm"
+      /*
+        Actions live in Modal's `footer`. `children` scrolls; `footer` is
+        pinned, shrink-0, and carries the safe-area-inset-bottom padding. Left
+        inside the form the action scrolls away on a short viewport - the same
+        shape ProductModal was reported for. The submit carries `form={formId}`
+        so native submission, validation and the Enter key still work.
+      */
+      footer={
+        <button
+          type="submit"
+          form={formId}
+          disabled={saving}
+          className="control-h w-full rounded-lg bg-foreground text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-60"
+        >
+          {saving ? 'Sending invite…' : 'Send Invite'}
+        </button>
+      }
+    >
 
         {success ? (
           <div className="px-6 py-8 text-center">
@@ -58,7 +79,7 @@ export default function AddStaffModal({ storeId, onClose }: { storeId: string; o
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+          <form id={formId} onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
             {error && <div className="rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">{error}</div>}
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
@@ -118,13 +139,6 @@ export default function AddStaffModal({ storeId, onClose }: { storeId: string; o
                 {ROLE_HINTS[role]}
               </p>
             </div>
-            <button
-              type="submit"
-              disabled={saving}
-              className="control-h w-full rounded-lg bg-foreground text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-60"
-            >
-              {saving ? 'Sending invite…' : 'Send Invite'}
-            </button>
           </form>
         )}
     </Modal>

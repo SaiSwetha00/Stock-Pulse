@@ -299,10 +299,21 @@ export default function DashboardView({
         lowStockCount={lowStockItems.length}
         pendingCount={pendingCount}
         counterCount={counterCount}
+        meta={
+          <>
+            {/* The server's calendar day is not necessarily the viewer's. */}
+            <p className="sp-eyebrow">
+              <LocalDate iso={nowIso} withYear />
+            </p>
+            <AutoRefresh />
+          </>
+        }
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        {/* The server's calendar day is not necessarily the viewer's. */}
+      {/* Below `sm` the header's meta slot is hidden, so the same date and
+          freshness pill render here instead - one instance visible at a time,
+          never both. */}
+      <div className="flex flex-wrap items-center justify-between gap-4 sm:hidden">
         <p className="sp-eyebrow">
           <LocalDate iso={nowIso} withYear />
         </p>
@@ -466,8 +477,16 @@ export default function DashboardView({
         </Link>
       </div>
 
-      {/* ---- Quick actions ---- */}
-      <h2 className="sp-heading mt-8">Quick Actions</h2>
+      {/* ---- Quick actions ----
+
+          Wrapped in a panel rather than left as loose tiles under a bare
+          heading. Six bordered white tiles sitting directly on the page read
+          as buttons someone dropped there; the same six inside one surface,
+          under the heading that names them, read as a dashboard component.
+          The tiles themselves drop to the muted fill (see `.sp-qa`) so this
+          does not become cards-on-cards. */}
+      <div className="sp-rise sp-e1 mt-8 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+      <h2 className="sp-heading">Quick Actions</h2>
       <div className="sp-qa-grid mt-4">
         {(isOwner ? [...QUICK_ACTIONS, ...OWNER_QUICK_ACTIONS] : QUICK_ACTIONS).map((action, i) => {
           const Icon = action.Icon
@@ -488,11 +507,39 @@ export default function DashboardView({
           )
         })}
       </div>
+      </div>
 
       {/* ---- Trend + recent sales ---- */}
       <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6 lg:col-span-2">
+        {/* THE GAP UNDER THIS CHART, AND WHY `self-start` DID NOT FIX IT.
+            This panel shares a grid row with Recent Sales, and the row is as
+            tall as its tallest item — measured at 1280px, Recent Sales is
+            555px against this card's 392px. `self-start` stopped the card
+            stretching, but the row kept its height, so the 163px simply moved
+            from inside the card to underneath it: the distance from the last
+            bar to "Recent Alerts" never changed, which is what was actually
+            being complained about both times.
+
+            Neither hugging nor stretching can close a gap that belongs to the
+            sibling's height. The only thing that closes it is putting the
+            chart in that space. So the card stretches again (`flex flex-col`,
+            no `self-start`) and the chart grows into the leftover height
+            instead of leaving it blank — the same pixels, now carrying the
+            plot rather than nothing.
+
+            `min-h-[280px]` on the wrapper is load-bearing, not a nicety: below
+            `lg` the grid is one column, nothing stretches, `flex-1` therefore
+            resolves to the content height, and a percentage-height recharts
+            container inside a zero-height box renders nothing at all. The
+            floor is the chart's original height, so the phone layout is
+            byte-for-byte what it was. */}
+        <div className="sp-rise sp-e1 flex flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6 lg:col-span-2">
           <h2 className="sp-heading">Daily Sales Trends</h2>
+          {/* Says what the bars are. The heading alone left two real questions
+              open — whether the bars counted sales or totalled revenue, and
+              over what window — and both are answered from the data already
+              on screen rather than from anything new. */}
+          <p className="mt-1 text-sm text-muted">Revenue per day over the last 7 days.</p>
           {/* A chart of seven zeroes is a flat line along the axis, which reads
               as a broken panel rather than as an empty store. Say it instead. */}
           {trendData.every((d) => d.value === 0) ? (
@@ -511,8 +558,17 @@ export default function DashboardView({
               }
             />
           ) : (
-            <div className="mt-4">
-              <SalesTrendChart data={trendData} />
+            <div className="mt-4 min-h-[280px] flex-1">
+              {/* One explicit `min-h`, not two. `min-h-0` and `min-h-[280px]`
+                  set the same property, so having both would leave the winner
+                  to CSS source order rather than to intent. The explicit 280px
+                  also does the job `min-h-0` is usually there for: it overrides
+                  a flex child's `min-height: auto`, which would otherwise
+                  refuse to shrink below its content.
+
+                  `height="100%"` fills that box; the box is what gives recharts
+                  a definite height to measure. */}
+              <SalesTrendChart data={trendData} height="100%" />
             </div>
           )}
         </div>

@@ -119,12 +119,155 @@ const CATALOGUE = [
   ['household', 'Garbage Bags (30)', 'Presto', 'pack', 2.6, [15, 35]],
 ]
 
+// ---------------------------------------------------------------------------
+// The rest of the shelf
+// ---------------------------------------------------------------------------
+// The catalogue above is ~40 lines, which is a sample rather than a shop. A
+// reviewer opening /inventory on 40 rows cannot tell whether search, category
+// filtering, the low-stock panel or the CSV export hold up, because none of
+// them are under any pressure at that size.
+//
+// Real catalogues grow mostly by PACK SIZE — the same line in three or four
+// sizes, priced per size — so that is how this expands, rather than by
+// inventing a hundred unrelated products. Each base below yields one product
+// per size, which is why the sizes carry a multiplier: price scales with the
+// pack, and the stock band SHRINKS as the pack grows, because a shop holds
+// fewer 5L tins than 500ml bottles.
+//
+// Literal input, arithmetic output. Nothing random here, so two runs produce
+// identical rows and the ids derived from row index stay stable — which is
+// what keeps the whole seed re-runnable.
+const PACK_VARIANTS = [
+  // slug, base name, brand, unit, price at size 1, stock band at size 1, sizes
+  ['packaged', 'Toor Dal', 'Tata Sampann', 'kg', 1.9, [22, 48], [['500g', 0.5], ['1kg', 1], ['2kg', 2]]],
+  ['packaged', 'Moong Dal', 'Tata Sampann', 'kg', 2.1, [18, 40], [['500g', 0.5], ['1kg', 1]]],
+  ['packaged', 'Chana Dal', '24 Mantra', 'kg', 1.75, [18, 42], [['500g', 0.5], ['1kg', 1], ['2kg', 2]]],
+  ['packaged', 'Rajma', 'Organic Tattva', 'kg', 2.4, [12, 30], [['500g', 0.5], ['1kg', 1]]],
+  ['packaged', 'Poha', 'Nature Fresh', 'kg', 1.1, [15, 35], [['500g', 0.5], ['1kg', 1]]],
+  ['packaged', 'Rava Sooji', 'Aashirvaad', 'kg', 1.0, [15, 35], [['500g', 0.5], ['1kg', 1]]],
+  ['packaged', 'Besan', 'Rajdhani', 'kg', 1.3, [14, 32], [['500g', 0.5], ['1kg', 1]]],
+  ['packaged', 'Sona Masoori Rice', 'Daawat', 'bag', 1.45, [10, 26], [['5kg', 5], ['10kg', 10]]],
+  ['packaged', 'Idli Rice', 'Priya', 'bag', 1.25, [8, 22], [['5kg', 5], ['10kg', 10]]],
+  ['packaged', 'Jaggery Block', 'Organic Tattva', 'kg', 1.6, [12, 28], [['500g', 0.5], ['1kg', 1]]],
+  ['packaged', 'Groundnut Oil', 'Gold Winner', 'ea', 3.2, [10, 24], [['500ml', 0.5], ['1L', 1], ['5L', 5]]],
+  ['packaged', 'Sunflower Oil', 'Fortune', 'ea', 2.9, [12, 28], [['1L', 1], ['5L', 5]]],
+  ['packaged', 'Mustard Oil', 'Dhara', 'ea', 3.4, [8, 20], [['500ml', 0.5], ['1L', 1]]],
+  ['packaged', 'Turmeric Powder', 'Everest', 'ea', 1.2, [16, 38], [['100g', 1], ['200g', 2], ['500g', 5]]],
+  ['packaged', 'Chilli Powder', 'Everest', 'ea', 1.5, [16, 38], [['100g', 1], ['200g', 2], ['500g', 5]]],
+  ['packaged', 'Coriander Powder', 'MDH', 'ea', 1.1, [14, 34], [['100g', 1], ['200g', 2]]],
+  ['packaged', 'Garam Masala', 'MDH', 'ea', 1.8, [12, 30], [['50g', 1], ['100g', 2]]],
+  ['packaged', 'Mustard Seeds', 'Catch', 'ea', 0.9, [14, 32], [['100g', 1], ['200g', 2]]],
+  ['packaged', 'Cumin Seeds', 'Catch', 'ea', 1.4, [12, 30], [['100g', 1], ['200g', 2]]],
+  ['packaged', 'Salt', 'Tata', 'kg', 0.4, [30, 70], [['1kg', 1]]],
+  ['packaged', 'Vermicelli', 'Bambino', 'ea', 0.7, [18, 40], [['200g', 1], ['400g', 2]]],
+  ['packaged', 'Marie Biscuits', 'Britannia', 'ea', 0.6, [30, 75], [['150g', 1], ['300g', 2]]],
+  ['packaged', 'Glucose Biscuits', 'Parle-G', 'ea', 0.35, [40, 95], [['100g', 1], ['250g', 2.5]]],
+  ['packaged', 'Rusk Toast', 'Britannia', 'ea', 0.9, [16, 38], [['200g', 1], ['400g', 2]]],
+  ['dairy', 'Toned Milk', 'Nandini', 'ea', 0.75, [30, 70], [['500ml', 1], ['1L', 2]]],
+  ['dairy', 'Curd', 'Nandini', 'ea', 0.6, [20, 50], [['200g', 1], ['400g', 2], ['1kg', 5]]],
+  ['dairy', 'Butter', 'Amul', 'ea', 2.2, [12, 30], [['100g', 1], ['500g', 5]]],
+  ['dairy', 'Cheese Slices', 'Amul', 'ea', 2.6, [8, 22], [['100g', 1], ['200g', 2]]],
+  ['dairy', 'Fresh Cream', 'Amul', 'ea', 1.4, [8, 20], [['250ml', 1]]],
+  ['beverages', 'Tea Leaves', 'Red Label', 'ea', 2.1, [16, 38], [['250g', 1], ['500g', 2], ['1kg', 4]]],
+  ['beverages', 'Green Tea Bags', 'Lipton', 'ea', 2.8, [10, 24], [['25s', 1], ['50s', 2]]],
+  ['beverages', 'Instant Coffee', 'Nescafe', 'ea', 3.6, [8, 20], [['50g', 1], ['100g', 2]]],
+  ['beverages', 'Mango Drink', 'Frooti', 'ea', 0.5, [30, 80], [['200ml', 1], ['600ml', 3], ['1L', 5]]],
+  ['beverages', 'Soda Water', 'Kinley', 'ea', 0.45, [25, 60], [['750ml', 1], ['2L', 2.5]]],
+  ['beverages', 'Packaged Water', 'Bisleri', 'ea', 0.3, [40, 100], [['1L', 1], ['2L', 2], ['5L', 5]]],
+  ['household', 'Detergent Powder', 'Surf Excel', 'ea', 1.9, [15, 36], [['500g', 1], ['1kg', 2], ['2kg', 4]]],
+  ['household', 'Dishwash Bar', 'Vim', 'ea', 0.4, [30, 80], [['100g', 1], ['200g', 2]]],
+  ['household', 'Dishwash Gel', 'Vim', 'ea', 1.7, [14, 34], [['250ml', 1], ['500ml', 2], ['750ml', 3]]],
+  ['household', 'Hand Wash', 'Lifebuoy', 'ea', 1.5, [12, 30], [['200ml', 1], ['750ml', 3.5]]],
+  ['household', 'Toothpaste', 'Colgate', 'ea', 1.3, [18, 42], [['100g', 1], ['200g', 2]]],
+  ['household', 'Shampoo Sachet', 'Clinic Plus', 'ea', 0.12, [60, 150], [['6ml', 1]]],
+  ['household', 'Phenyl', 'Lizol', 'ea', 2.1, [10, 26], [['500ml', 1], ['1L', 2]]],
+  ['produce', 'Green Capsicum', 'Local Farm', 'kg', 2.2, [15, 38], [['loose', 1]]],
+  ['produce', 'Carrots', 'Local Farm', 'kg', 1.5, [20, 45], [['loose', 1]]],
+  ['produce', 'Cabbage', 'Local Farm', 'kg', 0.9, [18, 40], [['loose', 1]]],
+  ['produce', 'Cauliflower', 'Local Farm', 'kg', 1.2, [15, 35], [['loose', 1]]],
+  ['produce', 'Brinjal', 'Local Farm', 'kg', 1.1, [18, 42], [['loose', 1]]],
+  ['produce', 'Okra', 'Local Farm', 'kg', 1.8, [15, 36], [['loose', 1]]],
+  ['produce', 'Green Chillies', 'Local Farm', 'kg', 2.4, [10, 26], [['loose', 1]]],
+  ['produce', 'Ginger', 'Local Farm', 'kg', 3.1, [8, 22], [['loose', 1]]],
+  ['produce', 'Garlic', 'Local Farm', 'kg', 3.4, [8, 22], [['loose', 1]]],
+  ['produce', 'Lemons', 'Local Farm', 'kg', 2.0, [12, 30], [['loose', 1]]],
+  ['produce', 'Coriander Bunch', 'Local Farm', 'bunch', 0.4, [15, 40], [['loose', 1]]],
+  ['produce', 'Spinach Bunch', 'Local Farm', 'bunch', 0.5, [12, 32], [['loose', 1]]],
+]
+
+// Nine of the generated names collide with the hand-written catalogue above
+// ("Toor Dal 1kg", "Lemons", "Detergent Powder 1kg" and so on), which is what
+// you would expect when both lists describe the same shop. The generated one
+// yields: the explicit row is the one someone chose, and it may carry a
+// FORCE_LOW entry or a deliberate price that the arithmetic here would
+// silently shadow. Two products with one name would also make FORCE_LOW —
+// which matches by name — push both under their threshold.
+const CATALOGUE_NAMES = new Set(CATALOGUE.map((row) => row[1]))
+
+for (const variant of PACK_VARIANTS) {
+  const slug = variant[0]
+  const base = variant[1]
+  const brand = variant[2]
+  const unit = variant[3]
+  const price = variant[4]
+  const band = variant[5]
+  const sizes = variant[6]
+  for (const size of sizes) {
+    const label = size[0]
+    const mult = size[1]
+    // Loose produce is sold by weight and has no pack size to name.
+    const name = label === 'loose' ? base : base + ' ' + label
+    if (CATALOGUE_NAMES.has(name)) continue
+    CATALOGUE_NAMES.add(name)
+    CATALOGUE.push([
+      slug,
+      name,
+      brand,
+      unit,
+      // Two decimals: unit_price is numeric(10,2), so an unrounded float would
+      // be stored rounded anyway. Rounding here keeps the seed's own numbers
+      // equal to what the database ends up holding.
+      Math.round(price * mult * 100) / 100,
+      // sqrt rather than a straight divide: a 10kg bag is not held at a tenth
+      // of the 1kg line's depth, it is held at roughly a third.
+      [
+        Math.max(4, Math.round(band[0] / Math.sqrt(mult))),
+        Math.max(8, Math.round(band[1] / Math.sqrt(mult))),
+      ],
+    ])
+  }
+}
+
 const SUPPLIERS = [
   ['Anand Fresh Produce', 'Anand Kulkarni', 'produce', 'active'],
   ['Sri Dairy Distributors', 'Lakshmi Sundaram', 'dairy', 'active'],
   ['Gopal Wholesale Grains', 'Gopal Menon', 'dry_goods', 'active'],
   ['Coastal Beverage Supply', 'Rafiq Sheikh', 'beverages', 'issue'],
   ['Ravi Home Essentials', 'Ravi Deshpande', 'bakery', 'inactive'],
+]
+
+// Regulars. The Customers module was the one populated surface this seed never
+// touched — /customers opened on an empty state in a store carrying a month of
+// trade, which reads as a broken page rather than a young shop.
+//
+// Names, tiers and spend are literal rather than generated: a loyalty tier is
+// meaningless unless it agrees with the spend beside it, and a random pairing
+// (a platinum member who has spent $12) is exactly the "meaningless data" this
+// seed exists to avoid. Ordered so the tiers descend with the totals.
+const CUSTOMERS = [
+  // name, phone, tier, total spent, visits, days since last visit, note
+  ['Meenakshi Sundaram', '+91 98450 11223', 'platinum', 1284.4, 96, 0, 'Buys the week’s vegetables every Sunday morning.'],
+  ['Ramesh Bhatt', '+91 98450 22447', 'platinum', 1102.75, 88, 1, 'Runs the tiffin centre two doors down; bulk dal and rice.'],
+  ['Fatima Sheikh', '+91 98450 33961', 'gold', 742.1, 61, 1, 'Prefers a call when the Amul ghee lands.'],
+  ['Joseph D’Souza', '+91 98450 44508', 'gold', 688.35, 57, 2, 'Monthly grocery run, pays by card.'],
+  ['Anitha Reddy', '+91 98450 55172', 'gold', 601.9, 49, 3, 'Asks for coriander and curry leaves to be kept aside.'],
+  ['Vikram Shetty', '+91 98450 66284', 'silver', 418.6, 34, 4, 'Evening milk and eggs on the way home.'],
+  ['Sunita Rao', '+91 98450 77039', 'silver', 377.25, 31, 6, ''],
+  ['Imran Qureshi', '+91 98450 88615', 'silver', 341.8, 28, 7, 'Buys in bulk before festivals.'],
+  ['Kavya Nair', '+91 98450 99730', 'bronze', 196.45, 17, 9, ''],
+  ['Harish Patel', '+91 98451 10826', 'bronze', 154.9, 13, 12, 'New to the neighbourhood.'],
+  ['Divya Krishnan', '+91 98451 21344', 'bronze', 121.3, 11, 15, ''],
+  ['Abdul Rahman', '+91 98451 32907', 'bronze', 84.6, 8, 21, 'Cash only.'],
 ]
 
 // Products deliberately pushed under their threshold, so /dashboard's low-stock
@@ -193,7 +336,7 @@ async function main() {
   if (!process.argv.includes('--yes')) {
     console.error(
       'Refusing to run without --yes.\n\n' +
-        'This writes ~40 products, 5 suppliers, 3 staff accounts and 30 days of\n' +
+        'This writes ~135 products, 5 suppliers, 3 staff accounts and 30 days of\n' +
         'sales into the harness store. Read scripts/acceptance/README.md first.\n\n' +
         '  node scripts/acceptance/acceptance-seed.cjs --yes\n',
     )
@@ -269,6 +412,25 @@ async function main() {
   }))
   await upsert(rest, 'suppliers', scoped(supplierRows))
   console.log(`suppliers    : ${supplierRows.length}`)
+
+  // -------------------------------------------------------------------------
+  // Customers
+  // -------------------------------------------------------------------------
+  // `last_visit_at` is written relative to the run, so the list still reads as
+  // a live shop weeks later instead of showing every regular as last seen on
+  // the day the seed happened to be run.
+  const customerRows = CUSTOMERS.map(([full_name, phone, loyalty_tier, total_spent, visits, daysAgo, notes], i) => ({
+    id: derivedId(`customer:${i}`),
+    full_name,
+    phone,
+    loyalty_tier,
+    total_spent,
+    visits,
+    notes: notes || null,
+    last_visit_at: new Date(Date.now() - daysAgo * 86400000).toISOString(),
+  }))
+  await upsert(rest, 'customers', scoped(customerRows))
+  console.log(`customers    : ${customerRows.length}`)
 
   // -------------------------------------------------------------------------
   // Products
@@ -352,10 +514,36 @@ async function main() {
   // Closing stock. Anything on the forced-low list is pushed just under its
   // threshold; everything else keeps a sane floor so the shop does not read as
   // if it sold out of everything at once.
-  const productRows = products.map((p) => {
+  const productRows = products.map((p, i) => {
     const unitsSold = sold.get(p.id) || 0
     let stock = Math.max(0, p.opening - unitsSold)
-    if (FORCE_LOW.has(p.name)) stock = Math.max(0, p.low_stock_threshold - between(1, 4))
+    // FORCE_LOW is six names, chosen when the catalogue was forty. On a
+    // hundred and thirty-five that is under 5% and the low-stock panel reads
+    // as a rounding error rather than a working alert list, so every
+    // eleventh product is forced low as well. By INDEX, not at random: the
+    // set has to be the same on every run for the seed to stay idempotent.
+    // Out of stock, guaranteed. Before this a zero happened only when
+    // `opening - unitsSold` incidentally landed on one, and the floor in the
+    // last branch then lifted anything under its threshold back up — so a run
+    // could contain no zero-stock product at all, and "Out of stock" as a
+    // state, a filter and a badge went undemonstrated.
+    //
+    // Same shape as FORCE_LOW's index rule and for the same reason: by INDEX,
+    // never at random, or the seed stops being reproducible. Every 29th
+    // product is 5 of 135 — enough to prove the state exists without making
+    // the shop look shut.
+    //
+    // Checked FIRST because a zero is also "under the threshold", so the
+    // low-stock branch below would otherwise claim these rows and overwrite
+    // the zero with a near-threshold number.
+    if (i % 29 === 5) {
+      stock = 0
+    } else if (FORCE_LOW.has(p.name) || i % 11 === 7) {
+      // Floor of 1, not 0: this branch means "low", and a product it pushed
+      // to exactly 0 would be indistinguishable from the out-of-stock set
+      // above, making both counts unprovable.
+      stock = Math.max(1, p.low_stock_threshold - between(1, 4))
+    }
     else if (stock < p.low_stock_threshold) stock = p.low_stock_threshold + between(2, 15)
     // `opening` is a working value, not a column — drop it before the insert
     // or PostgREST rejects the row for an unknown field.
@@ -366,7 +554,53 @@ async function main() {
 
   await upsert(rest, 'products', scoped(productRows))
   console.log(
-    `products     : ${productRows.length} (${productRows.filter((p) => p.stock < p.low_stock_threshold).length} below threshold)`,
+    `products     : ${productRows.length} (${productRows.filter((p) => p.stock > 0 && p.stock < p.low_stock_threshold).length} low, ${productRows.filter((p) => p.stock === 0).length} out of stock)`,
+  )
+
+  // -------------------------------------------------------------------------
+  // Lots
+  // -------------------------------------------------------------------------
+  // THE SEED HAS TO OWN ITS LOTS, and until now it did not touch
+  // `product_batches` at all. That was invisible for a long time and then very
+  // visible: the app reads EXPIRY FROM LOTS, not from `products.expiry_date`
+  // (which CLAUDE.md records as legacy and unread), so every lot in the
+  // harness store was still whatever migration 0016's one-time backfill had
+  // written. Re-running the seed refreshed `products.expiry_date` and changed
+  // nothing the UI actually displays - the dashboard kept reporting the same
+  // "13 already expired" however recently the seed had been run, because those
+  // thirteen dates were frozen in a table the seed never wrote to.
+  //
+  // One lot per product, with the SAME date-relative expiry the product row
+  // carries, so re-running moves the whole shelf forward with the calendar.
+  //
+  // `quantity` is the product's own stock, and that is load-bearing rather
+  // than convenient: `products.stock` is a trigger-maintained mirror of
+  // sum(product_batches.quantity). Writing a lot fires that trigger, so any
+  // other quantity here would silently overwrite the stock this file just
+  // computed - including the forced low and zero-stock rows. Matching it means
+  // the trigger recomputes the same number, and stock finally derives from
+  // lots the way the schema intends.
+  //
+  // Ids are derived, so a re-run overwrites the same rows rather than adding a
+  // second lot per product and doubling every stock level. The pre-existing
+  // backfill lots are removed first because THEIR ids are not derived and no
+  // upsert can reach them.
+  const lotRows = productRows.map((p, i) => ({
+    id: derivedId(`lot:${i}`),
+    product_id: p.id,
+    quantity: p.stock,
+    expiry_date: p.expiry_date,
+    received_on: isoDaysAgo(between(1, 20), 9, 0).slice(0, 10),
+  }))
+  // Drop every lot on these products that this seed did not write, then upsert
+  // ours. One `not.in.(...)` over the whole derived set, rather than a request
+  // per product: 135 sequential deletes is a slow way to say the same thing.
+  const keep = lotRows.map((l) => l.id).join(',')
+  const ids = productRows.map((p) => p.id).join(',')
+  await rest('DELETE', `product_batches?product_id=in.(${ids})&id=not.in.(${keep})`, undefined, 'return=minimal')
+  await upsert(rest, 'product_batches', scoped(lotRows))
+  console.log(
+    `lots         : ${lotRows.length} (${lotRows.filter((l) => l.expiry_date).length} dated)`,
   )
 
   await upsert(rest, 'sales', scoped(sales))

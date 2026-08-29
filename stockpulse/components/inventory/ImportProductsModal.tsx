@@ -2,11 +2,13 @@
 
 import { useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, FileUp, Plus, RefreshCw } from 'lucide-react'
+import { AlertTriangle, Download, FileUp, Plus, RefreshCw } from 'lucide-react'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { buildImportPreview, type ImportPreview } from '@/lib/importCsv'
+import { csvFilename, downloadCsv } from '@/lib/csv'
+import { sampleImportCsv } from '@/lib/inventoryCsv'
 import type { CategoryOption } from '@/lib/categories'
 import { importProducts } from '@/app/(dashboard)/inventory/actions'
 import type { Product } from '@/types'
@@ -129,11 +131,75 @@ export default function ImportProductsModal({
               existing products by <strong>SKU</strong> — a matching SKU updates that
               product, anything else is added. Nothing is written until you confirm.
             </p>
-            <p className="text-sm text-muted">
-              Recognised headers: Name, Brand, SKU, Barcode, Category, Unit Price, Unit,
-              Stock, Min Stock, Expiry. Exporting your inventory first gives you the
-              exact format back.
-            </p>
+            {/*
+              Required vs optional, stated BEFORE the upload.
+
+              This was a flat list of recognised headers, which says what the
+              importer will read but not what it needs. The only thing that
+              told you Name was mandatory was `missingRequired` — an error you
+              can reach solely by having already failed an import.
+
+              "Name" is the sole required column because that is literally what
+              the parser enforces: buildImportPreview pushes "Name" onto
+              missingRequired and nothing else. Everything below is stated to
+              match that, not to describe an ideal file.
+
+              Deliberately NOT written as a comment row inside the sample CSV,
+              which was the other option. parseCsv has no notion of comments:
+              it takes table[0] as the header row, so a leading "# required:
+              Name" line would BE the header and every real column would come
+              back unrecognised. Guidance that breaks the file it describes is
+              worse than no guidance.
+            */}
+            <div className="rounded-lg border border-border bg-surface-muted px-4 py-3 text-sm">
+              <p className="text-muted-strong">
+                <strong className="text-foreground">Required:</strong> Name.
+              </p>
+              <p className="mt-1.5 text-muted-strong">
+                <strong className="text-foreground">Optional:</strong> Brand, SKU, Barcode,
+                Category, Unit Price, Unit, Stock, Min Stock, Expiry Date.
+              </p>
+              <p className="mt-2 text-muted">
+                Dates as YYYY-MM-DD (2026-03-31). Numbers plain, with no currency symbol
+                or thousands separator (1250.50, not $1,250.50). Leave any optional cell
+                blank to skip it.
+              </p>
+            </div>
+
+            {/*
+              This used to end "Exporting your inventory first gives you the exact
+              format back", which is only useful to someone who already has
+              inventory - i.e. never the person importing for the first time. The
+              sample is the answer to the same question without the round trip.
+
+              It is generated, not a static file in public/: lib/inventoryCsv.ts
+              builds it from the same header constants the export uses and filters
+              it through the parser's own HEADER_MAP, so it cannot drift from
+              either. A checked-in file would be a third copy of the format.
+            */}
+            {/*
+              Given its own panel rather than left as a quiet outline button in
+              muted text. This is the first thing a customer with no inventory
+              yet should reach for, and it was previously the least prominent
+              control in the dialog - quieter than "Choose a CSV file", which
+              is useless to someone who does not yet know what to put in the
+              file. The accent tint and the line of explanation are what make
+              it findable without a second look.
+            */}
+            <div className="flex flex-col gap-2 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+              <p className="text-sm text-muted-strong">
+                <span className="font-semibold text-foreground">New to this?</span>{' '}
+                Download the sample CSV to see the required format and example values.
+              </p>
+              <button
+                type="button"
+                onClick={() => downloadCsv(csvFilename('stockpulse-sample-import'), sampleImportCsv())}
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-[var(--surface)] transition-colors hover:bg-accent-hover"
+              >
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Download sample CSV
+              </button>
+            </div>
 
             <input
               ref={fileRef}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useId, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Modal from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
@@ -38,6 +38,8 @@ export default function SupplierModal({
   const router = useRouter()
   const isEdit = Boolean(supplier)
 
+  // Ties the footer submit back to the form it now sits outside of.
+  const formId = useId()
   const [name, setName] = useState(supplier?.name ?? '')
   const [primaryContact, setPrimaryContact] = useState(supplier?.primary_contact ?? '')
   const [category, setCategory] = useState<string>(supplier?.category ?? 'produce')
@@ -82,8 +84,32 @@ export default function SupplierModal({
   }
 
   return (
-    <Modal title={isEdit ? 'Edit Supplier' : 'Add Supplier'} onClose={onClose} width="md">
-      <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+    <Modal
+      title={isEdit ? 'Edit Supplier' : 'Add Supplier'} onClose={onClose} width="md"
+      /*
+        Actions live in Modal's `footer`, not at the end of the form. `children`
+        scrolls; `footer` is pinned, shrink-0, and carries the
+        safe-area-inset-bottom padding. Left inside the form these buttons
+        scroll away on a short viewport, which is the bug ProductModal was
+        reported for - this modal had the identical shape.
+
+        The submit sits outside <form> now and carries `form={formId}`, the
+        attribute that associates a control with a form it is not nested in.
+        Native submission, native validation and the Enter key all keep
+        working; an onClick handler would have discarded all three.
+      */
+      footer={
+        <div className="grid grid-cols-2 gap-3">
+          <Button type="button" variant="secondary" fullWidth onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} fullWidth loading={saving}>
+            {isEdit ? 'Save Changes' : 'Add Supplier'}
+          </Button>
+        </div>
+      }
+    >
+      <form id={formId} onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
         {formError && (
           <div role="alert" className="rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">
             {formError}
@@ -130,16 +156,7 @@ export default function SupplierModal({
             )}
           </Field>
         </div>
-
-        <div className="flex gap-3 pt-2">
-          <Button type="button" variant="secondary" fullWidth onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" fullWidth loading={saving}>
-            {isEdit ? 'Save Changes' : 'Add Supplier'}
-          </Button>
-        </div>
-      </form>
+</form>
     </Modal>
   )
 }

@@ -1,10 +1,18 @@
 'use client'
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { Search, SearchX } from 'lucide-react'
+import { Package, Search, SearchX } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import EmptyState from '@/components/ui/EmptyState'
+import { searchProducts } from '@/app/(dashboard)/inventory/actions'
+
+export type ProductHit = {
+  id: string
+  name: string
+  sku: string | null
+  barcode: string | null
+}
 
 export type Command = {
   id: string
@@ -45,9 +53,20 @@ function score(haystack: string, needle: string): number | null {
 export default function CommandPalette({
   commands,
   onClose,
+  onOpenProduct,
 }: {
   commands: Command[]
   onClose: () => void
+  /**
+   * Called with a product's id when its result is chosen.
+   *
+   * The palette does not own the details dialog, because choosing a result
+   * closes the palette — a dialog mounted in here would unmount in the same
+   * tick it was asked for. The provider holds it instead, which is also what
+   * lets the details open over whatever route the reader is on rather than
+   * navigating them away from it.
+   */
+  onOpenProduct: (productId: string) => void
 }) {
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
@@ -60,18 +79,102 @@ export default function CommandPalette({
   }, [onClose])
   const listboxId = useId()
 
+  /**
+   * Products, fetched as the user types.
+   *
+   * The index used to be navigation plus three actions, so a product name
+   * could only ever match a sidebar label through the subsequence scorer -
+   * a search box labelled "Search products, sales, customers..." that could
+   * not return a product. Products are not in the client, so they come from a
+   * Server Action scoped by RLS to the viewer's own store.
+   *
+   * Debounced, and every response carries the query it was for: without that,
+   * a slow reply for "bas" can land after a fast reply for "basmati" and
+   * overwrite it, which shows results for something the user has stopped
+   * typing.
+   */
+  const [hits, setHits] = useState<{ q: string; rows: ProductHit[] }>({ q: '', rows: [] })
+  useEffect(() => {
+    const q = query.trim()
+    // The clear happens inside the timer, not in the effect body: setting
+    // state synchronously here triggers a cascading render and the lint rule
+    // rejects it.
+    const t = setTimeout(() => {
+      if (q.length < 2) {
+        setHits({ q, rows: [] })
+        return
+      }
+      void searchProducts(q).then((rows) => setHits({ q, rows }))
+    }, 160)
+    return () => clearTimeout(t)
+  }, [query])
+
+  // Results are tagged with the query they were fetched for and only used when
+  // that still matches what is typed. A slow reply for "bas" landing after a
+  // fast one for "basmati" therefore cannot overwrite it, and nothing stale is
+  // ever rendered - no cancellation flag required.
+  const productHits = useMemo(
+    () => (hits.q === query.trim() ? hits.rows : []),
+    [hits, query],
+  )
+
   const results = useMemo(() => {
-    if (!query.trim()) return commands
-    return commands
+    const q = query.trim()
+    if (!q) return commands
+
+    const scored = commands
       .map((cmd) => {
         const target = cmd.keywords ? `${cmd.label} ${cmd.keywords}` : cmd.label
-        const s = score(target, query.trim())
+        const s = score(target, q)
         return s === null ? null : { cmd, s }
       })
       .filter((r): r is { cmd: Command; s: number } => r !== null)
       .sort((a, b) => a.s - b.s)
       .map((r) => r.cmd)
-  }, [commands, query])
+
+    /**
+     * Ranking, in the order a person means them:
+     *
+     *   0  exact product name
+     *   1  product name starts with the query
+     *   2  product name contains it
+     *   3  SKU or barcode match
+     *   ...then commands, by their own score.
+     *
+     * Navigation is NOT removed - typing "Inventory" still offers the page,
+     * because at that point the nav entry is what was asked for. It simply no
+     * longer outranks a product that matches better.
+     */
+    const n = q.toLowerCase()
+    const products: Command[] = productHits
+      .map((p) => {
+        const name = p.name.toLowerCase()
+        const rank =
+          name === n ? 0 : name.startsWith(n) ? 1 : name.includes(n) ? 2 : 3
+        return { p, rank }
+      })
+      .sort((a, b) => a.rank - b.rank || a.p.name.localeCompare(b.p.name))
+      .map(({ p }) => ({
+        id: `product:${p.id}`,
+        label: p.name,
+        group: 'Products',
+        icon: Package,
+        /**
+         * Opens the product's own details dialog.
+         *
+         * This used to push `/inventory?q=<name>` — a full page navigation
+         * that re-fetched the catalogue in order to show one filtered row,
+         * and that from `/sales` or `/reports` took the reader off the page
+         * they were working on. It also never showed a stock figure, a lot or
+         * an expiry, so a search box that could find a product still could not
+         * tell you anything about it. That navigation is still available, as
+         * the "Open in Inventory" button in the dialog's footer.
+         */
+        run: () => onOpenProduct(p.id),
+      }))
+
+    return [...products, ...scored]
+  }, [commands, query, productHits, onOpenProduct])
 
   // Clamp during render rather than resetting from an effect: filtering can
   // shrink the list below the stored index, and acting on a stale index would

@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight, Lock, Mail } from 'lucide-react'
 import { login } from '@/app/auth/actions'
+// Shared with the dashboard layout, which marks the session as a demo.
+import { DEMO_EMAIL } from '@/lib/demo'
 import {
   AuthError,
   AuthField,
@@ -23,13 +25,36 @@ import { fadeUp } from '@/lib/motion'
  * it to that one store, everything in it is generated acceptance data, and
  * re-running the seed restores it. See the script for the full reasoning.
  */
-const DEMO_EMAIL = 'demo@stockpulse.test'
+
 const DEMO_PASSWORD = 'StockPulseDemo2026!'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  /*
+    Focus the demo control when arriving from the landing page's "View a live
+    demo" link (/login?demo=1).
+
+    Read from window.location in an effect rather than with useSearchParams:
+    this page is statically prerendered, and useSearchParams opts the whole
+    route out of that unless it is wrapped in Suspense — measured, the build
+    failed with "useSearchParams() should be wrapped in a suspense boundary at
+    page /login". Adding a Suspense boundary to buy a focus ring would be a
+    poor trade; reading it on the client costs nothing and keeps /login static.
+
+    The link deliberately does NOT sign in by itself. A GET from a plain
+    anchor should not create a session, and a page that logs you in because of
+    a URL you clicked is a surprise even when the account is public. Focusing
+    the control is the honest version of one-click.
+  */
+  const demoButtonRef = useRef<HTMLButtonElement | null>(null)
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('demo') === '1') {
+      demoButtonRef.current?.focus()
+    }
+  }, [])
+
   const [loading, setLoading] = useState(false)
 
   /**
@@ -110,7 +135,7 @@ export default function LoginPage() {
             Reviewing this project?
           </p>
           <p className="mt-1.5 text-sm text-muted-strong">
-            Sign in to a demo store with 40 products and 30 days of sales already in it.
+            Sign in to a demo store with 135 products and 30 days of sales already in it.
           </p>
           <p className="mt-2 font-mono text-xs text-muted-strong">
             {DEMO_EMAIL}
@@ -119,6 +144,7 @@ export default function LoginPage() {
           </p>
           <button
             type="button"
+            ref={demoButtonRef}
             onClick={handleDemoLogin}
             disabled={loading}
             className="mt-3 w-full rounded-lg border border-[var(--sp-gold)]/60 bg-[var(--sp-gold)]/15 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-[var(--sp-gold)]/25 disabled:opacity-60"

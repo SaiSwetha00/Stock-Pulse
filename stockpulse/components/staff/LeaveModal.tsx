@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
@@ -41,6 +41,8 @@ export default function LeaveModal({
   const router = useRouter()
   const toast = useToast()
 
+  // Ties the footer submit back to the form it now sits outside of.
+  const formId = useId()
   const [staffId, setStaffId] = useState(leave?.staff_id ?? staff[0]?.id ?? '')
   const [startsOn, setStartsOn] = useState(leave?.starts_on ?? defaultDate)
   const [endsOn, setEndsOn] = useState(leave?.ends_on ?? defaultDate)
@@ -102,8 +104,69 @@ export default function LeaveModal({
   }
 
   return (
-    <Modal title={leave ? 'Edit leave' : 'Record leave'} onClose={onClose} width="sm">
-      <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+    <Modal
+      title={leave ? 'Edit leave' : 'Record leave'} onClose={onClose} width="sm"
+      /*
+        Actions live in Modal's `footer`, not at the end of the form. `children`
+        scrolls; `footer` is pinned, shrink-0, and carries the
+        safe-area-inset-bottom padding. Left inside the form these buttons
+        scroll away on a short viewport, which is the bug ProductModal was
+        reported for - this modal had the identical shape.
+
+        The submit sits outside <form> now and carries `form={formId}`, the
+        attribute that associates a control with a form it is not nested in.
+        Native submission, native validation and the Enter key all keep
+        working; an onClick handler would have discarded all three.
+      */
+      footer={
+        <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
+          {/* Removing leave lives here rather than behind its own dialog: it
+              frees the person up for scheduling again, which is reversible and
+              destroys nothing. The inline confirm is enough — a modal on top
+              of a modal for that is heavier than the action deserves. */}
+          {leave && (
+            <div className="mr-auto">
+              {confirmingDelete ? (
+                <span className="inline-flex items-center gap-2 text-xs">
+                  <span className="text-muted-strong">Remove this leave?</span>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    className="rounded-md px-1.5 py-1 font-semibold text-danger hover:underline"
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingDelete(false)}
+                    className="rounded-md px-1.5 py-1 font-semibold text-muted hover:underline"
+                  >
+                    No
+                  </button>
+                </span>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setConfirmingDelete(true)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  Remove
+                </Button>
+              )}
+            </div>
+          )}
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} loading={saving} disabled={staff.length === 0}>
+            {leave ? 'Save changes' : 'Record leave'}
+          </Button>
+        </div>
+      }
+    >
+      <form id={formId} onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
         {message && (
           <div role="alert" className="rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">
             {message}
@@ -208,53 +271,7 @@ export default function LeaveModal({
           />
           {errors.note && <p className="mt-1.5 text-xs text-danger">{errors.note}</p>}
         </div>
-
-        <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
-          {/* Removing leave lives here rather than behind its own dialog: it
-              frees the person up for scheduling again, which is reversible and
-              destroys nothing. The inline confirm is enough — a modal on top
-              of a modal for that is heavier than the action deserves. */}
-          {leave && (
-            <div className="mr-auto">
-              {confirmingDelete ? (
-                <span className="inline-flex items-center gap-2 text-xs">
-                  <span className="text-muted-strong">Remove this leave?</span>
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    className="rounded-md px-1.5 py-1 font-semibold text-danger hover:underline"
-                  >
-                    Yes
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmingDelete(false)}
-                    className="rounded-md px-1.5 py-1 font-semibold text-muted hover:underline"
-                  >
-                    No
-                  </button>
-                </span>
-              ) : (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setConfirmingDelete(true)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                  Remove
-                </Button>
-              )}
-            </div>
-          )}
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" loading={saving} disabled={staff.length === 0}>
-            {leave ? 'Save changes' : 'Record leave'}
-          </Button>
-        </div>
-      </form>
+</form>
     </Modal>
   )
 }

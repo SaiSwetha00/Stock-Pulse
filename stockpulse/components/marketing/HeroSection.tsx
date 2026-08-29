@@ -118,9 +118,29 @@ export default function HeroSection() {
           </p>
         </div>
 
-        {/* The other way in, kept deliberately quiet — a returning shopkeeper
-            is not the person this section is written for. */}
+        {/*
+          Two secondary ways in, both quiet.
+
+          The demo link is here because a reviewer looked for one and did not
+          find it: the seeded demo account has existed for a while, but the
+          only control that reaches it sits ON /login, which you only get to
+          by already deciding to sign in. Anyone evaluating the product rather
+          than adopting it wants to look before they register, and "Get
+          Started" sends them to sign-up. So the path to it starts on the page
+          they actually land on.
+
+          It says what it costs — no sign-up — because that is the objection
+          it answers. It is a link and not a second button: the hero has
+          exactly one filled control, and that stays true.
+        */}
         <p className="mt-6 font-sans text-sm text-[#a39c8a]">
+          <Link
+            href="/login?demo=1"
+            className="text-[#f2efe6] border-b border-border pb-0.5 hover:border-border-strong transition-colors"
+          >
+            View a live demo
+          </Link>
+          <span className="mx-2 text-[#8f8877]">·</span>
           Already have an account?{' '}
           <Link href="/login" className="text-[#f2efe6] border-b border-border pb-0.5 hover:border-border-strong transition-colors">
             Sign in

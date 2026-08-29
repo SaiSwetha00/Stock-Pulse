@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { MIN_EXPIRY_WARNING_DAYS, storeExpiryWarningDays } from '@/lib/expiry'
-import { Store, SlidersHorizontal, Palette, Users, Tags, Scale, ArrowRight, ArrowUpRight } from 'lucide-react'
+import { Store, SlidersHorizontal, Palette, Users, Tags, Scale, ArrowRight, ArrowUpRight, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Store as StoreType } from '@/types'
 import Toggle from '@/components/ui/Toggle'
 import Button from '@/components/ui/Button'
+import Modal from '@/components/ui/Modal'
+import { removeSampleData } from '@/app/(dashboard)/inventory/actions'
 import { Field, Input, Textarea } from '@/components/ui/Field'
 import { useToast } from '@/components/ui/Toast'
 import {
@@ -53,6 +55,8 @@ export default function SettingsClient({ store }: { store: StoreType }) {
   const [theme, setTheme] = useState(store.theme)
   const toast = useToast()
   const [saving, setSaving] = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
+  const [clearing, setClearing] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [errors, setErrors] = useState<StoreSettingsErrors>({})
@@ -525,6 +529,86 @@ export default function SettingsClient({ store }: { store: StoreType }) {
           ))}
         </div>
       </div>
+
+      {/*
+        Sample data.
+
+        Placed at the end of Settings, after the legal links, because it is a
+        one-time setup action rather than something anyone returns to - and
+        because a destructive control belongs below the things people actually
+        come here to change, not above them.
+      */}
+      <div className="sp-card-p sp-rise sp-e1 mt-6 flex flex-col gap-4 rounded-2xl border border-danger/25 bg-surface shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="sp-heading flex items-center gap-2">
+            <Trash2 className="h-4 w-4 text-danger" aria-hidden="true" />
+            Sample data
+          </h2>
+          <p className="sp-body mt-1">
+            Clear the seeded example products so you can import your own catalogue.
+            Your categories, suppliers, staff and settings are kept, and any product
+            that already appears on a sale is left alone.
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          className="shrink-0 border-danger/40 text-danger hover:bg-danger-bg"
+          onClick={() => setConfirmClear(true)}
+        >
+          Remove Sample Data
+        </Button>
+      </div>
+
+      {confirmClear && (
+      <Modal
+        onClose={() => setConfirmClear(false)}
+        title="Remove sample data?"
+        width="sm"
+        footer={
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant="secondary" fullWidth onClick={() => setConfirmClear(false)} disabled={clearing}>
+              Cancel
+            </Button>
+            <Button
+              fullWidth
+              loading={clearing}
+              className="bg-danger text-[var(--surface)] hover:brightness-110"
+              onClick={async () => {
+                setClearing(true)
+                const res = await removeSampleData()
+                setClearing(false)
+                setConfirmClear(false)
+                if (!res.ok) {
+                  toast.error('Sample data kept', res.message)
+                  return
+                }
+                toast.success(
+                  `Removed ${res.removed} sample product${res.removed === 1 ? '' : 's'}`,
+                  res.keptWithSales
+                    ? `${res.keptWithSales} kept because they appear on past sales.`
+                    : 'You can now import your own CSV from Inventory.',
+                )
+                router.refresh()
+              }}
+            >
+              Remove Sample Data
+            </Button>
+          </div>
+        }
+      >
+        <div className="px-6 py-5">
+          <p className="sp-body">
+            All sample products and related sample inventory data will be removed. This
+            action is intended to help you start with your own store data.
+          </p>
+          <p className="sp-body mt-3 text-muted">
+            Categories, suppliers, staff and store settings are not affected, and any
+            sample product that already appears on a sale is kept so your history stays
+            intact.
+          </p>
+        </div>
+      </Modal>
+      )}
 
     </div>
   )

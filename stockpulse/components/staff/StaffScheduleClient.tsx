@@ -210,8 +210,23 @@ export default function StaffScheduleClient({
 
       <StaffTabs role={role} />
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+        {/*
+          min-w-0 (via the minmax(0,1fr) track above and this class) is what
+          keeps the Staff Availability panel on screen.
+
+          A grid item defaults to `min-width: auto`, so the `1fr` track could
+          not shrink below the min-content width of what is inside it - and
+          inside it is a `min-w-[800px]` schedule grid. The track therefore sat
+          at 800px plus padding whatever the viewport was, and pushed the 320px
+          sidebar past the right edge: measured at 1482px against a 1440
+          viewport, and still clipped at 1280 and 1024.
+
+          The inner `overflow-x-auto` was already there and was doing nothing,
+          because nothing was ever narrow enough to make it scroll. With the
+          track allowed to shrink, it finally does.
+        */}
+        <div className="sp-rise sp-e1 min-w-0 rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <button
@@ -341,13 +356,18 @@ export default function StaffScheduleClient({
               const dayShifts = visibleShifts.filter((s) => s.shift_date === d)
               return (
                 <div key={d} className="relative border-l border-border" style={{ height: gridHeight }}>
-                  {hourMarks.map((h) => (
-                    <div
-                      key={h}
-                      className="absolute left-0 right-0 border-t border-border"
-                      style={{ top: (h - startHour) * HOUR_HEIGHT }}
-                    />
-                  ))}
+                  {/* The horizontal hour rules that used to be drawn here are
+                      gone. One `border-t` per hour per day meant up to ~70
+                      hairlines behind the shift blocks, and at that density
+                      they stopped reading as a scale and started reading as
+                      texture — the blocks had to compete with the background
+                      to be seen.
+
+                      Nothing carrying information was removed. The hour labels
+                      down the left are still the axis, the `border-l` on each
+                      day column still separates the days, and a shift's
+                      position and height are still its start and duration.
+                      What went was decoration. */}
                   {dayShifts.map((shift) => {
                     const start = toDecimalHour(shift.start_time)
                     const end = toDecimalHour(shift.end_time)

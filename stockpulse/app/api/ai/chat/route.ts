@@ -9,6 +9,52 @@ import type { Role } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * THE MODEL, AND WHY IT IS NOT `gemini-flash-latest`.
+ *
+ * That alias is what this route used, and it is what made every question on
+ * the deployment return 504 FUNCTION_INVOCATION_TIMEOUT. Measured against the
+ * project's own key:
+ *
+ *   gemini-flash-latest       503 after ~10s, or no response at all
+ *   gemini-2.5-flash          404 "no longer available"
+ *   gemini-2.5-flash-lite     404 "no longer available"
+ *   gemini-pro-latest         429 quota exceeded
+ *   gemini-flash-lite-latest  200 in ~1.0s, function calling works
+ *   gemini-3.1-flash-lite     200 in ~1.0s, function calling works
+ *
+ * So it was never the network, the region or the key - a plain fetch from the
+ * deployed function reaches Google in ~220ms. The requested MODEL was
+ * unavailable, the SDK retried a ~10s failure, and a tool-calling turn needs
+ * at least two model calls, so the retries consumed the whole function budget
+ * before anything could be streamed.
+ *
+ * Overridable by env so the next outage is a configuration change rather than
+ * a redeploy of this file. The fallback exists for the same reason: one model
+ * being unavailable should degrade the assistant's latency, not remove it.
+ */
+const PRIMARY_MODEL = process.env.GEMINI_MODEL ?? 'gemini-flash-lite-latest'
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL ?? 'gemini-3.1-flash-lite'
+
+/**
+ * The assistant needs longer than a platform default.
+ *
+ * Measured on the deployed preview before this line existed: every question
+ * came back 504 FUNCTION_INVOCATION_TIMEOUT, and the panel sat on its typing
+ * indicator forever. Locally it was fine, because nothing there enforces a
+ * function limit.
+ *
+ * It is not a hang and it is not a missing key - an unset GEMINI_API_KEY
+ * returns 200 with an explanatory message a few lines below, so a 504 proves
+ * the key is present and the call is simply being cut off. A tool-calling turn
+ * is at least two round trips to Gemini with a Supabase query between them,
+ * which does not reliably fit in the default.
+ *
+ * 60 is the ceiling on Vercel's Hobby plan and well inside Pro's, so this is
+ * the largest value that cannot itself become a deployment error.
+ */
+export const maxDuration = 60
+
 interface ChatMessage {
   role: 'user' | 'model'
   text: string
@@ -127,11 +173,28 @@ export async function POST(req: NextRequest) {
     })
   }
 
+  /*
+    A hard deadline on the upstream call, so a stalled Gemini request fails
+    with a readable message instead of running out the function's clock.
+
+    This is not hypothetical. Measured on the deployed preview: every question
+    returned 504 FUNCTION_INVOCATION_TIMEOUT after the full maxDuration, while
+    the same GEMINI_API_KEY answers in ~550ms from a developer machine - so
+    the key is valid and the call simply never returns from the deployment's
+    region. Whatever the cause, a user should see "the assistant timed out"
+    rather than a panel that types forever and a platform error page.
+
+    Comfortably inside maxDuration, so this fires first and the route stays in
+    control of what the client is told.
+  */
+  const upstream = AbortSignal.timeout(20_000)
+
   const ai = new GoogleGenAI({ apiKey })
   const tools = [{ functionDeclarations: TOOL_DECLARATIONS as never }]
   const config = {
     systemInstruction: systemInstruction(profile.role as Role, store?.name ?? 'the store'),
     tools,
+    abortSignal: upstream,
   }
 
   const history = messages.slice(0, -1).map((m) => ({
@@ -166,11 +229,25 @@ export async function POST(req: NextRequest) {
          * top. Gemini streams natively; this just passes it through.
          */
         async function runTurn() {
-          const iterator = await ai.models.generateContentStream({
-            model: 'gemini-flash-latest',
-            contents,
-            config,
-          })
+          // One retry on a different model. A 503 or 404 from a model alias
+          // is exactly the failure that took this route down, and it is not
+          // something the user can act on - so absorb it here rather than
+          // reporting "the assistant is unavailable" for a fault that a
+          // second model would have answered.
+          let iterator
+          try {
+            iterator = await ai.models.generateContentStream({
+              model: PRIMARY_MODEL,
+              contents,
+              config,
+            })
+          } catch {
+            iterator = await ai.models.generateContentStream({
+              model: FALLBACK_MODEL,
+              contents,
+              config,
+            })
+          }
 
           const turnCalls: NonNullable<
             Awaited<ReturnType<typeof ai.models.generateContent>>['functionCalls']

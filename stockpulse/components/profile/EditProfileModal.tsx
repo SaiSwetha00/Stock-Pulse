@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Modal from '@/components/ui/Modal'
 import { Field, Input } from '@/components/ui/Field'
@@ -17,6 +17,8 @@ export default function EditProfileModal({
   onClose: () => void
 }) {
   const router = useRouter()
+  // Ties the footer submit back to the form it now sits outside of.
+  const formId = useId()
   const [fullName, setFullName] = useState(profile.full_name)
   const [phone, setPhone] = useState(profile.phone ?? '')
   const [location, setLocation] = useState(profile.location ?? '')
@@ -76,8 +78,40 @@ export default function EditProfileModal({
   }
 
   return (
-    <Modal title="Edit Profile" onClose={onClose} width="md">
-        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+    <Modal
+      title="Edit Profile" onClose={onClose} width="md"
+      /*
+        Actions live in Modal's `footer`, not at the end of the form. `children`
+        scrolls; `footer` is pinned, shrink-0, and carries the
+        safe-area-inset-bottom padding. Left inside the form these buttons
+        scroll away on a short viewport, which is the bug ProductModal was
+        reported for - this modal had the identical shape.
+
+        The submit sits outside <form> now and carries `form={formId}`, the
+        attribute that associates a control with a form it is not nested in.
+        Native submission, native validation and the Enter key all keep
+        working; an onClick handler would have discarded all three.
+      */
+      footer={
+        <div className="flex gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="control-h flex-1 rounded-lg border border-border text-sm font-semibold text-muted-strong hover:bg-surface-muted"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit" form={formId}
+            disabled={saving}
+            className="control-h flex-1 rounded-lg bg-foreground text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-60"
+          >
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
+        </div>
+      }
+    >
+        <form id={formId} onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
           {error && <div className="rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">{error}</div>}
           {/* Was three hand-rolled label+input pairs with no htmlFor over
               inputs with no id — none of the labels pointed at its own control,
@@ -123,23 +157,7 @@ export default function EditProfileModal({
             value={avatarUrl}
             onChange={setAvatarUrl}
           />
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="control-h flex-1 rounded-lg border border-border text-sm font-semibold text-muted-strong hover:bg-surface-muted"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="control-h flex-1 rounded-lg bg-foreground text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-60"
-            >
-              {saving ? 'Saving…' : 'Save Changes'}
-            </button>
-          </div>
-        </form>
+</form>
     </Modal>
   )
 }

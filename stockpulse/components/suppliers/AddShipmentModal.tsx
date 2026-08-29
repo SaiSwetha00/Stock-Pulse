@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useId, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Modal from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
@@ -15,6 +15,8 @@ export default function AddShipmentModal({
   suppliers: Supplier[]
   onClose: () => void
 }) {
+  // Ties the footer submit back to the form it now sits outside of.
+  const formId = useId()
   const [supplierId, setSupplierId] = useState(suppliers[0]?.id ?? '')
   const [poNumber, setPoNumber] = useState('')
   const [status, setStatus] = useState<ShipmentStatus>('ordered')
@@ -50,8 +52,36 @@ export default function AddShipmentModal({
   }
 
   return (
-    <Modal title="New Purchase Order" onClose={onClose} width="md">
-        <form onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
+    <Modal
+      title="New Purchase Order" onClose={onClose} width="md"
+      /*
+        Actions live in Modal's `footer`. `children` scrolls; `footer` is
+        pinned, shrink-0, and carries the safe-area-inset-bottom padding. Left
+        inside the form the action scrolls away on a short viewport - the same
+        shape ProductModal was reported for. The submit carries `form={formId}`
+        so native submission, validation and the Enter key still work.
+      */
+      footer={
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="control-h flex-1 rounded-lg border border-border text-sm font-semibold text-muted-strong hover:bg-surface-muted"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form={formId}
+            disabled={saving || !suppliers.length}
+            className="control-h flex-1 rounded-lg bg-foreground text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-60"
+          >
+            {saving ? 'Saving…' : 'Create PO'}
+          </button>
+        </div>
+      }
+    >
+        <form id={formId} onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
           {error && <div className="rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">{error}</div>}
 
           <div>
@@ -127,22 +157,6 @@ export default function AddShipmentModal({
             />
           </div>
 
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="control-h flex-1 rounded-lg border border-border text-sm font-semibold text-muted-strong hover:bg-surface-muted"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving || !suppliers.length}
-              className="control-h flex-1 rounded-lg bg-foreground text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-60"
-            >
-              {saving ? 'Saving…' : 'Create PO'}
-            </button>
-          </div>
           {!suppliers.length && (
             <p className="text-center text-xs text-muted">Add a supplier first.</p>
           )}

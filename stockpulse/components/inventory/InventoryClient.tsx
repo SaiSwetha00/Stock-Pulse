@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { canManage } from '@/lib/permissions'
 import { Search, Plus, Pencil, Trash2, Wallet, AlertTriangle, PackageX, X, Upload, ScanLine } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { deleteProduct } from '@/app/(dashboard)/inventory/actions'
 import type { Product, Role } from '@/types'
 import { categoryLabel, labelMap, type CategoryOption } from '@/lib/categories'
@@ -20,6 +20,9 @@ import Pagination from '@/components/ui/Pagination'
 import ExportCsvButton from '@/components/ui/ExportCsvButton'
 import { useTable, type SortAccessors } from '@/lib/useTable'
 import type { CsvColumn } from '@/lib/csv'
+// The header strings are shared with the downloadable sample so the two
+// cannot drift - see lib/inventoryCsv.ts.
+import { INVENTORY_CSV_HEADERS as H } from '@/lib/inventoryCsv'
 import ProductModal from './ProductModal'
 import ProductThumb from '@/components/ui/ProductThumb'
 import ImportProductsModal from './ImportProductsModal'
@@ -87,20 +90,20 @@ const SORT_DEFAULT_DIRS: Partial<Record<SortKey, 'asc' | 'desc'>> = {
 // Takes the label map rather than closing over a constant: the export must
 // carry the shop's own category names, and those are only known at render.
 const csvColumns = (labels: Record<string, string>): CsvColumn<Product>[] => [
-  { header: 'Name', value: (p) => p.name },
-  { header: 'Brand', value: (p) => p.brand },
-  { header: 'SKU', value: (p) => p.sku },
+  { header: H.name, value: (p) => p.name },
+  { header: H.brand, value: (p) => p.brand },
+  { header: H.sku, value: (p) => p.sku },
   // Next to SKU because it is the other identifier, and because
   // lib/importCsv.ts maps the header "barcode" straight back onto this field —
   // an export that round-trips through Excel must not silently lose it.
-  { header: 'Barcode', value: (p) => p.barcode },
-  { header: 'Category', value: (p) => categoryLabel(p.category, labels) },
+  { header: H.barcode, value: (p) => p.barcode },
+  { header: H.category, value: (p) => categoryLabel(p.category, labels) },
   // Raw numbers, not formatCurrency: "$1,234.00" reaches Excel as text and
   // will not sum. Formatting is the spreadsheet's job.
-  { header: 'Unit Price', value: (p) => p.unit_price },
-  { header: 'Unit', value: (p) => p.unit },
-  { header: 'Stock', value: (p) => p.stock },
-  { header: 'Min Stock', value: (p) => p.low_stock_threshold },
+  { header: H.unitPrice, value: (p) => p.unit_price },
+  { header: H.unit, value: (p) => p.unit },
+  { header: H.stock, value: (p) => p.stock },
+  { header: H.minStock, value: (p) => p.low_stock_threshold },
   // Column index 9, after the Stock/Min Stock pair and before Status —
   // expiry is a fact about the stock on hand, and splitting a value from its
   // threshold to make room would read worse.
@@ -113,8 +116,8 @@ const csvColumns = (labels: Record<string, string>): CsvColumn<Product>[] => [
   // One date, not the lots, because a CSV cell is one value. It is the same
   // date the list column shows: the earliest among lots that still hold
   // something. A product whose lots are all undated exports blank.
-  { header: 'Expiry Date', value: (p) => nextExpiry(p.product_batches) },
-  { header: 'Status', value: (p) => statusFor(p).label },
+  { header: H.expiry, value: (p) => nextExpiry(p.product_batches) },
+  { header: H.status, value: (p) => statusFor(p).label },
 ]
 
 /**
@@ -208,7 +211,18 @@ export default function InventoryClient({
     () => initialProducts.filter((p) => !removedIds.includes(p.id)),
     [initialProducts, removedIds]
   )
-  const [search, setSearch] = useState('')
+  /**
+   * Seeded from `?q=`, so a product chosen in the global command palette lands
+   * on Inventory already filtered to it. This app has no per-product page, so
+   * a filtered list is the closest thing to "go to that product".
+   *
+   * Initial state only, deliberately - it is not kept in sync with the URL
+   * afterwards. Typing in the box must not rewrite history on every keystroke,
+   * and a back navigation should return to the list the user was on rather
+   * than replaying their typing.
+   */
+  const initialQuery = useSearchParams().get('q') ?? ''
+  const [search, setSearch] = useState(initialQuery)
   const [category, setCategory] = useState<string>('all')
   const [status, setStatus] = useState<StockStatus | 'all'>('all')
   const [modalOpen, setModalOpen] = useState(false)
@@ -432,7 +446,7 @@ export default function InventoryClient({
         </div>
       </div>
 
-      <div className="mt-6 flex flex-col gap-3 lg:flex-row lg:items-center">
+      <div className="sp-rise sp-e1 mt-6 flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 shadow-sm lg:flex-row lg:items-center">
         <div className="relative flex-1">
           <Search
             className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"

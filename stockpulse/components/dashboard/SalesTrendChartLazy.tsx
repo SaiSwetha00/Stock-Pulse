@@ -18,8 +18,17 @@ const SalesTrendChart = dynamic(() => import('./SalesTrendChart'), {
 
 export default function SalesTrendChartLazy({
   data,
+  height,
 }: {
   data: { label: string; value: number }[]
+  /**
+   * Forwarded straight through; see SalesTrendChart for what the values mean.
+   *
+   * Arrives as `undefined` when a caller omits it, so the chart's own `= 280`
+   * default applies. That is what keeps /sales — which passes only `data` —
+   * rendering at exactly the height it always has.
+   */
+  height?: number | `${number}%`
 }) {
-  return <SalesTrendChart data={data} />
+  return <SalesTrendChart data={data} height={height} />
 }
