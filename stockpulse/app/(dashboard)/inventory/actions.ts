@@ -5,7 +5,9 @@ import { createClient } from '@/lib/supabase/server'
 import { isDemoAccount } from '@/lib/demo'
 import { getCurrentUser } from '@/lib/data'
 import { canManage } from '@/lib/permissions'
-import { getStoreCategories } from '@/lib/categories'
+import { categoryLabel, getStoreCategories, labelMap } from '@/lib/categories'
+import { reportingDate } from '@/lib/reportingTimezone'
+import { storeExpiryWarningDays } from '@/lib/expiry'
 import { notify } from '@/app/(dashboard)/notifications/actions'
 import type { Product } from '@/types'
 import {
@@ -820,4 +822,72 @@ export async function removeSampleData(): Promise<
   revalidatePath('/inventory')
   revalidatePath('/dashboard')
   return { ok: true, removed: deletable.length, keptWithSales: soldIds.size }
+}
+
+/**
+ * Everything the global search needs to show one product, in one round trip.
+ *
+ * WHY THIS EXISTS AT ALL. `searchProducts` above returns four columns — the
+ * bare minimum to draw a result row — and the palette used to answer a click
+ * by pushing `/inventory?q=<name>`, which is a page navigation, a full data
+ * fetch, and a list filtered to one row. It never showed a stock figure, a
+ * lot, or an expiry, and from `/sales` or `/reports` it also threw the reader
+ * off the page they were working on. This returns the product itself instead.
+ *
+ * THREE THINGS TRAVEL WITH THE PRODUCT, and each of them is here because
+ * deciding it in the browser would be a bug this project has already had:
+ *
+ *  - `categoryName`, because `products.category` stores a SLUG and the shop's
+ *    own label lives in `categories` (0013). The palette has no label map.
+ *  - `today`, from `reportingDate()` — the shop's clock. A client component
+ *    that read `new Date()` would tone an expiry differently before and after
+ *    hydration for anyone browsing near midnight. Same rule as
+ *    `/inventory`'s `today` prop, and the reason `lib/expiry.ts` never reads a
+ *    clock itself.
+ *  - `warningDays`, from `storeExpiryWarningDays(store)` — never off the
+ *    property, because `expiry_warning_days` is optional in the type and
+ *    `undefined` reaches `shiftDays` as NaN, which reports that nothing is
+ *    expiring. That failure looks exactly like good news.
+ *
+ * NO ROLE GUARD, deliberately, and it matches `findProductByBarcode`: this is
+ * a read, RLS already lets any store member SELECT products, and staff use the
+ * same search box. The `store_id` filter is belt-and-braces beside RLS — it is
+ * taken from the session, never from the caller.
+ *
+ * Returns null rather than throwing when the id does not resolve. A product
+ * deleted in another tab between the search and the click is an ordinary race,
+ * not an error, and the modal says so in words.
+ */
+export type ProductDetails = {
+  product: Product
+  categoryName: string
+  today: string
+  warningDays: number
+}
+
+export async function getProductDetails(productId: string): Promise<ProductDetails | null> {
+  const { store } = await getCurrentUser()
+  const supabase = await createClient()
+
+  // The same embed `/inventory` uses, resolved through 0016's composite FK
+  // (store_id, product_id) -> products (store_id, id), so a lot cannot arrive
+  // from another store. Lots and product in one round trip.
+  const { data, error } = await supabase
+    .from('products')
+    .select('*, product_batches(*)')
+    .eq('store_id', store.id)
+    .eq('id', productId)
+    .maybeSingle()
+
+  if (error || !data) return null
+
+  const { categories } = await getStoreCategories(supabase, store.id)
+  const product = data as Product
+
+  return {
+    product,
+    categoryName: categoryLabel(product.category, labelMap(categories)),
+    today: reportingDate(),
+    warningDays: storeExpiryWarningDays(store),
+  }
 }

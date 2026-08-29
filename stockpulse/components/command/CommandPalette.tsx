@@ -5,7 +5,6 @@ import { Package, Search, SearchX } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import EmptyState from '@/components/ui/EmptyState'
-import { useRouter } from 'next/navigation'
 import { searchProducts } from '@/app/(dashboard)/inventory/actions'
 
 export type ProductHit = {
@@ -54,11 +53,21 @@ function score(haystack: string, needle: string): number | null {
 export default function CommandPalette({
   commands,
   onClose,
+  onOpenProduct,
 }: {
   commands: Command[]
   onClose: () => void
+  /**
+   * Called with a product's id when its result is chosen.
+   *
+   * The palette does not own the details dialog, because choosing a result
+   * closes the palette — a dialog mounted in here would unmount in the same
+   * tick it was asked for. The provider holds it instead, which is also what
+   * lets the details open over whatever route the reader is on rather than
+   * navigating them away from it.
+   */
+  onOpenProduct: (productId: string) => void
 }) {
-  const router = useRouter()
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
@@ -150,13 +159,22 @@ export default function CommandPalette({
         label: p.name,
         group: 'Products',
         icon: Package,
-        // Clicking a product lands on Inventory pre-filtered to it, which is
-        // the closest thing this app has to a product page.
-        run: () => router.push(`/inventory?q=${encodeURIComponent(p.name)}`),
+        /**
+         * Opens the product's own details dialog.
+         *
+         * This used to push `/inventory?q=<name>` — a full page navigation
+         * that re-fetched the catalogue in order to show one filtered row,
+         * and that from `/sales` or `/reports` took the reader off the page
+         * they were working on. It also never showed a stock figure, a lot or
+         * an expiry, so a search box that could find a product still could not
+         * tell you anything about it. That navigation is still available, as
+         * the "Open in Inventory" button in the dialog's footer.
+         */
+        run: () => onOpenProduct(p.id),
       }))
 
     return [...products, ...scored]
-  }, [commands, query, productHits, router])
+  }, [commands, query, productHits, onOpenProduct])
 
   // Clamp during render rather than resetting from an effect: filtering can
   // shrink the list below the stored index, and acting on a stale index would

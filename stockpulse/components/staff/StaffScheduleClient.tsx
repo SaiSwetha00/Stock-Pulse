@@ -356,13 +356,18 @@ export default function StaffScheduleClient({
               const dayShifts = visibleShifts.filter((s) => s.shift_date === d)
               return (
                 <div key={d} className="relative border-l border-border" style={{ height: gridHeight }}>
-                  {hourMarks.map((h) => (
-                    <div
-                      key={h}
-                      className="absolute left-0 right-0 border-t border-border"
-                      style={{ top: (h - startHour) * HOUR_HEIGHT }}
-                    />
-                  ))}
+                  {/* The horizontal hour rules that used to be drawn here are
+                      gone. One `border-t` per hour per day meant up to ~70
+                      hairlines behind the shift blocks, and at that density
+                      they stopped reading as a scale and started reading as
+                      texture — the blocks had to compete with the background
+                      to be seen.
+
+                      Nothing carrying information was removed. The hour labels
+                      down the left are still the axis, the `border-l` on each
+                      day column still separates the days, and a shift's
+                      position and height are still its start and duration.
+                      What went was decoration. */}
                   {dayShifts.map((shift) => {
                     const start = toDecimalHour(shift.start_time)
                     const end = toDecimalHour(shift.end_time)

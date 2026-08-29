@@ -259,6 +259,21 @@ export interface CheckoutStation {
   id: string
   store_id: string
   station_number: number
+  /**
+   * The shop's own label for this counter — "Express", "Kiosk 2" — or null.
+   *
+   * OPTIONAL, not `string | null`, and that is the decision
+   * `stores.expiry_warning_days` already records: migration 0020 adds this
+   * column, and the app has to render correctly against a database where it
+   * has not been applied. Marking it optional makes the compiler push every
+   * read through the fallback rather than letting a call site assume a value
+   * the row may not carry at all.
+   *
+   * Never read it bare — use `stationLabel()` in MonitoringClient, which falls
+   * back to "Station NN" from `station_number`. Null here means the shop kept
+   * the numbers, which is the normal case and not missing data.
+   */
+  name?: string | null
   status: StationStatus
   payment_type: string
   items_scanned: number

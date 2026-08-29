@@ -41,6 +41,7 @@ import { formatCurrency } from '@/lib/format'
 // first needed, but it has no dashboard-specific behaviour.
 import AutoRefresh from '@/components/dashboard/AutoRefresh'
 import { useToast } from '@/components/ui/Toast'
+import { STATION_STATUS_LABELS } from '@/types'
 import type { CheckoutStation, Role, StationStatus } from '@/types'
 
 const STATUS_META: Record<
@@ -120,6 +121,50 @@ function sessionElapsed(startedAt: string | null, now: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
+/**
+ * What to call a counter on screen.
+ *
+ * ONE function, because the board names a station in five places — the card
+ * and four toasts — and those built the string inline as `Station 0${n}`. That
+ * inline form also carried a real bug worth not reintroducing: it prefixed a
+ * literal "0", so a shop with ten or more lanes rendered "Station 010".
+ *
+ * The fallback is not a placeholder. `name` is null for every station until a
+ * shop chooses to name one, and 0020 keeps it nullable precisely because most
+ * shops will keep the numbers — so "Station 07" is the normal reading of a
+ * complete row, not a gap.
+ *
+ * `name` is optional in the type too: until 0020 is applied the column does
+ * not exist and the property is simply absent. That case lands on the same
+ * fallback as an unnamed station, which is why the board looks unchanged on an
+ * unmigrated database rather than breaking.
+ */
+export function stationLabel(station: CheckoutStation): string {
+  const named = station.name?.trim()
+  if (named) return named
+  return `Station ${String(station.station_number).padStart(2, '0')}`
+}
+
+/**
+ * True when PostgREST is saying `checkout_stations.name` does not exist — i.e.
+ * migration 0020 has not been applied to this database.
+ *
+ * Read from the error rather than probed for in advance, and this file already
+ * establishes the idiom: `removeStation` reads a zero-row delete as "0012 may
+ * be missing" and names the migration. Naming the file is the useful half — a
+ * shopkeeper cannot act on "column not found", but the owner can act on
+ * "apply 0020".
+ *
+ * PGRST204 is PostgREST's "column not found in schema cache"; 42703 is the
+ * Postgres undefined_column that surfaces when the cache is warm but the
+ * column still is not there. Both mean the same thing here.
+ */
+function isMissingNameColumn(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false
+  if (error.code === 'PGRST204' || error.code === '42703') return true
+  return /column .*\bname\b.* does not exist|'name' column/i.test(error.message ?? '')
+}
+
 export default function MonitoringClient({
   storeId,
   role,
@@ -136,6 +181,13 @@ export default function MonitoringClient({
   const [error, setError] = useState('')
   const [seeding, setSeeding] = useState(false)
   const [confirmingRemoveId, setConfirmingRemoveId] = useState<string | null>(null)
+  // Station setup. `renamingId` doubles as "which row is in edit mode", so
+  // only one rename can be open at a time and there is no array of drafts to
+  // keep in step with the server's list.
+  const [newName, setNewName] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameDraft, setRenameDraft] = useState('')
   const now = useSyncExternalStore(subscribeToClock, getClientClock, getServerClock)
 
   const activeAlerts = stations.filter((s) => s.alert_type !== null).length
@@ -247,7 +299,133 @@ export default function MonitoringClient({
       return
     }
     setConfirmingRemoveId(null)
-    toast.success('Counter removed', `Station ${String(station.station_number).padStart(2, '0')}`)
+    toast.success('Counter removed', stationLabel(station))
+    router.refresh()
+  }
+
+  /**
+   * Add ONE counter, named or not.
+   *
+   * The number is derived from the stations already on the board — highest
+   * plus one — rather than from their count, which is the difference between
+   * "add a lane" and "collide with an existing one". A shop that seeded four
+   * and removed Station 02 has three rows whose highest number is still 4, so
+   * counting would propose 4 and PostgREST would happily store a duplicate.
+   * `station_number` carries no unique constraint, so nothing downstream would
+   * catch it and the board would show two cards claiming the same identity.
+   *
+   * `store_id` is the prop the server derived from the session, never anything
+   * the browser chose, and the insert policy independently checks it against
+   * `current_store_id()`. So a crafted store_id is refused by the database
+   * rather than trusted here — the store isolation is the policy's, not this
+   * function's.
+   *
+   * The remaining columns are stated explicitly, and every one is an empty
+   * value. `seedStations` above carries the reason at length: a setup control
+   * configures hardware and must not invent trade, because fabricated
+   * in-progress baskets once surfaced on the dashboard as real takings.
+   */
+  async function addStation() {
+    const name = newName.trim()
+    setAdding(true)
+    setError('')
+    const supabase = createClient()
+
+    const nextNumber = stations.reduce((max, s) => Math.max(max, s.station_number), 0) + 1
+    const row = {
+      store_id: storeId,
+      station_number: nextNumber,
+      status: 'available',
+      payment_type: 'Cash & Card',
+      items_scanned: 0,
+      current_total: 0,
+      session_started_at: null,
+      alert_type: null,
+      alert_expected: null,
+      alert_actual: null,
+      alert_item: null,
+    }
+
+    // `name` is carried as an OPTIONAL property of one payload type rather
+    // than by passing one of two different object literals. Two literals make
+    // the insert's inferred reference type a union, and the client's
+    // excess-property check then measures the named payload against the
+    // unnamed arm and rejects `name` at compile time — a type error describing
+    // nothing that is actually wrong.
+    const payload: typeof row & { name?: string } = name ? { ...row, name } : row
+    let { error: dbError } = await supabase.from('checkout_stations').insert(payload)
+
+    // The station itself does not depend on the migration, so a missing `name`
+    // column must not cost the shop the counter. Retry without it and say
+    // plainly that the name was the part that did not land — reporting success
+    // here would leave someone believing they had named a lane they had not.
+    let nameDropped = false
+    if (name && isMissingNameColumn(dbError)) {
+      const retry = await supabase.from('checkout_stations').insert(row)
+      dbError = retry.error
+      nameDropped = !dbError
+    }
+
+    setAdding(false)
+    if (dbError) {
+      setError(dbError.message)
+      toast.error('Could not add counter', dbError.message)
+      return
+    }
+
+    setNewName('')
+    if (nameDropped) {
+      const message =
+        'The counter was added, but naming needs supabase/migrations/0020_checkout_station_name.sql applied first.'
+      setError(message)
+      toast.info(`Station ${String(nextNumber).padStart(2, '0')} added without a name`, message)
+    } else {
+      toast.success('Counter added', name || `Station ${String(nextNumber).padStart(2, '0')}`)
+    }
+    router.refresh()
+  }
+
+  /**
+   * Rename a counter, or clear its name back to the numbered fallback.
+   *
+   * `.select('id')` for the same reason `removeStation` uses it: RLS refusing
+   * an UPDATE is not an error, it is a 200 with zero rows changed. Without
+   * reading the affected rows back, a staff member — who may insert but whose
+   * role fails the `can_manage()` update policy — would be told the rename
+   * worked and would then watch the old name reappear on the next refresh.
+   */
+  async function renameStation(station: CheckoutStation) {
+    const next = renameDraft.trim()
+    setBusyId(station.id)
+    setError('')
+    const supabase = createClient()
+
+    const { data, error: dbError } = await supabase
+      .from('checkout_stations')
+      .update({ name: next === '' ? null : next })
+      .eq('id', station.id)
+      .select('id')
+
+    setBusyId(null)
+    if (dbError) {
+      const message = isMissingNameColumn(dbError)
+        ? 'Naming counters needs supabase/migrations/0020_checkout_station_name.sql applied first.'
+        : dbError.message
+      setError(message)
+      toast.error('Could not rename counter', message)
+      return
+    }
+    if (!data || data.length === 0) {
+      const message =
+        'Nothing was renamed. Renaming a counter is a manager or owner action, and the counter may also have just been removed.'
+      setError(message)
+      toast.error('Counter not renamed', message)
+      router.refresh()
+      return
+    }
+
+    setRenamingId(null)
+    toast.success('Counter renamed', next || `Station ${String(station.station_number).padStart(2, '0')}`)
     router.refresh()
   }
 
@@ -344,6 +522,175 @@ export default function MonitoringClient({
         />
       </div>
 
+      {/* ---- Station setup ----
+
+          A SEPARATE PANEL FROM THE BOARD BELOW, deliberately. The cards below
+          are a live view — status, basket total, alerts — and they refresh
+          every 20 seconds. Configuration is the opposite kind of surface: it
+          is read rarely, changed deliberately, and must not move under
+          somebody's cursor while they are renaming a lane. Putting a rename
+          field on a self-refreshing card would have done exactly that.
+
+          Nothing here is hard-coded. The list is the `stations` rows the
+          server read for THIS store (`.eq('store_id', store.id)`, and RLS
+          scoping `select` to `current_store_id()` underneath it), so a lane
+          belonging to another shop cannot appear in it and one added here
+          cannot appear in theirs.
+
+          Visible to everyone, editable by managers and owners. That split is
+          not a UI choice — it is what the table's policies already enforce:
+          store members may select and insert, `can_manage()` gates update and
+          delete. Showing staff a rename button the database will refuse is
+          the failure this mirrors away. */}
+      <div className="sp-rise sp-e1 mt-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="sp-heading">Station Setup</h2>
+            <p className="mt-1 text-sm text-muted">
+              {canWrite
+                ? 'Add the counters your shop actually has, and name them the way your staff do.'
+                : 'The counters configured for this store. Ask an owner or manager to change them.'}
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full bg-surface-muted px-2.5 py-1 text-xs font-semibold text-muted-strong">
+            {totalStations} configured
+          </span>
+        </div>
+
+        {canWrite && (
+          /* A form, so Enter submits — this is a single text field and
+             reaching for the mouse to commit it would be the wrong shape. */
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!adding) void addStation()
+            }}
+            className="mt-4 flex flex-wrap items-center gap-2"
+          >
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              /* Optional, and the placeholder says so rather than leaving
+                 someone to discover it. The number is assigned by the shop's
+                 existing lanes, not typed, so there is nothing else to fill
+                 in. */
+              placeholder="Counter name (optional) — e.g. Express"
+              aria-label="New counter name"
+              maxLength={40}
+              className="control-h min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong"
+            />
+            <Button type="submit" loading={adding}>
+              Add Counter
+            </Button>
+          </form>
+        )}
+
+        {totalStations === 0 ? (
+          <p className="mt-4 text-sm text-muted">
+            No counters configured yet.
+          </p>
+        ) : (
+          <ul className="mt-4 divide-y divide-border border-t border-border">
+            {stations.map((station) => {
+              const isRenaming = renamingId === station.id
+              const confirming = confirmingRemoveId === station.id
+              return (
+                <li
+                  key={station.id}
+                  className="flex flex-wrap items-center justify-between gap-3 py-3"
+                >
+                  {isRenaming ? (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault()
+                        if (busyId !== station.id) void renameStation(station)
+                      }}
+                      className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
+                    >
+                      <input
+                        autoFocus
+                        value={renameDraft}
+                        onChange={(e) => setRenameDraft(e.target.value)}
+                        /* Blank is a real submission, not a cancelled one: it
+                           clears the name and returns the lane to its number.
+                           Cancel is the separate button. */
+                        placeholder={`Station ${String(station.station_number).padStart(2, '0')}`}
+                        aria-label={`Rename ${stationLabel(station)}`}
+                        maxLength={40}
+                        className="control-h min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong"
+                      />
+                      <Button type="submit" size="sm" loading={busyId === station.id}>
+                        Save
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => setRenamingId(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </form>
+                  ) : (
+                    <>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {stationLabel(station)}
+                        </p>
+                        {/* The number is always shown, even when a name
+                            replaces it above. It is the station's identity in
+                            the database and the thing two counters called
+                            "Express" are told apart by. */}
+                        <p className="text-xs text-muted">
+                          Station {String(station.station_number).padStart(2, '0')} ·{' '}
+                          {STATION_STATUS_LABELS[station.status]}
+                        </p>
+                      </div>
+
+                      {canWrite && (
+                        <div className="flex shrink-0 items-center gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => {
+                              setConfirmingRemoveId(null)
+                              setRenamingId(station.id)
+                              // Seeded with the stored name, not the rendered
+                              // label — otherwise editing an unnamed station
+                              // would pre-fill "Station 03" and saving it
+                              // would store that as a literal name.
+                              setRenameDraft(station.name?.trim() ?? '')
+                            }}
+                          >
+                            Rename
+                          </Button>
+                          {/* Two-step, matching the board's own remove. A
+                              counter is cheap to recreate but its removal is
+                              instant and unprompted otherwise. */}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={confirming ? 'destructive' : 'secondary'}
+                            loading={busyId === station.id}
+                            onClick={() => {
+                              if (confirming) void removeStation(station)
+                              else setConfirmingRemoveId(station.id)
+                            }}
+                          >
+                            {confirming ? 'Confirm' : 'Remove'}
+                          </Button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+
       {/* The shared EmptyState, not a bare paragraph centred in a box - so
           this reads like every other empty surface in the app rather than
           like a page that failed to load. */}
@@ -377,7 +724,7 @@ export default function MonitoringClient({
               <div className="p-5">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-xl font-bold text-foreground">
-                    Station {String(station.station_number).padStart(2, '0')}
+                    {stationLabel(station)}
                   </h3>
                   <span
                     className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${meta.badge}`}
