@@ -101,29 +101,32 @@ export default function BenefitsSection() {
           whileHover={{ translateZ: 20 }}
           className="glass-card p-10 md:p-14 rounded-2xl border border-[var(--sp-gold)]/40 bg-gradient-to-r from-[var(--sp-surface-card)]/90 via-[var(--sp-surface-alt)]/95 to-[var(--sp-surface-card)]/90 relative overflow-hidden preserve-3d animate-3d-glow"
         >
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-            <div className="lg:col-span-7">
+          {/* ONE column, not two.
+
+              The right-hand column here used to be a second pricing
+              presentation — "PRICING TODAY / Free / No card required, while in
+              beta" — sitting five sections above the real one. Two price claims
+              on one page is one too many: a visitor cannot tell which is
+              authoritative, and the navbar's "Pricing" link never pointed here
+              anyway (LandingNav and Footer both target #pricing, which is
+              PricingPreviewSection). It is removed outright rather than hidden,
+              and its one piece of non-duplicated information — that no card is
+              required — now lives in that canonical section.
+
+              What stays is the value proposition, which was never pricing: this
+              panel's own paragraph still says the platform is free while in
+              beta, so nothing true was lost by deleting the box beside it. */}
+          <div className="grid grid-cols-1 gap-10 items-center">
+            <div>
               <div className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[var(--sp-gold)] mb-4">
                 <Sparkles className="w-4 h-4" /> WHY STORES SWITCH
               </div>
               <h3 className="font-display font-medium text-3xl text-foreground mb-5">
                 No Hardware, No Setup Fees, No Catch
               </h3>
-              <p className="text-muted-strong text-sm leading-relaxed max-w-xl">
+              <p className="text-muted-strong text-sm leading-relaxed max-w-3xl">
                 Stock Pulse runs in the browser — inventory, sales, staff, suppliers, customers, and reporting in one dashboard. Nothing to install, nothing to wire up, and it’s free while the platform is in beta.
               </p>
-            </div>
-
-            <div className="lg:col-span-5 flex flex-col items-center justify-center p-10 rounded-xl bg-background/90 border border-[var(--sp-gold)]/30 text-center">
-              <div className="font-mono text-xs uppercase tracking-widest text-muted mb-2">
-                PRICING TODAY
-              </div>
-              <div className="font-display font-black text-5xl sm:text-6xl text-gold-gradient mb-3">
-                Free
-              </div>
-              <div className="font-mono text-xs text-success flex items-center justify-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4" /> No card required, while in beta
-              </div>
             </div>
           </div>
         </motion.div>

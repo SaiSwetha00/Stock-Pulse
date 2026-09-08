@@ -66,8 +66,15 @@ export default function PricingPreviewSection() {
             </span>
           </div>
 
+          {/* "No card required" is MERGED IN, not newly claimed.
+
+              It was the one fact the duplicate pricing callout in
+              BenefitsSection carried that this section did not, and it answers
+              the question a free tier always raises — whether signing up still
+              costs a card up front. That callout has been deleted, so this is
+              now the only place on the page the claim is made. */}
           <p className="text-muted-strong text-sm leading-relaxed mb-8 border-b border-border pb-7">
-            100% free for every grocery store — no tiers, no catches.
+            100% free for every grocery store — no tiers, no catches, and no card required.
           </p>
 
           <div className="space-y-4 mb-10 font-sans text-sm text-muted-strong">
