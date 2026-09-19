@@ -35,5 +35,5 @@ export default async function Home() {
 
   // Only ever reached signed out — the redirect above guarantees it, so the
   // landing page (below) doesn't need a signedIn prop at all.
-  return <LandingPage theme="mono" layout="centered" />
+  return <LandingPage theme="green" layout="split" />
 }

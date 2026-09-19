@@ -72,7 +72,7 @@ export const DASHBOARD_LABEL = `The StockPulse dashboard for the demo store on $
 const STAT_FIT = 'p-4 sm:p-5 max-sm:[&_span.inline-flex]:hidden'
 
 /** The app window: title bar, the real sidebar (optional), the dashboard. */
-export function DashboardPreview({ sidebar = true }: { sidebar?: boolean }) {
+export function DashboardPreview({ sidebar = true, compact = false }: { sidebar?: boolean; compact?: boolean }) {
   return (
     <div
       role="img"
@@ -111,13 +111,18 @@ export function DashboardPreview({ sidebar = true }: { sidebar?: boolean }) {
           <div className="min-w-0 flex-1 bg-[var(--lp-tint)] p-4 sm:p-5">
             <p className="text-[11.5px] font-medium text-[#6B7280]">Saturday, 19 September</p>
             <p className="mb-4 text-[17px] font-bold tracking-tight text-[#111827]">Dashboard</p>
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-3 xl:grid-cols-4">
+            {/* compact: beside the hero text the window is ~55% wide, and four tiles in a row wrapped their labels. */}
+            <div className={`grid grid-cols-2 gap-2.5 sm:gap-3 ${compact ? '' : 'xl:grid-cols-4'}`}>
               <StatCard label="Products" value={TOTALS.products} icon={Archive} className={STAT_FIT} />
               <StatCard label="Stock lots" value={TOTALS.liveLots} icon={Layers} className={STAT_FIT} />
               <StatCard label="Low Stock" value={TOTALS.lowStock} icon={AlertTriangle} className={STAT_FIT} />
               <StatCard label="Expiring Soon" value={TOTALS.expiringSoonLots} icon={CalendarClock} className={STAT_FIT} />
             </div>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {/* compact: side by side, the two alert cards truncated product names. */}
+            <div className={`mt-3 grid gap-3 ${compact ? '' : 'md:grid-cols-2'}`}>
+              {/* compact: the Low Stock tile above already gives the count; dropping this card keeps
+                  the side-by-side hero inside one screen (it measured 849px in a 900px window). */}
+              {!compact && (
               <Card>
                 <CardHeader title="Low Stock Alerts" subtitle="At or below each product’s own threshold" />
                 <CardBody>
@@ -141,6 +146,7 @@ export function DashboardPreview({ sidebar = true }: { sidebar?: boolean }) {
                   </ul>
                 </CardBody>
               </Card>
+              )}
               <Card>
                 <CardHeader title="Expiring Soon" subtitle={`${TOTALS.expiredLots} lots already expired`} />
                 <CardBody>

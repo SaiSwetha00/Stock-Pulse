@@ -125,7 +125,7 @@ export default function LandingPage({
             </div>
 
             <figure className={split ? '' : 'mx-auto mt-14 max-w-5xl sm:mt-16'}>
-              <DashboardPreview sidebar={!split} />
+              <DashboardPreview sidebar={!split} compact={split} />
               <figcaption className="mt-3 text-center text-[12.5px] text-[#6B7280]">
                 The real StockPulse dashboard · demo store, {SNAPSHOT_LABEL}
               </figcaption>
