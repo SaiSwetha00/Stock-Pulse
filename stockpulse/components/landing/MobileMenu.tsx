@@ -27,7 +27,7 @@ export default function MobileMenu({
   }, [open])
 
   const focus =
-    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB]'
+    'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--lp-accent)]'
 
   return (
     <div className="md:hidden">
@@ -37,7 +37,7 @@ export default function MobileMenu({
         aria-controls={id}
         aria-label={open ? 'Close menu' : 'Open menu'}
         onClick={() => setOpen((o) => !o)}
-        className={`grid h-11 w-11 place-items-center rounded-xl border border-[#E2E8F0] bg-white text-[#0F172A] ${focus}`}
+        className={`grid h-11 w-11 place-items-center rounded-xl border border-[#E5E7EB] bg-white text-[#111827] ${focus}`}
       >
         {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </button>
@@ -45,7 +45,7 @@ export default function MobileMenu({
       <div
         id={id}
         hidden={!open}
-        className="absolute inset-x-0 top-16 border-b border-[#E2E8F0] bg-white px-5 pb-6 pt-2 shadow-[0_24px_40px_-24px_rgba(15,23,42,0.25)]"
+        className="absolute inset-x-0 top-16 border-b border-[#E5E7EB] bg-white px-5 pb-6 pt-2 shadow-[0_24px_40px_-24px_rgba(17,24,39,0.20)]"
       >
         <ul className="flex flex-col">
           {links.map((l) => (
@@ -53,7 +53,7 @@ export default function MobileMenu({
               <a
                 href={l.href}
                 onClick={() => setOpen(false)}
-                className={`block border-b border-[#EEF2F7] py-3.5 text-[16px] font-medium text-[#0F172A] ${focus}`}
+                className={`block border-b border-[#F0F0F2] py-3.5 text-[16px] font-medium text-[#111827] ${focus}`}
               >
                 {l.label}
               </a>
