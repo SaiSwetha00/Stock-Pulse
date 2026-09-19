@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import Landing from '@/components/marketing/Landing'
+import LandingPage from '@/components/landing/LandingPage'
 
 export const metadata: Metadata = {
   title: 'StockPulse — Store operations for independent grocers',
@@ -17,7 +17,9 @@ export const metadata: Metadata = {
  * to read the pitch again, and making them click through a marketing page to
  * reach it is friction with nothing on the other side of it.
  *
- * Anyone signed out gets the landing, with the sign-in card on the hero.
+ * Anyone signed out gets the landing page (components/landing). The previous
+ * dark/gold landing in components/marketing is no longer rendered here; its
+ * files remain because the auth pages still use parts of it.
  *
  * `getUser()` rather than `getSession()`: the former revalidates the token with
  * Supabase, and this decides whether someone is shown their own workspace. The
@@ -32,6 +34,6 @@ export default async function Home() {
   if (user) redirect('/dashboard')
 
   // Only ever reached signed out — the redirect above guarantees it, so the
-  // ported landing page (below) doesn't need a signedIn prop at all.
-  return <Landing />
+  // landing page (below) doesn't need a signedIn prop at all.
+  return <LandingPage />
 }
