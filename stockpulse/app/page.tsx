@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import Landing from '@/components/marketing/Landing'
+import LandingNavy from '@/components/landing/LandingNavy'
 
 export const metadata: Metadata = {
   title: 'StockPulse — Store operations for independent grocers',
@@ -17,7 +17,12 @@ export const metadata: Metadata = {
  * to read the pitch again, and making them click through a marketing page to
  * reach it is friction with nothing on the other side of it.
  *
- * Anyone signed out gets the landing, with the sign-in card on the hero.
+ * Anyone signed out gets components/landing/LandingNavy — the approved navy
+ * design, reviewed as /design-exploration/3/full, which that route still
+ * renders so preview and production cannot drift. It replaced a
+ * white-and-green page (components/landing/LandingPage, deleted with its
+ * ProductUI and MobileMenu); the older dark/gold components/marketing landing
+ * had already stopped being rendered here.
  *
  * `getUser()` rather than `getSession()`: the former revalidates the token with
  * Supabase, and this decides whether someone is shown their own workspace. The
@@ -32,6 +37,6 @@ export default async function Home() {
   if (user) redirect('/dashboard')
 
   // Only ever reached signed out — the redirect above guarantees it, so the
-  // ported landing page (below) doesn't need a signedIn prop at all.
-  return <Landing />
+  // landing page (below) doesn't need a signedIn prop at all.
+  return <LandingNavy />
 }
