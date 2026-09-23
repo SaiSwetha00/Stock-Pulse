@@ -21,24 +21,25 @@ import {
   UserSquare2,
   Users,
 } from 'lucide-react'
-import ProductShot, { productTokens, type Palette } from '@/components/design-preview/ProductShot'
+import DashboardShot, { productTokens, type Palette } from '@/components/product/DashboardShot'
 import FadeIn from '@/components/landing/FadeIn'
 import ExpiryTag from '@/components/ui/ExpiryTag'
 import Badge from '@/components/ui/Badge'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { EXPIRING, SNAPSHOT_DATE, SNAPSHOT_LABEL, TOTALS, WARNING_DAYS } from '@/components/landing/snapshot'
-import { caveat, interTight } from '../fonts'
-import { ExpiringPanel, ExpiringTile, LotsTile, LowStockPanel, LowStockTile, ProductsTile } from '../shared'
-import BrandMark from './BrandMark'
+import { landingSans, landingScript } from './fonts'
+import { ExpiringPanel, ExpiringTile, LotsTile, LowStockPanel, LowStockTile, ProductsTile } from './panels'
+import StockPulseMark from '@/components/brand/StockPulseMark'
 import MobileMenuDark from './MobileMenuDark'
 
 /**
- * The full landing page in Exploration 3's language — PREVIEW ONLY.
+ * THE LANDING PAGE — app/page.tsx renders this for every signed-out visitor.
  *
- * Not wired into app/page.tsx; the live landing page is untouched. This is the
- * approved first screen (Exploration 3: deep navy, Inter Tight Light at
- * display size, hairline rules, periwinkle index numbers, one soft-purple
- * dot) carried through a whole page.
+ * Approved as /design-exploration/3/full and promoted here unchanged in
+ * design: deep navy, Inter Tight, hairline rules, periwinkle index numbers,
+ * one soft-purple dot, and the product shown as the real dashboard rather
+ * than a drawing of one. That preview route still exists and now renders THIS
+ * file, so the two cannot drift.
  *
  * Content is the live page's content, extended — never invented:
  *   - every capability named exists in the app (lib/nav.ts routes, and the
@@ -198,7 +199,7 @@ const FOOTER_LINKS = [
 export default function LandingNavy() {
   return (
     <div
-      className={`${interTight.variable} min-h-screen bg-[#0A0F1F] font-[family-name:var(--font-dx-inter-tight)] text-[#EEF0F6] antialiased`}
+      className={`${landingSans.variable} min-h-screen bg-[#0A0F1F] font-[family-name:var(--font-landing-sans)] text-[#EEF0F6] antialiased`}
       style={{ ['--border' as string]: 'rgba(255,255,255,0.10)' } as React.CSSProperties}
     >
       <style dangerouslySetInnerHTML={{ __html: PAGE_STYLES }} />
@@ -207,7 +208,7 @@ export default function LandingNavy() {
       <header className="sticky top-0 z-50 border-b bg-[#0A0F1F]">
         <div className={`relative flex h-20 items-center justify-between ${WRAP}`}>
           <Link href="/" aria-label="StockPulse home" className={`inline-flex items-center gap-3 rounded-md ${focus}`}>
-            <BrandMark id="sp-mark-nav" className="h-8 w-8" />
+            <StockPulseMark uid="landing-nav" className="h-8 w-8" />
             <span className="text-[17px] font-semibold tracking-[-0.01em]">StockPulse</span>
           </Link>
           <nav aria-label="Primary" className="hidden items-center gap-10 text-[14px] text-[#A7AFC4] md:flex">
@@ -348,7 +349,7 @@ export default function LandingNavy() {
         <section id="product" aria-labelledby="product-h" className="relative scroll-mt-20">
           <div className={`${WRAP} grid items-center gap-12 py-16 sm:py-20 lg:grid-cols-[1.6fr_1fr] lg:gap-14`}>
             <figure className="min-w-0">
-              <ProductShot palette={PALETTE} />
+              <DashboardShot palette={PALETTE} />
               <figcaption className="mt-4 text-[12.5px] text-[#6B7489]">
                 The real StockPulse dashboard · demo store, {SNAPSHOT_LABEL}
               </figcaption>
@@ -518,7 +519,7 @@ export default function LandingNavy() {
         <div className={`${WRAP} flex flex-col gap-8 py-12 md:flex-row md:items-center md:justify-between`}>
           <div className="flex items-center gap-4 text-[14px] text-[#6B7489]">
             <span className="inline-flex items-center gap-3 text-[#EEF0F6]">
-              <BrandMark id="sp-mark-foot" className="h-7 w-7" />
+              <StockPulseMark uid="landing-footer" className="h-7 w-7" />
               <span className="text-[15px] font-medium">StockPulse</span>
             </span>
             <span>© 2026</span>
@@ -754,7 +755,7 @@ function NoteCard({ className }: { className: string }) {
 function Annotation({ className }: { className: string }) {
   return (
     <div
-      className={`${caveat.variable} -rotate-6 font-[family-name:var(--font-dx-caveat)] text-[27px] font-medium leading-[1.02] text-[#E6E9FF] ${className}`}
+      className={`${landingScript.variable} -rotate-6 font-[family-name:var(--font-landing-script)] text-[27px] font-medium leading-[1.02] text-[#E6E9FF] ${className}`}
     >
       A simpler
       <br />
