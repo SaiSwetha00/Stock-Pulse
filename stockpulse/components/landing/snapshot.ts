@@ -10,7 +10,7 @@
  * expiry counts use `getExpiringStock`'s rules — lots with `quantity > 0`,
  * undated lots excluded, the window from `stores.expiry_warning_days`.
  *
- * Counted in LOTS, because that is what the page says: "11 lots", "N lots
+ * Counted in LOTS, because that is what the page says: "9 lots", "N lots
  * already expired". The dashboard's own KPI counts PRODUCTS over the same
  * rows, so the two differ in kind as well as in date — that is not drift.
  *
