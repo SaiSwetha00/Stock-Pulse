@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Archive, ArrowRight, BellRing, ReceiptText } from 'lucide-react'
 import FadeIn from './FadeIn'
+import StockPulseMark from '@/components/brand/StockPulseMark'
 import MobileMenu from './MobileMenu'
 import { DashboardPreview, SNAPSHOT_LABEL, themeStyle, type LandingTheme } from './ProductUI'
 
@@ -67,7 +68,7 @@ export default function LandingPage({
       <header className="sticky top-0 z-50 border-b border-[#F0F0F2] bg-white/90 backdrop-blur">
         <div className="relative mx-auto flex h-16 max-w-6xl items-center justify-between px-5 sm:px-8">
           <Link href="/" aria-label="StockPulse home" className={`rounded-md ${focus}`}>
-            <Logo />
+            <Logo uid="nav" />
           </Link>
           <nav aria-label="Primary" className="hidden items-center gap-8 md:flex">
             {NAV.map((n) => (
@@ -197,7 +198,7 @@ export default function LandingPage({
       <footer className="border-t border-[#F0F0F2] py-10">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-5 text-[14px] text-[#6B7280] sm:px-8 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
-            <Logo />
+            <Logo uid="footer" />
             <span>© 2026</span>
           </div>
           <ul className="flex flex-wrap gap-x-6 gap-y-1">
@@ -221,21 +222,11 @@ export default function LandingPage({
   )
 }
 
-/** The pulse mark in the page's one accent colour, with a plain wordmark. */
-function Logo() {
+/** The StockPulse mark (Icon A) with a plain wordmark. */
+function Logo({ uid = 'lp' }: { uid?: string }) {
   return (
     <span className="inline-flex items-center gap-2.5">
-      <svg viewBox="0 0 32 32" className="h-8 w-8 text-[var(--lp-accent)]" aria-hidden="true" focusable="false">
-        <rect x="1" y="1" width="30" height="30" rx="8" fill="currentColor" />
-        <path
-          d="M6 17h5l2.5-6 4 11 3-8 1.5 3H26"
-          fill="none"
-          stroke="#fff"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+      <StockPulseMark uid={uid} className="h-8 w-8" />
       <span className="text-[18px] font-bold tracking-[-0.02em] text-[#111827]">StockPulse</span>
     </span>
   )

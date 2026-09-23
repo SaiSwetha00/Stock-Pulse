@@ -1,0 +1,128 @@
+/* ---------------------------------------------------------------
+   The auth screens' palette: the landing page's deep navy with the
+   blue/purple accents, scoped to `.sp-auth`.
+
+   WHY A TOKEN SHEET RATHER THAN EDITED PAGES. app/login, /signup,
+   /forgot-password and /reset-password style themselves with semantic
+   tokens (text-muted-strong, border-border) and with the old landing
+   page's brand variables (var(--sp-gold), var(--sp-red)) — sixteen and
+   four references respectively. Re-pointing those variables here
+   restyles all four pages, and the shared AuthField/SubmitButton with
+   them, without touching a single line that handles a credential.
+   The old marketing sheet's own bands (.sp-band-night / .sp-band-paper)
+   are overridden below for the same reason: the pages name them.
+
+   Every value comes from the approved landing design
+   (components/design-exploration/full/LandingNavy.tsx).
+   --------------------------------------------------------------- */
+
+.sp-auth {
+  --sp-navy: #0a0f1f;
+  --sp-navy-raised: #10162b;
+
+  /* The one accent, and the purple that supports it. */
+  --sp-blue: #4f6bff;
+  --sp-blue-hover: #6580ff;
+  --sp-periwinkle: #8fa2ff;
+  --sp-purple: #a898ff;
+
+  /* The old brand variables the pages still name, re-pointed. Gold
+     becomes periwinkle (labels, the demo card, focus rings); red was
+     the submit button and becomes the blue. */
+  --sp-gold: #8fa2ff;
+  --sp-gold-deep: #6b7fe0;
+  --sp-red: #4f6bff;
+  --sp-red-deep: #3d55d6;
+  --sp-red-hover: #6580ff;
+
+  /* Semantic tokens for everything token-styled inside the tree. */
+  --background: #0a0f1f;
+  --surface: #10162b;
+  --surface-muted: #0d1326;
+  --raised: #141b33;
+  --overlay: #10162b;
+  --foreground: #eef0f6;
+  --muted-strong: #a7afc4;
+  --muted: #8a93ab;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.24);
+  --accent: #4f6bff;
+  --accent-fill: #4f6bff;
+  --accent-hover: #6580ff;
+  --accent-soft: rgba(79, 107, 255, 0.14);
+  --accent-ink: #8fa2ff;
+  --on-accent: #ffffff;
+  --success: #7ee0a8;
+  --success-bg: rgba(126, 224, 168, 0.12);
+  --success-ink: #7ee0a8;
+  --danger: #ff8f8f;
+  --danger-bg: rgba(255, 143, 143, 0.12);
+  --warning: #ffcc7a;
+  --warning-bg: rgba(255, 204, 122, 0.12);
+  --info: #8fa2ff;
+  --info-bg: rgba(143, 162, 255, 0.12);
+
+  background: var(--sp-navy);
+  color: var(--foreground);
+  color-scheme: dark;
+}
+
+/* The pages name the old bands; both are the same navy now, so the
+   split reads as one surface instead of dark-beside-paper. */
+.sp-auth .sp-band-night,
+.sp-auth .sp-band-paper {
+  background: transparent;
+  color: var(--foreground);
+}
+
+/* One typeface across the auth screens, as on the landing page. The
+   marketing sheet pointed these three at Cinzel, Cinzel Decorative and
+   JetBrains Mono; a sign-in page in three voices is the thing this
+   change is correcting. `font-mono` keeps its letter-spacing role for
+   field labels but in the page's own face. */
+.sp-auth .font-brand,
+.sp-auth .font-serif-brand,
+.sp-auth .font-mono {
+  font-family: var(--font-auth-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+.sp-auth .font-serif-brand {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.sp-auth .font-mono {
+  letter-spacing: 0.08em;
+}
+
+/* The one card the pages still name. */
+.sp-auth .glass-card {
+  background: rgba(16, 22, 43, 0.85);
+  border: 1px solid var(--border);
+}
+
+/* ---------------------------------------------------------------
+   The dashboard behind the sign-in form.
+
+   The product's own status colours are amber (Reorder) and red
+   (expired) — correct inside the app, where they are functional
+   indicators, and wrong here, where they would be the only warm
+   colour on the brand's navy. They are re-pointed to periwinkle for
+   THIS BACKDROP ONLY; the dashboard itself is untouched.
+
+   `*` with !important because DashboardShot sets these as inline
+   custom properties on its own root, and an inline custom property
+   otherwise wins.
+   --------------------------------------------------------------- */
+.sp-auth .sp-auth-backdrop,
+.sp-auth .sp-auth-backdrop * {
+  --warning: #8fa2ff !important;
+  --warning-bg: rgba(143, 162, 255, 0.16) !important;
+  --danger: #a9b4ff !important;
+  --danger-bg: rgba(169, 180, 255, 0.16) !important;
+  --success: #8fa2ff !important;
+  --success-bg: rgba(143, 162, 255, 0.16) !important;
+  --accent: #4f6bff !important;
+  --accent-ink: #4f6bff !important;
+  --accent-soft: rgba(79, 107, 255, 0.14) !important;
+}
