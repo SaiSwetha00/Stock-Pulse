@@ -21,6 +21,7 @@ import {
 import ProductImageUpload from './ProductImageUpload'
 import type { Product } from '@/types'
 import type { CategoryOption } from '@/lib/categories'
+import { useAppCopy } from '@/lib/i18n/client'
 
 // The local `CATEGORIES` array was here — a duplicate of the one in
 // lib/validation/product.ts, so the form and its validator each held their own
@@ -101,6 +102,8 @@ export default function ProductModal({
   onClose: () => void
   onSaved: () => void
 }) {
+  const t = useAppCopy()
+  const ti = t.inventory
   const [name, setName] = useState(product?.name ?? '')
   const [brand, setBrand] = useState(product?.brand ?? '')
   const [sku, setSku] = useState(product?.sku ?? '')
@@ -200,7 +203,7 @@ export default function ProductModal({
     const input = currentInput()
 
     // Client-side pass for instant feedback; the action re-checks regardless.
-    const found = validateProduct(input, categories.map((c) => c.slug))
+    const found = validateProduct(input, categories.map((c) => c.slug), t.validation)
     setErrors(found)
     if (Object.keys(found).length > 0) return
 
@@ -209,11 +212,11 @@ export default function ProductModal({
 
       if (!result.ok) {
         setErrors(result.errors ?? {})
-        setError(result.message ?? 'Could not save the product.')
+        setError(result.message ?? ti.saveFailed)
         // The inline banner can be scrolled out of view in this nine-field
         // form, so the outcome is announced as well as shown.
         toast.error(
-          product ? 'Could not update product' : 'Could not add product',
+          product ? ti.updateFailedToast : ti.addFailedToast,
           result.message
         )
         return
@@ -222,7 +225,7 @@ export default function ProductModal({
       // revalidatePath clears the server cache; router.refresh() is what makes
       // the client refetch. Both are needed — verified in production, where
       // revalidatePath alone left the table stale until a manual reload.
-      toast.success(product ? 'Product updated' : 'Product added', input.name)
+      toast.success(product ? ti.updatedToast : ti.addedToast, input.name)
       router.refresh()
       onSaved()
     })
@@ -230,7 +233,7 @@ export default function ProductModal({
 
   return (
     <Modal
-      title={product ? 'Edit Product' : 'Add Product'}
+      title={product ? ti.formEdit : ti.formAdd}
       onClose={onClose}
       width="lg"
       /*
@@ -272,10 +275,10 @@ export default function ProductModal({
               state, so the label no longer swaps to "Saving…" and the
               button cannot change width mid-click. */}
           <Button type="button" variant="secondary" fullWidth onClick={onClose}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button type="submit" form={formId} fullWidth loading={saving}>
-            {product ? 'Save Changes' : 'Add Product'}
+            {product ? ti.saveChanges : ti.formAdd}
           </Button>
         </div>
       }
@@ -295,15 +298,15 @@ export default function ProductModal({
             </div>
           )}
 
-          <Field label="Product Name" error={errors.name} required>
+          <Field label={ti.fName} error={errors.name} required>
             {(p) => <Input {...p} required value={name} onChange={(e) => setName(e.target.value)} />}
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Brand" error={errors.brand}>
+            <Field label={ti.fBrand} error={errors.brand}>
               {(p) => <Input {...p} value={brand} onChange={(e) => setBrand(e.target.value)} />}
             </Field>
-            <Field label="SKU" error={errors.sku}>
+            <Field label={ti.fSku} error={errors.sku}>
               {(p) => <Input {...p} value={sku} onChange={(e) => setSku(e.target.value)} />}
             </Field>
           </div>
@@ -315,8 +318,8 @@ export default function ProductModal({
               phone keypad — which is the keyboard actually in the shopkeeper's
               hand — without any of that. */}
           <Field
-            label="Barcode"
-            hint="Optional · 8-14 digits, numbers only"
+            label={ti.fBarcode}
+            hint={ti.barcodeHint}
             error={errors.barcode}
           >
             {(p) => (
@@ -327,14 +330,14 @@ export default function ProductModal({
                 inputMode="numeric"
                 autoComplete="off"
                 maxLength={14}
-                placeholder="e.g. 8901234567895"
+                placeholder={ti.barcodePlaceholder}
                 className="sp-num"
               />
             )}
           </Field>
 
           <div>
-            <Field label="Category" error={errors.category}>
+            <Field label={ti.fCategory} error={errors.category}>
               {(p) => (
                 <Select {...p} value={category} onChange={(e) => setCategory(e.target.value)}>
                   {categories.map((c) => (
@@ -355,13 +358,13 @@ export default function ProductModal({
               href="/settings/categories"
               className="mt-1.5 inline-flex items-center gap-1 rounded-sm text-xs font-medium text-muted transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong"
             >
-              Manage categories
+              {ti.manageCategories}
               <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
             </Link>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
-            <Field label="Price ($)" error={errors.unitPrice} required>
+            <Field label={ti.fPrice} error={errors.unitPrice} required>
               {(p) => (
                 <Input
                   {...p}
@@ -375,17 +378,17 @@ export default function ProductModal({
                 />
               )}
             </Field>
-            <Field label="Unit" error={errors.unit}>
+            <Field label={ti.fUnit} error={errors.unit}>
               {(p) => (
                 <Input
                   {...p}
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
-                  placeholder="ea, lb, gal"
+                  placeholder={ti.unitPlaceholder}
                 />
               )}
             </Field>
-            <Field label="Low Stock Threshold" error={errors.lowStockThreshold}>
+            <Field label={ti.fThreshold} error={errors.lowStockThreshold}>
               {(p) => (
                 <Input
                   {...p}
@@ -405,11 +408,11 @@ export default function ProductModal({
               two dates and one row could only ever hold the later one. */}
           <fieldset className="rounded-xl border border-border px-4 pb-4 pt-3">
             <legend className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-strong">
-              Stock &amp; Expiry
+              {ti.lotsLegend}
             </legend>
 
             <p className="mb-3 text-xs text-muted">
-              One row per delivery. Leave the date blank for anything that does not expire.
+              {ti.lotsHelp}
             </p>
 
             {/* The state of what is already on the shelf, said once at the top
@@ -424,6 +427,7 @@ export default function ProductModal({
             {nearestLotExpiry !== null && (
               <p className="mb-3">
                 <ExpiryTag
+                  copy={t.expiry}
                   date={nearestLotExpiry}
                   today={today}
                   warningDays={expiryWarningDays}
@@ -441,7 +445,7 @@ export default function ProductModal({
             <div className="space-y-3">
               {lots.map((lot, i) => (
                 <div key={lot.key} className="grid grid-cols-[1fr_1fr_auto] items-start gap-3">
-                  <Field label="Quantity" error={errors.lotRows?.[i]?.quantity}>
+                  <Field label={ti.fQuantity} error={errors.lotRows?.[i]?.quantity}>
                     {(p) => (
                       <Input
                         {...p}
@@ -456,7 +460,7 @@ export default function ProductModal({
                   {/* "(optional)" stays out of the label and in the hint slot
                       — the label should name the field, not carry
                       parenthetical instructions the hint row has a place for. */}
-                  <Field label="Expiry Date" hint="Optional" error={errors.lotRows?.[i]?.expiryDate}>
+                  <Field label={ti.fExpiryDate} hint={ti.optional} error={errors.lotRows?.[i]?.expiryDate}>
                     {(p) => (
                       <Input
                         {...p}
@@ -471,7 +475,7 @@ export default function ProductModal({
                   <button
                     type="button"
                     onClick={() => removeLot(i)}
-                    aria-label={`Remove lot ${i + 1}`}
+                    aria-label={ti.removeLot.replace('{n}', String(i + 1))}
                     className="tap-target mt-6 rounded-lg text-muted hover:bg-danger-bg hover:text-danger"
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -488,13 +492,13 @@ export default function ProductModal({
                 disabled={lots.length >= MAX_LOTS}
               >
                 <Plus className="h-4 w-4" aria-hidden="true" />
-                Add another lot
+                {ti.addLot}
               </Button>
               {/* Stated, not typed. This is the number 0016's trigger will put
                   in products.stock, and showing it is how the reader confirms
                   the rows add up to what they expected. */}
               <p className="sp-num text-sm text-muted-strong" aria-live="polite">
-                Total stock:{' '}
+                {ti.totalStock}{' '}
                 <span className="font-semibold text-foreground">
                   {totalLotQuantity(currentInput())}
                 </span>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { deleteCustomer } from '@/app/(dashboard)/customers/actions'
 import Modal from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
+import { useAppCopy } from '@/lib/i18n/client'
 import Button from '@/components/ui/Button'
 import type { Customer } from '@/types'
 
@@ -15,6 +16,8 @@ export default function DeleteCustomerDialog({
   customer: Customer
   onClose: () => void
 }) {
+  const t = useAppCopy()
+  const tc = t.customers
   const router = useRouter()
   const toast = useToast()
   const [error, setError] = useState('')
@@ -30,12 +33,12 @@ export default function DeleteCustomerDialog({
       const result = await deleteCustomer(customer.id)
 
       if (!result.ok) {
-        setError(result.message ?? 'Could not delete the customer.')
-        toast.error('Could not delete customer', result.message)
+        setError(result.message ?? tc.deleteFailed)
+        toast.error(tc.deleteFailedToast, result.message)
         return
       }
 
-      toast.success('Customer deleted', customer.full_name)
+      toast.success(tc.deletedToast, customer.full_name)
 
       // revalidatePath alone does not repaint the client; see CustomerModal.
       router.refresh()
@@ -44,7 +47,7 @@ export default function DeleteCustomerDialog({
   }
 
   return (
-    <Modal title="Delete Customer" onClose={onClose} width="sm">
+    <Modal title={tc.deleteTitle} onClose={onClose} width="sm">
       <div className="space-y-4 px-6 py-5">
         {error && (
           <div role="alert" className="rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">
@@ -53,16 +56,17 @@ export default function DeleteCustomerDialog({
         )}
 
         <p className="text-sm text-muted-strong">
-          Delete <span className="font-semibold text-foreground">{customer.full_name}</span> and their
-          purchase history? This cannot be undone.
+          {tc.deleteBodyA}
+          <span className="font-semibold text-foreground">{customer.full_name}</span>
+          {tc.deleteBodyB}
         </p>
 
         <div className="flex gap-3 pt-1">
           <Button type="button" variant="secondary" fullWidth onClick={onClose}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button type="button" variant="danger" fullWidth loading={deleting} onClick={handleDelete}>
-            Delete
+            {tc.deleteConfirm}
           </Button>
         </div>
       </div>

@@ -32,6 +32,24 @@ import { LocalDate, RelativeTime } from '@/components/ui/LocalTime'
 import Greeting from '@/components/dashboard/Greeting'
 import ProductThumb from '@/components/ui/ProductThumb'
 import CountUp from '@/components/ui/CountUp'
+import type { DashboardCopy, ExpiryCopy } from '@/lib/i18n/app'
+
+/**
+ * A "{n}" template rendered with the number in bold, wherever the template
+ * puts it. Splitting rather than concatenating is what lets a language move
+ * the count to the front or the back without losing the emphasis the design
+ * puts on it.
+ */
+function WithCount({ template, n }: { template: string; n: number }) {
+  const [before, after] = template.split('{n}')
+  return (
+    <>
+      {before}
+      <span className="font-semibold text-foreground">{n}</span>
+      {after}
+    </>
+  )
+}
 
 export interface DashboardAlert {
   id: string
@@ -116,7 +134,9 @@ const ALERT_STYLES = {
 
 interface QuickAction {
   href: string
-  label: string
+  /** A dictionary key, not a sentence — the tiles are module data and cannot
+   *  read a hook, so the label is resolved where the copy is in scope. */
+  labelKey: keyof DashboardCopy
   Icon: LucideIcon
   wrap: string
   icon: string
@@ -126,7 +146,7 @@ interface QuickAction {
 const QUICK_ACTIONS: QuickAction[] = [
   {
     href: '/sales',
-    label: 'New Order',
+    labelKey: 'qaNewOrder',
     Icon: ShoppingCart,
     wrap: 'bg-accent-soft',
     icon: 'text-accent-ink',
@@ -138,7 +158,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     // both roles, and it is where the "N checkouts pending" figure on the
     // card above actually resolves.
     href: '/monitoring',
-    label: 'Checkout Status',
+    labelKey: 'qaCheckout',
     Icon: MonitorCheck,
     wrap: 'bg-surface-muted',
     icon: 'text-muted-strong',
@@ -149,7 +169,7 @@ const QUICK_ACTIONS: QuickAction[] = [
     // logging the app has never had — the same defect as the old
     // "Scan Item". Checking stock is what /inventory actually does.
     href: '/inventory',
-    label: 'Check Stock',
+    labelKey: 'qaCheckStock',
     Icon: Archive,
     wrap: 'bg-surface-muted',
     icon: 'text-muted-strong',
@@ -169,7 +189,13 @@ const QUICK_ACTIONS: QuickAction[] = [
  * `preserveAspectRatio="none"` lets it stretch to whatever width the hero's
  * right column has without needing to be measured.
  */
-function Sparkline({ data }: { data: { label: string; value: number }[] }) {
+function Sparkline({
+  data,
+  ariaTemplate,
+}: {
+  data: { label: string; value: number }[]
+  ariaTemplate: string
+}) {
   if (data.length < 2) return null
   const values = data.map((d) => d.value)
   const max = Math.max(...values)
@@ -188,7 +214,7 @@ function Sparkline({ data }: { data: { label: string; value: number }[] }) {
       preserveAspectRatio="none"
       className="h-8 w-full max-w-[180px]"
       role="img"
-      aria-label={`Revenue for the last ${data.length} days`}
+      aria-label={ariaTemplate.replace('{n}', String(data.length))}
     >
       <polyline
         points={points}
@@ -215,7 +241,7 @@ function Sparkline({ data }: { data: { label: string; value: number }[] }) {
 const OWNER_QUICK_ACTIONS: QuickAction[] = [
   {
     href: '/reports',
-    label: 'Reports',
+    labelKey: 'qaReports',
     Icon: FileText,
     wrap: 'bg-surface-muted',
     icon: 'text-muted-strong',
@@ -254,6 +280,8 @@ export default function DashboardView({
   today,
   categoryLabels,
   alerts,
+  t,
+  expiryCopy,
 }: {
   isOwner: boolean
   /** Resolved on the shop's clock by `storeGreeting()`, so the heading is
@@ -281,6 +309,11 @@ export default function DashboardView({
   /** slug -> display name, from the store's own categories. */
   categoryLabels: Record<string, string>
   alerts: DashboardAlert[]
+  /** Resolved on the server: this is a Server Component, so it cannot read
+   *  useAppCopy() the way Greeting and AutoRefresh inside it do. */
+  t: DashboardCopy
+  /** The shared expiry words, so a date here reads as it does on a scan. */
+  expiryCopy: ExpiryCopy
 }) {
   // Expired first, then expiring — the list is read top-down and loss that has
   // already happened outranks loss that can still be prevented. Capped at six
@@ -350,7 +383,7 @@ export default function DashboardView({
             <div className={`${STAT_ICON} bg-accent-soft`}>
               <Wallet className="h-5 w-5 text-accent-ink" aria-hidden="true" />
             </div>
-            <p className={STAT_LABEL}>{isOwner ? "Today's Sales" : "Today's Total"}</p>
+            <p className={STAT_LABEL}>{isOwner ? t.todaySalesOwner : t.todayTotalStaff}</p>
             <p className={STAT_VALUE_HERO}>
               <CountUp value={todayTotal} format="currency" />
             </p>
@@ -369,16 +402,18 @@ export default function DashboardView({
                   {changePct >= 0 ? '+' : ''}
                   {changePct.toFixed(1)}%
                 </span>
-                <span className="text-xs text-muted">vs yesterday</span>
+                <span className="text-xs text-muted">{t.vsYesterday}</span>
               </div>
             )}
           </div>
 
           <div className="flex min-w-0 flex-1 flex-col items-end gap-2">
-            <Sparkline data={trendData} />
+            <Sparkline data={trendData} ariaTemplate={t.sparklineAria} />
             <p className="sp-kpi-caption text-right">
-              <span className="font-semibold text-foreground">{todayCount}</span>{' '}
-              {todayCount === 1 ? 'sale' : 'sales'} today
+              <WithCount
+                template={todayCount === 1 ? t.salesTodayOne : t.salesTodayMany}
+                n={todayCount}
+              />
             </p>
           </div>
         </div>
@@ -387,10 +422,10 @@ export default function DashboardView({
           <div className={`${STAT_ICON} bg-accent-soft`}>
             <ShoppingBag className="h-5 w-5 text-accent-ink" aria-hidden="true" />
           </div>
-          <p className={STAT_LABEL}>Transactions Today</p>
+          <p className={STAT_LABEL}>{t.transactionsToday}</p>
           <p className={STAT_VALUE}>
             <CountUp value={todayCount} />{' '}
-            <span className="text-base font-normal text-muted">logged</span>
+            <span className="text-base font-normal text-muted">{t.logged}</span>
           </p>
           {/* Came from the mobile "Order Volume" card, which was the only
               place the occupied-checkout count surfaced. */}
@@ -399,7 +434,9 @@ export default function DashboardView({
               dropped rather than rendering "0 of 0". */}
           {counterCount > 0 && (
             <p className={STAT_FOOT}>
-              {pendingCount} of {counterCount} counters busy
+              {t.countersBusy
+                .replace('{busy}', String(pendingCount))
+                .replace('{total}', String(counterCount))}
             </p>
           )}
         </div>
@@ -408,12 +445,15 @@ export default function DashboardView({
           <div className={`${STAT_ICON} bg-surface-muted`}>
             <TrendingUp className="h-5 w-5 text-muted-strong" aria-hidden="true" />
           </div>
-          <p className={STAT_LABEL}>7-Day Revenue</p>
+          <p className={STAT_LABEL}>{t.weekRevenue}</p>
           <p className={STAT_VALUE}>
             <CountUp value={weekTotal} format="currency" />
           </p>
           <p className={STAT_FOOT}>
-            {weekCount} transaction{weekCount === 1 ? '' : 's'}
+            {(weekCount === 1 ? t.transactionsOne : t.transactionsMany).replace(
+              '{n}',
+              String(weekCount),
+            )}
           </p>
         </div>
 
@@ -426,9 +466,9 @@ export default function DashboardView({
             <div className={`${STAT_ICON} bg-danger-bg`}>
               <AlertTriangle className="h-5 w-5 text-danger" aria-hidden="true" />
             </div>
-            <span className="text-xs font-semibold text-danger">View all</span>
+            <span className="text-xs font-semibold text-danger">{t.viewAll}</span>
           </div>
-          <p className={STAT_LABEL}>Low Stock Items</p>
+          <p className={STAT_LABEL}>{t.lowStockTile}</p>
           {/* The number keeps the danger colour: it is the one figure here
               that means someone has to act. */}
           {/* Deep red only when there is something to act on. Zero items low
@@ -448,9 +488,9 @@ export default function DashboardView({
             <div className={`${STAT_ICON} bg-warning-bg`}>
               <CalendarClock className="h-5 w-5 text-warning" aria-hidden="true" />
             </div>
-            <span className="text-xs font-semibold text-warning">View all</span>
+            <span className="text-xs font-semibold text-warning">{t.viewAll}</span>
           </div>
-          <p className={STAT_LABEL}>Expiring Soon</p>
+          <p className={STAT_LABEL}>{t.expiringTile}</p>
           {/* Amber, not red, and only when there is something in it — the same
               rule the tile above learned. Zero expiring is a good outcome and
               a coloured zero would make a well-run shop look like a failing
@@ -467,11 +507,14 @@ export default function DashboardView({
               all rather than a reassuring "0 expired". */}
           {expiring.expired.length > 0 ? (
             <p className={`${STAT_FOOT} font-semibold text-danger`}>
-              {expiring.expired.length} already expired
+              {t.alreadyExpired.replace('{n}', String(expiring.expired.length))}
             </p>
           ) : (
             <p className={STAT_FOOT}>
-              within {expiryWarningDays} day{expiryWarningDays === 1 ? '' : 's'}
+              {(expiryWarningDays === 1 ? t.withinOne : t.withinMany).replace(
+                '{n}',
+                String(expiryWarningDays),
+              )}
             </p>
           )}
         </Link>
@@ -486,13 +529,13 @@ export default function DashboardView({
           The tiles themselves drop to the muted fill (see `.sp-qa`) so this
           does not become cards-on-cards. */}
       <div className="sp-rise sp-e1 mt-8 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
-      <h2 className="sp-heading">Quick Actions</h2>
+      <h2 className="sp-heading">{t.quickActions}</h2>
       <div className="sp-qa-grid mt-4">
         {(isOwner ? [...QUICK_ACTIONS, ...OWNER_QUICK_ACTIONS] : QUICK_ACTIONS).map((action, i) => {
           const Icon = action.Icon
           return (
             <Link
-              key={action.label}
+              key={action.href}
               href={action.href}
               // Staggered by position, capped at the sixth step: past ~250ms
               // the last tile reads as late rather than sequenced, and the
@@ -502,7 +545,9 @@ export default function DashboardView({
               <span className={`sp-qa-icon ${action.wrap}`}>
                 <Icon className={`h-4 w-4 ${action.icon}`} aria-hidden="true" />
               </span>
-              <span className="truncate text-sm font-semibold text-foreground">{action.label}</span>
+              <span className="truncate text-sm font-semibold text-foreground">
+                {t[action.labelKey]}
+              </span>
             </Link>
           )
         })}
@@ -534,26 +579,26 @@ export default function DashboardView({
             floor is the chart's original height, so the phone layout is
             byte-for-byte what it was. */}
         <div className="sp-rise sp-e1 flex flex-col rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6 lg:col-span-2">
-          <h2 className="sp-heading">Daily Sales Trends</h2>
+          <h2 className="sp-heading">{t.trendTitle}</h2>
           {/* Says what the bars are. The heading alone left two real questions
               open — whether the bars counted sales or totalled revenue, and
               over what window — and both are answered from the data already
               on screen rather than from anything new. */}
-          <p className="mt-1 text-sm text-muted">Revenue per day over the last 7 days.</p>
+          <p className="mt-1 text-sm text-muted">{t.trendSubtitle}</p>
           {/* A chart of seven zeroes is a flat line along the axis, which reads
               as a broken panel rather than as an empty store. Say it instead. */}
           {trendData.every((d) => d.value === 0) ? (
             <EmptyState
               icon={TrendingUp}
-              title="No sales this week"
-              description="Once you log sales, the last seven days appear here as a trend."
+              title={t.noSalesWeekTitle}
+              description={t.noSalesWeekBody}
               className="py-10"
               action={
                 <Link
                   href="/sales"
                   className="control-h inline-flex items-center rounded-lg bg-foreground px-4 text-sm font-semibold text-surface transition-opacity hover:opacity-90"
                 >
-                  Log a sale
+                  {t.logSale}
                 </Link>
               }
             />
@@ -568,33 +613,33 @@ export default function DashboardView({
 
                   `height="100%"` fills that box; the box is what gives recharts
                   a definite height to measure. */}
-              <SalesTrendChart data={trendData} height="100%" />
+              <SalesTrendChart data={trendData} height="100%" seriesLabel={t.chartSeries} />
             </div>
           )}
         </div>
 
         <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="sp-heading">Recent Sales</h2>
+            <h2 className="sp-heading">{t.recentSales}</h2>
             {/* This list is capped by the query's limit(4) — labelling it
                 "Total" reported the cap, not the store's sale count. */}
             <span className="shrink-0 rounded-full bg-surface-muted px-2.5 py-1 text-xs font-semibold text-muted-strong">
-              Latest {recentSales.length}
+              {t.latest.replace('{n}', String(recentSales.length))}
             </span>
           </div>
           <div className="mt-4 space-y-3">
             {recentSales.length === 0 && (
               <EmptyState
                 icon={Receipt}
-                title="No sales logged yet"
-                description="Sales appear here as your team logs them."
+                title={t.noSalesTitle}
+                description={t.noSalesBody}
                 className="py-8"
                 action={
                   <Link
                     href="/sales"
                     className="inline-flex control-h items-center rounded-lg bg-surface-muted px-4 text-sm font-semibold text-muted-strong hover:bg-surface-muted"
                   >
-                    Log a sale
+                    {t.logSale}
                   </Link>
                 }
               />
@@ -612,10 +657,12 @@ export default function DashboardView({
                     {formatCurrency(Number(sale.total))}
                   </span>
                 </div>
-                <p className="mt-0.5 text-sm text-muted-strong">{sale.profiles?.full_name ?? 'Staff'}</p>
+                <p className="mt-0.5 text-sm text-muted-strong">
+                  {sale.profiles?.full_name ?? t.staffFallback}
+                </p>
                 <div className="mt-1.5 flex items-center justify-between gap-2">
                   <span className="rounded-full bg-success-bg px-2 py-0.5 text-xs font-semibold text-success">
-                    Completed
+                    {t.completed}
                   </span>
                   <span className="text-xs text-muted">
                     <RelativeTime iso={sale.created_at} />
@@ -628,17 +675,17 @@ export default function DashboardView({
             href="/sales"
             className="mt-4 flex control-h items-center justify-center rounded-lg bg-surface-muted px-4 text-center text-sm font-semibold text-muted-strong hover:bg-surface-muted"
           >
-            View Complete History
+            {t.viewHistory}
           </Link>
         </div>
       </div>
 
       {/* ---- Recent alerts ---- */}
       <div className="mt-7 flex items-center justify-between gap-2">
-        <h2 className="sp-heading">Recent Alerts</h2>
+        <h2 className="sp-heading">{t.recentAlerts}</h2>
         {alerts.length > 0 && (
           <span className="shrink-0 rounded-lg bg-danger px-2.5 py-1 text-sm font-semibold text-surface">
-            {alerts.length} New
+            {t.alertsNew.replace('{n}', String(alerts.length))}
           </span>
         )}
       </div>
@@ -648,8 +695,8 @@ export default function DashboardView({
           <div className="sp-rise rounded-2xl border border-border bg-surface-muted lg:col-span-2">
             <EmptyState
               icon={BellOff}
-              title="No active alerts"
-              description="Low stock, checkout issues, and arriving deliveries will show up here."
+              title={t.noAlertsTitle}
+              description={t.noAlertsBody}
               className="py-10"
             />
           </div>
@@ -687,7 +734,7 @@ export default function DashboardView({
       <div className="mt-7 sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
         <div className="flex items-center gap-2">
           <Archive className="h-5 w-5 text-danger" />
-          <h2 className="sp-heading">Low Stock Alerts</h2>
+          <h2 className="sp-heading">{t.lowStockTitle}</h2>
         </div>
 
         {/* One table, two shapes: rows collapse into cards below `lg` instead
@@ -695,10 +742,10 @@ export default function DashboardView({
         <table className="sp-table mt-4 block w-full text-left text-sm lg:table">
           <thead className="hidden lg:table-header-group">
             <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
-              <th className="pb-3 pr-4 font-semibold">Item Name</th>
-              <th className="pb-3 pr-4 font-semibold">Category</th>
-              <th className="pb-3 pr-4 font-semibold">Stock Level</th>
-              {isOwner && <th className="pb-3 font-semibold">Action</th>}
+              <th className="pb-3 pr-4 font-semibold">{t.colItem}</th>
+              <th className="pb-3 pr-4 font-semibold">{t.colCategory}</th>
+              <th className="pb-3 pr-4 font-semibold">{t.colStockLevel}</th>
+              {isOwner && <th className="pb-3 font-semibold">{t.colAction}</th>}
             </tr>
           </thead>
           <tbody className="block space-y-3 lg:table-row-group lg:space-y-0">
@@ -707,8 +754,8 @@ export default function DashboardView({
                 <td colSpan={isOwner ? 4 : 3} className="block lg:table-cell">
                   <EmptyState
                     icon={PackageCheck}
-                    title="All products are well stocked"
-                    description="Items fall into this list once they drop to their low-stock threshold."
+                    title={t.allStockedTitle}
+                    description={t.allStockedBody}
                     className="py-8"
                   />
                 </td>
@@ -746,7 +793,7 @@ export default function DashboardView({
                         />
                       </div>
                       <span className="whitespace-nowrap text-sm font-semibold text-danger">
-                        {p.stock} left
+                        {t.unitsLeft.replace('{n}', String(p.stock))}
                       </span>
                     </div>
                   </td>
@@ -756,7 +803,7 @@ export default function DashboardView({
                         href="/inventory"
                         className="inline-flex control-h items-center text-sm font-semibold text-muted-strong hover:underline"
                       >
-                        Restock
+                        {t.restock}
                       </Link>
                     </td>
                   )}
@@ -775,7 +822,7 @@ export default function DashboardView({
       <div className="mt-7 sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
         <div className="flex items-center gap-2">
           <CalendarClock className="h-5 w-5 text-warning" />
-          <h2 className="sp-heading">Expiring Soon</h2>
+          <h2 className="sp-heading">{t.expiringTitle}</h2>
         </div>
 
         {/* A failed read is said out loud. An empty table would read as
@@ -783,18 +830,17 @@ export default function DashboardView({
             must never give silently. */}
         {expiring.error && (
           <p role="alert" className="mt-4 rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">
-            Expiry dates could not be read just now, so this list may be
-            incomplete. Reload to try again.
+            {t.expiryReadError}
           </p>
         )}
 
         <table className="sp-table mt-4 block w-full text-left text-sm lg:table">
           <thead className="hidden lg:table-header-group">
             <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
-              <th className="pb-3 pr-4 font-semibold">Item Name</th>
-              <th className="pb-3 pr-4 font-semibold">Category</th>
-              <th className="pb-3 pr-4 font-semibold">Expires</th>
-              {isOwner && <th className="pb-3 font-semibold">Action</th>}
+              <th className="pb-3 pr-4 font-semibold">{t.colItem}</th>
+              <th className="pb-3 pr-4 font-semibold">{t.colCategory}</th>
+              <th className="pb-3 pr-4 font-semibold">{t.colExpires}</th>
+              {isOwner && <th className="pb-3 font-semibold">{t.colAction}</th>}
             </tr>
           </thead>
           <tbody className="block space-y-3 lg:table-row-group lg:space-y-0">
@@ -803,8 +849,11 @@ export default function DashboardView({
                 <td colSpan={isOwner ? 4 : 3} className="block lg:table-cell">
                   <EmptyState
                     icon={PackageCheck}
-                    title="Nothing is expiring soon"
-                    description={`Items fall into this list once they come within ${expiryWarningDays} day${expiryWarningDays === 1 ? '' : 's'} of their expiry date.`}
+                    title={t.nothingExpiringTitle}
+                    description={(expiryWarningDays === 1
+                      ? t.nothingExpiringOne
+                      : t.nothingExpiringMany
+                    ).replace('{n}', String(expiryWarningDays))}
                     className="py-8"
                   />
                 </td>
@@ -836,15 +885,19 @@ export default function DashboardView({
                       <span
                         className={`whitespace-nowrap text-sm font-semibold ${isExpired ? 'text-danger' : 'text-warning'}`}
                       >
-                        {formatExpiry(p.expiry_date)}
+                        {formatExpiry(p.expiry_date, expiryCopy.months)}
                       </span>
                       {/* The date alone makes the reader do the subtraction.
                           "5 days ago" and "in 2 days" are the same fact said
                           the way the decision is actually made. */}
                       <span className="whitespace-nowrap text-xs text-muted">
-                        {isExpired ? 'expired' : 'expires'} {expiryRelative(p.expiry_date, today)}
+                        {isExpired ? t.expiredWord : t.expiresWord}{' '}
+                        {expiryRelative(p.expiry_date, today, expiryCopy)}
                         {' · '}
-                        {p.quantity} unit{p.quantity === 1 ? '' : 's'}
+                        {(p.quantity === 1 ? t.unitOne : t.unitMany).replace(
+                          '{n}',
+                          String(p.quantity),
+                        )}
                       </span>
                     </div>
                   </td>
@@ -854,7 +907,7 @@ export default function DashboardView({
                         href="/inventory"
                         className="inline-flex control-h items-center text-sm font-semibold text-muted-strong hover:underline"
                       >
-                        {isExpired ? 'Write off' : 'Discount'}
+                        {isExpired ? t.writeOff : t.discount}
                       </Link>
                     </td>
                   )}

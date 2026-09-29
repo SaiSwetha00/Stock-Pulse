@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import { CheckCircle2, RotateCcw, Mail } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import Button from '@/components/ui/Button'
@@ -8,6 +8,8 @@ import EmptyState from '@/components/ui/EmptyState'
 import { LocalDateTime } from '@/components/ui/LocalTime'
 import { useToast } from '@/components/ui/Toast'
 import { setRequestStatus } from '@/app/(dashboard)/support/actions'
+import { useAppCopy } from '@/lib/i18n/client'
+import { supportCategories } from '@/lib/validation/supportRequest'
 
 export type SupportRequestRow = {
   id: string
@@ -30,6 +32,15 @@ export type SupportRequestRow = {
  */
 export default function SupportClient({ requests }: { requests: SupportRequestRow[] }) {
   const toast = useToast()
+  const copy = useAppCopy()
+  const t = copy.support
+  // The stored value is a key ('inventory', 'bug'); the form that wrote it
+  // labels those keys from the help copy, so the triage list reads the same
+  // labels. An unknown key (a future category) still shows, as itself.
+  const categoryLabels = useMemo(
+    () => new Map<string, string>(supportCategories(copy.help).map((c) => [c.value, c.label])),
+    [copy],
+  )
   const [pending, startTransition] = useTransition()
   const [busyId, setBusyId] = useState<string | null>(null)
   // Open first: a resolved ticket is history, an open one is work.
@@ -45,10 +56,10 @@ export default function SupportClient({ requests }: { requests: SupportRequestRo
       const result = await setRequestStatus(row.id, next)
       setBusyId(null)
       if (!result.ok) {
-        toast.error('Could not update the request', result.message)
+        toast.error(t.updateFailed, result.message)
         return
       }
-      toast.success(next === 'resolved' ? 'Marked resolved' : 'Reopened', row.reference)
+      toast.success(next === 'resolved' ? t.markedResolved : t.reopened, row.reference)
     })
   }
 
@@ -71,7 +82,9 @@ export default function SupportClient({ requests }: { requests: SupportRequestRo
             aria-pressed={filter === f}
             className={filter === f ? 'border-border-strong text-foreground' : undefined}
           >
-            {f === 'open' ? `Open (${openCount})` : `All (${requests.length})`}
+            {f === 'open'
+              ? t.filterOpen.replace('{n}', String(openCount))
+              : t.filterAll.replace('{n}', String(requests.length))}
           </Button>
         ))}
       </div>
@@ -79,12 +92,8 @@ export default function SupportClient({ requests }: { requests: SupportRequestRo
       {visible.length === 0 ? (
         <EmptyState
           icon={CheckCircle2}
-          title={filter === 'open' ? 'Nothing waiting' : 'No requests yet'}
-          description={
-            filter === 'open'
-              ? 'Every support request has been dealt with.'
-              : 'Requests raised from the Help Centre will appear here.'
-          }
+          title={filter === 'open' ? t.nothingTitle : t.emptyTitle}
+          description={filter === 'open' ? t.nothingBody : t.emptyBody}
         />
       ) : (
         <ul className="sp-stack">
@@ -103,9 +112,9 @@ export default function SupportClient({ requests }: { requests: SupportRequestRo
                       {r.reference}
                     </span>
                     <Badge tone={r.status === 'open' ? 'warning' : 'success'}>
-                      {r.status === 'open' ? 'Open' : 'Resolved'}
+                      {r.status === 'open' ? t.statusOpen : t.statusResolved}
                     </Badge>
-                    <Badge tone="neutral">{r.category}</Badge>
+                    <Badge tone="neutral">{categoryLabels.get(r.category) ?? r.category}</Badge>
                   </div>
                   <p className="sp-subheading mt-2">{r.name}</p>
                   <p className="text-xs text-muted">
@@ -140,7 +149,7 @@ export default function SupportClient({ requests }: { requests: SupportRequestRo
                     ) : (
                       <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
                     ))}
-                  {r.status === 'open' ? 'Mark resolved' : 'Reopen'}
+                  {r.status === 'open' ? t.markResolved : t.reopen}
                 </Button>
               </div>
 

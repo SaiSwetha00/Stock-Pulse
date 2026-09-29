@@ -6,7 +6,7 @@ import { Search, Plus, Pencil, Trash2, Wallet, AlertTriangle, PackageX, X, Uploa
 import { useRouter, useSearchParams } from 'next/navigation'
 import { deleteProduct } from '@/app/(dashboard)/inventory/actions'
 import type { Product, Role } from '@/types'
-import { categoryLabel, labelMap, type CategoryOption } from '@/lib/categories'
+import { categoryLabel, labelMap, localizeCategories, type CategoryOption } from '@/lib/categories'
 import { formatCurrency } from '@/lib/format'
 import { expiryRelative, expiryTone, formatExpiry, nextExpiry } from '@/lib/expiry'
 import Modal from '@/components/ui/Modal'
@@ -29,23 +29,32 @@ import ImportProductsModal from './ImportProductsModal'
 import ScannerPrototype from '@/components/scan/ScannerPrototype'
 import OfflineStatus from '@/components/offline/OfflineStatus'
 import { lookupBarcode } from '@/lib/offline/barcodeLookup'
+import { useAppCopy } from '@/lib/i18n/client'
+import type { ExpiryCopy, InventoryCopy } from '@/lib/i18n/app'
 
 // `CATEGORY_FILTERS` was a fourth hardcoded copy of the list — and the labels
 // were re-typed by hand here, so it could disagree with the product form's
 // spelling without anything failing. Built from the store's own categories
 // now; "All Categories" is the only entry this file still owns.
-function categoryFilters(categories: CategoryOption[]): { value: string; label: string }[] {
-  return [{ value: 'all', label: 'All Categories' }, ...categories.map((c) => ({ value: c.slug, label: c.name }))]
+function categoryFilters(
+  categories: CategoryOption[],
+  allLabel: string,
+): { value: string; label: string }[] {
+  // The shop's own category names are its data and are never translated;
+  // only the "all" entry this file owns comes from the dictionary.
+  return [{ value: 'all', label: allLabel }, ...categories.map((c) => ({ value: c.slug, label: c.name }))]
 }
 
 type StockStatus = 'in' | 'low' | 'out'
 
-const STATUS_FILTERS: { value: StockStatus | 'all'; label: string }[] = [
-  { value: 'all', label: 'Any status' },
-  { value: 'in', label: 'In stock' },
-  { value: 'low', label: 'Low stock' },
-  { value: 'out', label: 'Out of stock' },
-]
+function statusFilters(t: InventoryCopy): { value: StockStatus | 'all'; label: string }[] {
+  return [
+    { value: 'all', label: t.statusAny },
+    { value: 'in', label: t.statusIn },
+    { value: 'low', label: t.statusLow },
+    { value: 'out', label: t.statusOut },
+  ]
+}
 
 function stockStatus(p: Product): StockStatus {
   if (p.stock <= 0) return 'out'
@@ -53,11 +62,23 @@ function stockStatus(p: Product): StockStatus {
   return 'in'
 }
 
-function statusFor(p: Product): { label: string; tone: BadgeTone } {
+/**
+ * `label` is ENGLISH and stays that way: it is what the CSV export's Status
+ * column carries, and that file is a machine artifact whose columns
+ * lib/importCsv.ts matches by exact string. The badge on screen reads `key`
+ * and resolves it through the dictionary, so what the reader sees can be
+ * translated without the export drifting.
+ */
+function statusFor(p: Product): { key: StockStatus; label: string; tone: BadgeTone } {
   const status = stockStatus(p)
-  if (status === 'out') return { label: 'Out of Stock', tone: 'danger' }
-  if (status === 'low') return { label: 'Low Stock', tone: 'warning' }
-  return { label: 'In Stock', tone: 'success' }
+  if (status === 'out') return { key: status, label: 'Out of Stock', tone: 'danger' }
+  if (status === 'low') return { key: status, label: 'Low Stock', tone: 'warning' }
+  return { key: status, label: 'In Stock', tone: 'success' }
+}
+
+/** The badge's words, from the key above. */
+function badgeLabel(key: StockStatus, t: InventoryCopy): string {
+  return key === 'out' ? t.badgeOut : key === 'low' ? t.badgeLow : t.badgeIn
 }
 
 type SortKey = 'name' | 'sku' | 'unit_price' | 'stock' | 'expiry' | 'status'
@@ -131,10 +152,12 @@ function ExpiryValue({
   date,
   today,
   warningDays,
+  copy,
 }: {
   date: string | null
   today: string
   warningDays: number
+  copy: ExpiryCopy
 }) {
   if (!date) return <span className="text-muted">—</span>
   const tone = expiryTone(date, today, warningDays)
@@ -148,10 +171,10 @@ function ExpiryValue({
             : 'text-muted-strong'
       }
     >
-      {formatExpiry(date)}
+      {formatExpiry(date, copy.months)}
       {tone !== 'ok' && (
         <span className="block text-xs font-medium">
-          {tone === 'expired' ? 'Expired' : 'Expiring soon'}
+          {tone === 'expired' ? copy.expired : copy.expiringSoon}
         </span>
       )}
     </span>
@@ -198,12 +221,29 @@ export default function InventoryClient({
    *  reuse one person's cached list under another's session. */
   userId: string
 }) {
+  const t = useAppCopy()
+  const ti = t.inventory
+  const tc = t.common
   const router = useRouter()
   const toast = useToast()
   const canWrite = canManage(role)
-  const labels = useMemo(() => labelMap(categories), [categories])
-  const filters = useMemo(() => categoryFilters(categories), [categories])
-  const csvCols = useMemo(() => csvColumns(labels), [labels])
+  // TWO views of the same categories. `displayCategories` is what a person
+  // reads — the seeded defaults in the chosen language. `categories` stays the
+  // stored names, and is what the CSV export writes and the importer matches
+  // against: a file exported in Telugu must import back in English and vice
+  // versa. See localizeCategories() in lib/categories.ts.
+  const displayCategories = useMemo(
+    () => localizeCategories(categories, t.categoryNames),
+    [categories, t],
+  )
+  const labels = useMemo(() => labelMap(displayCategories), [displayCategories])
+  const storedLabels = useMemo(() => labelMap(categories), [categories])
+  const filters = useMemo(
+    () => categoryFilters(displayCategories, ti.allCategories),
+    [displayCategories, ti],
+  )
+  const statusOptions = useMemo(() => statusFilters(ti), [ti])
+  const csvCols = useMemo(() => csvColumns(storedLabels), [storedLabels])
   // Rows removed in this session. Revalidation can land a beat after the
   // delete resolves, so hide them locally and let the server data confirm.
   const [removedIds, setRemovedIds] = useState<string[]>([])
@@ -265,7 +305,7 @@ export default function InventoryClient({
       // The unified lookup, not the Server Action directly: online it IS the
       // Server Action, and offline it answers from this store's cached list
       // using the same validation and the same store scoping.
-      const result = await lookupBarcode(value, storeId)
+      const result = await lookupBarcode(value, storeId, t.inventory.actBadBarcode)
       if (!result.ok) {
         setScanError(result.message)
         return
@@ -277,8 +317,8 @@ export default function InventoryClient({
         // would fail. Scope item 5: fail clearly, never silently.
         setScanError(
           result.product
-            ? `${result.product.name} is in your saved list, but editing stock needs a connection.`
-            : `No saved product has the barcode ${value}. Reconnect to search the full list.`,
+            ? ti.scanCacheHit.replace('{name}', result.product.name)
+            : ti.scanCacheMiss.replace('{code}', value),
         )
         return
       }
@@ -294,21 +334,23 @@ export default function InventoryClient({
         const scannedExpiry = nextExpiry(result.product.product_batches)
         const tone = scannedExpiry ? expiryTone(scannedExpiry, today, expiryWarningDays) : null
         toast.info(
-          'Product found',
+          ti.scanFoundTitle,
           scannedExpiry
-            ? `${result.product.name} — ${
-                tone === 'expired' ? 'EXPIRED' : 'expires'
-              } ${formatExpiry(scannedExpiry)}, ${expiryRelative(scannedExpiry, today)}.`
-            : `${result.product.name} — no expiry date. Update the stock and save.`,
+            ? ti.scanFoundExpiry
+                .replace('{name}', result.product.name)
+                .replace('{state}', tone === 'expired' ? ti.scanExpiredWord : ti.scanExpiresWord)
+                .replace('{date}', formatExpiry(scannedExpiry, t.expiry.months))
+                .replace('{rel}', expiryRelative(scannedExpiry, today, t.expiry))
+            : ti.scanFoundNoExpiry.replace('{name}', result.product.name),
         )
       } else {
         setEditing(null)
         setScanBarcode(value)
-        toast.info('No product with that barcode', 'Add it now — the barcode is filled in.')
+        toast.info(ti.scanNoMatchTitle, ti.scanNoMatchBody)
       }
       setModalOpen(true)
     } catch (err) {
-      setScanError(err instanceof Error ? err.message : 'The lookup failed. Try again.')
+      setScanError(err instanceof Error ? err.message : ti.scanFailed)
     } finally {
       setScanBusy(false)
     }
@@ -329,13 +371,15 @@ export default function InventoryClient({
         p.brand?.toLowerCase().includes(q) ||
         // Searching "dairy" or "kg" was a dead end before; both are visible
         // in the row, so both should be findable.
+        // Both names, so "dairy" still finds the row on a Telugu screen.
         categoryLabel(p.category, labels).toLowerCase().includes(q) ||
+        categoryLabel(p.category, storedLabels).toLowerCase().includes(q) ||
         p.unit.toLowerCase().includes(q)
       const matchesCategory = category === 'all' || p.category === category
       const matchesStatus = status === 'all' || stockStatus(p) === status
       return matchesSearch && matchesCategory && matchesStatus
     })
-  }, [products, search, category, status, labels])
+  }, [products, search, category, status, labels, storedLabels])
 
   const table = useTable<Product, SortKey>({
     items: filtered,
@@ -381,12 +425,12 @@ export default function InventoryClient({
 
     if (!result.ok) {
       setDeletingBusy(false)
-      setDeleteError(result.message ?? 'Could not delete the product.')
-      toast.error('Could not delete product', result.message)
+      setDeleteError(result.message ?? ti.deleteFailed)
+      toast.error(ti.deleteFailedToast, result.message)
       return
     }
 
-    toast.success('Product deleted', deleting.name)
+    toast.success(ti.deletedToast, deleting.name)
     setRemovedIds((prev) => [...prev, deleting.id])
     setDeletingBusy(false)
     setDeleting(null)
@@ -400,16 +444,16 @@ export default function InventoryClient({
       <OfflineStatus storeId={storeId} userId={userId} products={products} />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="sp-eyebrow">Stock</p>
-          <h1 className="sp-title mt-2">Inventory Management</h1>
-          <p className="sp-body mt-2">Manage stock levels, categories, and pricing.</p>
+          <p className="sp-eyebrow">{ti.eyebrow}</p>
+          <h1 className="sp-title mt-2">{ti.title}</h1>
+          <p className="sp-body mt-2">{ti.subtitle}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ExportCsvButton
             columns={csvCols}
             rows={table.allRows}
             filenameBase="products"
-            itemLabel="products"
+            itemLabel={ti.exportItems}
           />
           {/* Same gate as Add/Edit/Import: a scan can only end in creating or
               editing a product, and saveProduct refuses both for staff — so
@@ -423,13 +467,13 @@ export default function InventoryClient({
               }}
             >
               <ScanLine className="h-4 w-4" aria-hidden="true" />
-              Scan
+              {ti.scan}
             </Button>
           )}
           {canWrite && (
             <Button variant="secondary" onClick={() => setImportOpen(true)}>
               <Upload className="h-4 w-4" aria-hidden="true" />
-              Import CSV
+              {ti.importCsv}
             </Button>
           )}
           {canWrite && (
@@ -440,7 +484,7 @@ export default function InventoryClient({
               }}
             >
               <Plus className="h-4 w-4" aria-hidden="true" />
-              Add Product
+              {ti.addProduct}
             </Button>
           )}
         </div>
@@ -459,8 +503,8 @@ export default function InventoryClient({
               table.setPage(1)
             }}
             type="search"
-            aria-label="Search inventory"
-            placeholder="Search name, SKU, barcode, brand, category, or unit..."
+            aria-label={ti.searchAria}
+            placeholder={ti.searchPlaceholder}
             className="control-h w-full rounded-lg border border-border bg-surface-muted pl-10 pr-12 text-sm placeholder:text-muted transition-[border-color,background-color] duration-150 focus:border-border-strong focus:bg-surface focus:outline-none"
           />
           {search && (
@@ -470,7 +514,7 @@ export default function InventoryClient({
                 setSearch('')
                 table.setPage(1)
               }}
-              aria-label="Clear search"
+              aria-label={tc.clearSearch}
               className="tap-target absolute right-1 top-1/2 -translate-y-1/2 rounded-lg text-muted transition hover:text-foreground"
             >
               <X className="h-4 w-4" aria-hidden="true" />
@@ -480,7 +524,7 @@ export default function InventoryClient({
 
         <div className="flex items-center gap-2">
           <label htmlFor="inventory-status" className="sr-only">
-            Filter by stock status
+            {ti.filterByStatus}
           </label>
           <select
             id="inventory-status"
@@ -491,7 +535,7 @@ export default function InventoryClient({
             }}
             className="control-h rounded-lg border border-border bg-surface-muted px-3 text-sm text-muted-strong transition-[border-color,background-color] duration-150 focus:border-border-strong focus:bg-surface focus:outline-none"
           >
-            {STATUS_FILTERS.map((f) => (
+            {statusOptions.map((f) => (
               <option key={f.value} value={f.value}>
                 {f.label}
               </option>
@@ -504,7 +548,7 @@ export default function InventoryClient({
               onClick={clearFilters}
               className="flex control-h shrink-0 items-center whitespace-nowrap rounded-lg px-3 text-sm font-semibold text-muted-strong underline-offset-4 transition hover:bg-surface-muted hover:underline"
             >
-              Clear all
+              {tc.clearAll}
             </button>
           )}
         </div>
@@ -533,7 +577,7 @@ export default function InventoryClient({
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <div className="col-span-2 sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:col-span-1 lg:p-6">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Total Value</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">{ti.totalValue}</p>
             <Wallet className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
           </div>
           <p className="mt-2 text-2xl font-bold text-foreground">{formatCurrency(totalValue)}</p>
@@ -544,17 +588,21 @@ export default function InventoryClient({
             card as a plain white one. Same trap D19 recorded. */}
         <div className="sp-rise sp-delay-1 rounded-2xl bg-danger-bg p-4 shadow-sm lg:p-6">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-danger">Low Stock</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-danger">{ti.lowStock}</p>
             <AlertTriangle className="h-5 w-5 shrink-0 text-danger" aria-hidden="true" />
           </div>
-          <p className="mt-2 text-2xl font-bold text-danger">{lowStockCount} items</p>
+          <p className="mt-2 text-2xl font-bold text-danger">
+            {ti.itemsCount.replace('{n}', String(lowStockCount))}
+          </p>
         </div>
         <div className="sp-rise sp-delay-2 rounded-2xl bg-foreground p-4 shadow-sm lg:p-6">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Out of Stock</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">{ti.outOfStock}</p>
             <PackageX className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
           </div>
-          <p className="mt-2 text-2xl font-bold text-surface">{outOfStockCount} items</p>
+          <p className="mt-2 text-2xl font-bold text-surface">
+            {ti.itemsCount.replace('{n}', String(outOfStockCount))}
+          </p>
         </div>
       </div>
 
@@ -563,15 +611,15 @@ export default function InventoryClient({
         <table className="sp-table block w-full text-left text-sm lg:table">
           <thead className="hidden lg:table-header-group">
             <tr className="border-b border-border bg-surface-muted text-xs font-semibold uppercase tracking-wide text-muted">
-              <SortableTh label="Product" sortKey="name" sort={table.sort} onSort={table.toggleSort} className="px-6" />
-              <SortableTh label="SKU / Category" sortKey="sku" sort={table.sort} onSort={table.toggleSort} className="px-4" />
-              <SortableTh label="Unit Price" sortKey="unit_price" sort={table.sort} onSort={table.toggleSort} align="right" className="px-4" />
-              <SortableTh label="Stock" sortKey="stock" sort={table.sort} onSort={table.toggleSort} align="right" className="px-4" />
-              <SortableTh label="Expiry" sortKey="expiry" sort={table.sort} onSort={table.toggleSort} className="px-4" />
-              <SortableTh label="Status" sortKey="status" sort={table.sort} onSort={table.toggleSort} className="px-4" />
+              <SortableTh label={ti.colProduct} sortKey="name" sort={table.sort} onSort={table.toggleSort} className="px-6" />
+              <SortableTh label={ti.colSkuCategory} sortKey="sku" sort={table.sort} onSort={table.toggleSort} className="px-4" />
+              <SortableTh label={ti.colUnitPrice} sortKey="unit_price" sort={table.sort} onSort={table.toggleSort} align="right" className="px-4" />
+              <SortableTh label={ti.colStock} sortKey="stock" sort={table.sort} onSort={table.toggleSort} align="right" className="px-4" />
+              <SortableTh label={ti.colExpiry} sortKey="expiry" sort={table.sort} onSort={table.toggleSort} className="px-4" />
+              <SortableTh label={ti.colStatus} sortKey="status" sort={table.sort} onSort={table.toggleSort} className="px-4" />
               {canWrite && (
                 <th scope="col" className="px-4 py-3.5">
-                  Actions
+                  {ti.colActions}
                 </th>
               )}
             </tr>
@@ -588,8 +636,8 @@ export default function InventoryClient({
                   {products.length === 0 ? (
                     <EmptyState
                       illustration={<LineArtShelf className="h-full w-full" />}
-                      title="No products yet"
-                      description="Add your first product to start tracking stock levels, pricing, and low-stock alerts."
+                      title={ti.emptyTitle}
+                      description={ti.emptyBody}
                       action={
                         canWrite ? (
                           <Button
@@ -599,7 +647,7 @@ export default function InventoryClient({
                             }}
                           >
                             <Plus className="h-4 w-4" aria-hidden="true" />
-                            Add Product
+                            {ti.addProduct}
                           </Button>
                         ) : undefined
                       }
@@ -607,11 +655,11 @@ export default function InventoryClient({
                   ) : (
                     <EmptyState
                       icon={Search}
-                      title="No products match your filters"
-                      description="Try a different search term, or clear the category and status filters."
+                      title={ti.noMatchTitle}
+                      description={ti.noMatchBody}
                       action={
                         <Button variant="secondary" onClick={clearFilters}>
-                          Clear filters
+                          {tc.clearFilters}
                         </Button>
                       }
                     />
@@ -638,12 +686,14 @@ export default function InventoryClient({
                   </td>
                   <td className="mt-3 flex items-center justify-between gap-2 lg:mt-0 lg:table-cell lg:px-4 lg:py-4">
                     <div className="min-w-0">
-                      <p className="text-muted-strong">SKU: {p.sku || '—'}</p>
+                      <p className="text-muted-strong">{ti.skuPrefix.replace('{v}', p.sku || '—')}</p>
                       {/* Rendered only when set. A row of "Barcode: —" on 41
                           products would be 41 lines saying nothing, and this
                           cell already carries the category chip. */}
                       {p.barcode && (
-                        <p className="sp-num truncate text-xs text-muted">Barcode: {p.barcode}</p>
+                        <p className="sp-num truncate text-xs text-muted">
+                          {ti.barcodePrefix.replace('{v}', p.barcode)}
+                        </p>
                       )}
                     </div>
                     <span className="inline-block shrink-0 rounded bg-surface-muted px-2 py-0.5 text-xs font-medium uppercase text-muted lg:mt-1">
@@ -652,13 +702,13 @@ export default function InventoryClient({
                   </td>
                   <td className="sp-num mt-2 flex items-center justify-between gap-2 text-muted-strong lg:mt-0 lg:table-cell lg:px-4 lg:py-4">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                      Unit Price
+                      {ti.colUnitPrice}
                     </span>
                     {formatCurrency(p.unit_price)}
                   </td>
                   <td className="sp-num mt-2 flex items-center justify-between gap-2 lg:mt-0 lg:table-cell lg:px-4 lg:py-4">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                      Stock
+                      {ti.colStock}
                     </span>
                     <span>
                       <span
@@ -672,23 +722,24 @@ export default function InventoryClient({
                       </span>
                       {p.stock <= p.low_stock_threshold && p.stock > 0 && (
                         <span className="ml-2 text-xs text-muted lg:ml-0 lg:block">
-                          Min: {p.low_stock_threshold}
+                          {ti.minPrefix.replace('{v}', String(p.low_stock_threshold))}
                         </span>
                       )}
                     </span>
                   </td>
                   <td className="mt-2 flex items-center justify-between gap-2 lg:mt-0 lg:table-cell lg:px-4 lg:py-4">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                      Expiry
+                      {ti.colExpiry}
                     </span>
                     <ExpiryValue
                       date={nextExpiry(p.product_batches)}
                       today={today}
                       warningDays={expiryWarningDays}
+                      copy={t.expiry}
                     />
                   </td>
                   <td className="mt-3 block lg:mt-0 lg:table-cell lg:px-4 lg:py-4">
-                    <Badge tone={badge.tone}>{badge.label}</Badge>
+                    <Badge tone={badge.tone}>{badgeLabel(badge.key, ti)}</Badge>
                   </td>
                   {canWrite && (
                     <td className="sp-row-actions mt-2 flex items-center gap-1 border-t border-border pt-2 lg:mt-0 lg:table-cell lg:border-0 lg:px-4 lg:py-4 lg:pt-0">
@@ -698,7 +749,7 @@ export default function InventoryClient({
                           setEditing(p)
                           setModalOpen(true)
                         }}
-                        aria-label={`Edit ${p.name}`}
+                        aria-label={ti.editRow.replace('{name}', p.name)}
                         className="tap-target rounded-lg text-muted hover:bg-surface-muted"
                       >
                         <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -706,7 +757,7 @@ export default function InventoryClient({
                       <button
                         type="button"
                         onClick={() => setDeleting(p)}
-                        aria-label={`Delete ${p.name}`}
+                        aria-label={ti.deleteRow.replace('{name}', p.name)}
                         className="tap-target rounded-lg text-muted hover:bg-danger-bg hover:text-danger"
                       >
                         <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -728,7 +779,7 @@ export default function InventoryClient({
           rangeStart={table.rangeStart}
           rangeEnd={table.rangeEnd}
           total={table.total}
-          itemLabel="products"
+          itemLabel={ti.exportItems}
         />
       </div>
 
@@ -746,7 +797,7 @@ export default function InventoryClient({
           none of it is reimplemented here. */}
       {scanOpen && (
         <Modal
-          title="Scan a barcode"
+          title={ti.scanTitle}
           width="sm"
           onClose={() => {
             setScanOpen(false)
@@ -755,13 +806,12 @@ export default function InventoryClient({
         >
           <div className="space-y-4 px-6 py-5">
             <p className="text-sm text-muted-strong">
-              Point the camera at a product barcode. If it is already in your inventory you can
-              update its stock; if not, you can add it.
+              {ti.scanHelp}
             </p>
 
             <ScannerPrototype onDetected={handleScanned} />
 
-            {scanBusy && <p className="text-sm text-muted">Looking that barcode up…</p>}
+            {scanBusy && <p className="text-sm text-muted">{ti.scanLooking}</p>}
 
             {scanError && (
               <div role="alert" className="rounded-lg bg-danger-bg px-3.5 py-2.5 text-sm text-danger">
@@ -776,7 +826,7 @@ export default function InventoryClient({
         <ProductModal
           product={editing}
           storeId={storeId}
-          categories={categories}
+          categories={displayCategories}
           initialBarcode={scanBarcode}
           today={today}
           expiryWarningDays={expiryWarningDays}
@@ -793,7 +843,7 @@ export default function InventoryClient({
 
       {deleting && (
         <Modal
-          title="Delete product?"
+          title={ti.deleteTitle}
           width="sm"
           onClose={() => {
             setDeleting(null)
@@ -808,8 +858,9 @@ export default function InventoryClient({
             )}
 
             <p className="text-sm text-muted-strong">
-              This will permanently remove{' '}
-              <span className="font-semibold text-foreground">{deleting.name}</span> from inventory.
+              {ti.deleteBodyA}
+              <span className="font-semibold text-foreground">{deleting.name}</span>
+              {ti.deleteBodyB}
             </p>
 
             <div className="flex gap-3 pt-1">
@@ -821,10 +872,10 @@ export default function InventoryClient({
                   setDeleteError('')
                 }}
               >
-                Cancel
+                {tc.cancel}
               </Button>
               <Button variant="danger" fullWidth loading={deletingBusy} onClick={handleDelete}>
-                Delete
+                {ti.deleteConfirm}
               </Button>
             </div>
           </div>

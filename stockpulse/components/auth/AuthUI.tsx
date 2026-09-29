@@ -1,6 +1,7 @@
 'use client'
 
 import { useId, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useAuthCopy } from '@/lib/i18n/client'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft, CalendarClock, Eye, EyeOff, Moon, PackageSearch, Sun, WifiOff, type LucideIcon } from 'lucide-react'
@@ -51,10 +52,12 @@ import './auth-theme.css'
 /* Shell: the product behind, the form on a raised panel in front       */
 /* ------------------------------------------------------------------ */
 
+/** Icons and figures only; the words come from the dictionary. The numbers are
+ *  the demo store's real data and are never translated. */
 const CHIPS = [
-  { icon: PackageSearch, label: 'Inventory', value: `${TOTALS.products} products` },
-  { icon: CalendarClock, label: 'Expiry alerts', value: `${TOTALS.expiringSoonLots} lots expiring` },
-  { icon: WifiOff, label: 'Offline till', value: 'Sales queue on the device' },
+  { icon: PackageSearch, key: 'Inventory' as const, count: TOTALS.products },
+  { icon: CalendarClock, key: 'Expiry' as const, count: TOTALS.expiringSoonLots },
+  { icon: WifiOff, key: 'Offline' as const, count: null },
 ]
 
 /** The dashboard's palette for the backdrop — the app's own light product UI. */
@@ -82,6 +85,7 @@ export function AuthShell({
    */
   dayFill?: number
 }) {
+  const c = useAuthCopy().shell
   const showProgress = dayFill < 1
 
   return (
@@ -133,7 +137,7 @@ export function AuthShell({
             className="inline-flex items-center gap-1.5 text-[13.5px] text-muted transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            Back to site
+            {c.backToSite}
           </Link>
         </header>
 
@@ -141,15 +145,15 @@ export function AuthShell({
           {/* Left: the room you are signing into. Dropped on phones. */}
           <div className="hidden lg:col-span-6 lg:block">
             <h1 className="max-w-[16ch] text-[clamp(1.8rem,2.4vw,2.4rem)] font-semibold leading-[1.12] tracking-[-0.035em] text-foreground">
-              Sign in to your store.
+              {c.heroTitle}
             </h1>
             <p className="mt-3 max-w-md text-[15.5px] leading-[1.6] text-muted-strong">
-              Stock, sales, suppliers and every expiry date — the dashboard behind this form is the one you land on.
+              {c.heroBody}
             </p>
             <ul className="mt-8 max-w-[19rem] space-y-2.5">
-              {CHIPS.map(({ icon: Icon, label, value }) => (
+              {CHIPS.map(({ icon: Icon, key, count }) => (
                 <li
-                  key={label}
+                  key={key}
                   className="flex items-center gap-3 rounded-2xl border px-4 py-3 shadow-[0_18px_40px_-28px_rgba(0,0,0,0.9)]"
                   style={{ background: 'rgba(16,22,43,0.66)', borderColor: 'var(--border)' }}
                 >
@@ -157,8 +161,10 @@ export function AuthShell({
                     <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
                   </span>
                   <span className="leading-tight">
-                    <span className="block text-[12.5px] text-muted">{label}</span>
-                    <span className="block text-[14px] font-medium text-foreground">{value}</span>
+                    <span className="block text-[12.5px] text-muted">{c[`chip${key}`]}</span>
+                    <span className="block text-[14px] font-medium text-foreground">
+                      {count === null ? c.chipOfflineValue : `${count} ${c[`chip${key}Value`]}`}
+                    </span>
                   </span>
                 </li>
               ))}
@@ -188,7 +194,7 @@ export function AuthShell({
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={Math.round(dayFill * 100)}
-                  aria-label="Sign-up progress"
+                  aria-label={c.signupProgress}
                 >
                   <motion.span
                     className="block h-full rounded-full"
@@ -285,6 +291,7 @@ export function AuthField({
   invalid,
 }: AuthFieldProps) {
   const id = useId()
+  const cc = useAuthCopy().shell
   const [show, setShow] = useState(false)
   const isPassword = type === 'password'
 
@@ -320,7 +327,7 @@ export function AuthField({
           <button
             type="button"
             onClick={() => setShow((v) => !v)}
-            aria-label={show ? 'Hide password' : 'Show password'}
+            aria-label={show ? cc.hidePassword : cc.showPassword}
             className="tap-target absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded-md text-muted transition-colors hover:text-foreground"
           >
             {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -340,7 +347,7 @@ export function AuthField({
 export function SubmitButton({
   children,
   loading,
-  loadingLabel = 'Please wait…',
+  loadingLabel,
   type = 'submit',
   onClick,
   variant = 'primary',
@@ -354,6 +361,7 @@ export function SubmitButton({
   variant?: 'primary' | 'ghost'
   className?: string
 }) {
+  const sc = useAuthCopy().shell
   const isPrimary = variant === 'primary'
 
   return (
@@ -380,7 +388,7 @@ export function SubmitButton({
               isPrimary ? 'border-white/30 border-t-white' : 'border-border-strong border-t-foreground'
             }`}
           />
-          {loadingLabel}
+          {loadingLabel ?? sc.pleaseWait}
         </>
       ) : (
         children
@@ -424,6 +432,7 @@ function subscribeToTheme(onChange: () => void) {
  * app's own light/dark surface is in play.
  */
 export function ThemeToggle() {
+  const cc = useAuthCopy().shell
   const dark = useSyncExternalStore(
     subscribeToTheme,
     () => document.documentElement.classList.contains('dark'),
@@ -443,7 +452,7 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
+      aria-label={dark ? cc.switchToLight : cc.switchToDark}
       className="tap-target absolute right-4 top-4 z-30 rounded-full border border-border bg-surface/70 text-foreground backdrop-blur transition hover:bg-surface"
     >
       {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

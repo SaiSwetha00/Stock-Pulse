@@ -15,6 +15,17 @@ import {
   type CategoryErrors,
   type CategoryInput,
 } from '@/lib/validation/category'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
+
+/**
+ * The reader's copy, resolved server-side from the locale cookie. Each action
+ * reads it itself: a message the browser supplied is not one this server
+ * should repeat back.
+ */
+async function copy() {
+  return appCopy(await getLocale()).settings.cat
+}
 
 export type CategoryActionResult =
   | { ok: true }
@@ -29,11 +40,8 @@ const FK_VIOLATION = '23503'
 /** Postgres check_violation — categories_name_not_blank / _slug_shape. */
 const CHECK_VIOLATION = '23514'
 
-const NEEDS_MIGRATION =
-  'Categories are not set up on this database yet. Run supabase/migrations/0013_categories.sql in the SQL editor.'
-
 /**
- * The refusal every zero-row write shares.
+ * The refusal every zero-row write shares — `tc.zeroRows`.
  *
  * D24: a supabase-js write returns an error object that only covers *errors*,
  * and an RLS refusal is not one — it is a successful statement that matched no
@@ -46,8 +54,6 @@ const NEEDS_MIGRATION =
  * run SQL. Either way what is on screen is out of date, so either way the
  * answer is to refresh.
  */
-const ZERO_ROWS =
-  'Nothing changed — either that category has already been removed, or your role does not allow this. Refreshing the list.'
 
 /**
  * Every category write goes through here.
@@ -62,13 +68,11 @@ const ZERO_ROWS =
  */
 async function requireManager() {
   const { profile, store } = await getCurrentUser()
+  const tc = await copy()
   if (!canManage(profile.role)) {
-    return {
-      ok: false as const,
-      message: 'You do not have permission to change categories.',
-    }
+    return { ok: false as const, message: tc.noPermission }
   }
-  return { ok: true as const, store, supabase: await createClient() }
+  return { ok: true as const, store, supabase: await createClient(), tc }
 }
 
 /** Ordered exactly as `getStoreCategories` orders them, so an index here and a
@@ -97,19 +101,19 @@ function revalidateCategoryConsumers() {
 export async function createCategory(input: CategoryInput): Promise<CategoryActionResult> {
   const guard = await requireManager()
   if (!guard.ok) return guard
-  const { store, supabase } = guard
+  const { store, supabase, tc } = guard
 
   const { data: existing, error: readError } = await readCategories(supabase, store.id)
   if (readError) {
     return {
       ok: false,
-      message: isMissingCategoriesTable(readError.code) ? NEEDS_MIGRATION : readError.message,
+      message: isMissingCategoriesTable(readError.code) ? tc.needsMigration : readError.message,
     }
   }
 
   const rows = (existing ?? []) as (CategoryOption & { sort_order: number })[]
 
-  const errors = validateCategory(input, rows)
+  const errors = validateCategory(input, rows, undefined, tc)
   if (Object.keys(errors).length > 0) return { ok: false, errors }
 
   const name = toCategoryName(input)
@@ -120,7 +124,7 @@ export async function createCategory(input: CategoryInput): Promise<CategoryActi
   // checked separately rather than left to surface as a 23505 the user cannot
   // interpret. The slug is never shown, so the message talks about the name.
   if (rows.some((c) => c.slug === slug)) {
-    return { ok: false, errors: { name: 'That is too close to a category you already have.' } }
+    return { ok: false, errors: { name: tc.slugClash } }
   }
 
   // Appended, not inserted: a new category goes to the end of the shop's own
@@ -135,12 +139,12 @@ export async function createCategory(input: CategoryInput): Promise<CategoryActi
     .insert({ store_id: store.id, name, slug, sort_order: nextOrder })
 
   if (error) {
-    if (isMissingCategoriesTable(error.code)) return { ok: false, message: NEEDS_MIGRATION }
+    if (isMissingCategoriesTable(error.code)) return { ok: false, message: tc.needsMigration }
     if (error.code === UNIQUE_VIOLATION) {
-      return { ok: false, errors: { name: 'You already have a category with that name.' } }
+      return { ok: false, errors: { name: tc.nameTaken } }
     }
     if (error.code === CHECK_VIOLATION) {
-      return { ok: false, errors: { name: 'That name cannot be used.' } }
+      return { ok: false, errors: { name: tc.nameUnusable } }
     }
     return { ok: false, message: error.message }
   }
@@ -164,19 +168,19 @@ export async function renameCategory(
 ): Promise<CategoryActionResult> {
   const guard = await requireManager()
   if (!guard.ok) return guard
-  const { store, supabase } = guard
+  const { store, supabase, tc } = guard
 
   const { data: existing, error: readError } = await readCategories(supabase, store.id)
   if (readError) {
     return {
       ok: false,
-      message: isMissingCategoriesTable(readError.code) ? NEEDS_MIGRATION : readError.message,
+      message: isMissingCategoriesTable(readError.code) ? tc.needsMigration : readError.message,
     }
   }
 
   const rows = (existing ?? []) as (CategoryOption & { sort_order: number })[]
 
-  const errors = validateCategory(input, rows, slug)
+  const errors = validateCategory(input, rows, slug, tc)
   if (Object.keys(errors).length > 0) return { ok: false, errors }
 
   // D24: `.select('id')` is the whole point. Without it an RLS refusal is
@@ -190,17 +194,17 @@ export async function renameCategory(
     .select('id')
 
   if (error) {
-    if (isMissingCategoriesTable(error.code)) return { ok: false, message: NEEDS_MIGRATION }
+    if (isMissingCategoriesTable(error.code)) return { ok: false, message: tc.needsMigration }
     if (error.code === UNIQUE_VIOLATION) {
-      return { ok: false, errors: { name: 'You already have a category with that name.' } }
+      return { ok: false, errors: { name: tc.nameTaken } }
     }
     if (error.code === CHECK_VIOLATION) {
-      return { ok: false, errors: { name: 'That name cannot be used.' } }
+      return { ok: false, errors: { name: tc.nameUnusable } }
     }
     return { ok: false, message: error.message }
   }
 
-  if (!data || data.length === 0) return { ok: false, message: ZERO_ROWS }
+  if (!data || data.length === 0) return { ok: false, message: tc.zeroRows }
 
   revalidateCategoryConsumers()
   return { ok: true }
@@ -224,19 +228,19 @@ export async function moveCategory(
 ): Promise<CategoryActionResult> {
   const guard = await requireManager()
   if (!guard.ok) return guard
-  const { store, supabase } = guard
+  const { store, supabase, tc } = guard
 
   const { data: existing, error: readError } = await readCategories(supabase, store.id)
   if (readError) {
     return {
       ok: false,
-      message: isMissingCategoriesTable(readError.code) ? NEEDS_MIGRATION : readError.message,
+      message: isMissingCategoriesTable(readError.code) ? tc.needsMigration : readError.message,
     }
   }
 
   const rows = (existing ?? []) as { id: string; slug: string; sort_order: number }[]
   const index = rows.findIndex((c) => c.slug === slug)
-  if (index === -1) return { ok: false, message: ZERO_ROWS }
+  if (index === -1) return { ok: false, message: tc.zeroRows }
 
   const target = direction === 'up' ? index - 1 : index + 1
   // Already at the end it is being asked to move towards. The buttons are
@@ -260,7 +264,7 @@ export async function moveCategory(
     if (error) return { ok: false, message: error.message }
     // D24 again. A partial renumber is worse than none, so the first refusal
     // stops the loop rather than leaving the list half-ordered silently.
-    if (!data || data.length === 0) return { ok: false, message: ZERO_ROWS }
+    if (!data || data.length === 0) return { ok: false, message: tc.zeroRows }
   }
 
   revalidateCategoryConsumers()
@@ -284,7 +288,7 @@ export async function moveCategory(
 export async function deleteCategory(slug: string): Promise<CategoryActionResult> {
   const guard = await requireManager()
   if (!guard.ok) return guard
-  const { store, supabase } = guard
+  const { store, supabase, tc } = guard
 
   const { count, error: countError } = await supabase
     .from('products')
@@ -298,9 +302,7 @@ export async function deleteCategory(slug: string): Promise<CategoryActionResult
     const n = count ?? 0
     return {
       ok: false,
-      message:
-        `${n} product${n === 1 ? '' : 's'} still use this category. ` +
-        `Move ${n === 1 ? 'it' : 'them'} to another category first, then delete this one.`,
+      message: (n === 1 ? tc.inUseOne : tc.inUseMany).replace('{n}', String(n)),
     }
   }
 
@@ -311,13 +313,13 @@ export async function deleteCategory(slug: string): Promise<CategoryActionResult
   if (readError) {
     return {
       ok: false,
-      message: isMissingCategoriesTable(readError.code) ? NEEDS_MIGRATION : readError.message,
+      message: isMissingCategoriesTable(readError.code) ? tc.needsMigration : readError.message,
     }
   }
   if ((all ?? []).length <= 1) {
     return {
       ok: false,
-      message: 'This is your only category. Add another before removing this one.',
+      message: tc.lastCategory,
     }
   }
 
@@ -329,18 +331,14 @@ export async function deleteCategory(slug: string): Promise<CategoryActionResult
     .select('id')
 
   if (error) {
-    if (isMissingCategoriesTable(error.code)) return { ok: false, message: NEEDS_MIGRATION }
+    if (isMissingCategoriesTable(error.code)) return { ok: false, message: tc.needsMigration }
     if (error.code === FK_VIOLATION) {
-      return {
-        ok: false,
-        message:
-          'Products were moved into this category a moment ago, so it can no longer be removed. Refresh and check.',
-      }
+      return { ok: false, message: tc.movedIn }
     }
     return { ok: false, message: error.message }
   }
 
-  if (!data || data.length === 0) return { ok: false, message: ZERO_ROWS }
+  if (!data || data.length === 0) return { ok: false, message: tc.zeroRows }
 
   revalidateCategoryConsumers()
   return { ok: true }

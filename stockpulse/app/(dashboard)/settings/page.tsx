@@ -1,11 +1,15 @@
 import type { Metadata } from 'next'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/data'
 import SettingsClient from '@/components/settings/SettingsClient'
 
-export const metadata: Metadata = {
-  title: 'Store Settings',
-  description: 'Store details, appearance, and operational thresholds.',
+export async function generateMetadata(): Promise<Metadata> {
+  // Page name only; app/layout.tsx appends " · StockPulse". In the
+  // signed-in language, read from the same cookie the layout uses.
+  const { title, description } = appCopy(await getLocale()).meta.settings
+  return { title, description }
 }
 
 export default async function SettingsPage() {

@@ -18,6 +18,8 @@ import ExpiryTag from '@/components/ui/ExpiryTag'
 import { expiryRelative, expiryTone, formatExpiry, nextExpiry } from '@/lib/expiry'
 import { enqueueSale, newSaleId, type QueuedSale } from '@/lib/offline/queue'
 import type { Product } from '@/types'
+import { useAppCopy } from '@/lib/i18n/client'
+import type { ExpiryCopy, PosCopy } from '@/lib/i18n/app'
 
 /**
  * Counts worth telling the shop about. Round numbers only — a notification
@@ -31,7 +33,12 @@ const SALE_MILESTONES = [10, 25, 50, 100, 200, 500]
  * is announced once. Reads through the same aggregate function the dashboard
  * uses rather than counting rows here.
  */
-async function raiseMilestoneIfReached(supabase: ReturnType<typeof createClient>) {
+async function raiseMilestoneIfReached(
+  supabase: ReturnType<typeof createClient>,
+  /** The notification is PERSISTED, so it keeps the language it was written
+   *  in even if the shop later switches. */
+  t: PosCopy,
+) {
   const today = reportingDate()
   const { data } = await supabase.rpc('sales_daily_totals', {
     p_from: today,
@@ -46,8 +53,10 @@ async function raiseMilestoneIfReached(supabase: ReturnType<typeof createClient>
   if (!SALE_MILESTONES.includes(count)) return
 
   await notify({
-    title: `${count} sales today`,
-    body: `Today's takings are ${formatCurrency(Number(row.total))} across ${count} transactions.`,
+    title: t.milestoneTitle.replace('{n}', String(count)),
+    body: t.milestoneBody
+      .replace('{total}', formatCurrency(Number(row.total)))
+      .replace('{n}', String(count)),
     kind: 'sales',
     entity: 'sales',
   })
@@ -59,11 +68,17 @@ async function raiseMilestoneIfReached(supabase: ReturnType<typeof createClient>
  * elsewhere: "Expired" and "expires in 3 days" read differently at a glance
  * even in a single grey line.
  */
-function expiryToastSuffix(date: string, today: string, warningDays: number): string {
+function expiryToastSuffix(
+  date: string,
+  today: string,
+  warningDays: number,
+  t: PosCopy,
+  te: ExpiryCopy,
+): string {
   const tone = expiryTone(date, today, warningDays)
-  if (tone === 'expired') return `EXPIRED ${expiryRelative(date, today)}`
-  if (tone === 'soon') return `expires ${expiryRelative(date, today)}`
-  return `expires ${formatExpiry(date)}`
+  if (tone === 'expired') return t.expiredSuffix.replace('{rel}', expiryRelative(date, today, te))
+  if (tone === 'soon') return t.expiresSoonSuffix.replace('{rel}', expiryRelative(date, today, te))
+  return t.expiresSuffix.replace('{date}', formatExpiry(date, te.months))
 }
 
 /**
@@ -112,11 +127,14 @@ interface CartLine {
   quantity: number
 }
 
-const PAYMENT_METHODS = [
-  { value: 'cash', label: 'Cash' },
-  { value: 'card', label: 'Card' },
-  { value: 'nfc', label: 'NFC' },
-] as const
+/** A function, not a constant: a module-scope literal cannot read a hook. */
+function paymentMethods(t: PosCopy) {
+  return [
+    { value: 'cash', label: t.methodCash },
+    { value: 'card', label: t.methodCard },
+    { value: 'nfc', label: t.methodNfc },
+  ] as const
+}
 
 export default function LogSaleModal({
   products,
@@ -136,6 +154,8 @@ export default function LogSaleModal({
   expiryWarningDays: number
   onClose: () => void
 }) {
+  const t = useAppCopy()
+  const tp = t.pos
   const router = useRouter()
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState<CartLine[]>([])
@@ -218,7 +238,7 @@ export default function LogSaleModal({
       // `navigator.onLine` - it simply never reached the scan path. This is
       // Inventory's pattern, which had it right since Phase 2: one entry point
       // that IS the Server Action online and reads the store-scoped cache off.
-      const result = await lookupBarcode(value, storeId)
+      const result = await lookupBarcode(value, storeId, t.inventory.actBadBarcode)
       if (!result.ok) {
         setScanError(result.message)
         return
@@ -240,8 +260,8 @@ export default function LogSaleModal({
         // it has saved.
         setScanError(
           result.source === 'cache'
-            ? `No saved product has the barcode ${value}. Nothing was added.`
-            : `No product in this store has the barcode ${value}. Nothing was added.`,
+            ? tp.scanNoSavedMatch.replace('{code}', value)
+            : tp.scanNoMatch.replace('{code}', value),
         )
         return
       }
@@ -250,7 +270,7 @@ export default function LogSaleModal({
       // filter cannot reach here. Offline this reads the cached number, which
       // the offline till has already reduced by anything queued.
       if (found.stock <= 0) {
-        setScanError(`${found.name} is out of stock. Nothing was added.`)
+        setScanError(tp.scanOutOfStock.replace('{name}', found.name))
         return
       }
 
@@ -266,9 +286,11 @@ export default function LogSaleModal({
       // information does not vanish with the toast.
       const scannedExpiry = nextExpiry(found.product_batches)
       toast.success(
-        result.source === 'cache' ? 'Added from saved list' : 'Added to sale',
+        result.source === 'cache' ? tp.addedFromCache : tp.addedToSale,
         `${found.name} · ${formatCurrency(found.unit_price)}${
-          scannedExpiry ? ` · ${expiryToastSuffix(scannedExpiry, today, expiryWarningDays)}` : ''
+          scannedExpiry
+            ? ` · ${expiryToastSuffix(scannedExpiry, today, expiryWarningDays, tp, t.expiry)}`
+            : ''
         }`,
       )
     } catch (err) {
@@ -277,7 +299,7 @@ export default function LogSaleModal({
       // what this defect showed a shopkeeper on a phone; it is not a sentence
       // anybody can act on, so the real message is kept for the console.
       console.warn('[sales] barcode lookup failed:', err)
-      setScanError('That scan could not be looked up. Try again, or search by name.')
+      setScanError(tp.scanLookupFailed)
     } finally {
       setScanBusy(false)
     }
@@ -344,16 +366,17 @@ export default function LogSaleModal({
           // The one outcome that must never be silent: the sale is neither on
           // the server nor on the device. The modal stays open with the cart
           // intact so it can be written down or retried.
-          const msg =
-            'This sale could NOT be saved on this device. Do not let the customer go without writing it down.'
+          const msg = tp.notSavedBody
           setError(msg)
-          toast.error('Sale not saved', msg)
+          toast.error(tp.notSavedTitle, msg)
           return
         }
 
         toast.success(
-          'Saved on this device',
-          `${cart.length} line item${cart.length === 1 ? '' : 's'} · ${formatCurrency(total)} — will sync when you are back online.`,
+          tp.savedLocally,
+          (cart.length === 1 ? tp.savedLocallyBodyOne : tp.savedLocallyBodyMany)
+            .replace('{n}', String(cart.length))
+            .replace('{total}', formatCurrency(total)),
         )
         // No router.refresh(): there is nothing new on the server to fetch, and
         // offline it would fail. The queue badge updates from its own storage.
@@ -362,20 +385,22 @@ export default function LogSaleModal({
       }
 
       setError(rpcError.message)
-      toast.error('Could not log sale', rpcError.message)
+      toast.error(tp.couldNotLog, rpcError.message)
       return
     }
 
     setSaving(false)
     toast.success(
-      'Sale logged',
-      `${cart.length} line item${cart.length === 1 ? '' : 's'} · ${formatCurrency(total)}`
+      tp.saleLogged,
+      (cart.length === 1 ? tp.saleLoggedOne : tp.saleLoggedMany)
+        .replace('{n}', String(cart.length))
+        .replace('{total}', formatCurrency(total)),
     )
 
     // Deliberately not awaited: the sale is already committed and the toast
     // already shown, so a slow or failed milestone check must not hold the
     // modal open or surface an error for work the user did not ask for.
-    void raiseMilestoneIfReached(supabase)
+    void raiseMilestoneIfReached(supabase, tp)
 
     router.refresh()
     onClose()
@@ -383,13 +408,13 @@ export default function LogSaleModal({
 
   return (
     <Modal
-      title="Log a Sale"
+      title={tp.modalTitle}
       onClose={onClose}
       width="lg"
       footer={
         <>
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm font-semibold text-muted">Total</span>
+            <span className="text-sm font-semibold text-muted">{tp.total}</span>
             <span className="text-2xl font-bold text-foreground">{formatCurrency(total)}</span>
           </div>
           <button
@@ -398,7 +423,7 @@ export default function LogSaleModal({
             disabled={saving || cart.length === 0}
             className="w-full rounded-lg bg-foreground py-3 text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-50"
           >
-            {saving ? 'Logging sale…' : 'Complete Sale'}
+            {saving ? tp.loggingSale : tp.completeSale}
           </button>
         </>
       }
@@ -418,7 +443,7 @@ export default function LogSaleModal({
             className="control-h mb-3 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface text-sm font-semibold text-foreground hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong"
           >
             <ScanLine className="h-4 w-4" aria-hidden="true" />
-            {scanOpen ? 'Hide the scanner' : 'Scan a barcode'}
+            {scanOpen ? tp.hideScanner : tp.scanBarcode}
           </button>
 
           {/* Inline, NOT a nested Modal. D29: two live focus traps fight, and
@@ -429,7 +454,7 @@ export default function LogSaleModal({
             <div className="mb-4 rounded-xl border border-border bg-surface-muted p-4">
               <ScannerPrototype key={scanned} onDetected={handleScanned} />
 
-              {scanBusy && <p className="mt-3 text-sm text-muted">Looking that barcode up…</p>}
+              {scanBusy && <p className="mt-3 text-sm text-muted">{tp.scanLooking}</p>}
 
               {scanError && (
                 <div role="alert" className="mt-3 rounded-lg bg-danger-bg px-3.5 py-2.5 text-sm text-danger">
@@ -439,8 +464,10 @@ export default function LogSaleModal({
 
               {scanned > 0 && !scanError && (
                 <p className="mt-3 text-sm text-muted">
-                  {scanned} item{scanned === 1 ? '' : 's'} scanned into this sale. Press Start
-                  camera again for the next one.
+                  {(scanned === 1 ? tp.scannedOne : tp.scannedMany).replace(
+                    '{n}',
+                    String(scanned),
+                  )}
                 </p>
               )}
             </div>
@@ -451,7 +478,7 @@ export default function LogSaleModal({
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products to add..."
+              placeholder={tp.searchProducts}
               className="control-h w-full rounded-lg border border-border bg-surface-muted pl-10 pr-4 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
             />
             {results.length > 0 && (
@@ -474,6 +501,7 @@ export default function LogSaleModal({
                             can afford that reassurance, a search list cannot. */}
                         {nextExpiry(p.product_batches) && (
                           <ExpiryTag
+                            copy={t.expiry}
                             date={nextExpiry(p.product_batches)}
                             today={today}
                             warningDays={expiryWarningDays}
@@ -483,7 +511,8 @@ export default function LogSaleModal({
                       </span>
                     </span>
                     <span className="text-muted">
-                      {formatCurrency(p.unit_price)} · {p.stock} in stock
+                      {formatCurrency(p.unit_price)} ·{' '}
+                      {tp.inStock.replace('{n}', String(p.stock))}
                     </span>
                   </button>
                 ))}
@@ -496,8 +525,8 @@ export default function LogSaleModal({
               <div className="rounded-lg bg-surface-muted">
                 <EmptyState
                   icon={ShoppingCart}
-                  title="No items yet"
-                  description="Search above and add products to build this sale."
+                  title={tp.emptyCartTitle}
+                  description={tp.emptyCartBody}
                   className="py-8"
                 />
               </div>
@@ -506,13 +535,16 @@ export default function LogSaleModal({
               <div key={l.product.id} className="flex items-center justify-between rounded-lg bg-surface-muted px-4 py-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground">{l.product.name}</p>
-                  <p className="text-xs text-muted">{formatCurrency(l.product.unit_price)} each</p>
+                  <p className="text-xs text-muted">
+                    {tp.eachPrice.replace('{price}', formatCurrency(l.product.unit_price))}
+                  </p>
                   {/* Stays on the row after the toast has gone. A cashier who
                       scanned four things should still be able to see which of
                       them is the expired one while ringing up the fifth.
                       Rendered for scanned AND searched lines alike, because a
                       cart line does not remember how it got there. */}
                   <ExpiryTag
+                    copy={t.expiry}
                     date={nextExpiry(l.product.product_batches)}
                     today={today}
                     warningDays={expiryWarningDays}
@@ -550,10 +582,10 @@ export default function LogSaleModal({
 
           <div className="mt-5">
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-              Payment Method
+              {tp.paymentMethod}
             </label>
             <div className="flex gap-2">
-              {PAYMENT_METHODS.map((m) => (
+              {paymentMethods(tp).map((m) => (
                 <button
                   key={m.value}
                   onClick={() => setPaymentMethod(m.value)}

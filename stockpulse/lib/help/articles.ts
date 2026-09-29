@@ -1,17 +1,3 @@
-import {
-  Rocket,
-  Archive,
-  Wallet,
-  Truck,
-  Users,
-  UserSquare2,
-  Settings,
-  Sparkles,
-  ShieldCheck,
-  LifeBuoy,
-  type LucideIcon,
-} from 'lucide-react'
-
 /**
  * Help content, as data.
  *
@@ -21,7 +7,11 @@ import {
  * that documents an imaginary button is worse than no help centre at all — the
  * reader concludes the whole product is fiction, and they are half right.
  *
- * If a feature changes, the article changes in the same commit.
+ * If a feature changes, the article changes in the same commit — in all three
+ * languages. This file is the English text AND the structure (slugs, order,
+ * categories); ./articles.te and ./articles.hi carry only the words, and
+ * ./localized lays them over this. Icons live in ./icons so the browser bundle
+ * never has to import any of the text.
  */
 
 export type HelpBlock =
@@ -50,11 +40,30 @@ export type HelpCategory = {
   key: HelpCategoryKey
   title: string
   description: string
-  icon: LucideIcon
 }
 
+/**
+ * Every article's slug, spelled out. A union rather than `string` so that a
+ * translation (./articles.te, ./articles.hi) missing an article, or carrying
+ * one that no longer exists, fails the type check instead of rendering half a
+ * help centre in English.
+ */
+export type HelpSlug =
+  | 'setting-up-your-store'
+  | 'adding-and-editing-products'
+  | 'importing-products-from-a-spreadsheet'
+  | 'logging-a-sale'
+  | 'tracking-suppliers-and-deliveries'
+  | 'customers-and-loyalty-tiers'
+  | 'inviting-staff-and-building-the-rota'
+  | 'store-settings-and-alerts'
+  | 'using-the-ai-assistant'
+  | 'who-can-do-what'
+  | 'i-cannot-see-a-page-or-button'
+  | 'password-and-sign-in-problems'
+
 export type HelpArticle = {
-  slug: string
+  slug: HelpSlug
   title: string
   category: HelpCategoryKey
   /** One sentence, shown on cards and in search results. */
@@ -67,61 +76,51 @@ export const HELP_CATEGORIES: HelpCategory[] = [
     key: 'getting-started',
     title: 'Getting started',
     description: 'Set up your store and get your first products and sales in.',
-    icon: Rocket,
   },
   {
     key: 'inventory',
     title: 'Inventory & stock',
     description: 'Add products, import a price list, and set low-stock alerts.',
-    icon: Archive,
   },
   {
     key: 'sales',
     title: 'Sales',
     description: 'Log sales and read the daily and weekly numbers.',
-    icon: Wallet,
   },
   {
     key: 'suppliers',
     title: 'Suppliers',
     description: 'Track vendors and follow deliveries from order to dock.',
-    icon: Truck,
   },
   {
     key: 'customers',
     title: 'Customers',
     description: 'Keep customer records and loyalty tiers up to date.',
-    icon: Users,
   },
   {
     key: 'staff',
     title: 'Staff & scheduling',
     description: 'Invite your team and build the weekly shift rota.',
-    icon: UserSquare2,
   },
   {
     key: 'settings',
     title: 'Settings',
     description: 'Store details, alert thresholds, notifications, and theme.',
-    icon: Settings,
   },
   {
     key: 'ai',
     title: 'AI assistant',
     description: 'Ask questions about your own stock and sales in plain English.',
-    icon: Sparkles,
   },
   {
     key: 'roles',
     title: 'Roles & permissions',
     description: 'What an owner, a manager, and a staff member can each do.',
-    icon: ShieldCheck,
   },
   {
     key: 'troubleshooting',
     title: 'Troubleshooting',
     description: 'Fixes for the problems people hit most often.',
-    icon: LifeBuoy,
   },
 ]
 
@@ -649,32 +648,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
   },
 ]
 
-/**
- * Flattened lowercase text per article, built once at module load rather than
- * per keystroke. Search runs on every character typed; re-flattening a dozen
- * articles each time is wasted work on the main thread at exactly the moment
- * the UI has to stay responsive.
- */
-const SEARCH_INDEX = new Map<string, string>(
-  HELP_ARTICLES.map((article) => {
-    const parts: string[] = [article.title, article.summary]
-    for (const block of article.body) {
-      if (block.kind === 'p' || block.kind === 'h' || block.kind === 'note') parts.push(block.text)
-      else parts.push(...block.items)
-    }
-    const category = HELP_CATEGORIES.find((c) => c.key === article.category)
-    if (category) parts.push(category.title)
-    return [article.slug, parts.join(' ').toLowerCase()]
-  }),
-)
-
-/** Case-insensitive match across title, summary, category name, and full body. */
-export function articleMatches(article: HelpArticle, query: string): boolean {
-  const q = query.trim().toLowerCase()
-  if (!q) return true
-  return SEARCH_INDEX.get(article.slug)?.includes(q) ?? false
-}
-
 export function getArticle(slug: string): HelpArticle | undefined {
   return HELP_ARTICLES.find((a) => a.slug === slug)
 }
@@ -685,4 +658,15 @@ export function articlesInCategory(key: HelpCategoryKey): HelpArticle[] {
 
 export function categoryFor(key: HelpCategoryKey): HelpCategory | undefined {
   return HELP_CATEGORIES.find((c) => c.key === key)
+}
+
+/**
+ * One language's worth of help text, keyed so it can be laid over the English
+ * structure above: slug, category and order always come from HELP_ARTICLES,
+ * and only the words are swapped. Search, related-article links and routing
+ * therefore cannot differ between languages.
+ */
+export type HelpText = {
+  categories: Record<HelpCategoryKey, { title: string; description: string }>
+  articles: Record<HelpSlug, { title: string; summary: string; body: HelpBlock[] }>
 }

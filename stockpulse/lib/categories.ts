@@ -52,6 +52,41 @@ export const DEFAULT_CATEGORIES: CategoryOption[] = [
   { slug: 'household', name: 'Household' },
 ]
 
+export type DefaultCategorySlug = 'produce' | 'dairy' | 'packaged' | 'beverages' | 'household'
+
+/**
+ * The store's categories with the SEEDED defaults shown in the reader's
+ * language. For DISPLAY only — never for anything written back or exported.
+ *
+ * A category is translated only when it is still exactly what 0013 seeded:
+ * a default slug AND the default English name. Those five labels are the
+ * app's vocabulary that happens to live in a data column; nobody in the shop
+ * chose them. The moment the shop renames one, or for any category the shop
+ * created ("Clothing"), the name is the shop's own data — like a product name
+ * — and is returned untouched.
+ *
+ * Deliberately NOT applied to:
+ *   - the inventory CSV export, and the import matcher in lib/importCsv.ts,
+ *     which resolve categories by their STORED name. The export -> Excel ->
+ *     import round trip must not depend on the language it was exported in.
+ *   - the Settings > Product Categories editor, which edits the stored name.
+ *     Showing a translation there would save it into the database on the next
+ *     rename.
+ *
+ * `names` is `appCopy(locale).categoryNames` / `useAppCopy().categoryNames`.
+ * With the English dictionary this is a no-op.
+ */
+export function localizeCategories(
+  categories: CategoryOption[],
+  names: Record<DefaultCategorySlug, string>,
+): CategoryOption[] {
+  return categories.map((c) => {
+    const seeded = DEFAULT_CATEGORIES.find((d) => d.slug === c.slug)
+    if (!seeded || seeded.name.trim().toLowerCase() !== c.name.trim().toLowerCase()) return c
+    return { ...c, name: names[c.slug as DefaultCategorySlug] }
+  })
+}
+
 /** Postgres undefined_table. */
 const UNDEFINED_TABLE = '42P01'
 /** PostgREST's own "not in the schema cache", which is what a missing table

@@ -19,8 +19,11 @@ const SalesTrendChart = dynamic(() => import('./SalesTrendChart'), {
 export default function SalesTrendChartLazy({
   data,
   height,
+  seriesLabel,
 }: {
   data: { label: string; value: number }[]
+  /** Forwarded straight through; see SalesTrendChart. */
+  seriesLabel?: string
   /**
    * Forwarded straight through; see SalesTrendChart for what the values mean.
    *
@@ -30,5 +33,5 @@ export default function SalesTrendChartLazy({
    */
   height?: number | `${number}%`
 }) {
-  return <SalesTrendChart data={data} height={height} />
+  return <SalesTrendChart data={data} height={height} seriesLabel={seriesLabel} />
 }

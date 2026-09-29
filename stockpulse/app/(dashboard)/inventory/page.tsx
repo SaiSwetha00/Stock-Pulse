@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import { getStoreCategories } from '@/lib/categories'
@@ -7,10 +9,11 @@ import { storeExpiryWarningDays } from '@/lib/expiry'
 import InventoryClient from '@/components/inventory/InventoryClient'
 import type { Product } from '@/types'
 
-export const metadata: Metadata = {
-  title: "Inventory",
-  description: "Every product you stock, what is running low, and what is close to expiry.",
-  robots: { index: false, follow: false },
+export async function generateMetadata(): Promise<Metadata> {
+  // Page name only; app/layout.tsx appends " · StockPulse". In the
+  // signed-in language, read from the same cookie the layout uses.
+  const { title, description } = appCopy(await getLocale()).meta.inventory
+  return { title, description, robots: { index: false, follow: false } }
 }
 
 export default async function InventoryPage() {

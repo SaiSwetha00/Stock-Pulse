@@ -11,6 +11,13 @@ export interface ToolContext {
   supabase: SupabaseClient
   storeId: string
   role: Role
+  /**
+   * The one string in this module a person can end up reading, so it is the
+   * one the caller may translate. Every other string here — the tool
+   * declarations below — is the function-calling contract the model reads to
+   * choose a tool, and stays in English in every language.
+   */
+  ownerOnly?: string
 }
 
 export const OWNER_ONLY_TOOLS = new Set(['getRevenueSummary', 'getTopSellingItems', 'listStaff'])
@@ -137,7 +144,9 @@ export async function executeTool(
   ctx: ToolContext
 ): Promise<unknown> {
   if (OWNER_ONLY_TOOLS.has(name) && !canViewReports(ctx.role)) {
-    return { error: 'This information is only available to owners and managers.' }
+    return {
+      error: ctx.ownerOnly ?? 'This information is only available to owners and managers.',
+    }
   }
 
   const { supabase, storeId } = ctx

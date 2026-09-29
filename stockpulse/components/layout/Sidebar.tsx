@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { isOptimizableImage } from '@/lib/images'
 import { storeInitials } from '@/lib/format'
 import SidebarNav from './SidebarNav'
+import { useAppCopy } from '@/lib/i18n/client'
 import type { Role, Store } from '@/types'
 
 /**
@@ -27,8 +28,18 @@ import type { Role, Store } from '@/types'
  * of the accessibility tree, so a screen reader hears one nav, not two.
  */
 export default function Sidebar({ role, store }: { role: Role; store: Store }) {
+  const t = useAppCopy()
+
   return (
-    <aside className="hidden shrink-0 flex-col border-r border-border bg-surface py-4 lg:flex lg:w-16 lg:items-center lg:px-2 xl:w-64 xl:items-stretch xl:px-4 xl:py-6">
+    /* data-sp-surface marks this as a NAVIGATION surface rather than a content
+       one. It carries no styling of its own — a theme that does not claim the
+       attribute leaves the rail exactly as it is — and exists so a theme can
+       treat the rail, the drawer and the tab bar as one family without
+       matching on Tailwind classes that move whenever the layout is touched. */
+    <aside
+      data-sp-surface="rail"
+      className="hidden shrink-0 flex-col border-r border-border bg-surface py-4 lg:flex lg:w-16 lg:items-center lg:px-2 xl:w-64 xl:items-stretch xl:px-4 xl:py-6"
+    >
       {/* ---- Store identity ---- */}
       <div className="mb-6 flex items-center gap-2.5 xl:px-2">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-foreground">
@@ -58,7 +69,7 @@ export default function Sidebar({ role, store }: { role: Role; store: Store }) {
             {store.name}
           </span>
           <span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
-            Store Operations
+            {t.shell.storeOperations}
           </span>
         </div>
       </div>

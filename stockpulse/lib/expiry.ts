@@ -104,6 +104,7 @@ export function expiryTone(
   return 'ok'
 }
 
+/** English, and what every caller that passes nothing still gets. */
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /**
@@ -112,11 +113,16 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
  * Built from the string's own parts rather than from `toLocaleDateString`,
  * which needs a Date and therefore reintroduces the UTC shift this module
  * exists to avoid. It also makes the output identical on the server and in the
- * browser regardless of either machine's locale settings.
+ * browser regardless of either machine's locale settings — which is why the
+ * translated month names arrive as an argument instead of this function
+ * reaching for Intl once a locale was available.
+ *
+ * `months` is optional so the rule lives in ONE place while the callers are
+ * translated a stage at a time, the same arrangement expiryRelative uses.
  */
-export function formatExpiry(isoDate: string): string {
+export function formatExpiry(isoDate: string, months: readonly string[] = MONTHS): string {
   const [y, m, d] = isoDate.split('-')
-  const month = MONTHS[Number(m) - 1]
+  const month = months[Number(m) - 1]
   // A value that is not a date we recognise is shown as it was stored rather
   // than as "undefined" — validation should make this unreachable, and a row
   // that reaches it is more useful readable than tidy.
@@ -159,17 +165,43 @@ export function daysUntil(isoDate: string, today: string): number {
   return Math.round((Date.UTC(ey, em - 1, ed) - Date.UTC(ty, tm - 1, td)) / MS)
 }
 
+/** The five phrases expiryRelative can produce. {n} is a whole day count. */
+export type RelativeCopy = {
+  relToday: string
+  relTomorrow: string
+  relYesterday: string
+  relInDays: string
+  relDaysAgo: string
+}
+
+/** English, and what every caller that passes nothing still gets. */
+const EN_RELATIVE: RelativeCopy = {
+  relToday: 'today',
+  relTomorrow: 'tomorrow',
+  relYesterday: 'yesterday',
+  relInDays: 'in {n} days',
+  relDaysAgo: '{n} days ago',
+}
+
 /**
  * "in 3 days" / "today" / "5 days ago".
  *
  * Said in words rather than left as a date, because the whole point of the
  * list is urgency and a reader should not be subtracting dates in their head.
+ *
+ * `copy` is optional so the rule lives in ONE place while the callers are
+ * translated a stage at a time — a second copy of this branching, written in a
+ * component to get translated words, is exactly how the two would drift.
  */
-export function expiryRelative(isoDate: string, today: string): string {
+export function expiryRelative(
+  isoDate: string,
+  today: string,
+  copy: RelativeCopy = EN_RELATIVE,
+): string {
   const d = daysUntil(isoDate, today)
-  if (d === 0) return 'today'
-  if (d === 1) return 'tomorrow'
-  if (d > 1) return `in ${d} days`
-  if (d === -1) return 'yesterday'
-  return `${Math.abs(d)} days ago`
+  if (d === 0) return copy.relToday
+  if (d === 1) return copy.relTomorrow
+  if (d > 1) return copy.relInDays.replace('{n}', String(d))
+  if (d === -1) return copy.relYesterday
+  return copy.relDaysAgo.replace('{n}', String(Math.abs(d)))
 }

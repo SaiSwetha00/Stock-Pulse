@@ -29,29 +29,51 @@ export type CustomerPayload = {
  * Extracted from CustomerModal so the Server Action can run the same rules.
  * Client-side validation is a convenience; a crafted request skips it entirely.
  */
-export function validateCustomer(values: CustomerInput): CustomerErrors {
+/** The words, separate from the rules. English when no dictionary is given. */
+export type CustomerValidationCopy = {
+  vNameRequired: string
+  vNameTooLong: string
+  vEmailInvalid: string
+  vTierInvalid: string
+  vSpentMin: string
+  vVisitsWhole: string
+}
+
+const EN_CUSTOMER: CustomerValidationCopy = {
+  vNameRequired: 'Name is required.',
+  vNameTooLong: 'Name must be 120 characters or fewer.',
+  vEmailInvalid: 'Enter a valid email address.',
+  vTierInvalid: 'Choose a valid tier.',
+  vSpentMin: 'Must be zero or more.',
+  vVisitsWhole: 'Must be a whole number, zero or more.',
+}
+
+export function validateCustomer(
+  values: CustomerInput,
+  copy: CustomerValidationCopy = EN_CUSTOMER,
+): CustomerErrors {
   const errors: CustomerErrors = {}
 
   const name = values.fullName.trim()
-  if (!name) errors.fullName = 'Name is required.'
-  else if (name.length > 120) errors.fullName = 'Name must be 120 characters or fewer.'
+  if (!name) errors.fullName = copy.vNameRequired
+  else if (name.length > 120) errors.fullName = copy.vNameTooLong
 
   const email = values.email.trim()
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errors.email = 'Enter a valid email address.'
+    errors.email = copy.vEmailInvalid
   }
 
   if (!LOYALTY_TIERS.includes(values.loyaltyTier as LoyaltyTier)) {
-    errors.loyaltyTier = 'Choose a valid tier.'
+    errors.loyaltyTier = copy.vTierInvalid
   }
 
   // A blank numeric input reads as '' — treat it as 0 rather than NaN.
   const spent = Number(values.totalSpent.trim() || '0')
-  if (!Number.isFinite(spent) || spent < 0) errors.totalSpent = 'Must be zero or more.'
+  if (!Number.isFinite(spent) || spent < 0) errors.totalSpent = copy.vSpentMin
 
   const visits = Number(values.visits.trim() || '0')
   if (!Number.isInteger(visits) || visits < 0) {
-    errors.visits = 'Must be a whole number, zero or more.'
+    errors.visits = copy.vVisitsWhole
   }
 
   return errors

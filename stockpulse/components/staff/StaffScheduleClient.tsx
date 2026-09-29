@@ -8,14 +8,21 @@ import { ChevronLeft, ChevronRight, Plus, AlertTriangle, Users, Trash2, Palmtree
 import { toLocalISODate } from '@/lib/format'
 import { useLocalToday } from '@/components/ui/LocalTime'
 import { leaveCoversDay } from '@/lib/validation/leave'
-import { LEAVE_KIND_LABELS, type Profile, type Role, type Shift, type StaffLeave } from '@/types'
+import { type Profile, type Role, type Shift, type StaffLeave } from '@/types'
 import Button from '@/components/ui/Button'
 import ShiftModal from './ShiftModal'
 import DeleteShiftDialog from './DeleteShiftDialog'
 import LeaveModal from './LeaveModal'
 import StaffTabs from './StaffTabs'
+import { displayJobTitle } from '@/lib/jobTitle'
+import { useAppCopy, useLocale } from '@/lib/i18n/client'
+import { intlLocale } from '@/lib/i18n/dates'
+import type { StaffCopy } from '@/lib/i18n/app'
 
-const DAY_NAMES = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+// A function, not a constant: a module-scope literal cannot read a hook.
+function dayNames(t: StaffCopy): string[] {
+  return [t.dayMon, t.dayTue, t.dayWed, t.dayThu, t.dayFri, t.daySat, t.daySun]
+}
 const DEFAULT_START_HOUR = 8
 const DEFAULT_END_HOUR = 18
 const HOUR_HEIGHT = 56
@@ -103,6 +110,10 @@ export default function StaffScheduleClient({
   leave: StaffLeave[]
   weekStartISO: string
 }) {
+  const copy = useAppCopy()
+  const ts = copy.staff
+  const dateLocale = intlLocale(useLocale())
+  const dayLabels = useMemo(() => dayNames(ts), [ts])
   const router = useRouter()
   const canWrite = canManage(role)
   const [myScheduleOnly, setMyScheduleOnly] = useState(!canWrite)
@@ -138,9 +149,9 @@ export default function StaffScheduleClient({
     router.push(`/staff?week=${next}`)
   }
 
-  const rangeLabel = `${new Date(weekDates[0] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(
+  const rangeLabel = `${new Date(weekDates[0] + 'T00:00:00').toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })} - ${new Date(
     weekDates[6] + 'T00:00:00'
-  ).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+  ).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric', year: 'numeric' })}`
 
   const visibleLeave = myScheduleOnly ? leave.filter((l) => l.staff_id === currentUserId) : leave
 
@@ -173,9 +184,9 @@ export default function StaffScheduleClient({
     <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="sp-eyebrow">Team</p>
-          <h1 className="sp-title mt-2">Staff Scheduling</h1>
-          <p className="sp-body mt-2">Manage team shifts and coverage.</p>
+          <p className="sp-eyebrow">{ts.eyebrow}</p>
+          <h1 className="sp-title mt-2">{ts.title}</h1>
+          <p className="sp-body mt-2">{ts.subtitle}</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -184,7 +195,7 @@ export default function StaffScheduleClient({
               myScheduleOnly ? 'bg-foreground text-surface' : 'bg-surface-muted text-muted-strong hover:bg-surface-muted'
             }`}
           >
-            My Schedule
+            {ts.myScheduleBtn}
           </button>
           {canWrite && (
             <>
@@ -197,11 +208,11 @@ export default function StaffScheduleClient({
                   ring and disabled handling too. */}
               <Button variant="secondary" onClick={() => setEditingLeave('new')}>
                 <Palmtree className="h-4 w-4" aria-hidden="true" />
-                Record Leave
+                {ts.recordLeave}
               </Button>
               <Button onClick={() => setEditing('new')}>
                 <Plus className="h-4 w-4" aria-hidden="true" />
-                Assign Shift
+                {ts.assignShift}
               </Button>
             </>
           )}
@@ -232,7 +243,7 @@ export default function StaffScheduleClient({
               <button
                 type="button"
                 onClick={() => goToWeek(-7)}
-                aria-label="Previous week"
+                aria-label={ts.prevWeek}
                 className="tap-target rounded-lg text-muted hover:bg-surface-muted"
               >
                 <ChevronLeft className="h-5 w-5" aria-hidden="true" />
@@ -241,7 +252,7 @@ export default function StaffScheduleClient({
               <button
                 type="button"
                 onClick={() => goToWeek(7)}
-                aria-label="Next week"
+                aria-label={ts.nextWeek}
                 className="tap-target rounded-lg text-muted hover:bg-surface-muted"
               >
                 <ChevronRight className="h-5 w-5" aria-hidden="true" />
@@ -250,7 +261,7 @@ export default function StaffScheduleClient({
             {/* A Day/Week/Month switcher sat here with no handlers on any of
                 the three buttons — only a week view exists. */}
             <span className="rounded-lg bg-surface-muted px-3 py-1.5 text-sm font-medium text-muted-strong">
-              Week view
+              {ts.weekView}
             </span>
           </div>
 
@@ -274,7 +285,7 @@ export default function StaffScheduleClient({
             className="-mx-6 mt-6 overflow-x-auto px-6"
             tabIndex={0}
             role="region"
-            aria-label="Weekly rota, scrolls horizontally"
+            aria-label={ts.rotaAria}
           >
           <div className="grid min-w-[800px] grid-cols-[56px_repeat(7,1fr)] gap-x-1">
             <div />
@@ -287,7 +298,7 @@ export default function StaffScheduleClient({
                   className={`rounded-t-lg py-2 text-center ${isToday ? 'bg-foreground text-surface' : ''}`}
                 >
                   <p className={`text-[10px] font-semibold uppercase tracking-wide ${isToday ? 'text-muted' : 'text-muted'}`}>
-                    {DAY_NAMES[i]}
+                    {dayLabels[i]}
                   </p>
                   <p className="sp-heading">{dayNum}</p>
                   {/* Leave sits ABOVE the hour grid rather than inside it.
@@ -303,10 +314,11 @@ export default function StaffScheduleClient({
                       genuine gap in cover) already owns the danger tone on
                       this grid. */}
                   {(leaveByDay.get(d) ?? []).map((l) => {
-                    const who = l.profiles?.full_name ?? 'Team member'
-                    const label = `${who} — ${LEAVE_KIND_LABELS[l.kind]}${
-                      l.note ? `: ${l.note}` : ''
-                    }`
+                    const who = l.profiles?.full_name ?? ts.teamMember
+                    const label = (l.note ? ts.leaveLabelNote : ts.leaveLabel)
+                      .replace('{who}', who)
+                      .replace('{kind}', ts.leaveKindLabels[l.kind])
+                      .replace('{note}', l.note ?? '')
                     const content = (
                       <>
                         <Palmtree className="h-3 w-3 shrink-0" aria-hidden="true" />
@@ -322,7 +334,7 @@ export default function StaffScheduleClient({
                         type="button"
                         onClick={() => setEditingLeave(l)}
                         title={label}
-                        aria-label={`Edit leave: ${label}`}
+                        aria-label={ts.editLeaveAria.replace('{label}', label)}
                         className={`${classes} transition-colors hover:brightness-95`}
                       >
                         {content}
@@ -408,10 +420,10 @@ export default function StaffScheduleClient({
                         </div>
                         <p className={`font-semibold ${style.sub}`}>
                           {!shift.staff_id
-                            ? 'UNASSIGNED'
+                            ? ts.unassigned
                             : isCurrentUser
-                              ? 'You'
-                              : shift.profiles?.full_name ?? 'Staff'}
+                              ? ts.you
+                              : shift.profiles?.full_name ?? ts.staffFallback}
                         </p>
 
                         {canWrite && (
@@ -425,7 +437,9 @@ export default function StaffScheduleClient({
                             <button
                               type="button"
                               onClick={() => setEditing(shift)}
-                              aria-label={`Edit ${shift.role_label} shift on ${shift.shift_date}`}
+                              aria-label={ts.editShiftAria
+                                .replace('{role}', shift.role_label)
+                                .replace('{date}', shift.shift_date)}
                               className="absolute inset-y-0 left-0 right-11 rounded-l-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
                             />
                             {/* Was a 20px control revealed on hover, so it was
@@ -438,7 +452,9 @@ export default function StaffScheduleClient({
                             <button
                               type="button"
                               onClick={() => setDeletingShift(shift)}
-                              aria-label={`Delete ${shift.role_label} shift on ${shift.shift_date}`}
+                              aria-label={ts.deleteShiftAria
+                                .replace('{role}', shift.role_label)
+                                .replace('{date}', shift.shift_date)}
                               className={`tap-target absolute right-0 top-0 z-10 rounded-lg opacity-70 transition hover:bg-black/20 focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground group-hover:opacity-100 ${style.text}`}
                             >
                               <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -458,7 +474,7 @@ export default function StaffScheduleClient({
         <div className="space-y-6">
           <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="sp-heading">Staff Availability</h2>
+              <h2 className="sp-heading">{ts.staffAvailability}</h2>
               <Users className="h-5 w-5 text-muted" />
             </div>
             {/* A store with nobody in it is the first-run state, not an
@@ -467,13 +483,13 @@ export default function StaffScheduleClient({
                 empty column with a "0 of 0 on shift" line under it. */}
             {availability.length === 0 && (
               <p className="mt-4 text-sm leading-relaxed text-muted">
-                Nobody on the team yet.{' '}
+                {ts.nobodyYet}{' '}
                 {isOwner(role) ? (
                   <Link href="/staff/team" className="font-semibold text-foreground underline">
-                    Invite your first colleague
+                    {ts.inviteFirst}
                   </Link>
                 ) : (
-                  'The store owner can invite people from the Team tab.'
+                  ts.ownerCanInvite
                 )}
               </p>
             )}
@@ -487,8 +503,10 @@ export default function StaffScheduleClient({
                     <p className="truncate text-sm font-semibold text-foreground">{profile.full_name}</p>
                     <p className="truncate text-xs text-muted">
                       {onLeaveToday
-                        ? `${LEAVE_KIND_LABELS[onLeaveToday.kind]} until ${onLeaveToday.ends_on}`
-                        : profile.job_title || 'Staff'}
+                        ? ts.leaveUntil
+                            .replace('{kind}', ts.leaveKindLabels[onLeaveToday.kind])
+                            .replace('{date}', onLeaveToday.ends_on)
+                        : displayJobTitle(profile.job_title, { roles: copy.roles, storeOwner: copy.profile.storeOwner }) || ts.staffFallback}
                     </p>
                   </div>
                   {/* Three states, not two. "Not scheduled" and "on leave"
@@ -498,32 +516,45 @@ export default function StaffScheduleClient({
                   {onLeaveToday ? (
                     // The tooltip sits on a wrapper: lucide icons do not accept
                     // a `title` prop, and passing one silently does nothing.
-                    <span title={`On ${LEAVE_KIND_LABELS[onLeaveToday.kind].toLowerCase()} today`}>
+                    <span
+                      title={ts.onLeaveTodayTip.replace(
+                        '{kind}',
+                        ts.leaveKindLabels[onLeaveToday.kind].toLowerCase(),
+                      )}
+                    >
                       <Palmtree className="h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" />
                     </span>
                   ) : (
                     // Not being scheduled today isn't an error state, so the
                     // off-shift dot is neutral rather than red.
                     <span
-                      title={onToday ? 'On shift today' : 'Not scheduled today'}
+                      title={onToday ? ts.onShiftToday : ts.notScheduledToday}
                       className={`h-2 w-2 shrink-0 rounded-full ${onToday ? 'bg-accent' : 'bg-surface-muted'}`}
                     />
                   )}
                   <span className="sr-only">
                     {onLeaveToday
-                      ? `On ${LEAVE_KIND_LABELS[onLeaveToday.kind].toLowerCase()} today`
+                      ? ts.onLeaveTodayTip.replace(
+                          '{kind}',
+                          ts.leaveKindLabels[onLeaveToday.kind].toLowerCase(),
+                        )
                       : onToday
-                        ? 'On shift today'
-                        : 'Not scheduled today'}
+                        ? ts.onShiftToday
+                        : ts.notScheduledToday}
                   </span>
                 </div>
               ))}
             </div>
             {/* Replaces a dead "View All Staff" button. */}
             <p className="mt-4 text-center text-xs font-semibold uppercase tracking-wide text-muted">
-              {availability.filter((a) => a.onToday).length} of {staff.length} on shift today
+              {ts.onShiftCount
+                .replace('{n}', String(availability.filter((a) => a.onToday).length))
+                .replace('{m}', String(staff.length))}
               {availability.filter((a) => a.onLeaveToday).length > 0 &&
-                ` · ${availability.filter((a) => a.onLeaveToday).length} on leave`}
+                ts.onLeaveCount.replace(
+                  '{n}',
+                  String(availability.filter((a) => a.onLeaveToday).length),
+                )}
             </p>
           </div>
 

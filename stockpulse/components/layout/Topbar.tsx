@@ -10,7 +10,8 @@ import { pageTitleFor } from '@/lib/nav'
 import { useAIAssistant } from '@/components/ai/AIAssistantProvider'
 import { useCommandPalette } from '@/components/command/CommandPaletteProvider'
 import NotificationBell from '@/components/notifications/NotificationBell'
-import { ROLE_LABELS } from '@/lib/permissions'
+import { displayJobTitle } from '@/lib/jobTitle'
+import { useAppCopy } from '@/lib/i18n/client'
 import type { Profile, Store } from '@/types'
 
 /**
@@ -31,7 +32,7 @@ export default function Topbar({
   store,
   profile,
   initialUnread = 0,
-  searchPlaceholder = 'Search products, sales, customers...',
+  searchPlaceholder,
 }: {
   store: Store
   profile: Profile
@@ -42,13 +43,16 @@ export default function Topbar({
   const { open } = useAIAssistant()
   const { open: openPalette } = useCommandPalette()
   const pathname = usePathname()
-  const roleLabel = ROLE_LABELS[profile.role]
+  const t = useAppCopy()
+  // Role labels come from the dictionary, not lib/permissions: that file
+  // mirrors the database's can_manage(), and display strings do not belong in it.
+  const roleLabel = t.roles[profile.role]
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface px-4 xl:px-6">
       {/* Not an h1: each page supplies its own heading. This is wayfinding. */}
       <p className="shrink-0 truncate text-sm font-bold tracking-tight text-foreground">
-        {pageTitleFor(pathname)}
+        {pageTitleFor(pathname, t.nav)}
       </p>
 
       {/* ---- Search — opens the command palette rather than filtering in place ---- */}
@@ -62,7 +66,7 @@ export default function Topbar({
           className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
           aria-hidden="true"
         />
-        <span className="block truncate">{searchPlaceholder}</span>
+        <span className="block truncate">{searchPlaceholder ?? t.shell.searchPlaceholder}</span>
         <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded border border-border bg-surface px-1.5 py-0.5 text-[10px] font-semibold text-muted xl:block">
           Ctrl K
         </kbd>
@@ -78,8 +82,8 @@ export default function Topbar({
           <Sparkles className="h-4 w-4" aria-hidden="true" />
           {/* The label is the first thing to go when the bar gets tight; the
               icon plus the accessible name still identify it. */}
-          <span className="hidden xl:inline">AI Assistant</span>
-          <span className="sr-only xl:hidden">AI Assistant</span>
+          <span className="hidden xl:inline">{t.shell.aiAssistant}</span>
+          <span className="sr-only xl:hidden">{t.shell.aiAssistant}</span>
         </button>
 
         <NotificationBell initialUnread={initialUnread} />
@@ -116,7 +120,7 @@ export default function Topbar({
               {profile.full_name}
             </span>
             <span className="block max-w-[9rem] truncate text-[11px] text-muted">
-              {profile.job_title || roleLabel}
+              {displayJobTitle(profile.job_title, { roles: t.roles, storeOwner: t.profile.storeOwner }) || roleLabel}
             </span>
           </span>
 
@@ -124,7 +128,7 @@ export default function Topbar({
               in the accessible name here — a screen-reader user should still
               be able to tell whose workspace this is. */}
           <span className="sr-only">
-            Your profile — {profile.full_name}, {roleLabel} at {store.name}
+            {t.shell.profileSummary.replace('{name}', profile.full_name).replace('{role}', roleLabel).replace('{store}', store.name)}
           </span>
         </Link>
       </div>

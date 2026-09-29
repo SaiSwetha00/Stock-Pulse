@@ -9,8 +9,17 @@ import { Field, Input, Select } from '@/components/ui/Field'
 import { saveShift } from '@/app/(dashboard)/staff/actions'
 import { leaveCoversDay } from '@/lib/validation/leave'
 import { validateShift, type ShiftErrors, type ShiftInput } from '@/lib/validation/shift'
-import { LEAVE_KIND_LABELS, type Profile, type Shift, type StaffLeave } from '@/types'
+import { type Profile, type Shift, type StaffLeave } from '@/types'
+import { useAppCopy } from '@/lib/i18n/client'
 
+/**
+ * ENGLISH IN EVERY LANGUAGE, deliberately.
+ *
+ * These are stored verbatim in shifts.role_label, and
+ * StaffScheduleClient's shiftStyle() colours a block by comparing that
+ * column against 'manager' and 'produce'. Translating the presets would
+ * write Telugu into the column and break the colour coding silently.
+ */
 const ROLE_LABELS = ['Front Desk', 'Produce', 'Dairy/Frozen', 'Manager', 'Receiving', 'Bakery']
 
 /** Postgres `time` comes back as HH:MM:SS; <input type="time"> wants HH:MM. */
@@ -38,6 +47,8 @@ export default function ShiftModal({
   weekDates: string[]
   onClose: () => void
 }) {
+  const t = useAppCopy()
+  const ts = t.staff
   const router = useRouter()
   const isEdit = Boolean(shift)
 
@@ -83,7 +94,7 @@ export default function ShiftModal({
 
     const input: ShiftInput = { staffId, roleLabel, shiftDate, startTime, endTime }
 
-    const found = validateShift(input)
+    const found = validateShift(input, ts)
     setErrors(found)
     if (Object.keys(found).length > 0) return
 
@@ -92,14 +103,17 @@ export default function ShiftModal({
 
       if (!result.ok) {
         setErrors(result.errors ?? {})
-        setFormError(result.message ?? 'Could not save the shift.')
-        toast.error(isEdit ? 'Could not update shift' : 'Could not schedule shift', result.message)
+        setFormError(result.message ?? ts.shiftSaveFailed)
+        toast.error(isEdit ? ts.shiftUpdateFailed : ts.shiftScheduleFailed, result.message)
         return
       }
 
       // revalidatePath clears the server cache but does not repaint the client;
       // without this the grid only updates after a manual reload.
-      toast.success(isEdit ? 'Shift updated' : 'Shift scheduled', `${input.roleLabel} · ${input.shiftDate}`)
+      toast.success(
+        isEdit ? ts.shiftUpdated : ts.shiftScheduled,
+        `${input.roleLabel} · ${input.shiftDate}`,
+      )
       router.refresh()
       onClose()
     })
@@ -107,7 +121,7 @@ export default function ShiftModal({
 
   return (
     <Modal
-      title={isEdit ? 'Edit Shift' : 'Assign Shift'} onClose={onClose} width="md"
+      title={isEdit ? ts.shiftEdit : ts.shiftAdd} onClose={onClose} width="md"
       /*
         Actions live in Modal's `footer`, not at the end of the form. `children`
         scrolls; `footer` is pinned, shrink-0, and carries the
@@ -123,10 +137,10 @@ export default function ShiftModal({
       footer={
         <div className="grid grid-cols-2 gap-3">
           <Button type="button" variant="secondary" fullWidth onClick={onClose}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button type="submit" form={formId} fullWidth loading={saving}>
-            {isEdit ? 'Save Changes' : 'Assign Shift'}
+            {isEdit ? ts.saveChanges : ts.shiftAdd}
           </Button>
         </div>
       }
@@ -139,13 +153,13 @@ export default function ShiftModal({
         )}
 
         <Field
-          label="Team Member"
+          label={ts.fTeamMember}
           error={errors.staffId}
-          hint="Leave unassigned to post an open shift"
+          hint={ts.teamMemberHint}
         >
           {(p) => (
             <Select {...p} value={staffId} onChange={(e) => setStaffId(e.target.value)}>
-              <option value="">Unassigned</option>
+              <option value="">{ts.optUnassigned}</option>
               {staff.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.full_name}
@@ -155,7 +169,7 @@ export default function ShiftModal({
           )}
         </Field>
 
-        <Field label="Role" required error={errors.roleLabel}>
+        <Field label={ts.fRole} required error={errors.roleLabel}>
           {(p) => (
             <Select {...p} value={roleLabel} onChange={(e) => setRoleLabel(e.target.value)}>
               {roleOptions.map((r) => (
@@ -167,7 +181,7 @@ export default function ShiftModal({
           )}
         </Field>
 
-        <Field label="Date" required error={errors.shiftDate}>
+        <Field label={ts.fDate} required error={errors.shiftDate}>
           {(p) => (
             <Select {...p} value={shiftDate} onChange={(e) => setShiftDate(e.target.value)}>
               {dateOptions.map((d) => (
@@ -184,14 +198,16 @@ export default function ShiftModal({
             role="status"
             className="rounded-lg bg-warning-bg px-3.5 py-2.5 text-sm text-warning"
           >
-            {leaveClash.profiles?.full_name ?? 'That person'} is on{' '}
-            {LEAVE_KIND_LABELS[leaveClash.kind].toLowerCase()} from {leaveClash.starts_on} to{' '}
-            {leaveClash.ends_on}. This shift will not save.
+            {ts.clashText
+              .replace('{who}', leaveClash.profiles?.full_name ?? ts.thatPerson)
+              .replace('{kind}', ts.leaveKindLabels[leaveClash.kind].toLowerCase())
+              .replace('{from}', leaveClash.starts_on)
+              .replace('{to}', leaveClash.ends_on)}
           </p>
         )}
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Start Time" required error={errors.startTime}>
+          <Field label={ts.fStart} required error={errors.startTime}>
             {(p) => (
               <Input
                 {...p}
@@ -202,7 +218,7 @@ export default function ShiftModal({
             )}
           </Field>
 
-          <Field label="End Time" required error={errors.endTime}>
+          <Field label={ts.fEnd} required error={errors.endTime}>
             {(p) => (
               <Input
                 {...p}

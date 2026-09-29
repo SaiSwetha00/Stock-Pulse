@@ -3,6 +3,7 @@
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import type { SortState } from '@/lib/useTable'
+import { useAppCopy } from '@/lib/i18n/client'
 
 /**
  * A sortable column header.
@@ -26,6 +27,7 @@ export default function SortableTh<K extends string>({
   align?: 'left' | 'right'
   className?: string
 }) {
+  const ts = useAppCopy().sort
   const active = sort.key === sortKey
   const Icon = !active ? ChevronsUpDown : sort.dir === 'asc' ? ArrowUp : ArrowDown
 
@@ -56,9 +58,7 @@ export default function SortableTh<K extends string>({
         />
         {/* The visual arrow is decorative; this is what gets announced. */}
         <span className="sr-only">
-          {active
-            ? `, sorted ${sort.dir === 'asc' ? 'ascending' : 'descending'}. Activate to reverse.`
-            : ', not sorted. Activate to sort.'}
+          {active ? (sort.dir === 'asc' ? ts.ascending : ts.descending) : ts.none}
         </span>
       </button>
     </th>

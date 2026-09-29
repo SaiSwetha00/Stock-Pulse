@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { motion, useReducedMotion } from 'framer-motion'
 import { navItemsFor } from '@/lib/nav'
 import { cn } from '@/lib/cn'
+import { useAppCopy } from '@/lib/i18n/client'
 import type { Role } from '@/types'
 
 /**
@@ -37,6 +38,7 @@ export default function SidebarNav({
 }) {
   const pathname = usePathname()
   const prefersReduced = useReducedMotion()
+  const labels = useAppCopy().nav
 
   return (
     <nav className={cn('flex flex-1 flex-col gap-1', className)}>
@@ -52,8 +54,8 @@ export default function SidebarNav({
             aria-current={active ? 'page' : undefined}
             // The label is visually gone in the rail but the link still needs
             // an accessible name, so it moves onto the element itself.
-            aria-label={collapsed ? item.label : undefined}
-            title={collapsed ? item.label : undefined}
+            aria-label={collapsed ? labels[item.key] : undefined}
+            title={collapsed ? labels[item.key] : undefined}
             className={cn(
               'group relative flex control-h items-center rounded-lg text-sm font-medium',
               'transition-colors duration-150',
@@ -77,7 +79,7 @@ export default function SidebarNav({
             )}
             {/* Above the pill, which is absolutely positioned behind them. */}
             <Icon className="relative z-10 h-4.5 w-4.5 shrink-0" aria-hidden="true" />
-            {!collapsed && <span className="relative z-10 truncate">{item.label}</span>}
+            {!collapsed && <span className="relative z-10 truncate">{labels[item.key]}</span>}
           </Link>
         )
       })}

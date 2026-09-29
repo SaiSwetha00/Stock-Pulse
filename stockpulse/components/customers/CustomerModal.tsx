@@ -13,7 +13,8 @@ import {
   type CustomerErrors,
   type CustomerInput,
 } from '@/lib/validation/customer'
-import { LOYALTY_TIER_LABELS, type Customer, type LoyaltyTier } from '@/types'
+import { type Customer, type LoyaltyTier } from '@/types'
+import { useAppCopy } from '@/lib/i18n/client'
 
 /**
  * Pure so it can be exercised without mounting the form. Values arrive as the
@@ -33,6 +34,8 @@ export default function CustomerModal({
   customer?: Customer | null
   onClose: () => void
 }) {
+  const t = useAppCopy()
+  const tc = t.customers
   const router = useRouter()
   const isEdit = Boolean(customer)
 
@@ -65,7 +68,7 @@ export default function CustomerModal({
     const input = currentInput()
 
     // Client pass for instant feedback; the action re-checks regardless.
-    const found = validateCustomer(input)
+    const found = validateCustomer(input, tc)
     setErrors(found)
     if (Object.keys(found).length > 0) return
 
@@ -74,15 +77,15 @@ export default function CustomerModal({
 
       if (!result.ok) {
         setErrors(result.errors ?? {})
-        setFormError(result.message ?? 'Could not save the customer.')
-        toast.error(isEdit ? 'Could not update customer' : 'Could not add customer', result.message)
+        setFormError(result.message ?? tc.saveFailed)
+        toast.error(isEdit ? tc.updateFailedToast : tc.addFailedToast, result.message)
         return
       }
 
       // revalidatePath clears the server cache; router.refresh() is what makes
       // the client refetch. Both are needed — verified in production, where
       // revalidatePath alone left the table stale until a manual reload.
-      toast.success(isEdit ? 'Customer updated' : 'Customer added', input.fullName)
+      toast.success(isEdit ? tc.updatedToast : tc.addedToast, input.fullName)
       router.refresh()
       onClose()
     })
@@ -90,7 +93,7 @@ export default function CustomerModal({
 
   return (
     <Modal
-      title={isEdit ? 'Edit Customer' : 'Add Customer'} onClose={onClose}
+      title={isEdit ? tc.formEdit : tc.formAdd} onClose={onClose}
       /*
         Actions live in Modal's `footer`, not at the end of the form. `children`
         scrolls; `footer` is pinned, shrink-0, and carries the
@@ -106,10 +109,10 @@ export default function CustomerModal({
       footer={
         <div className="grid grid-cols-2 gap-3">
           <Button type="button" variant="secondary" fullWidth onClick={onClose}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button type="submit" form={formId} fullWidth loading={saving}>
-            {isEdit ? 'Save Changes' : 'Add Customer'}
+            {isEdit ? tc.saveChanges : tc.formAdd}
           </Button>
         </div>
       }
@@ -121,51 +124,51 @@ export default function CustomerModal({
           </div>
         )}
 
-        <Field label="Full Name" required error={errors.fullName}>
+        <Field label={tc.fFullName} required error={errors.fullName}>
           {(p) => (
             <Input {...p} value={fullName} onChange={(e) => setFullName(e.target.value)} autoFocus />
           )}
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Email" error={errors.email} hint="Optional">
+          <Field label={tc.fEmail} error={errors.email} hint={t.inventory.optional}>
             {(p) => (
               <Input
                 {...p}
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@example.com"
+                placeholder={tc.emailPlaceholder}
               />
             )}
           </Field>
 
-          <Field label="Phone" hint="Optional">
+          <Field label={tc.fPhone} hint={t.inventory.optional}>
             {(p) => (
               <Input
                 {...p}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="555-0100"
+                placeholder={tc.phonePlaceholder}
               />
             )}
           </Field>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Field label="Loyalty Tier">
+          <Field label={tc.fTier}>
             {(p) => (
               <Select {...p} value={tier} onChange={(e) => setTier(e.target.value as LoyaltyTier)}>
-                {TIERS.map((t) => (
-                  <option key={t} value={t}>
-                    {LOYALTY_TIER_LABELS[t]}
+                {TIERS.map((tier_) => (
+                  <option key={tier_} value={tier_}>
+                    {tc.tierLabels[tier_]}
                   </option>
                 ))}
               </Select>
             )}
           </Field>
 
-          <Field label="Total Spent" error={errors.totalSpent}>
+          <Field label={tc.fTotalSpent} error={errors.totalSpent}>
             {(p) => (
               <Input
                 {...p}
@@ -178,7 +181,7 @@ export default function CustomerModal({
             )}
           </Field>
 
-          <Field label="Visits" error={errors.visits}>
+          <Field label={tc.fVisits} error={errors.visits}>
             {(p) => (
               <Input
                 {...p}
@@ -192,7 +195,7 @@ export default function CustomerModal({
           </Field>
         </div>
 
-        <Field label="Notes" hint="Allergies, preferences, anything worth remembering">
+        <Field label={tc.fNotes} hint={tc.notesHint}>
           {(p) => (
             <Textarea {...p} value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
           )}

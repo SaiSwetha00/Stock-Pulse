@@ -1,14 +1,17 @@
 import type { Metadata } from 'next'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import type { AuditLog } from '@/lib/audit'
 import AuditLogClient from '@/components/audit/AuditLogClient'
 
-export const metadata: Metadata = {
-  title: "Activity",
-  description: "A record of who changed what, and when.",
-  robots: { index: false, follow: false },
+export async function generateMetadata(): Promise<Metadata> {
+  // Page name only; app/layout.tsx appends " · StockPulse". In the
+  // signed-in language, read from the same cookie the layout uses.
+  const { title, description } = appCopy(await getLocale()).meta.audit
+  return { title, description, robots: { index: false, follow: false } }
 }
 
 /**

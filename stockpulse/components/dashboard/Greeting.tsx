@@ -1,5 +1,8 @@
 'use client'
 
+import { useAppCopy } from '@/lib/i18n/client'
+import type { DashboardCopy } from '@/lib/i18n/app'
+
 
 /**
  * The first thing on the dashboard: who you are, what time it is, and whether
@@ -43,14 +46,28 @@ function firstNameOf(fullName: string): string {
  * dashboard label — and it says "Everything's in order" instead of showing two
  * zeroes, because a zero still reads as something you have to check.
  */
-function contextLine(lowStock: number, busyCounters: number, totalCounters: number): string {
+function contextLine(
+  lowStock: number,
+  busyCounters: number,
+  totalCounters: number,
+  t: DashboardCopy,
+): string {
   const parts: string[] = []
-  if (lowStock > 0) parts.push(`${lowStock} item${lowStock === 1 ? '' : 's'} low on stock`)
+  if (lowStock > 0) {
+    parts.push(
+      (lowStock === 1 ? t.lowOnStockOne : t.lowOnStockMany).replace('{n}', String(lowStock)),
+    )
+  }
   // "pending" implied queued work; this counts counters that are not free.
   // With no counters configured there is nothing to say, so say nothing.
-  if (totalCounters > 0 && busyCounters > 0)
-    parts.push(`${busyCounters} of ${totalCounters} counters busy`)
-  if (parts.length === 0) return 'Everything’s in order.'
+  if (totalCounters > 0 && busyCounters > 0) {
+    parts.push(
+      t.countersBusy
+        .replace('{busy}', String(busyCounters))
+        .replace('{total}', String(totalCounters)),
+    )
+  }
+  if (parts.length === 0) return t.allInOrder
   return parts.join(' · ')
 }
 
@@ -73,6 +90,7 @@ export default function Greeting({
   /** Right-hand header slot: the date and the freshness pill. */
   meta?: React.ReactNode
 }) {
+  const t = useAppCopy().dash
   const needsAttention = lowStockCount > 0 || (counterCount > 0 && pendingCount > 0)
 
   return (
@@ -104,10 +122,10 @@ export default function Greeting({
         <p className="sp-body mt-1.5">
           {needsAttention ? (
             <span className="font-medium text-foreground">
-              {contextLine(lowStockCount, pendingCount, counterCount)}
+              {contextLine(lowStockCount, pendingCount, counterCount, t)}
             </span>
           ) : (
-            contextLine(lowStockCount, pendingCount, counterCount)
+            contextLine(lowStockCount, pendingCount, counterCount, t)
           )}
         </p>
       </div>

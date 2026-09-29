@@ -5,9 +5,13 @@ import { useRouter } from 'next/navigation'
 import Modal from '@/components/ui/Modal'
 import { Field, Input } from '@/components/ui/Field'
 import { useToast } from '@/components/ui/Toast'
+import { useAppCopy } from '@/lib/i18n/client'
 import { createClient } from '@/lib/supabase/client'
 import AvatarUpload from './AvatarUpload'
 import type { Profile } from '@/types'
+
+/** The limit the message quotes, so the two cannot disagree. */
+const MAX_NAME = 120
 
 export default function EditProfileModal({
   profile,
@@ -17,6 +21,9 @@ export default function EditProfileModal({
   onClose: () => void
 }) {
   const router = useRouter()
+  const copy = useAppCopy()
+  const t = copy.profile
+  const tcm = copy.common
   // Ties the footer submit back to the form it now sits outside of.
   const formId = useId()
   const [fullName, setFullName] = useState(profile.full_name)
@@ -43,11 +50,11 @@ export default function EditProfileModal({
     // blanking your own name, but the asymmetry is real and is logged.
     const name = fullName.trim()
     if (!name) {
-      setNameError('Your name is required.')
+      setNameError(t.vNameRequired)
       return
     }
-    if (name.length > 120) {
-      setNameError('Keep your name to 120 characters or fewer.')
+    if (name.length > MAX_NAME) {
+      setNameError(t.vNameTooLong.replace('{n}', String(MAX_NAME)))
       return
     }
     setNameError('')
@@ -69,17 +76,17 @@ export default function EditProfileModal({
     setSaving(false)
     if (dbError) {
       setError(dbError.message)
-      toast.error('Could not update profile', dbError.message)
+      toast.error(t.updateFailed, dbError.message)
       return
     }
-    toast.success('Profile updated')
+    toast.success(t.updated)
     router.refresh()
     onClose()
   }
 
   return (
     <Modal
-      title="Edit Profile" onClose={onClose} width="md"
+      title={t.editTitle} onClose={onClose} width="md"
       /*
         Actions live in Modal's `footer`, not at the end of the form. `children`
         scrolls; `footer` is pinned, shrink-0, and carries the
@@ -99,14 +106,14 @@ export default function EditProfileModal({
             onClick={onClose}
             className="control-h flex-1 rounded-lg border border-border text-sm font-semibold text-muted-strong hover:bg-surface-muted"
           >
-            Cancel
+            {tcm.cancel}
           </button>
           <button
             type="submit" form={formId}
             disabled={saving}
             className="control-h flex-1 rounded-lg bg-foreground text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-60"
           >
-            {saving ? 'Saving…' : 'Save Changes'}
+            {saving ? t.saving : t.saveChanges}
           </button>
         </div>
       }
@@ -118,7 +125,7 @@ export default function EditProfileModal({
               which is exactly the defect Phase 3C-ii found on Settings. `Field`
               wires label, control and error by useId, and brings the error slot
               this name check needs. */}
-          <Field label="Full Name" error={nameError} required>
+          <Field label={t.fullName} error={nameError} required>
             {(p) => (
               <Input
                 {...p}
@@ -129,25 +136,25 @@ export default function EditProfileModal({
               />
             )}
           </Field>
-          <Field label="Phone Number">
+          <Field label={t.phone}>
             {(p) => (
               <Input
                 {...p}
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+1 (555) 123-4567"
+                placeholder={t.phonePlaceholder}
                 autoComplete="tel"
               />
             )}
           </Field>
-          <Field label="Location">
+          <Field label={t.location}>
             {(p) => (
               <Input
                 {...p}
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="Portland, OR"
+                placeholder={t.locationPlaceholder}
               />
             )}
           </Field>

@@ -11,18 +11,59 @@ export interface AuditLog {
   created_at: string
 }
 
-/** Table name -> what a person calls it. */
-export const ENTITY_LABELS: Record<string, string> = {
-  products: 'Product',
-  customers: 'Customer',
-  suppliers: 'Supplier',
-  sales: 'Sale',
+/**
+ * The labels this module can produce. The KEYS of the two maps below stay as
+ * they are — `products`, `insert` — because they are the table name and the
+ * action recorded in the row. Only what a person reads moves.
+ */
+export type AuditLabelCopy = {
+  entityProduct: string
+  entityCustomer: string
+  entitySupplier: string
+  entitySale: string
+  actionInsert: string
+  actionUpdate: string
+  actionDelete: string
+  summaryCreated: string
+  summaryDeleted: string
+  summaryNoChanges: string
+  yes: string
+  no: string
 }
 
-export const ACTION_LABELS: Record<AuditAction, string> = {
-  insert: 'Created',
-  update: 'Updated',
-  delete: 'Deleted',
+/** English, and what every caller that passes nothing still gets. */
+const EN_AUDIT: AuditLabelCopy = {
+  entityProduct: 'Product',
+  entityCustomer: 'Customer',
+  entitySupplier: 'Supplier',
+  entitySale: 'Sale',
+  actionInsert: 'Created',
+  actionUpdate: 'Updated',
+  actionDelete: 'Deleted',
+  summaryCreated: 'Record created',
+  summaryDeleted: 'Record deleted',
+  summaryNoChanges: 'No visible field changes',
+  yes: 'Yes',
+  no: 'No',
+}
+
+/** Table name -> what a person calls it. A function, not a constant: a
+ *  module-scope literal cannot read a hook, and the caller memoises it. */
+export function entityLabels(copy: AuditLabelCopy = EN_AUDIT): Record<string, string> {
+  return {
+    products: copy.entityProduct,
+    customers: copy.entityCustomer,
+    suppliers: copy.entitySupplier,
+    sales: copy.entitySale,
+  }
+}
+
+export function actionLabels(copy: AuditLabelCopy = EN_AUDIT): Record<AuditAction, string> {
+  return {
+    insert: copy.actionInsert,
+    update: copy.actionUpdate,
+    delete: copy.actionDelete,
+  }
 }
 
 /**
@@ -76,17 +117,23 @@ export function entityName(log: AuditLog): string {
   return log.entity_id ? `${log.entity_id.slice(0, 8)}…` : '—'
 }
 
-/** Compact one-line description, used in the table and the CSV export. */
-export function summarizeChange(log: AuditLog): string {
-  if (log.action === 'insert') return 'Record created'
-  if (log.action === 'delete') return 'Record deleted'
+/**
+ * Compact one-line description, used in the table and the CSV export.
+ *
+ * The field names it joins are COLUMN NAMES and stay as they are in every
+ * language — they are database identifiers, and a translated one could not be
+ * matched back to the column it names.
+ */
+export function summarizeChange(log: AuditLog, copy: AuditLabelCopy = EN_AUDIT): string {
+  if (log.action === 'insert') return copy.summaryCreated
+  if (log.action === 'delete') return copy.summaryDeleted
   const changes = diffFields(log.before, log.after)
-  if (changes.length === 0) return 'No visible field changes'
+  if (changes.length === 0) return copy.summaryNoChanges
   return changes.map((c) => c.field.replace(/_/g, ' ')).join(', ')
 }
 
-export function formatValue(v: unknown): string {
+export function formatValue(v: unknown, copy: AuditLabelCopy = EN_AUDIT): string {
   if (v === null || v === undefined || v === '') return '—'
-  if (typeof v === 'boolean') return v ? 'Yes' : 'No'
+  if (typeof v === 'boolean') return v ? copy.yes : copy.no
   return String(v)
 }

@@ -1,19 +1,20 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { Bell, Check, Trash2 } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/format'
 import {
-  KIND_LABELS,
   KIND_STYLES,
   bellLabel,
   formatUnreadCount,
+  kindLabels,
   notificationHref,
   type Notification,
 } from '@/lib/notifications'
+import { useAppCopy } from '@/lib/i18n/client'
 import {
   clearNotifications,
   getNotifications,
@@ -23,6 +24,10 @@ import {
 
 export default function NotificationBell({ initialUnread = 0 }: { initialUnread?: number }) {
   const router = useRouter()
+  const copy = useAppCopy()
+  const t = copy.notif
+  const tcm = copy.common
+  const kinds = useMemo(() => kindLabels(t), [t])
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState<Notification[]>([])
   // Seeded from the server so the badge is right on first paint. The list
@@ -121,7 +126,7 @@ export default function NotificationBell({ initialUnread = 0 }: { initialUnread?
         ref={buttonRef}
         type="button"
         onClick={toggle}
-        aria-label={bellLabel(unread)}
+        aria-label={bellLabel(unread, t)}
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-controls="notification-panel"
@@ -150,7 +155,7 @@ export default function NotificationBell({ initialUnread = 0 }: { initialUnread?
           ref={panelRef}
           id="notification-panel"
           role="dialog"
-          aria-label="Notifications"
+          aria-label={t.panelTitle}
           initial={prefersReduced ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.97 }}
           animate={prefersReduced ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
           exit={prefersReduced ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.98 }}
@@ -158,7 +163,7 @@ export default function NotificationBell({ initialUnread = 0 }: { initialUnread?
           className="absolute right-0 z-50 mt-2 w-[22rem] origin-top-right overflow-hidden rounded-xl border border-border bg-surface shadow-lg"
         >
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <h2 className="text-sm font-semibold text-foreground">Notifications</h2>
+            <h2 className="text-sm font-semibold text-foreground">{t.panelTitle}</h2>
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -167,7 +172,7 @@ export default function NotificationBell({ initialUnread = 0 }: { initialUnread?
                 className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-muted-strong transition-colors hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                Mark all read
+                {t.markAllRead}
               </button>
               <button
                 type="button"
@@ -176,7 +181,7 @@ export default function NotificationBell({ initialUnread = 0 }: { initialUnread?
                 className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-muted-strong transition-colors hover:bg-danger-bg hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                Clear all
+                {tcm.clearAll}
               </button>
             </div>
           </div>
@@ -185,11 +190,9 @@ export default function NotificationBell({ initialUnread = 0 }: { initialUnread?
               all read or clearing, rather than the panel changing silently. */}
           <div className="max-h-96 overflow-y-auto" aria-live="polite" aria-busy={loading || pending}>
             {loading ? (
-              <p className="px-4 py-6 text-center text-sm text-muted">Loading…</p>
+              <p className="px-4 py-6 text-center text-sm text-muted">{t.loading}</p>
             ) : items.length === 0 ? (
-              <p className="px-4 py-6 text-center text-sm text-muted">
-                You&rsquo;re all caught up.
-              </p>
+              <p className="px-4 py-6 text-center text-sm text-muted">{t.caughtUp}</p>
             ) : (
               <ul className="divide-y divide-border">
                 {items.map((n) => {
@@ -200,13 +203,13 @@ export default function NotificationBell({ initialUnread = 0 }: { initialUnread?
                         <span
                           className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] ${KIND_STYLES[n.kind]}`}
                         >
-                          {KIND_LABELS[n.kind]}
+                          {kinds[n.kind]}
                         </span>
                         {!n.read_at && (
-                          <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-label="Unread" />
+                          <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-label={t.unread} />
                         )}
                         <span className="ml-auto text-[11px] text-muted">
-                          {formatRelativeTime(n.created_at)}
+                          {formatRelativeTime(n.created_at, tcm)}
                         </span>
                       </span>
                       <span className="mt-1 block text-sm font-medium text-foreground">{n.title}</span>

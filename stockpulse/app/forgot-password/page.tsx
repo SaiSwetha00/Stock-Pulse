@@ -13,8 +13,10 @@ import {
   SubmitButton,
 } from '@/components/auth/AuthUI'
 import { fadeUp } from '@/lib/motion'
+import { useAuthCopy } from '@/lib/i18n/client'
 
 export default function ForgotPasswordPage() {
+  const c = useAuthCopy().forgot
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -41,12 +43,12 @@ export default function ForgotPasswordPage() {
             variants={fadeUp}
             className="font-serif-brand mt-5 text-[22px] font-semibold tracking-[0.01em] text-foreground"
           >
-            Reset Password
+            {c.title}
           </motion.h2>
           <motion.p variants={fadeUp} className="mt-1 text-sm text-muted-strong">
             {sent
-              ? 'Check your inbox for a reset link.'
-              : "Enter your work email and we'll send you a reset link."}
+              ? c.sent
+              : c.prompt}
           </motion.p>
         </div>
 
@@ -66,7 +68,7 @@ export default function ForgotPasswordPage() {
             {error && <AuthError message={error} />}
 
             <AuthField
-              label="Store Email"
+              label={c.email}
               icon={Mail}
               type="email"
               value={email}
@@ -78,8 +80,8 @@ export default function ForgotPasswordPage() {
             />
 
             <div className="pt-1">
-              <SubmitButton loading={loading} loadingLabel="Sending…">
-                Send Reset Link
+              <SubmitButton loading={loading} loadingLabel={c.submitLoading}>
+                {c.submit}
                 <ArrowRight className="h-4 w-4" />
               </SubmitButton>
             </div>
@@ -92,7 +94,7 @@ export default function ForgotPasswordPage() {
             className="mt-6 flex items-center justify-center gap-1.5 text-sm font-semibold text-muted-strong hover:text-[#e0e2ed]"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Back to login
+            {c.backToLogin}
           </Link>
         </motion.div>
       </FormPanel>

@@ -3,6 +3,7 @@
 import { useId } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { PAGE_SIZE_OPTIONS } from '@/lib/useTable'
+import { useAppCopy } from '@/lib/i18n/client'
 
 /**
  * The footer under every table: what you are looking at, how much of it to
@@ -33,6 +34,7 @@ export default function Pagination({
   itemLabel: string
   className?: string
 }) {
+  const tc = useAppCopy().common
   const selectId = useId()
 
   return (
@@ -46,12 +48,16 @@ export default function Pagination({
         {/* aria-live: changing page or page size updates this text, and that
             is the only confirmation a screen-reader user gets. */}
         <p aria-live="polite" className="text-sm text-muted">
-          Showing {rangeStart}-{rangeEnd} of {total} {itemLabel}
+          {tc.showingRange
+            .replace('{start}', String(rangeStart))
+            .replace('{end}', String(rangeEnd))
+            .replace('{total}', String(total))
+            .replace('{items}', itemLabel)}
         </p>
 
         <div className="flex items-center gap-2">
           <label htmlFor={selectId} className="text-sm text-muted">
-            Rows
+            {tc.rows}
           </label>
           <select
             id={selectId}
@@ -73,7 +79,7 @@ export default function Pagination({
           type="button"
           onClick={() => onPageChange(Math.max(1, page - 1))}
           disabled={page === 1}
-          aria-label="Previous page"
+          aria-label={tc.previousPage}
           className="tap-target rounded-lg text-muted transition hover:bg-surface-muted disabled:opacity-40"
         >
           <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -81,12 +87,12 @@ export default function Pagination({
         <span className="rounded-lg bg-foreground px-3 py-1.5 text-sm font-semibold text-surface">
           {page}
         </span>
-        <span className="text-sm text-muted">of {totalPages}</span>
+        <span className="text-sm text-muted">{tc.pageOf.replace('{total}', String(totalPages))}</span>
         <button
           type="button"
           onClick={() => onPageChange(Math.min(totalPages, page + 1))}
           disabled={page === totalPages}
-          aria-label="Next page"
+          aria-label={tc.nextPage}
           className="tap-target rounded-lg text-muted transition hover:bg-surface-muted disabled:opacity-40"
         >
           <ChevronRight className="h-4 w-4" aria-hidden="true" />

@@ -13,14 +13,10 @@ import {
   SubmitButton,
 } from '@/components/auth/AuthUI'
 import { EASE, fadeUp, slideX } from '@/lib/motion'
-
-const STEPS = [
-  { title: 'Name your store', blurb: 'What should we call your workspace?' },
-  { title: 'About you', blurb: 'Tell us who owns this store.' },
-  { title: 'Secure your account', blurb: 'Set your sign-in credentials.' },
-] as const
+import { useAuthCopy } from '@/lib/i18n/client'
 
 export default function SignupPage() {
+  const c = useAuthCopy().signup
   const [step, setStep] = useState(0)
   const [dir, setDir] = useState<1 | -1>(1)
   const [storeName, setStoreName] = useState('')
@@ -119,8 +115,8 @@ export default function SignupPage() {
               >
                 <Check className="h-8 w-8 text-[var(--sp-gold)]" strokeWidth={3} />
               </motion.div>
-              <h2 className="font-serif-brand mt-5 text-[20px] font-semibold tracking-[0.01em] text-foreground">Store created</h2>
-              <p className="mt-1 text-sm text-muted-strong">Taking you to your dashboard…</p>
+              <h2 className="font-serif-brand mt-5 text-[20px] font-semibold tracking-[0.01em] text-foreground">{c.created}</h2>
+              <p className="mt-1 text-sm text-muted-strong">{c.redirecting}</p>
             </motion.div>
           ) : (
             <motion.form
@@ -140,9 +136,9 @@ export default function SignupPage() {
             >
               <div>
                 <h2 className="font-serif-brand mt-5 text-[22px] font-semibold tracking-[0.01em] text-foreground">
-                  {STEPS[step].title}
+                  {c.steps[step].title}
                 </h2>
-                <p className="mt-1 text-sm text-muted-strong">{STEPS[step].blurb}</p>
+                <p className="mt-1 text-sm text-muted-strong">{c.steps[step].blurb}</p>
               </div>
 
               <div className="mt-6 space-y-4">
@@ -150,7 +146,7 @@ export default function SignupPage() {
 
                 {step === 0 && (
                   <AuthField
-                    label="Store Name"
+                    label={c.storeName}
                     icon={Store}
                     value={storeName}
                     onChange={setStoreName}
@@ -163,11 +159,11 @@ export default function SignupPage() {
 
                 {step === 1 && (
                   <AuthField
-                    label="Full Name"
+                    label={c.fullName}
                     icon={User}
                     value={fullName}
                     onChange={setFullName}
-                    placeholder="Jane Doe"
+                    placeholder={c.fullNamePlaceholder}
                     autoComplete="name"
                     required
                     autoFocus
@@ -177,7 +173,7 @@ export default function SignupPage() {
                 {step === 2 && (
                   <>
                     <AuthField
-                      label="Work Email"
+                      label={c.workEmail}
                       icon={Mail}
                       type="email"
                       value={email}
@@ -188,7 +184,7 @@ export default function SignupPage() {
                       autoFocus
                     />
                     <AuthField
-                      label="Password"
+                      label={c.password}
                       icon={Lock}
                       type="password"
                       value={password}
@@ -196,7 +192,7 @@ export default function SignupPage() {
                       placeholder="••••••••"
                       autoComplete="new-password"
                       required
-                      hint="Must be at least 8 characters long."
+                      hint={c.passwordHint}
                     />
                   </>
                 )}
@@ -211,15 +207,15 @@ export default function SignupPage() {
                     className="flex-1"
                   >
                     <ArrowLeft className="h-4 w-4" />
-                    Back
+                    {c.back}
                   </SubmitButton>
                 )}
                 <SubmitButton
                   loading={submitting}
-                  loadingLabel="Creating…"
+                  loadingLabel={c.createLoading}
                   className={step > 0 ? 'flex-1' : ''}
                 >
-                  {step === 2 ? 'Create Account' : 'Continue'}
+                  {step === 2 ? c.createCta : c.continueCta}
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </SubmitButton>
               </div>
@@ -231,7 +227,7 @@ export default function SignupPage() {
           <motion.p variants={fadeUp} className="mt-6 text-sm text-muted-strong">
             Already registered?{' '}
             <Link href="/login" className="font-semibold text-foreground hover:underline">
-              Sign in
+              {c.loginCta}
             </Link>
           </motion.p>
         )}

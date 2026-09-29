@@ -4,12 +4,23 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import { canManage } from '@/lib/permissions'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 import {
   validateLeave,
   toLeavePayload,
   type LeaveErrors,
   type LeaveInput,
 } from '@/lib/validation/leave'
+
+/**
+ * The reader's copy, resolved server-side from the locale cookie. Each action
+ * reads it itself: a message the browser supplied is not one this server
+ * should repeat back.
+ */
+async function copy() {
+  return appCopy(await getLocale()).staff
+}
 
 export type LeaveActionResult =
   | { ok: true }
@@ -35,11 +46,12 @@ export async function saveLeave(
   leaveId?: string,
 ): Promise<LeaveActionResult> {
   const gate = await requireScheduler()
-  if (!gate) return { ok: false, message: 'You do not have permission to record leave.' }
+  const ts = await copy()
+  if (!gate) return { ok: false, message: ts.actLeaveNoPermission }
 
-  const errors = validateLeave(input)
+  const errors = validateLeave(input, ts)
   if (Object.keys(errors).length > 0) {
-    return { ok: false, errors, message: 'Please correct the highlighted fields.' }
+    return { ok: false, errors, message: ts.actFixFields }
   }
 
   const supabase = await createClient()
@@ -56,7 +68,7 @@ export async function saveLeave(
     .eq('store_id', gate.store.id)
     .maybeSingle()
 
-  if (!member) return { ok: false, errors: { staffId: 'That person is not on this team.' } }
+  if (!member) return { ok: false, errors: { staffId: ts.actNotOnTeam } }
 
   const { error } = leaveId
     ? await supabase
@@ -78,8 +90,7 @@ export async function saveLeave(
     if (error.code === '42P01') {
       return {
         ok: false,
-        message:
-          'Leave is not set up yet. Run supabase/migrations/0011_staff_leave.sql in the Supabase SQL editor.',
+        message: ts.actLeaveNotSetUp,
       }
     }
     return { ok: false, message: error.message }
@@ -91,7 +102,7 @@ export async function saveLeave(
 
 export async function deleteLeave(leaveId: string): Promise<LeaveActionResult> {
   const gate = await requireScheduler()
-  if (!gate) return { ok: false, message: 'You do not have permission to record leave.' }
+  if (!gate) return { ok: false, message: (await copy()).actLeaveNoPermission }
 
   const supabase = await createClient()
   const { error } = await supabase

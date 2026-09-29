@@ -1,0 +1,457 @@
+/* ===================================================================
+   THE AUTHENTICATED APP IN PALETTE B — NAVY + SKY BLUE + WHITE.
+
+   PREVIEW ONLY. Nothing loads this unless the preview flag is on (see
+   ./BrandPreviewTheme.tsx — `?brand=1` once, then it sticks for the
+   tab; `?brand=0` turns it off). The live app is untouched.
+
+   WHY A TOKEN SHEET AND NOT 18 REDESIGNED SCREENS. app/globals.css
+   already states the whole visual contract as variables — colour,
+   radius, control height, elevation, font — and 93 of the app's ~151
+   component files consume those variables rather than hard-coding
+   values. A sweep for literal colour across the authenticated app
+   finds exactly ONE file that does not (components/dashboard/
+   SalesTrendChart.tsx, handled at the bottom of this sheet). So
+   re-pointing the variables restyles dashboard, inventory, POS,
+   reports, suppliers, staff, customers, monitoring, settings, the AI
+   assistant and the command palette at once — and it cannot change a
+   calculation, a query, a permission or a route, because it only ever
+   produces colours and lengths.
+
+   THE UI/UX DIRECTION IS UNCHANGED, deliberately and by instruction:
+   same navigation, same page hierarchy, same tables, filters, modals,
+   forms and responsive behaviour. What moves is colour, radius,
+   elevation and type — plus the alignment fixes noted in their own
+   section near the bottom, each of which was measured rather than
+   guessed.
+
+   HOW PALETTE B IS SPENT. The palette's own rule is that navy carries
+   the structure and sky blue is reserved for the live thing:
+
+     NAVY  #0F3D6E  navigation surfaces (rail, drawer, tab bar), the
+                    primary button, headings' near-black, strong fills
+     SKY   #38A3F1  the ACTIVE item, the selected row, the focus ring,
+                    the current bar — never a background, never a card
+     WHITE #FFFFFF  every content surface, on a #F4F7FA page
+
+   So the app does NOT become one blue field: the content area stays
+   white on a very light cool neutral, cards are white with hairlines,
+   icons inherit text colour, and blue appears only where something is
+   current, clickable, or the primary action.
+
+   STATUS COLOUR IS FUNCTIONAL AND KEEPS ITS MEANING. success stays
+   green, danger red, warning amber. They are re-tuned to sit beside
+   navy rather than beside the old gold, and nothing else. A shop
+   reading "expired" must never see the brand colour, and the brand
+   colour must never mean "a problem".
+
+   EVERY VALUE BELOW WAS CONTRAST-CHECKED, not eyeballed. Against
+   --surface: foreground 17.4:1, muted-strong 8.3:1, muted 5.5:1,
+   accent 7.0:1, success 5.4:1, danger 5.4:1, warning 5.2:1. White on
+   the primary button 11.0:1. On the navy rail: idle label 6.7:1,
+   active ink on the sky pill 5.8:1. Dark mode is listed in its own
+   block and clears AA everywhere too.
+   =================================================================== */
+
+.sp-brand {
+  /* ---- surfaces: white content on a very light cool neutral ---- */
+  --background: #f4f7fa;
+  --surface: #ffffff;
+  --surface-muted: #edf2f7;
+  --raised: #ffffff;
+  --overlay: #ffffff;
+
+  /* ---- text ---- */
+  --foreground: #0c1b2a;
+  --muted-strong: #3b5163;
+  --muted: #5a6b7c;
+
+  /* ---- hairlines ---- */
+  --border: #dce4ec;
+  --border-strong: #b7c6d5;
+
+  /* ---- the brand pair ----
+     --accent is TEXT and icons on a light surface, so it is the darker
+     blue that clears 4.5:1 (7.0:1 measured). --accent-fill is the
+     PRIMARY BUTTON and only ever carries white (11.0:1). --sky is the
+     live-state colour and is never used as text on white — it is a
+     fill behind dark ink, a ring, or a bar. */
+  --accent: #135a9e;
+  --accent-fill: #0f3d6e;
+  --on-accent: #ffffff;
+  --accent-hover: #16548f;
+  --accent-soft: #e4f0fb;
+  --accent-ink: #0b3055;
+  --sky: #38a3f1;
+  --sky-ink: #07243d;
+  --focus-ring: #1b7fd4;
+
+  /* ---- status: meaning unchanged, tuned to sit beside navy ---- */
+  --success: #0f7a52;
+  --success-bg: #e2f2ea;
+  --success-ink: #0b5c3e;
+  --danger: #c0392b;
+  --danger-bg: #fbe9e7;
+  --warning: #9a6000;
+  --warning-bg: #fcf0dc;
+  --info: #135a9e;
+  --info-bg: #e4f0fb;
+
+  /* ---- charts: one navy-to-sky family, three distinguishable steps ---- */
+  --chart-1: #2e7dd1;
+  --chart-2: #0f3d6e;
+  --chart-3: #8fc9f0;
+
+  /* ---- radius: softer, consistent with the marketing site ---- */
+  --radius-sm: 0.5rem; /* 8  — badges, chips */
+  --radius-md: 0.75rem; /* 12 — canonical control radius */
+  --radius-lg: 0.75rem; /* 12 — buttons, inputs, icon tiles */
+  --radius-xl: 1.25rem; /* 20 — modals, drawers */
+  --radius-2xl: 1rem; /* 16 — cards */
+  --radius-3xl: 1.25rem; /* 20 */
+
+  /* ---- type ----
+     --font-display drove .sp-title — every page heading — in Cinzel, a
+     serif nothing else in the product uses. Both faces become Inter
+     Tight, which is the whole typographic change. */
+  --font-sans: var(--font-app-brand-sans);
+  --font-display: var(--font-app-brand-sans);
+
+  /* Control height and row height are NOT changed: they are density,
+     not brand, and every table and form is laid out against them. */
+}
+
+/* ---------------------------------------------------------------
+   A NOTE ON EVERY `.dark` SELECTOR BELOW.
+
+   Both classes live on <html>: the app toggles `dark` there, and the
+   preview switch adds `sp-brand` there too. So `.dark .sp-brand X` —
+   a DESCENDANT selector — can never match, because the two are the
+   same element. Measured: the dark rail painted #1F63B5 (the accent
+   fill) because its `.dark .sp-brand [data-sp-surface]` rule silently
+   did nothing. Every dark rule therefore carries the same-element form
+   `.sp-brand.dark X` beside it. Keep both when adding rules.
+   --------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------
+   DARK MODE IS THE SAME PALETTE, not a second theme.
+
+   Navy deepens to near-black navy, white surfaces become navy panels,
+   and sky rises to stay legible on them. The `.dark` class the app
+   already toggles keeps working exactly as it does; this only changes
+   what the variables resolve to while the preview flag is on.
+   --------------------------------------------------------------- */
+.dark .sp-brand,
+.sp-brand.dark {
+  --background: #081624;
+  --surface: #0f2437;
+  --surface-muted: #0c1d2e;
+  --raised: #143049;
+  --overlay: #0f2437;
+
+  --foreground: #eaf1f8;
+  --muted-strong: #a9bccd;
+  --muted: #8aa0b4;
+
+  --border: rgba(255, 255, 255, 0.11);
+  --border-strong: rgba(255, 255, 255, 0.24);
+
+  /* Sky is the readable accent here (8.2:1); the fill darkens so white
+     on it still clears AA (6.0:1) rather than the 4.2:1 the mid-blue
+     would have given. */
+  --accent: #7cc2f7;
+  --accent-fill: #1f63b5;
+  --on-accent: #ffffff;
+  --accent-hover: #2b74c9;
+  --accent-soft: rgba(56, 163, 241, 0.16);
+  --accent-ink: #a8d8fa;
+  --sky: #38a3f1;
+  --sky-ink: #07243d;
+  --focus-ring: #7cc2f7;
+
+  --success: #5fd3a0;
+  --success-bg: rgba(95, 211, 160, 0.14);
+  --success-ink: #5fd3a0;
+  --danger: #ff9a8f;
+  --danger-bg: rgba(255, 154, 143, 0.14);
+  --warning: #ffc46b;
+  --warning-bg: rgba(255, 196, 107, 0.14);
+  --info: #7cc2f7;
+  --info-bg: rgba(124, 194, 247, 0.14);
+
+  --chart-1: #38a3f1;
+  --chart-2: #7cc2f7;
+  --chart-3: #1e5f9e;
+}
+
+/* ---------------------------------------------------------------
+   Elevation. globals.css's .sp-e1/.sp-e2 cast warm grey; a navy-tinted
+   shadow is most of why a card reads as "placed on" the page rather
+   than "outlined".
+   --------------------------------------------------------------- */
+.sp-brand .sp-e1 {
+  box-shadow:
+    0 1px 2px rgba(12, 27, 42, 0.05),
+    0 8px 24px -12px rgba(12, 27, 42, 0.16);
+}
+
+.sp-brand .sp-e2 {
+  box-shadow:
+    0 2px 4px rgba(12, 27, 42, 0.06),
+    0 24px 48px -24px rgba(12, 27, 42, 0.26);
+}
+
+.sp-brand .sp-e3 {
+  box-shadow:
+    0 4px 8px rgba(12, 27, 42, 0.07),
+    0 32px 64px -28px rgba(12, 27, 42, 0.32);
+}
+
+.dark .sp-brand .sp-e1,
+.sp-brand.dark .sp-e1 {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 10px 30px -16px rgba(0, 0, 0, 0.7);
+}
+
+.dark .sp-brand .sp-e2,
+.sp-brand.dark .sp-e2 {
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.55),
+    0 30px 60px -28px rgba(0, 0, 0, 0.85);
+}
+
+.dark .sp-brand .sp-e3,
+.sp-brand.dark .sp-e3 {
+  box-shadow:
+    0 4px 10px rgba(0, 0, 0, 0.6),
+    0 40px 80px -30px rgba(0, 0, 0, 0.9);
+}
+
+/* ---------------------------------------------------------------
+   Radius.
+
+   The --radius-* tokens above are the contract, but globals.css
+   declares them in @theme and Tailwind compiles `rounded-2xl` to the
+   LITERAL value rather than to var(--radius-2xl) — measured: the token
+   read 1rem while the card still painted 10px. So the utilities are
+   restated here at the brand's scale. `rounded-full` is deliberately
+   absent: pills stay pills (avatars, status dots, the nav pill).
+   --------------------------------------------------------------- */
+.sp-brand .rounded-sm {
+  border-radius: 0.5rem;
+}
+
+.sp-brand .rounded-md {
+  border-radius: 0.75rem;
+}
+
+.sp-brand .rounded-lg {
+  border-radius: 0.75rem;
+}
+
+.sp-brand .rounded-xl {
+  border-radius: 1rem;
+}
+
+.sp-brand .rounded-2xl {
+  border-radius: 1rem;
+}
+
+.sp-brand .rounded-3xl {
+  border-radius: 1.25rem;
+}
+
+/* ---------------------------------------------------------------
+   The primary button.
+
+   The app's primary variant is `bg-foreground` — near-black — because
+   the old brand reserved gold for state. In Palette B the primary
+   action is navy, which is a different value from the text colour, so
+   a primary button stops reading as "a block of text colour".
+
+   Scoped to button and anchor elements so the near-black logo tiles
+   and avatar chips (divs, also bg-foreground) keep their fill.
+   --------------------------------------------------------------- */
+.sp-brand button.bg-foreground,
+.sp-brand a.bg-foreground,
+/* The command palette's highlighted option is a DIV carrying the same
+   class (`bg-foreground text-surface` on a cursor-pointer row), so the
+   element selector above missed it and it stayed near-black while the
+   rest of the palette turned navy. `.cursor-pointer` is what separates
+   an interactive row from the logo tiles and the assistant's avatar,
+   which are also bg-foreground divs and must keep their fill. */
+.sp-brand .bg-foreground.cursor-pointer {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+
+.sp-brand button.bg-foreground:hover,
+.sp-brand a.bg-foreground:hover,
+.sp-brand .bg-foreground.cursor-pointer:hover {
+  background: var(--accent-hover);
+}
+
+/* ---------------------------------------------------------------
+   NAVIGATION SURFACES — the one place navy is a fill.
+
+   The rail, the mobile drawer and the mobile tab bar carry
+   data-sp-surface (a presentational attribute added to those three
+   components and claimed by nothing else). They become navy; the
+   content area stays white. That is the whole "deep navy navigation"
+   move, and it is why the app reads as navy without every card being
+   blue.
+
+   Everything inside them has to be re-inked, because the tokens they
+   consume (--foreground, --muted, --border) are tuned for a WHITE
+   surface and would leave near-black text on navy.
+   --------------------------------------------------------------- */
+.sp-brand [data-sp-surface='rail'],
+.sp-brand [data-sp-surface='tabbar'] {
+  background: var(--accent-fill);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.dark .sp-brand [data-sp-surface='rail'],
+.sp-brand.dark [data-sp-surface='rail'],
+.dark .sp-brand [data-sp-surface='tabbar'],
+.sp-brand.dark [data-sp-surface='tabbar'] {
+  /* In dark the page is already navy, so the rail steps DOWN rather
+     than up — a lighter navy here would make the chrome the brightest
+     thing on screen. */
+  background: #0a1b2b;
+  border-color: rgba(255, 255, 255, 0.09);
+}
+
+/* Store name, section labels, the user block: white and its steps. */
+.sp-brand [data-sp-surface='rail'] .text-foreground,
+.sp-brand [data-sp-surface='tabbar'] .text-foreground {
+  color: #ffffff;
+}
+
+.sp-brand [data-sp-surface='rail'] .text-muted,
+.sp-brand [data-sp-surface='rail'] .text-muted-strong,
+.sp-brand [data-sp-surface='tabbar'] .text-muted,
+.sp-brand [data-sp-surface='tabbar'] .text-muted-strong {
+  /* 6.7:1 on the navy — the idle label has to stay readable, not
+     merely present. */
+  color: #b7cde2;
+}
+
+/* Idle nav items and their hover. */
+.sp-brand [data-sp-surface='rail'] a:hover,
+.sp-brand [data-sp-surface='rail'] button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.sp-brand [data-sp-surface='rail'] a:hover .text-muted-strong,
+.sp-brand [data-sp-surface='rail'] button:hover .text-muted-strong {
+  color: #ffffff;
+}
+
+/* The ACTIVE item — this is sky's main job in the app.
+   Dark ink on the sky pill measures 5.8:1; white on it is only 4.2:1,
+   which is why the ink is navy and not white. */
+.sp-brand [data-sp-surface='rail'] .sp-nav-pill {
+  background: var(--sky);
+}
+
+.sp-brand [data-sp-surface='rail'] .sp-nav-active {
+  color: var(--sky-ink);
+}
+
+/* The tab bar marks its active tab with colour rather than a pill. */
+.sp-brand [data-sp-surface='tabbar'] a[class*='text-foreground'] {
+  color: var(--sky);
+}
+
+/* The logo tile inside a navy rail cannot be bg-foreground — that is
+   near-black navy on navy. It becomes white with navy initials. */
+.sp-brand [data-sp-surface='rail'] .bg-foreground {
+  background: #ffffff;
+}
+
+.sp-brand [data-sp-surface='rail'] .bg-foreground .text-surface {
+  color: var(--accent-fill);
+}
+
+/* Surfaces nested in the rail — the drawer's search button, the
+   collapsed-rail hover chips — read as lighter navy, not as white
+   cards punched into the panel. */
+.sp-brand [data-sp-surface='rail'] .bg-surface-muted {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #d5e3f0;
+}
+
+.sp-brand [data-sp-surface='rail'] .border-border {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.sp-brand [data-sp-surface='rail'] :focus-visible,
+.sp-brand [data-sp-surface='tabbar'] :focus-visible {
+  outline-color: #ffffff;
+}
+
+/* ---------------------------------------------------------------
+   Focus. One ring, one colour, everywhere on a light surface. The app
+   mixes `outline-accent` with ring utilities and both resolve to the
+   token, so this is the single place the ring colour is decided.
+   --------------------------------------------------------------- */
+.sp-brand :focus-visible {
+  outline-color: var(--focus-ring);
+}
+
+/* ---------------------------------------------------------------
+   CHARTS.
+
+   Nothing to do here any more, and that is the point.
+
+   components/reports/ReportsCharts already drew from --chart-1..3, and
+   components/dashboard/SalesTrendChart — the one component in the
+   authenticated app that hard-coded colour — now reads the same tokens
+   through Tailwind `fill-*` utilities. So both follow this palette, and
+   dark mode, with no rule in this sheet.
+
+   This section used to hold `[fill='#18181b']` attribute-value
+   selectors plus an `!important` override on recharts' inline tooltip
+   style. They were a workaround for the literals in that component and
+   are gone with them; do not reintroduce that shape — if a new chart
+   paints the wrong colour, the fix belongs in the chart.
+   --------------------------------------------------------------- */
+
+/* ---------------------------------------------------------------
+   ALIGNMENT AND SPACING.
+
+   Everything below was measured in the running app, not guessed, and
+   each rule names what it corrects. No layout, no ordering and no
+   component structure changes — these are spacing and sizing only.
+   --------------------------------------------------------------- */
+
+/* The topbar search sat flush against the page title with only the
+   flex gap between them, so the title and the field read as one run of
+   chrome. A little more room separates wayfinding from control. */
+.sp-brand header .control-h.cursor-text {
+  margin-left: 0.75rem;
+}
+
+/* Icon tiles, avatar chips and status dots stay circular — the radius
+   overrides above must not square them off. */
+.sp-brand .rounded-full {
+  border-radius: 9999px;
+}
+
+/* KPI tiles in a row should end level. The grid already stretches
+   them; this stops a card with one less line of caption from leaving a
+   ragged bottom edge inside its own box. */
+.sp-brand .sp-kpi-caption {
+  margin-top: auto;
+}
+
+/* The hero figure takes the readable accent, not the sky: it is text
+   on a white card, and sky on white is 2.7:1. */
+.sp-brand .sp-kpi-hero {
+  color: var(--accent);
+}

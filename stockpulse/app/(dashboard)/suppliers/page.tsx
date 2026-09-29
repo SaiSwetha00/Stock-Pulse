@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
@@ -7,10 +9,11 @@ import { reportingDate } from '@/lib/reportingTimezone'
 import SuppliersClient from '@/components/suppliers/SuppliersClient'
 import type { Shipment, Supplier, SupplierActivity } from '@/types'
 
-export const metadata: Metadata = {
-  title: "Suppliers",
-  description: "Who you buy from, and where each delivery has got to.",
-  robots: { index: false, follow: false },
+export async function generateMetadata(): Promise<Metadata> {
+  // Page name only; app/layout.tsx appends " · StockPulse". In the
+  // signed-in language, read from the same cookie the layout uses.
+  const { title, description } = appCopy(await getLocale()).meta.suppliers
+  return { title, description, robots: { index: false, follow: false } }
 }
 
 /** Shapes returned by the aggregate functions in migration 0004. */

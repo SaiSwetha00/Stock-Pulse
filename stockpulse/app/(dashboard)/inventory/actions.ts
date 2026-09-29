@@ -5,11 +5,13 @@ import { createClient } from '@/lib/supabase/server'
 import { isDemoAccount } from '@/lib/demo'
 import { getCurrentUser } from '@/lib/data'
 import { canManage } from '@/lib/permissions'
-import { categoryLabel, getStoreCategories, labelMap } from '@/lib/categories'
+import { categoryLabel, getStoreCategories, labelMap, localizeCategories } from '@/lib/categories'
 import { reportingDate } from '@/lib/reportingTimezone'
 import { storeExpiryWarningDays } from '@/lib/expiry'
 import { notify } from '@/app/(dashboard)/notifications/actions'
 import type { Product } from '@/types'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 import {
   validateProduct,
   toProductPayload,
@@ -21,6 +23,16 @@ import {
   type ProductErrors,
   type ProductInput,
 } from '@/lib/validation/product'
+
+/**
+ * The reader's copy, resolved server-side from the locale cookie.
+ *
+ * Each action reads it itself rather than accepting it as an argument: a
+ * message the browser supplied is not a message this server should repeat.
+ */
+async function copy() {
+  return appCopy(await getLocale())
+}
 
 export type ActionResult =
   | { ok: true }
@@ -111,11 +123,10 @@ function isMissingBarcodeColumn(error: { code?: string; message?: string }): boo
   return error.code === 'PGRST204' && /barcode/i.test(error.message ?? '')
 }
 
-const MISSING_BARCODE_COLUMN = {
-  ok: false as const,
-  message:
-    'Barcodes are not set up on this database yet. Run ' +
-    'supabase/migrations/0014_product_barcode.sql in the Supabase SQL editor.',
+// Functions rather than constants: the message is in the actor's language,
+// which is only known per request.
+async function missingBarcodeColumn() {
+  return { ok: false as const, message: (await copy()).server.missingBarcode }
 }
 
 /**
@@ -133,11 +144,8 @@ function isMissingBatchesTable(error: { code?: string; message?: string }): bool
   return error.code === 'PGRST205' && /product_batches/i.test(error.message ?? '')
 }
 
-const MISSING_BATCHES_TABLE = {
-  ok: false as const,
-  message:
-    'Expiry tracking is not set up on this database yet. Run ' +
-    'supabase/migrations/0016_product_batches.sql in the Supabase SQL editor.',
+async function missingBatchesTable() {
+  return { ok: false as const, message: (await copy()).server.missingBatches }
 }
 
 /**
@@ -145,11 +153,8 @@ const MISSING_BATCHES_TABLE = {
  * reason D24's follow-up gives: the first version of that message picked one,
  * and told a shopkeeper who had double-clicked to go and run SQL.
  */
-const LOT_WRITE_REFUSED = {
-  ok: false as const,
-  message:
-    'That stock lot could not be changed - it may have just been removed, or ' +
-    'your account may not have permission. Refresh and try again.',
+async function lotWriteRefused() {
+  return { ok: false as const, message: (await copy()).server.lotRefused }
 }
 
 /**
@@ -204,7 +209,7 @@ async function syncProductLots(
     .eq('product_id', productId)
 
   if (readError) {
-    if (isMissingBatchesTable(readError)) return MISSING_BATCHES_TABLE
+    if (isMissingBatchesTable(readError)) return missingBatchesTable()
     return { ok: false, message: readError.message }
   }
 
@@ -225,7 +230,7 @@ async function syncProductLots(
         })
         .select('id')
       if (error) {
-        if (isMissingBatchesTable(error)) return MISSING_BATCHES_TABLE
+        if (isMissingBatchesTable(error)) return missingBatchesTable()
         return { ok: false, message: error.message }
       }
       // An insert refused by RLS fails loudly with 42501, so unlike the
@@ -253,10 +258,10 @@ async function syncProductLots(
       .select('id')
 
     if (error) {
-      if (isMissingBatchesTable(error)) return MISSING_BATCHES_TABLE
+      if (isMissingBatchesTable(error)) return missingBatchesTable()
       return { ok: false, message: error.message }
     }
-    if ((data ?? []).length === 0) return LOT_WRITE_REFUSED
+    if ((data ?? []).length === 0) return lotWriteRefused()
   }
 
   const removed = (existing ?? []).filter((b) => !kept.has(b.id as string)).map((b) => b.id as string)
@@ -269,10 +274,10 @@ async function syncProductLots(
       .select('id')
 
     if (error) {
-      if (isMissingBatchesTable(error)) return MISSING_BATCHES_TABLE
+      if (isMissingBatchesTable(error)) return missingBatchesTable()
       return { ok: false, message: error.message }
     }
-    if ((data ?? []).length !== removed.length) return LOT_WRITE_REFUSED
+    if ((data ?? []).length !== removed.length) return lotWriteRefused()
   }
 
   return { ok: true }
@@ -300,17 +305,22 @@ export async function saveProduct(
   productId?: string,
 ): Promise<ActionResult> {
   const { profile, store } = await getCurrentUser()
+  const t = await copy()
 
   // The UI only shows these controls to owners; enforce it where it counts.
   if (!canManage(profile.role)) {
-    return { ok: false, message: 'You do not have permission to change inventory.' }
+    return { ok: false, message: t.inventory.actNoPermission }
   }
 
   const supabase = await createClient()
 
-  const errors = validateProduct(input, await allowedCategorySlugs(supabase, store.id))
+  const errors = validateProduct(
+    input,
+    await allowedCategorySlugs(supabase, store.id),
+    t.validation,
+  )
   if (Object.keys(errors).length > 0) {
-    return { ok: false, errors, message: 'Please correct the highlighted fields.' }
+    return { ok: false, errors, message: t.inventory.actFixFields }
   }
 
   const payload = toProductPayload(input)
@@ -361,18 +371,18 @@ export async function saveProduct(
         const message = duplicateBarcodeMessage(conflict)
         return { ok: false, errors: { barcode: message }, message }
       }
-      return { ok: false, message: 'A product with that SKU already exists.' }
+      return { ok: false, message: t.inventory.actSkuExists }
     }
     if (error.code === CHECK_VIOLATION && /barcode/i.test(error.message ?? '')) {
       // The validator should have caught this; if it did not, the two rules
       // have drifted and the message should say something a human can act on.
       return {
         ok: false,
-        errors: { barcode: 'Use 8 to 14 digits, numbers only.' },
-        message: 'Use 8 to 14 digits, numbers only.',
+        errors: { barcode: t.validation.barcodeShape },
+        message: t.validation.barcodeShape,
       }
     }
-    if (isMissingBarcodeColumn(error)) return MISSING_BARCODE_COLUMN
+    if (isMissingBarcodeColumn(error)) return missingBarcodeColumn()
     return { ok: false, message: error.message }
   }
 
@@ -382,8 +392,7 @@ export async function saveProduct(
     // product was deleted from another tab, or the caller cannot write it.
     return {
       ok: false,
-      message:
-        'That product could not be saved - it may have just been removed. Refresh and try again.',
+      message: (await copy()).server.productNotSaved,
     }
   }
 
@@ -399,9 +408,13 @@ export async function saveProduct(
   // exactly what the trigger will have put in products.stock.
   const onHand = totalLotQuantity(input)
   if (onHand <= payload.low_stock_threshold) {
+    const tn = (await copy()).server
     await notify({
-      title: onHand === 0 ? 'Out of stock' : 'Low stock',
-      body: `${payload.name} is down to ${onHand} (reorder at ${payload.low_stock_threshold}).`,
+      title: onHand === 0 ? tn.notifOutTitle : tn.notifLowTitle,
+      body: tn.notifLowBody
+        .replace('{name}', payload.name)
+        .replace('{n}', String(onHand))
+        .replace('{min}', String(payload.low_stock_threshold)),
       kind: 'low_stock',
       entity: 'products',
       entityId: savedId,
@@ -461,7 +474,7 @@ export async function findProductByBarcode(
   // that reads the cached product list, and a private regex here would let
   // "valid barcode" mean one thing with signal and another without.
   if (!isValidBarcode(value)) {
-    return { ok: false, message: 'That is not a valid barcode.' }
+    return { ok: false, message: (await copy()).inventory.actBadBarcode }
   }
 
   const supabase = await createClient()
@@ -485,9 +498,7 @@ export async function findProductByBarcode(
     if (error.code === 'PGRST204') {
       return {
         ok: false,
-        message:
-          'Barcodes are not set up on this database yet. Run ' +
-          'supabase/migrations/0014_product_barcode.sql in the Supabase SQL editor.',
+        message: (await copy()).server.missingBarcode,
       }
     }
     return { ok: false, message: error.message }
@@ -500,7 +511,7 @@ export async function deleteProduct(productId: string): Promise<ActionResult> {
   const { profile, store } = await getCurrentUser()
 
   if (!canManage(profile.role)) {
-    return { ok: false, message: 'You do not have permission to change inventory.' }
+    return { ok: false, message: (await copy()).inventory.actNoPermission }
   }
 
   const supabase = await createClient()
@@ -514,8 +525,7 @@ export async function deleteProduct(productId: string): Promise<ActionResult> {
     if (error.code === FK_VIOLATION) {
       return {
         ok: false,
-        message:
-          'This product appears in past sales and cannot be removed. Set its stock to 0 to retire it instead.',
+        message: (await copy()).server.productInPastSales,
       }
     }
     return { ok: false, message: error.message }
@@ -580,11 +590,17 @@ export async function importProducts(
       created: 0,
       updated: 0,
       failed: [],
-      message: 'You do not have permission to import inventory.',
+      message: (await copy()).inventory.actNoImportPermission,
     }
   }
   if (rows.length === 0) {
-    return { ok: false, created: 0, updated: 0, failed: [], message: 'Nothing to import.' }
+    return {
+      ok: false,
+      created: 0,
+      updated: 0,
+      failed: [],
+      message: (await copy()).inventory.actNothingToImport,
+    }
   }
   if (rows.length > MAX_IMPORT_ROWS) {
     return {
@@ -592,7 +608,7 @@ export async function importProducts(
       created: 0,
       updated: 0,
       failed: [],
-      message: `Too many rows in one import (limit ${MAX_IMPORT_ROWS}).`,
+      message: (await copy()).server.importTooMany.replace('{limit}', String(MAX_IMPORT_ROWS)),
     }
   }
 
@@ -619,10 +635,12 @@ export async function importProducts(
   // be one round trip per line of the CSV.
   const allowed = await allowedCategorySlugs(supabase, store.id)
 
+  const tImport = await copy()
+
   for (const { line, input } of rows) {
-    const errors = validateProduct(input, allowed)
+    const errors = validateProduct(input, allowed, tImport.validation)
     if (Object.keys(errors).length > 0) {
-      failed.push({ line, reason: describeProductErrors(errors).join(' ') })
+      failed.push({ line, reason: describeProductErrors(errors, tImport.validation).join(' ') })
       continue
     }
 
@@ -654,7 +672,7 @@ export async function importProducts(
       } else if (error.code === UNIQUE_VIOLATION) {
         reason = 'A product with that SKU already exists.'
       } else if (isMissingBarcodeColumn(error)) {
-        reason = MISSING_BARCODE_COLUMN.message
+        reason = (await missingBarcodeColumn()).message
       } else {
         reason = error.message
       }
@@ -779,17 +797,14 @@ export async function removeSampleData(): Promise<
   { ok: false; message: string } | { ok: true; removed: number; keptWithSales: number }
 > {
   const { profile, store } = await getCurrentUser()
+  const ts = (await copy()).settings
 
   if (isDemoAccount(profile)) {
-    return {
-      ok: false,
-      message:
-        'The demo store is shared by everyone who tries StockPulse, so its sample data cannot be removed here — doing so would empty it for the next visitor. Create your own free store to import your catalogue.',
-    }
+    return { ok: false, message: ts.sampleDemoStore }
   }
 
   if (!canManage(profile.role)) {
-    return { ok: false, message: 'Only an owner or manager can remove sample data.' }
+    return { ok: false, message: ts.sampleNoPermission }
   }
 
   const supabase = await createClient()
@@ -799,7 +814,7 @@ export async function removeSampleData(): Promise<
     .eq('store_id', store.id)
     .like('sku', 'ACC-%')
 
-  if (error) return { ok: false, message: 'Could not read the sample products.' }
+  if (error) return { ok: false, message: ts.sampleReadFailed }
   if (!sample || sample.length === 0) {
     return { ok: true, removed: 0, keptWithSales: 0 }
   }
@@ -816,7 +831,7 @@ export async function removeSampleData(): Promise<
     // Lots first: they hang off the product and would otherwise block it.
     await supabase.from('product_batches').delete().in('product_id', deletable)
     const { error: delError } = await supabase.from('products').delete().in('id', deletable)
-    if (delError) return { ok: false, message: 'Could not remove the sample products.' }
+    if (delError) return { ok: false, message: ts.sampleDeleteFailed }
   }
 
   revalidatePath('/inventory')
@@ -886,7 +901,11 @@ export async function getProductDetails(productId: string): Promise<ProductDetai
 
   return {
     product,
-    categoryName: categoryLabel(product.category, labelMap(categories)),
+    // Shown in the product details panel — a display label, so localized.
+    categoryName: categoryLabel(
+      product.category,
+      labelMap(localizeCategories(categories, (await copy()).categoryNames)),
+    ),
     today: reportingDate(),
     warningDays: storeExpiryWarningDays(store),
   }

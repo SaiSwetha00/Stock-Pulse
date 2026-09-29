@@ -6,6 +6,13 @@ import { sendPasswordResetEmail } from '@/lib/supabase/recovery'
 import { isAssignableRole, ROLE_LABELS, type AssignableRole } from '@/lib/permissions'
 import { notify } from '@/app/(dashboard)/notifications/actions'
 import { redirect } from 'next/navigation'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
+
+/** The actor's messages, from their language cookie — see ServerCopy. */
+async function serverCopy() {
+  return appCopy(await getLocale())
+}
 
 export async function signUpOwner(formData: {
   storeName: string
@@ -22,10 +29,11 @@ export async function signUpOwner(formData: {
   const fullName = formData.fullName.trim()
   const email = formData.email.trim()
 
-  if (!storeName) return { error: 'Your store needs a name.' }
-  if (storeName.length > 120) return { error: 'Keep the store name to 120 characters or fewer.' }
-  if (!fullName) return { error: 'Please enter your name.' }
-  if (fullName.length > 120) return { error: 'Keep your name to 120 characters or fewer.' }
+  const t = (await serverCopy()).server
+  if (!storeName) return { error: t.storeNameRequired }
+  if (storeName.length > 120) return { error: t.storeNameTooLong }
+  if (!fullName) return { error: t.nameRequired }
+  if (fullName.length > 120) return { error: t.nameTooLong }
 
   const supabase = await createClient()
 
@@ -35,7 +43,7 @@ export async function signUpOwner(formData: {
   })
 
   if (authError) return { error: authError.message }
-  if (!authData.user) return { error: 'Could not create account. Please try again.' }
+  if (!authData.user) return { error: t.accountFailed }
 
   const admin = createAdminClient()
 
@@ -116,7 +124,8 @@ async function requireOwner(): Promise<
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated' }
+  const t = (await serverCopy()).server
+  if (!user) return { error: t.notAuthenticated }
 
   const { data: requester } = await supabase
     .from('profiles')
@@ -125,7 +134,7 @@ async function requireOwner(): Promise<
     .single()
 
   if (!requester || requester.role !== 'owner') {
-    return { error: 'Only the store owner can manage invitations.' }
+    return { error: t.ownerOnlyInvites }
   }
   return { userId: user.id, storeId: requester.store_id as string }
 }
@@ -148,20 +157,19 @@ async function loadPendingInvite(profileId: string, storeId: string) {
     .eq('store_id', storeId)
     .single()
 
-  if (!profile) return { error: 'That team member is not in this store.' as const }
-  if (profile.role === 'owner') return { error: 'The store owner cannot be revoked.' as const }
+  const t = (await serverCopy()).server
+  if (!profile) return { error: t.notInStore }
+  if (profile.role === 'owner') return { error: t.ownerCannotRevoke }
   if (!profile.invited) {
-    return { error: 'That person has already accepted — there is no pending invitation.' as const }
+    return { error: t.alreadyAccepted }
   }
   return { profile }
 }
 
 /** Shared by invite and resend: both hit the same throttled sender. */
-function inviteErrorMessage(error: { status?: number; message: string }): string {
+async function inviteErrorMessage(error: { status?: number; message: string }): Promise<string> {
   const rateLimited = error.status === 429 || /rate limit|too many/i.test(error.message)
-  if (rateLimited) {
-    return 'Email sending is rate-limited. This project is still using Supabase’s built-in SMTP, which only allows a few messages an hour. Configure custom SMTP under Project Settings → Authentication → SMTP Settings to send invitations reliably.'
-  }
+  if (rateLimited) return (await serverCopy()).server.inviteRateLimited
   return error.message
 }
 
@@ -182,7 +190,7 @@ export async function resendInvite(profileId: string) {
     redirectTo: `${origin}/reset-password`,
   })
 
-  if (error) return { error: inviteErrorMessage(error) }
+  if (error) return { error: await inviteErrorMessage(error) }
   return { success: true }
 }
 
@@ -205,9 +213,10 @@ export async function revokeInvite(profileId: string) {
   const { error: profileError } = await admin.from('profiles').delete().eq('id', profileId)
   if (profileError) return { error: profileError.message }
 
+  const tn = (await serverCopy()).server
   await notify({
-    title: 'Invitation revoked',
-    body: `The invitation for ${found.profile.full_name} was cancelled.`,
+    title: tn.notifRevokedTitle,
+    body: tn.notifRevokedBody.replace('{name}', found.profile.full_name),
     audience: 'managers',
     kind: 'staff',
     entity: 'profiles',
@@ -228,7 +237,9 @@ export async function inviteStaff(formData: {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated' }
+  const copy = await serverCopy()
+  const t = copy.server
+  if (!user) return { error: t.notAuthenticated }
 
   const { data: requester } = await supabase
     .from('profiles')
@@ -237,7 +248,7 @@ export async function inviteStaff(formData: {
     .single()
 
   if (!requester || requester.role !== 'owner' || requester.store_id !== formData.storeId) {
-    return { error: 'Only the store owner can add staff.' }
+    return { error: t.ownerOnlyAddStaff }
   }
 
   // Same reason as signUpOwner: the insert below goes through the admin client
@@ -245,15 +256,15 @@ export async function inviteStaff(formData: {
   // colleague with `full_name: ''` renders as a nameless row in the roster, the
   // rota and every audit entry that names them.
   const inviteName = formData.fullName.trim()
-  if (!inviteName) return { error: 'Enter the person’s name.' }
-  if (inviteName.length > 120) return { error: 'Keep the name to 120 characters or fewer.' }
+  if (!inviteName) return { error: t.inviteNameRequired }
+  if (inviteName.length > 120) return { error: t.inviteNameTooLong }
 
   // Re-checked on the server even though the form offers only two options: the
   // parameter is whatever the caller sent, and the insert below goes through
   // the admin client, which bypasses RLS. 'owner' must never pass here — see
   // ASSIGNABLE_ROLES for why.
   if (!isAssignableRole(formData.role)) {
-    return { error: 'Choose a valid role for this team member.' }
+    return { error: t.inviteBadRole }
   }
 
   const admin = createAdminClient()
@@ -272,8 +283,8 @@ export async function inviteStaff(formData: {
   // own docs call it testing-only. The raw error is a bare 429, which reads as
   // an app bug and sends the next person debugging this function, where nothing
   // is wrong — inviteErrorMessage names the layer that actually failed.
-  if (inviteError) return { error: inviteErrorMessage(inviteError) }
-  if (!invited.user) return { error: 'Could not create staff account.' }
+  if (inviteError) return { error: await inviteErrorMessage(inviteError) }
+  if (!invited.user) return { error: t.staffAccountFailed }
 
   const { error: profileError } = await admin.from('profiles').insert({
     id: invited.user.id,
@@ -294,8 +305,10 @@ export async function inviteStaff(formData: {
   // management information, and the staff view is deliberately limited to
   // notifications addressed to that person.
   await notify({
-    title: 'New team member invited',
-    body: `${formData.fullName} was invited as ${ROLE_LABELS[formData.role]}.`,
+    title: t.notifInvitedTitle,
+    body: t.notifInvitedBody
+      .replace('{name}', formData.fullName)
+      .replace('{role}', copy.roles[formData.role]),
     audience: 'managers',
     kind: 'staff',
     entity: 'profiles',

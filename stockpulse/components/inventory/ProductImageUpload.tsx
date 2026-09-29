@@ -8,6 +8,7 @@ import { isOptimizableImage } from '@/lib/images'
 import Modal from '@/components/ui/Modal'
 import ImageAdjuster, { type AdjustedImage } from '@/components/ui/ImageAdjuster'
 import { LineArtPhoto } from '@/components/ui/LineArt'
+import { useAppCopy } from '@/lib/i18n/client'
 
 /** Mirrors the bucket's limits in 0009. Checked here so the user gets a
  *  sentence rather than a 413, and there so the browser is not the boundary. */
@@ -37,6 +38,7 @@ export default function ProductImageUpload({
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<File | null>(null)
+  const ti = useAppCopy().inventory
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -52,11 +54,11 @@ export default function ProductImageUpload({
   function handleFile(file: File) {
     setError(null)
     if (!ACCEPTED.includes(file.type)) {
-      setError('Choose a JPEG, PNG or WebP image.')
+      setError(ti.photoTypeError)
       return
     }
     if (file.size > MAX_BYTES) {
-      setError(`That image is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is 2 MB.`)
+      setError(ti.photoSizeError.replace('{mb}', (file.size / 1024 / 1024).toFixed(1)))
       return
     }
     setPending(file)
@@ -82,8 +84,8 @@ export default function ProductImageUpload({
       setBusy(false)
       setError(
         uploadError.message.toLowerCase().includes('bucket')
-          ? 'Product image storage is not set up yet. Apply migration 0009, then try again.'
-          : `Upload failed: ${uploadError.message}`,
+          ? ti.photoBucketError
+          : ti.photoUploadError.replace('{msg}', uploadError.message),
       )
       return
     }
@@ -117,7 +119,7 @@ export default function ProductImageUpload({
   return (
     <div>
       <p className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-        Product Photo
+        {ti.photoLabel}
       </p>
 
       <div className="flex items-center gap-4">
@@ -143,7 +145,7 @@ export default function ProductImageUpload({
             // sr-only, not hidden — it is still in the accessibility tree and
             // still focusable, so it needs a name. axe rated this `critical`:
             // a screen-reader user reaching it heard an unlabelled file input.
-            aria-label="Choose a product photo"
+            aria-label={ti.photoChooseAria}
             className="sr-only"
             onChange={(e) => {
               const file = e.target.files?.[0]
@@ -164,7 +166,7 @@ export default function ProductImageUpload({
             ) : (
               <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" />
             )}
-            {value ? 'Replace' : 'Add photo'}
+            {value ? ti.photoReplace : ti.photoAdd}
           </button>
           {value && (
             <button
@@ -174,23 +176,23 @@ export default function ProductImageUpload({
               className="control-h-sm inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-danger hover:bg-danger-bg disabled:opacity-60"
             >
               <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-              Remove
+              {ti.photoRemove}
             </button>
           )}
         </div>
       </div>
 
-      <p className="mt-2 text-xs text-muted">JPEG, PNG or WebP. Up to 2 MB.</p>
+      <p className="mt-2 text-xs text-muted">{ti.photoHint}</p>
 
       {pending && (
-        <Modal title="Adjust the photo" onClose={() => setPending(null)} width="sm">
+        <Modal title={ti.photoAdjustTitle} onClose={() => setPending(null)} width="sm">
           <div className="px-6 py-5">
             <ImageAdjuster
               file={pending}
               outputSize={512}
               onCancel={() => setPending(null)}
               onConfirm={handleAdjusted}
-              confirmLabel="Use image"
+              confirmLabel={ti.photoUseImage}
             />
           </div>
         </Modal>

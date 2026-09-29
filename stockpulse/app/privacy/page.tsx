@@ -387,10 +387,18 @@ const SECTIONS: LegalSection[] = [
             account, because a till in the shop and a phone in the stockroom can reasonably want
             different languages.
           </li>
+          <li>
+            <strong>Language preference</strong> (<code>sp-locale</code> cookie) — set only if you
+            choose a language on the home page, and holds nothing but that choice: <code>en</code>,{' '}
+            <code>te</code> or <code>hi</code>. Unlike the two values above, it <em>is</em> sent to
+            our server with each request — that is what lets the page arrive already in your
+            language instead of appearing in English first. It is not used to identify you, is not
+            shared, and expires after a year.
+          </li>
         </ul>
         <p>
-          The two local-storage values never leave your browser. Clearing your browser storage
-          removes them with no effect beyond resetting those preferences.
+          The two local-storage values never leave your browser. Clearing your browser storage, or
+          the language cookie, removes them with no effect beyond resetting those preferences.
         </p>
       </>
     ),

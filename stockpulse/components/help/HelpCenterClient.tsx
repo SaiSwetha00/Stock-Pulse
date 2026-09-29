@@ -3,19 +3,35 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Search, X, FileQuestion } from 'lucide-react'
-import {
-  HELP_ARTICLES,
-  HELP_CATEGORIES,
-  articleMatches,
-  articlesInCategory,
-} from '@/lib/help/articles'
+import { HELP_CATEGORY_ICONS } from '@/lib/help/icons'
+import type { LocalizedHelpArticle, LocalizedHelpCategory } from '@/lib/help/localized'
 import Button from '@/components/ui/Button'
 import EmptyState from '@/components/ui/EmptyState'
+import { useAppCopy } from '@/lib/i18n/client'
 
-/** Offered when a search finds nothing — each is a term that does match. */
-const SUGGESTED_SEARCHES = ['low stock', 'import CSV', 'shift', 'password', 'roles']
+/** Case-insensitive match across title, summary, category and body, in the
+ *  reader's language and in English (see LocalizedHelpArticle.searchText). */
+function articleMatches(article: LocalizedHelpArticle, query: string): boolean {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  return article.searchText.includes(q)
+}
 
-export default function HelpCenterClient() {
+/**
+ * `categories` and `articles` arrive already in the reader's language, from
+ * app/(dashboard)/help/page.tsx. Only that language's text reaches the
+ * browser; lib/help/localized must never be imported here.
+ */
+export default function HelpCenterClient({
+  categories,
+  articles: allArticles,
+}: {
+  categories: LocalizedHelpCategory[]
+  articles: LocalizedHelpArticle[]
+}) {
+  const copy = useAppCopy()
+  const t = copy.help
+  const tcm = copy.common
   const [search, setSearch] = useState('')
 
   /**
@@ -31,8 +47,8 @@ export default function HelpCenterClient() {
   const isSearching = deferredSearch.trim().length > 0
 
   const results = useMemo(
-    () => (isSearching ? HELP_ARTICLES.filter((a) => articleMatches(a, deferredSearch)) : []),
-    [deferredSearch, isSearching],
+    () => (isSearching ? allArticles.filter((a) => articleMatches(a, deferredSearch)) : []),
+    [allArticles, deferredSearch, isSearching],
   )
 
   return (
@@ -43,11 +59,10 @@ export default function HelpCenterClient() {
     // which is right for prose and wrong for a table.
     <div className="sp-page max-w-[1100px]">
       <div className="sp-rise text-center">
-        <p className="sp-eyebrow">Help Centre</p>
-        <h1 className="sp-title mt-2">How can we help?</h1>
+        <p className="sp-eyebrow">{t.eyebrow}</p>
+        <h1 className="sp-title mt-2">{t.title}</h1>
         <p className="mx-auto mt-3 max-w-[55ch] text-body leading-relaxed text-muted">
-          Search the guides, or browse by topic below. Every article describes what StockPulse
-          actually does today.
+          {t.subtitle}
         </p>
       </div>
 
@@ -61,8 +76,8 @@ export default function HelpCenterClient() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             type="search"
-            aria-label="Search help articles"
-            placeholder="Search help articles…"
+            aria-label={t.searchAria}
+            placeholder={t.searchPlaceholder}
             // The last toolbar control still off-family, and it disagreed on
             // the one thing D28 says these must share: it rested on
             // `bg-surface` where the other eight rest on `bg-surface-muted`,
@@ -77,7 +92,7 @@ export default function HelpCenterClient() {
             <button
               type="button"
               onClick={() => setSearch('')}
-              aria-label="Clear search"
+              aria-label={tcm.clearSearch}
               className="tap-target absolute right-1 top-1/2 -translate-y-1/2 rounded-lg text-muted transition hover:text-foreground"
             >
               <X className="h-4 w-4" aria-hidden="true" />
@@ -89,19 +104,24 @@ export default function HelpCenterClient() {
       {isSearching ? (
         <section className="mt-10" aria-live="polite">
           <h2 className="text-sm font-semibold text-muted">
-            {results.length === 0
-              ? `No articles match “${deferredSearch.trim()}”`
-              : `${results.length} ${results.length === 1 ? 'article' : 'articles'} matching “${deferredSearch.trim()}”`}
+            {(results.length === 0
+              ? t.noMatch
+              : results.length === 1
+                ? t.oneMatch
+                : t.manyMatch
+            )
+              .replace('{n}', String(results.length))
+              .replace('{q}', deferredSearch.trim())}
           </h2>
 
           {results.length === 0 ? (
             <EmptyState
               icon={FileQuestion}
-              title="Nothing found for that"
-              description="Try a broader word, or one of these:"
+              title={t.nothingTitle}
+              description={t.nothingBody}
               action={
                 <div className="flex flex-wrap justify-center gap-2">
-                  {SUGGESTED_SEARCHES.map((term) => (
+                  {t.suggested.map((term) => (
                     <Button key={term} variant="secondary" size="sm" onClick={() => setSearch(term)}>
                       {term}
                     </Button>
@@ -132,11 +152,11 @@ export default function HelpCenterClient() {
         </section>
       ) : (
         <section className="mt-10">
-          <h2 className="sp-heading">Browse topics</h2>
+          <h2 className="sp-heading">{t.browse}</h2>
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {HELP_CATEGORIES.map((category, i) => {
-              const Icon = category.icon
-              const articles = articlesInCategory(category.key)
+            {categories.map((category, i) => {
+              const Icon = HELP_CATEGORY_ICONS[category.key]
+              const articles = allArticles.filter((a) => a.category === category.key)
               if (articles.length === 0) return null
 
               return (

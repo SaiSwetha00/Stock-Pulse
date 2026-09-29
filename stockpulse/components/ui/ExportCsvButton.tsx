@@ -4,6 +4,7 @@ import { Download } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { useToast } from '@/components/ui/Toast'
 import { csvFilename, downloadCsv, toCsv, type CsvColumn } from '@/lib/csv'
+import { useAppCopy } from '@/lib/i18n/client'
 
 /**
  * Exports exactly the rows it is handed — which is the page the reader is
@@ -18,7 +19,7 @@ export default function ExportCsvButton<T>({
   rows,
   filenameBase,
   itemLabel,
-  label = 'Export CSV',
+  label,
   className,
 }: {
   columns: CsvColumn<T>[]
@@ -31,17 +32,23 @@ export default function ExportCsvButton<T>({
   className?: string
 }) {
   const toast = useToast()
+  const tc = useAppCopy().common
 
   function handleExport() {
     if (rows.length === 0) {
-      toast.info('Nothing to export', `No ${itemLabel} match the current filters.`)
+      toast.info(
+        tc.nothingToExportTitle,
+        tc.nothingToExportBody.replace('{items}', itemLabel),
+      )
       return
     }
 
     const filename = csvFilename(filenameBase)
     downloadCsv(filename, toCsv(columns, rows))
     toast.success(
-      `Exported ${rows.length} ${rows.length === 1 ? itemLabel.replace(/s$/, '') : itemLabel}`,
+      tc.exportedTitle
+        .replace('{count}', String(rows.length))
+        .replace('{items}', rows.length === 1 ? itemLabel.replace(/s$/, '') : itemLabel),
       filename
     )
   }
@@ -56,7 +63,7 @@ export default function ExportCsvButton<T>({
       )}
     >
       <Download className="h-4 w-4" aria-hidden="true" />
-      {label}
+      {label ?? tc.exportCsv}
     </button>
   )
 }

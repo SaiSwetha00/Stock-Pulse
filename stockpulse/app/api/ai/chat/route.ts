@@ -6,6 +6,8 @@ import { rateLimit } from '@/lib/rateLimit'
 import { canViewReports } from '@/lib/permissions'
 import { persistTurn } from '@/lib/ai/persistTurn'
 import type { Role } from '@/types'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,7 +62,7 @@ interface ChatMessage {
   text: string
 }
 
-function systemInstruction(role: Role, storeName: string) {
+function systemInstruction(role: Role, storeName: string, replyLanguage: string) {
   // The currency clause is not decoration. Every tool in lib/gemini/tools.ts
   // returns bare numbers — `total_revenue: "4715.35"` — with no unit attached,
   // so the model picks a symbol from context, and a model trained mostly on
@@ -69,7 +71,11 @@ function systemInstruction(role: Role, storeName: string) {
   // every screen around it. Naming the currency here is what makes the tool
   // output unambiguous; pre-formatting it in the tools instead would hand the
   // model strings it then has to do arithmetic on.
-  const base = `You are the Store Assistant for "${storeName}", a neighborhood grocery store using StockPulse. Be concise and friendly. Use tools to look up real data before answering questions about inventory, sales, or stock. Never make up numbers. All monetary amounts returned by tools are in Indian rupees: always write them with the ₹ symbol and Indian digit grouping (₹1,00,000.00, not $100,000.00). Never use a dollar sign.`
+  // The reply-language clause is not decoration either. Without it the panel
+  // is translated around an answer in English, which reads worse than a panel
+  // that was never translated: the reader is told the app speaks their
+  // language and then it does not.
+  const base = `You are the Store Assistant for "${storeName}", a neighborhood grocery store using StockPulse. ${replyLanguage} Be concise and friendly. Use tools to look up real data before answering questions about inventory, sales, or stock. Never make up numbers. All monetary amounts returned by tools are in Indian rupees: always write them with the ₹ symbol and Indian digit grouping (₹1,00,000.00, not $100,000.00). Never use a dollar sign.`
   if (canViewReports(role)) {
     return `${base} This user is the store Owner, so they can ask about revenue, reports, top-selling items, and staff in addition to stock and sales.`
   }
@@ -120,16 +126,23 @@ function parseThreadId(body: unknown): string | null {
 export async function POST(req: NextRequest) {
   // Parsed inside a try: a malformed payload previously threw here and
   // surfaced as an unhandled 500.
+  // The reader's copy, resolved from the locale cookie. Every sentence this
+  // route can stream back is read from here, because the panel renders a
+  // failed response's BODY as the assistant's reply — an English apology
+  // inside a Telugu panel would be the most visible half-translated string in
+  // the app.
+  const t = appCopy(await getLocale()).ai
+
   let raw: unknown
   try {
     raw = await req.json()
   } catch {
-    return new Response('Malformed request body.', { status: 400 })
+    return new Response(t.rMalformed, { status: 400 })
   }
 
   const messages = parseMessages(raw)
   if (!messages) {
-    return new Response('Invalid or oversized message payload.', { status: 400 })
+    return new Response(t.rInvalid, { status: 400 })
   }
   const threadId = parseThreadId(raw)
 
@@ -143,7 +156,7 @@ export async function POST(req: NextRequest) {
   // flood cannot consume someone else's allowance.
   const limit = rateLimit(`ai:${user.id}`, RATE_LIMIT, RATE_WINDOW_MS)
   if (!limit.ok) {
-    return new Response('Too many requests. Please wait a moment and try again.', {
+    return new Response(t.rRateLimit, {
       status: 429,
       headers: {
         'Retry-After': String(limit.retryAfter),
@@ -168,7 +181,7 @@ export async function POST(req: NextRequest) {
 
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
-    return new Response('AI Assistant is not configured yet. Add GEMINI_API_KEY to enable it.', {
+    return new Response(t.rNotConfigured, {
       status: 200,
     })
   }
@@ -192,7 +205,11 @@ export async function POST(req: NextRequest) {
   const ai = new GoogleGenAI({ apiKey })
   const tools = [{ functionDeclarations: TOOL_DECLARATIONS as never }]
   const config = {
-    systemInstruction: systemInstruction(profile.role as Role, store?.name ?? 'the store'),
+    systemInstruction: systemInstruction(
+      profile.role as Role,
+      store?.name ?? 'the store',
+      t.replyLanguage,
+    ),
     tools,
     abortSignal: upstream,
   }
@@ -291,6 +308,7 @@ export async function POST(req: NextRequest) {
                   supabase,
                   storeId: profile.store_id,
                   role: profile.role as Role,
+                  ownerOnly: t.ownerOnly,
                 }
               )
               return {
@@ -313,14 +331,12 @@ export async function POST(req: NextRequest) {
         // The loop can exit with calls still outstanding once the guard trips.
         // Saying so beats returning an empty bubble the user can't interpret.
         if (calls.length > 0) {
-          send(
-            "\n\nI wasn't able to finish looking that up — the request needed too many lookups. Try asking for one thing at a time.",
-          )
+          send(`\n\n${t.rTooManyLookups}`)
         } else if (!streamedAnything) {
-          send("Sorry, I couldn't come up with an answer for that. Try rephrasing?")
+          send(t.rNoAnswer)
         }
       } catch (err) {
-        send(`Sorry, I ran into an error: ${err instanceof Error ? err.message : 'unknown error'}`)
+        send(t.rError.replace('{message}', err instanceof Error ? err.message : 'unknown error'))
       } finally {
         // Close first, then write. The user has the complete answer on screen
         // the moment the model stops talking; making them wait on two database

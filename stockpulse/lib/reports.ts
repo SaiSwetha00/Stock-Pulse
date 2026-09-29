@@ -70,7 +70,14 @@ function localKey(d: Date): string {
 export function revenueByDay(
   sales: ReportSale[],
   from: string,
-  to: string
+  to: string,
+  /**
+   * BCP-47, from intlLocale(). Optional so a caller with no locale to hand
+   * still gets the English axis this shipped with, rather than the machine's
+   * own locale — which is what the bare toLocaleDateString(undefined) here
+   * used to mean, and which differed between the server and the browser.
+   */
+  locale: string = 'en-US'
 ): { label: string; value: number; iso: string }[] {
   if (!from || !to) return []
   const start = new Date(`${from}T00:00:00`)
@@ -88,7 +95,7 @@ export function revenueByDay(
   return [...buckets.entries()].map(([iso, value]) => ({
     iso,
     value,
-    label: new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, {
+    label: new Date(`${iso}T00:00:00`).toLocaleDateString(locale, {
       month: 'short',
       day: 'numeric',
     }),
@@ -117,7 +124,9 @@ export function categoryMix(
   categoryOf: Map<string, Category>,
   /** slug -> display name, from the store's own categories. Passed in rather
    *  than imported: this file has no session and no store to read one for. */
-  labels: Record<string, string>
+  labels: Record<string, string>,
+  /** What an item with no category is called. English when not supplied. */
+  uncategorised = 'Uncategorised',
 ): { label: string; revenue: number; pct: number }[] {
   const acc = new Map<string, number>()
   let grand = 0
@@ -126,7 +135,7 @@ export function categoryMix(
     // are still real revenue, so they get their own bucket rather than being
     // silently folded into an arbitrary category.
     const cat = categoryOf.get(i.product_name)
-    const label = cat ? categoryLabel(cat, labels) : 'Uncategorised'
+    const label = cat ? categoryLabel(cat, labels) : uncategorised
     const v = Number(i.line_total)
     acc.set(label, (acc.get(label) ?? 0) + v)
     grand += v
@@ -136,15 +145,18 @@ export function categoryMix(
     .sort((a, b) => b.revenue - a.revenue)
 }
 
+/** English, and what paymentMix falls back to when given no dictionary. */
 const PAYMENT_LABELS: Record<string, string> = { cash: 'Cash', card: 'Card', nfc: 'NFC' }
 
 export function paymentMix(
-  sales: ReportSale[]
+  sales: ReportSale[],
+  /** The reader's words for the three methods. English when not supplied. */
+  payLabels: Record<string, string> = PAYMENT_LABELS,
 ): { label: string; count: number; revenue: number; pct: number }[] {
   const acc = new Map<string, { count: number; revenue: number }>()
   let grand = 0
   for (const s of sales) {
-    const label = PAYMENT_LABELS[s.payment_method] ?? s.payment_method
+    const label = payLabels[s.payment_method] ?? s.payment_method
     const cur = acc.get(label) ?? { count: 0, revenue: 0 }
     cur.count += 1
     cur.revenue += Number(s.total)

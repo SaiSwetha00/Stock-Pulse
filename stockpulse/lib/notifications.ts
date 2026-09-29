@@ -36,12 +36,46 @@ export const NOTIFICATION_FEED_LIMIT = 20
  */
 export const UNREAD_BADGE_CAP = 99
 
-export const KIND_LABELS: Record<NotificationKind, string> = {
-  general: 'Update',
-  low_stock: 'Low stock',
-  staff: 'Staff',
-  supplier: 'Supplier',
-  sales: 'Sales',
+/**
+ * The labels this module can produce. The KEYS below stay as they are —
+ * `low_stock` is the value stored on the row — and only what a person reads
+ * moves. A notification's own title and body are not here at all: they were
+ * written into the table when the event happened and keep that language.
+ */
+export type NotificationLabelCopy = {
+  kindGeneral: string
+  kindLowStock: string
+  kindStaff: string
+  kindSupplier: string
+  kindSales: string
+  bellNone: string
+  bellOne: string
+  bellMany: string
+}
+
+/** English, and what every caller that passes nothing still gets. */
+const EN_NOTIF: NotificationLabelCopy = {
+  kindGeneral: 'Update',
+  kindLowStock: 'Low stock',
+  kindStaff: 'Staff',
+  kindSupplier: 'Supplier',
+  kindSales: 'Sales',
+  bellNone: 'Notifications, none unread',
+  bellOne: 'Notifications, 1 unread',
+  bellMany: 'Notifications, {n} unread',
+}
+
+/** A function, not a constant: a module-scope literal cannot read a hook. */
+export function kindLabels(
+  copy: NotificationLabelCopy = EN_NOTIF,
+): Record<NotificationKind, string> {
+  return {
+    general: copy.kindGeneral,
+    low_stock: copy.kindLowStock,
+    staff: copy.kindStaff,
+    supplier: copy.kindSupplier,
+    sales: copy.kindSales,
+  }
 }
 
 /**
@@ -84,8 +118,8 @@ export function formatUnreadCount(n: number): string {
  * "3" beside a bell icon tells a screen reader user nothing about what is
  * being counted.
  */
-export function bellLabel(unread: number): string {
-  if (unread === 0) return 'Notifications, none unread'
-  if (unread === 1) return 'Notifications, 1 unread'
-  return `Notifications, ${unread} unread`
+export function bellLabel(unread: number, copy: NotificationLabelCopy = EN_NOTIF): string {
+  if (unread === 0) return copy.bellNone
+  if (unread === 1) return copy.bellOne
+  return copy.bellMany.replace('{n}', String(unread))
 }

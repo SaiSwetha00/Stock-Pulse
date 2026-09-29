@@ -7,13 +7,34 @@ import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { buildImportPreview, type ImportPreview } from '@/lib/importCsv'
+import { useAppCopy } from '@/lib/i18n/client'
 import { csvFilename, downloadCsv } from '@/lib/csv'
-import { sampleImportCsv } from '@/lib/inventoryCsv'
+import { INVENTORY_CSV_HEADERS as H, sampleImportCsv } from '@/lib/inventoryCsv'
 import type { CategoryOption } from '@/lib/categories'
 import { importProducts } from '@/app/(dashboard)/inventory/actions'
 import type { Product } from '@/types'
 
 /** Refuse absurd files before reading them into memory. */
+/**
+ * The optional columns, named from the header constants rather than retyped.
+ *
+ * These are the CSV's own headers and stay ENGLISH in every language: the
+ * parser's HEADER_MAP matches them by exact lowercased string, so a
+ * translated list here would describe a file the importer cannot read. Only
+ * the sentence around them is translated.
+ */
+const OPTIONAL_COLUMNS = [
+  H.brand,
+  H.sku,
+  H.barcode,
+  H.category,
+  H.unitPrice,
+  H.unit,
+  H.stock,
+  H.minStock,
+  H.expiry,
+].join(', ')
+
 const MAX_BYTES = 2 * 1024 * 1024
 
 function Stat({ label, value, tone }: { label: string; value: number; tone: string }) {
@@ -41,6 +62,8 @@ export default function ImportProductsModal({
   categories: CategoryOption[]
   onClose: () => void
 }) {
+  const t = useAppCopy()
+  const ti = t.inventory
   const router = useRouter()
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -60,25 +83,27 @@ export default function ImportProductsModal({
     setFileName(file.name)
 
     if (file.size > MAX_BYTES) {
-      setParseError('That file is larger than 2 MB. Split it into smaller batches.')
+      setParseError(ti.errTooBig)
       return
     }
     try {
       const text = await file.text()
-      const result = buildImportPreview(text, existingSkus, categories)
+      const result = buildImportPreview(text, existingSkus, categories, {
+        validation: t.validation,
+        dupSku: ti.dupSku,
+        dupBarcode: ti.dupBarcode,
+      })
       if (result.missingRequired.length > 0) {
-        setParseError(
-          `The file needs a "${result.missingRequired.join('", "')}" column. Export your inventory to CSV to see the expected headers.`
-        )
+        setParseError(ti.errMissingCol.replace('{cols}', result.missingRequired.join('", "')))
         return
       }
       if (result.rows.length === 0) {
-        setParseError('No data rows found beneath the header.')
+        setParseError(ti.errNoRows)
         return
       }
       setPreview(result)
     } catch {
-      setParseError('That file could not be read as CSV.')
+      setParseError(ti.errNotCsv)
     }
   }
 
@@ -89,7 +114,7 @@ export default function ImportProductsModal({
       .map((r) => ({ line: r.line, input: r.input }))
 
     if (good.length === 0) {
-      toast.info('Nothing to import', 'Every row in this file has a problem.')
+      toast.info(ti.nothingToImport, ti.nothingToImportBody)
       return
     }
 
@@ -100,36 +125,40 @@ export default function ImportProductsModal({
     setBusy(false)
 
     if (result.message) {
-      toast.error('Import failed', result.message)
+      toast.error(ti.importFailed, result.message)
       return
     }
 
     const summary = [
-      result.created ? `${result.created} added` : null,
-      result.updated ? `${result.updated} updated` : null,
-      result.failed.length ? `${result.failed.length} failed` : null,
+      result.created ? ti.sumAdded.replace('{n}', String(result.created)) : null,
+      result.updated ? ti.sumUpdated.replace('{n}', String(result.updated)) : null,
+      result.failed.length ? ti.sumFailed.replace('{n}', String(result.failed.length)) : null,
     ]
       .filter(Boolean)
       .join(' · ')
 
     if (result.failed.length > 0) {
-      toast.error('Imported with problems', summary)
+      toast.error(ti.importedProblems, summary)
     } else {
-      toast.success('Import complete', summary)
+      toast.success(ti.importComplete, summary)
     }
     router.refresh()
     onClose()
   }
 
   return (
-    <Modal title="Import products from CSV" width="lg" onClose={onClose}>
+    <Modal title={ti.importTitle} width="lg" onClose={onClose}>
       <div className="space-y-5 px-6 py-5">
         {!preview && (
           <>
             <p className="text-sm leading-relaxed text-muted-strong">
-              Upload a CSV with a <strong>Name</strong> column. Rows are matched to
-              existing products by <strong>SKU</strong> — a matching SKU updates that
-              product, anything else is added. Nothing is written until you confirm.
+              {/* Name and SKU are the CSV's own column headers, so they stay
+                  English in every language - see lib/inventoryCsv.ts. */}
+              {ti.importIntroA}
+              <strong>{H.name}</strong>
+              {ti.importIntroB}
+              <strong>{H.sku}</strong>
+              {ti.importIntroC}
             </p>
             {/*
               Required vs optional, stated BEFORE the upload.
@@ -153,16 +182,13 @@ export default function ImportProductsModal({
             */}
             <div className="rounded-lg border border-border bg-surface-muted px-4 py-3 text-sm">
               <p className="text-muted-strong">
-                <strong className="text-foreground">Required:</strong> Name.
+                <strong className="text-foreground">{ti.requiredLabel}</strong> {H.name}.
               </p>
               <p className="mt-1.5 text-muted-strong">
-                <strong className="text-foreground">Optional:</strong> Brand, SKU, Barcode,
-                Category, Unit Price, Unit, Stock, Min Stock, Expiry Date.
+                <strong className="text-foreground">{ti.optionalLabel}</strong> {OPTIONAL_COLUMNS}.
               </p>
               <p className="mt-2 text-muted">
-                Dates as YYYY-MM-DD (2026-03-31). Numbers plain, with no currency symbol
-                or thousands separator (1250.50, not $1,250.50). Leave any optional cell
-                blank to skip it.
+                {ti.formatNote}
               </p>
             </div>
 
@@ -188,8 +214,8 @@ export default function ImportProductsModal({
             */}
             <div className="flex flex-col gap-2 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <p className="text-sm text-muted-strong">
-                <span className="font-semibold text-foreground">New to this?</span>{' '}
-                Download the sample CSV to see the required format and example values.
+                <span className="font-semibold text-foreground">{ti.newToThis}</span>{' '}
+                {ti.sampleBlurb}
               </p>
               <button
                 type="button"
@@ -197,7 +223,7 @@ export default function ImportProductsModal({
                 className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-[var(--surface)] transition-colors hover:bg-accent-hover"
               >
                 <Download className="h-4 w-4" aria-hidden="true" />
-                Download sample CSV
+                {ti.downloadSample}
               </button>
             </div>
 
@@ -217,7 +243,7 @@ export default function ImportProductsModal({
               className="flex control-h w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border-strong py-10 text-sm font-semibold text-muted-strong transition hover:border-border-strong hover:bg-surface-muted"
             >
               <FileUp className="h-5 w-5" aria-hidden="true" />
-              {fileName || 'Choose a CSV file'}
+              {fileName || ti.chooseFile}
             </button>
           </>
         )}
@@ -232,24 +258,26 @@ export default function ImportProductsModal({
           <>
             <div className="grid grid-cols-3 gap-3">
               <Stat
-                label="To add"
+                label={ti.statToAdd}
                 value={preview.createCount}
                 tone="bg-accent-soft text-accent-ink"
               />
               <Stat
-                label="To update"
+                label={ti.statToUpdate}
                 value={preview.updateCount}
                 tone="bg-warning-bg text-warning"
               />
-              <Stat label="Problems" value={preview.errorCount} tone="bg-danger-bg text-danger" />
+              <Stat label={ti.statProblems} value={preview.errorCount} tone="bg-danger-bg text-danger" />
             </div>
 
             {preview.unknownHeaders.length > 0 && (
               <p className="flex items-start gap-2 rounded-lg bg-warning-bg px-3.5 py-2.5 text-sm text-warning">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>
-                  Ignored unrecognised column{preview.unknownHeaders.length === 1 ? '' : 's'}:{' '}
-                  {preview.unknownHeaders.join(', ')}
+                  {(preview.unknownHeaders.length === 1 ? ti.unknownCol : ti.unknownCols).replace(
+                    '{cols}',
+                    preview.unknownHeaders.join(', '),
+                  )}
                 </span>
               </p>
             )}
@@ -262,8 +290,7 @@ export default function ImportProductsModal({
               <p className="flex items-start gap-2 rounded-lg bg-warning-bg px-3.5 py-2.5 text-sm text-warning">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>
-                  This file has a stock column, so each matched product&apos;s existing stock lots
-                  and expiry dates are replaced by the single lot its row describes.
+                  {ti.replacesLots}
                 </span>
               </p>
             )}
@@ -277,13 +304,13 @@ export default function ImportProductsModal({
                 <thead className="sticky top-0 bg-surface-muted">
                   <tr className="text-xs font-semibold uppercase tracking-wide text-muted">
                     <th scope="col" className="px-3 py-2.5">
-                      Line
+                      {ti.colLine}
                     </th>
                     <th scope="col" className="px-3 py-2.5">
-                      Product
+                      {ti.colImportProduct}
                     </th>
                     <th scope="col" className="px-3 py-2.5">
-                      Action
+                      {ti.colAction}
                     </th>
                   </tr>
                 </thead>
@@ -293,9 +320,15 @@ export default function ImportProductsModal({
                       <td className="px-3 py-2 text-muted">{r.line}</td>
                       <td className="px-3 py-2">
                         <p className="font-medium text-foreground">{r.input.name || '—'}</p>
-                        {r.input.sku && <p className="text-xs text-muted">SKU: {r.input.sku}</p>}
+                        {r.input.sku && (
+                          <p className="text-xs text-muted">
+                            {ti.skuPrefix.replace('{v}', r.input.sku)}
+                          </p>
+                        )}
                         {r.input.barcode && (
-                          <p className="sp-num text-xs text-muted">Barcode: {r.input.barcode}</p>
+                          <p className="sp-num text-xs text-muted">
+                            {ti.barcodePrefix.replace('{v}', r.input.barcode)}
+                          </p>
                         )}
                         {r.problems.length > 0 && (
                           <p className="mt-0.5 text-xs text-danger">{r.problems.join(' ')}</p>
@@ -304,16 +337,16 @@ export default function ImportProductsModal({
                       <td className="px-3 py-2">
                         {r.action === 'create' && (
                           <span className="inline-flex items-center gap-1 text-xs font-semibold text-accent-ink">
-                            <Plus className="h-3 w-3" aria-hidden="true" /> Add
+                            <Plus className="h-3 w-3" aria-hidden="true" /> {ti.actAdd}
                           </span>
                         )}
                         {r.action === 'update' && (
                           <span className="inline-flex items-center gap-1 text-xs font-semibold text-warning">
-                            <RefreshCw className="h-3 w-3" aria-hidden="true" /> Update
+                            <RefreshCw className="h-3 w-3" aria-hidden="true" /> {ti.actUpdate}
                           </span>
                         )}
                         {r.action === 'error' && (
-                          <span className="text-xs font-semibold text-danger">Skip</span>
+                          <span className="text-xs font-semibold text-danger">{ti.actSkip}</span>
                         )}
                       </td>
                     </tr>
@@ -331,15 +364,17 @@ export default function ImportProductsModal({
                   if (fileRef.current) fileRef.current.value = ''
                 }}
               >
-                Choose another file
+                {ti.chooseAnother}
               </Button>
               <Button
                 loading={busy}
                 onClick={handleConfirm}
                 disabled={preview.createCount + preview.updateCount === 0}
               >
-                Import {preview.createCount + preview.updateCount} row
-                {preview.createCount + preview.updateCount === 1 ? '' : 's'}
+                {(preview.createCount + preview.updateCount === 1
+                  ? ti.importRow
+                  : ti.importRows
+                ).replace('{n}', String(preview.createCount + preview.updateCount))}
               </Button>
             </div>
           </>

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { CalendarDays, Users } from 'lucide-react'
 import type { Role } from '@/types'
 import { isOwner } from '@/lib/permissions'
+import { useAppCopy } from '@/lib/i18n/client'
 
 /**
  * The Staff module's two surfaces.
@@ -20,17 +21,18 @@ import { isOwner } from '@/lib/permissions'
  * `lib/nav.ts` follows for /settings.
  */
 export default function StaffTabs({ role }: { role: Role }) {
+  const ts = useAppCopy().staff
   const pathname = usePathname()
 
   const tabs = [
-    { href: '/staff', label: 'Schedule', icon: CalendarDays },
-    ...(isOwner(role) ? [{ href: '/staff/team', label: 'Team', icon: Users }] : []),
+    { href: '/staff', label: ts.tabSchedule, icon: CalendarDays },
+    ...(isOwner(role) ? [{ href: '/staff/team', label: ts.tabTeam, icon: Users }] : []),
   ]
 
   if (tabs.length < 2) return null
 
   return (
-    <nav aria-label="Staff sections" className="mt-5 flex gap-1 border-b border-border">
+    <nav aria-label={ts.tabsAria} className="mt-5 flex gap-1 border-b border-border">
       {tabs.map(({ href, label, icon: Icon }) => {
         const active = pathname === href
         return (

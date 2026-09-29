@@ -10,6 +10,17 @@ import {
   type CustomerErrors,
   type CustomerInput,
 } from '@/lib/validation/customer'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
+
+/**
+ * The reader's copy, resolved server-side from the locale cookie. Each action
+ * reads it itself: a message the browser supplied is not one this server
+ * should repeat back.
+ */
+async function copy() {
+  return appCopy(await getLocale()).customers
+}
 
 export type CustomerActionResult =
   | { ok: true }
@@ -34,11 +45,12 @@ export async function saveCustomer(
   customerId?: string,
 ): Promise<CustomerActionResult> {
   const store = await requireOwner()
-  if (!store) return { ok: false, message: 'You do not have permission to manage customers.' }
+  const tc = await copy()
+  if (!store) return { ok: false, message: tc.actNoPermission }
 
-  const errors = validateCustomer(input)
+  const errors = validateCustomer(input, tc)
   if (Object.keys(errors).length > 0) {
-    return { ok: false, errors, message: 'Please correct the highlighted fields.' }
+    return { ok: false, errors, message: tc.actFixFields }
   }
 
   const supabase = await createClient()
@@ -57,7 +69,7 @@ export async function saveCustomer(
       ok: false,
       message:
         error.code === UNIQUE_VIOLATION
-          ? 'A customer with that email already exists in this store.'
+          ? tc.actEmailExists
           : error.message,
     }
   }
@@ -68,7 +80,7 @@ export async function saveCustomer(
 
 export async function deleteCustomer(customerId: string): Promise<CustomerActionResult> {
   const store = await requireOwner()
-  if (!store) return { ok: false, message: 'You do not have permission to manage customers.' }
+  if (!store) return { ok: false, message: (await copy()).actNoPermission }
 
   const supabase = await createClient()
   const { error } = await supabase

@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { useAppCopy } from '@/lib/i18n/client'
+import type { DashboardCopy } from '@/lib/i18n/app'
 import { useRouter } from 'next/navigation'
 
 const DEFAULT_INTERVAL_MS = 60_000
@@ -40,12 +42,12 @@ function getServerClock() {
   return 0
 }
 
-function agoLabel(since: number, now: number): string {
+function agoLabel(since: number, now: number, t: DashboardCopy): string {
   const seconds = Math.max(0, Math.round((now - since) / 1000))
-  if (seconds < 15) return 'just now'
-  if (seconds < 60) return `${seconds}s ago`
+  if (seconds < 15) return t.agoJustNow
+  if (seconds < 60) return t.agoSeconds.replace('{n}', String(seconds))
   const minutes = Math.round(seconds / 60)
-  return minutes === 1 ? '1 min ago' : `${minutes} min ago`
+  return minutes === 1 ? t.agoOneMin : t.agoMins.replace('{n}', String(minutes))
 }
 
 /**
@@ -60,6 +62,7 @@ export default function AutoRefresh({ intervalMs = DEFAULT_INTERVAL_MS }: { inte
   // Only ever set from an interval or event callback, never from an effect
   // body. Until the first refresh the page data is as old as this render, so
   // `now` is the correct baseline.
+  const t = useAppCopy().dash
   const [lastUpdated, setLastUpdated] = useState<number | null>(null)
   const baseline = lastUpdated ?? now
 
@@ -91,10 +94,10 @@ export default function AutoRefresh({ intervalMs = DEFAULT_INTERVAL_MS }: { inte
       <span className="sp-pulse h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
       {now > 0 ? (
         <>
-          Updated <span className="tabular-nums">{agoLabel(baseline, now)}</span>
+          {t.updated} <span className="tabular-nums">{agoLabel(baseline, now, t)}</span>
         </>
       ) : (
-        'Live Updates Active'
+        t.liveUpdates
       )}
     </span>
   )

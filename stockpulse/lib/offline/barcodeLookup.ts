@@ -47,13 +47,18 @@ export function matchCachedBarcode(
   return products.find((p) => (p.barcode ?? '').trim() === wanted) ?? null
 }
 
-export async function lookupBarcode(value: string, storeId: string): Promise<LookupResult> {
+export async function lookupBarcode(
+  value: string,
+  storeId: string,
+  /** Shown for a malformed code, in the reader's language (inventory.actBadBarcode). */
+  invalidMessage = 'That is not a valid barcode.',
+): Promise<LookupResult> {
   const barcode = value.trim()
 
   // Rule 1, before either source is touched. A malformed value must not become
   // a pointless round trip online or a pointless scan of the cache offline.
   if (!isValidBarcode(barcode)) {
-    return { ok: false, message: 'That is not a valid barcode.' }
+    return { ok: false, message: invalidMessage }
   }
 
   const looksOffline = typeof navigator !== 'undefined' && navigator.onLine === false

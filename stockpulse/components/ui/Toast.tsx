@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react'
 import { CheckCircle2, AlertTriangle, Info, X } from 'lucide-react'
+import { useAppCopy } from '@/lib/i18n/client'
 
 type ToastTone = 'success' | 'error' | 'info'
 
@@ -85,6 +86,7 @@ export function useToast() {
 }
 
 export default function ToastProvider({ children }: { children: React.ReactNode }) {
+  const tc = useAppCopy().common
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const nextId = useRef(0)
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>())
@@ -143,7 +145,7 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
           attribute accounted for 38 of the 87 findings. */}
       <div
         role="region"
-        aria-label="Notifications"
+        aria-label={tc.notificationsRegion}
         className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex flex-col items-center gap-2 px-4 sm:items-end lg:bottom-6 lg:px-6"
       >
         {toasts.map((toast) => {
@@ -191,7 +193,7 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
                 <button
                   type="button"
                   onClick={() => dismiss(toast.id)}
-                  aria-label="Dismiss notification"
+                  aria-label={tc.dismissNotification}
                   className="tap-target -mr-1.5 -mt-1.5 shrink-0 rounded-lg text-muted transition hover:bg-surface-muted hover:text-foreground"
                 >
                   <X className="h-4 w-4" aria-hidden="true" />

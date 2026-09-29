@@ -37,37 +37,61 @@ export function leaveSpanDays(startsOn: string, endsOn: string): number {
   return Math.round((b - a) / 86_400_000) + 1
 }
 
-export function validateLeave(values: LeaveInput): LeaveErrors {
+/** The words, separate from the rules. English when no dictionary is given. */
+export type LeaveValidationCopy = {
+  vLeaveWho: string
+  vLeaveStart: string
+  vLeaveEnd: string
+  vLeaveEndBefore: string
+  vLeaveTooLong: string
+  vLeaveKind: string
+  vLeaveNote: string
+}
+
+const EN_LEAVE: LeaveValidationCopy = {
+  vLeaveWho: 'Choose who this leave is for.',
+  vLeaveStart: 'Choose a start date.',
+  vLeaveEnd: 'Choose an end date.',
+  vLeaveEndBefore: 'The end date cannot be before the start date.',
+  vLeaveTooLong: 'That is {n} days. Enter a year or less per entry.',
+  vLeaveKind: 'Choose a leave type.',
+  vLeaveNote: 'Note must be 200 characters or fewer.',
+}
+
+export function validateLeave(
+  values: LeaveInput,
+  copy: LeaveValidationCopy = EN_LEAVE,
+): LeaveErrors {
   const errors: LeaveErrors = {}
 
   // Unlike a shift, leave cannot be unassigned — an absence belongs to a
   // person by definition, and the column is NOT NULL.
-  if (!values.staffId.trim()) errors.staffId = 'Choose who this leave is for.'
+  if (!values.staffId.trim()) errors.staffId = copy.vLeaveWho
 
   const start = values.startsOn.trim()
   const end = values.endsOn.trim()
 
-  if (!ISO_DATE.test(start)) errors.startsOn = 'Choose a start date.'
-  if (!ISO_DATE.test(end)) errors.endsOn = 'Choose an end date.'
+  if (!ISO_DATE.test(start)) errors.startsOn = copy.vLeaveStart
+  if (!ISO_DATE.test(end)) errors.endsOn = copy.vLeaveEnd
 
   if (!errors.startsOn && !errors.endsOn) {
     const span = leaveSpanDays(start, end)
     // Mirrors the staff_leave_range_valid constraint. Checked here so the
     // user sees which field is wrong rather than an opaque 23514.
     if (span < 1) {
-      errors.endsOn = 'The end date cannot be before the start date.'
+      errors.endsOn = copy.vLeaveEndBefore
     } else if (span > MAX_SPAN_DAYS) {
       // Not a business rule so much as a typo guard: a mistyped year turns
       // one day off into a decade of blocked scheduling, and nothing else in
       // the app would flag it.
-      errors.endsOn = `That is ${span} days. Enter a year or less per entry.`
+      errors.endsOn = copy.vLeaveTooLong.replace('{n}', String(span))
     }
   }
 
-  if (!isLeaveKind(values.kind)) errors.kind = 'Choose a leave type.'
+  if (!isLeaveKind(values.kind)) errors.kind = copy.vLeaveKind
 
   if (values.note.trim().length > 200) {
-    errors.note = 'Note must be 200 characters or fewer.'
+    errors.note = copy.vLeaveNote
   }
 
   return errors

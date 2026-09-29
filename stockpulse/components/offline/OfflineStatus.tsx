@@ -20,6 +20,8 @@ import {
   type IntegrityResult,
 } from '@/lib/offline/integrity'
 import { useToast } from '@/components/ui/Toast'
+import { useAppCopy, useLocale } from '@/lib/i18n/client'
+import { clockOptions, intlLocale } from '@/lib/i18n/dates'
 import type { Product } from '@/types'
 
 /**
@@ -63,6 +65,8 @@ export default function OfflineStatus({
   const [syncing, setSyncing] = useState(false)
   const [integrity, setIntegrity] = useState<IntegrityResult | null>(null)
   const toast = useToast()
+  const t = useAppCopy().offline
+  const clockLocale = intlLocale(useLocale())
 
   // --- sync -------------------------------------------------------------
   useEffect(() => {
@@ -198,30 +202,38 @@ export default function OfflineStatus({
         // still landed - the money was taken - but somebody has to count a
         // shelf.
         const lines = report.discrepancies
-          .map((d) => `${d.product_name}: sold ${d.units_sold}, only ${d.stock_available} left`)
+          .map((d) =>
+            t.tDiscrepancyLine
+              .replace('{name}', d.product_name)
+              .replace('{sold}', String(d.units_sold))
+              .replace('{left}', String(d.stock_available)),
+          )
           .join(' · ')
+        const count = report.discrepancies.length
         toast.error(
-          `Stock did not add up on ${report.discrepancies.length} item${report.discrepancies.length === 1 ? '' : 's'}`,
-          `${lines}. The sale${report.created === 1 ? '' : 's'} went through and stock is now 0 — please check the shelf.`,
+          (count === 1 ? t.tDiscrepancyOne : t.tDiscrepancyMany).replace('{n}', String(count)),
+          (report.created === 1 ? t.tDiscrepancyBodyOne : t.tDiscrepancyBodyMany).replace('{lines}', lines),
         )
       }
 
       if (report.created > 0 || report.duplicates > 0) {
         const parts: string[] = []
-        if (report.created > 0) parts.push(`${report.created} sent`)
+        if (report.created > 0) parts.push(t.tSent.replace('{n}', String(report.created)))
         // Named rather than hidden. A duplicate means an earlier attempt had
         // already committed - which is exactly what the client id is for, and a
         // cashier who sees the count drop deserves to know why.
         if (report.duplicates > 0) {
-          parts.push(`${report.duplicates} already recorded`)
+          parts.push(t.tAlreadyRecorded.replace('{n}', String(report.duplicates)))
         }
-        toast.success('Offline sales synced', parts.join(' · '))
+        toast.success(t.tSynced, parts.join(' · '))
       }
 
       if (report.failed.length > 0) {
+        const failed = report.failed.length
         toast.error(
-          `${report.failed.length} sale${report.failed.length === 1 ? '' : 's'} could not sync`,
-          `${report.failed[0].reason ?? 'Unknown reason.'} ${report.failed.length > 1 ? 'See the list below.' : ''} They are still saved on this device.`,
+          (failed === 1 ? t.tFailedOne : t.tFailedMany).replace('{n}', String(failed)),
+          // The reason itself is the server's own message and stays as sent.
+          `${report.failed[0].reason ?? t.tUnknownReason} ${failed > 1 ? t.tSeeBelow : ''} ${t.tStillSaved}`,
         )
       }
 
@@ -231,7 +243,7 @@ export default function OfflineStatus({
     } finally {
       setSyncing(false)
     }
-  }, [storeId, syncing, toast, router])
+  }, [storeId, syncing, toast, router, t])
 
   // --- connectivity -----------------------------------------------------
   useEffect(() => {
@@ -273,17 +285,15 @@ export default function OfflineStatus({
         <CloudOff className="h-4 w-4 shrink-0" aria-hidden="true" />
         {offline ? (
           <>
-            <span className="font-semibold">You are offline.</span>
+            <span className="font-semibold">{t.offline}</span>
             <span>
               {/* Named precisely, because a vague "some features unavailable"
                   leaves a cashier guessing which. */}
-              Showing saved products
-              {syncedAt ? ` from ${snapshotClock(syncedAt)}` : ''}. Sales you complete are saved on
-              this device.
+              {syncedAt ? t.savedFrom.replace('{time}', snapshotClock(syncedAt)) : t.savedNoTime}
             </span>
           </>
         ) : (
-          <span className="font-semibold">Back online.</span>
+          <span className="font-semibold">{t.backOnline}</span>
         )}
         <button
           type="button"
@@ -291,7 +301,7 @@ export default function OfflineStatus({
           className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2 py-1 font-semibold underline underline-offset-2"
         >
           <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-          Try again
+          {t.tryAgain}
         </button>
       </div>
 
@@ -303,14 +313,15 @@ export default function OfflineStatus({
       {integrity && (
         <div className="mt-2 rounded-lg border border-danger bg-danger-bg px-3 py-2 text-danger">
           <p className="text-sm font-semibold">
-            {integrity.missingIds.length} saved sale
-            {integrity.missingIds.length === 1 ? '' : 's'} disappeared from this device
+            {(integrity.missingIds.length === 1 ? t.goneOne : t.goneMany).replace(
+              '{n}',
+              String(integrity.missingIds.length),
+            )}
           </p>
           <p className="mt-0.5 text-xs">
-            This device held {integrity.expected} and now has {integrity.actual}. Nothing here
-            removed {integrity.missingIds.length === 1 ? 'it' : 'them'}, so the browser may have
-            cleared storage. Any sale that had not synced is not recorded anywhere — check
-            today&apos;s takings against the till.
+            {(integrity.missingIds.length === 1 ? t.goneBodyOne : t.goneBodyMany)
+              .replace('{expected}', String(integrity.expected))
+              .replace('{actual}', String(integrity.actual))}
           </p>
         </div>
       )}
@@ -321,18 +332,22 @@ export default function OfflineStatus({
       {queued.length > 0 && (
         <div className="mt-2 border-t border-warning/40 pt-2">
           <p className="font-semibold">
-            {queued.length} sale{queued.length === 1 ? '' : 's'} waiting to sync ·{' '}
-            {formatCurrency(pendingTotal)}
+            {(queued.length === 1 ? t.waitingOne : t.waitingMany)
+              .replace('{n}', String(queued.length))
+              .replace('{total}', formatCurrency(pendingTotal))}
           </p>
           <ul className="mt-1 space-y-0.5">
             {queued.slice(0, 5).map((s) => (
               <li key={s.id} className="sp-num text-xs">
-                {new Date(s.createdAt).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}{' '}
-                · {s.items.length} item{s.items.length === 1 ? '' : 's'} ·{' '}
-                {formatCurrency(s.total)}
+                {(s.items.length === 1 ? t.lineOne : t.lineMany)
+                  .replace(
+                    '{time}',
+                    // The chosen language, not the browser's: `[]` printed an
+                    // English phone's clock on a Telugu screen.
+                    new Date(s.createdAt).toLocaleTimeString(clockLocale, clockOptions(clockLocale)),
+                  )
+                  .replace('{n}', String(s.items.length))
+                  .replace('{total}', formatCurrency(s.total))}
                 <span className="ml-1 opacity-70">
                   ({s.items.map((i) => `${i.quantity}x ${i.product_name}`).join(', ')})
                 </span>
@@ -340,7 +355,9 @@ export default function OfflineStatus({
             ))}
           </ul>
           {queued.length > 5 && (
-            <p className="mt-1 text-xs opacity-80">and {queued.length - 5} more.</p>
+            <p className="mt-1 text-xs opacity-80">
+              {t.andMore.replace('{n}', String(queued.length - 5))}
+            </p>
           )}
 
           {/* A failed sale shows WHY, on the sale itself. A cashier asking
@@ -354,7 +371,7 @@ export default function OfflineStatus({
                 .map((s) => (
                   <li key={`err-${s.id}`} className="text-xs font-medium text-danger">
                     {formatCurrency(s.total)} — {s.lastError}
-                    {s.attempts && s.attempts > 1 ? ` (tried ${s.attempts} times)` : ''}
+                    {s.attempts && s.attempts > 1 ? t.tried.replace('{n}', String(s.attempts)) : ''}
                   </li>
                 ))}
             </ul>
@@ -367,14 +384,12 @@ export default function OfflineStatus({
             className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-warning px-3 py-1 text-xs font-semibold disabled:opacity-60"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${syncing ? 'animate-spin' : ''}`} aria-hidden="true" />
-            {syncing ? 'Syncing…' : offline ? 'Waiting for signal' : 'Sync now'}
+            {syncing ? t.syncing : offline ? t.waitingSignal : t.syncNow}
           </button>
           {/* Said plainly, because Phase 3 does not sync and a cashier who
               assumed it did would stop checking. */}
           <p className="mt-1 text-xs opacity-80">
-            {offline
-              ? 'These stay on this device until you are back online.'
-              : 'They are sent one at a time, oldest first.'}
+            {offline ? t.staysOnDevice : t.oldestFirst}
           </p>
         </div>
       )}

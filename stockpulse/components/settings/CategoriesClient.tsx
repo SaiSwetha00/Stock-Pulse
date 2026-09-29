@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/Toast'
 import EmptyState from '@/components/ui/EmptyState'
 import type { CategoryOption } from '@/lib/categories'
 import { validateCategory, type CategoryErrors } from '@/lib/validation/category'
+import { useAppCopy } from '@/lib/i18n/client'
 import {
   createCategory,
   renameCategory,
@@ -47,6 +48,9 @@ export default function CategoriesClient({
 }) {
   const router = useRouter()
   const toast = useToast()
+  const copy = useAppCopy()
+  const t = copy.settings.cat
+  const tcm = copy.common
 
   const [newName, setNewName] = useState('')
   const [newErrors, setNewErrors] = useState<CategoryErrors>({})
@@ -65,7 +69,7 @@ export default function CategoriesClient({
   function handleAdd(e: React.FormEvent) {
     e.preventDefault()
 
-    const found = validateCategory({ name: newName }, categories)
+    const found = validateCategory({ name: newName }, categories, undefined, t)
     setNewErrors(found)
     if (Object.keys(found).length > 0) return
 
@@ -75,10 +79,10 @@ export default function CategoriesClient({
       setBusy(null)
       if (!result.ok) {
         setNewErrors(result.errors ?? {})
-        if (result.message) toast.error('Could not add category', result.message)
+        if (result.message) toast.error(t.addFailed, result.message)
         return
       }
-      toast.success('Category added', newName.trim())
+      toast.success(t.added, newName.trim())
       setNewName('')
       setNewErrors({})
       router.refresh()
@@ -95,7 +99,7 @@ export default function CategoriesClient({
   function handleRename(e: React.FormEvent, slug: string) {
     e.preventDefault()
 
-    const found = validateCategory({ name: editName }, categories, slug)
+    const found = validateCategory({ name: editName }, categories, slug, t)
     setEditErrors(found)
     if (Object.keys(found).length > 0) return
 
@@ -106,14 +110,14 @@ export default function CategoriesClient({
       if (!result.ok) {
         setEditErrors(result.errors ?? {})
         if (result.message) {
-          toast.error('Could not rename category', result.message)
+          toast.error(t.renameFailed, result.message)
           // A zero-row result means this list is out of date either way, so
           // it is refreshed rather than left showing a row that may be gone.
           router.refresh()
         }
         return
       }
-      toast.success('Category renamed', editName.trim())
+      toast.success(t.renamed, editName.trim())
       setEditingSlug(null)
       router.refresh()
     })
@@ -124,7 +128,7 @@ export default function CategoriesClient({
     startTransition(async () => {
       const result = await moveCategory(slug, direction)
       setBusy(null)
-      if (!result.ok) toast.error('Could not reorder categories', result.message)
+      if (!result.ok) toast.error(t.reorderFailed, result.message)
       router.refresh()
     })
   }
@@ -140,11 +144,11 @@ export default function CategoriesClient({
         // them to another category first, then delete this one." A toast
         // rather than an inline banner because the row it belongs to may be
         // the last one on a long list at 390px.
-        toast.error('Category not removed', result.message)
+        toast.error(t.notRemoved, result.message)
         router.refresh()
         return
       }
-      toast.success('Category removed', name)
+      toast.success(t.removed, name)
       router.refresh()
     })
   }
@@ -158,15 +162,12 @@ export default function CategoriesClient({
             className="inline-flex items-center gap-1.5 rounded-sm text-xs font-semibold text-muted transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong"
           >
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            Store Settings
+            {t.back}
           </Link>
         )}
-        <p className="sp-eyebrow mt-3">Configuration</p>
-        <h1 className="sp-title mt-2">Product Categories</h1>
-        <p className="sp-body mt-2">
-          The categories your products are filed under, in the order they appear on the
-          product form.
-        </p>
+        <p className="sp-eyebrow mt-3">{t.eyebrow}</p>
+        <h1 className="sp-title mt-2">{t.title}</h1>
+        <p className="sp-body mt-2">{t.subtitle}</p>
       </div>
 
       {/* Always mounted, opened by an attribute — a conditionally rendered
@@ -179,10 +180,9 @@ export default function CategoriesClient({
               role="alert"
               className="mt-4 rounded-lg bg-warning-bg px-4 py-3 text-sm text-warning"
             >
-              <span className="font-semibold">Showing the five built-in categories.</span>{' '}
-              Your own list is stored in the database, and{' '}
-              <code className="font-mono text-xs">0013_categories.sql</code> has not been run
-              on this project yet. Adding, renaming and reordering stay disabled until it is.
+              <span className="font-semibold">{t.notReadyTitle}</span>{' '}
+              {t.notReadyBefore}{' '}
+              <code className="font-mono text-xs">0013_categories.sql</code> {t.notReadyAfter}
             </div>
           )}
         </div>
@@ -192,14 +192,14 @@ export default function CategoriesClient({
         <div className="sp-rise sp-delay-1 sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm lg:col-span-2">
           <div className="flex items-center gap-2 border-b border-border pb-4">
             <Tags className="h-4.5 w-4.5 text-muted-strong" aria-hidden="true" />
-            <h2 className="sp-heading">Your categories</h2>
+            <h2 className="sp-heading">{t.listHeading}</h2>
           </div>
 
           {categories.length === 0 ? (
             <EmptyState
               icon={Tags}
-              title="No categories yet"
-              description="Add the first one to start filing products under it."
+              title={t.emptyTitle}
+              description={t.emptyBody}
             />
           ) : (
             <ul className="mt-4 space-y-2">
@@ -216,7 +216,7 @@ export default function CategoriesClient({
                   >
                     {editing ? (
                       <form onSubmit={(e) => handleRename(e, c.slug)} className="space-y-3">
-                        <Field label="Category name" error={editErrors.name} required>
+                        <Field label={t.nameLabel} error={editErrors.name} required>
                           {(p) => (
                             <Input
                               {...p}
@@ -241,7 +241,7 @@ export default function CategoriesClient({
                             className="flex-1 min-w-0"
                             onClick={() => setEditingSlug(null)}
                           >
-                            Cancel
+                            {tcm.cancel}
                           </Button>
                           <Button
                             type="submit"
@@ -250,14 +250,16 @@ export default function CategoriesClient({
                             loading={rowBusy}
                             disabled={!ready}
                           >
-                            Save name
+                            {t.saveName}
                           </Button>
                         </div>
                       </form>
                     ) : confirming ? (
                       <div className="space-y-3">
                         <p className="text-sm text-foreground">
-                          Remove <span className="font-semibold">{c.name}</span>?
+                          {t.removePrefix}
+                          <span className="font-semibold">{c.name}</span>
+                          {t.removeSuffix}
                         </p>
                         <div className="flex gap-3">
                           <Button
@@ -266,7 +268,7 @@ export default function CategoriesClient({
                             className="flex-1 min-w-0"
                             onClick={() => setConfirmSlug(null)}
                           >
-                            Cancel
+                            {tcm.cancel}
                           </Button>
                           <Button
                             variant="destructive"
@@ -275,7 +277,7 @@ export default function CategoriesClient({
                             loading={rowBusy}
                             onClick={() => handleDelete(c.slug, c.name)}
                           >
-                            Remove
+                            {t.remove}
                           </Button>
                         </div>
                       </div>
@@ -287,8 +289,11 @@ export default function CategoriesClient({
                           </p>
                           <p className="mt-0.5 text-xs text-muted">
                             {count === 0
-                              ? 'No products'
-                              : `${count} product${count === 1 ? '' : 's'}`}
+                              ? t.noProducts
+                              : (count === 1 ? t.oneProduct : t.manyProducts).replace(
+                                  '{n}',
+                                  String(count),
+                                )}
                           </p>
                         </div>
 
@@ -296,7 +301,7 @@ export default function CategoriesClient({
                           <Button
                             variant="ghost"
                             size="sm"
-                            aria-label={`Move ${c.name} up`}
+                            aria-label={t.moveUp.replace('{name}', c.name)}
                             disabled={i === 0 || !ready || pending}
                             onClick={() => handleMove(c.slug, 'up')}
                           >
@@ -305,7 +310,7 @@ export default function CategoriesClient({
                           <Button
                             variant="ghost"
                             size="sm"
-                            aria-label={`Move ${c.name} down`}
+                            aria-label={t.moveDown.replace('{name}', c.name)}
                             disabled={i === categories.length - 1 || !ready || pending}
                             onClick={() => handleMove(c.slug, 'down')}
                           >
@@ -314,12 +319,12 @@ export default function CategoriesClient({
                           <Button
                             variant="secondary"
                             size="sm"
-                            aria-label={`Rename ${c.name}`}
+                            aria-label={t.renameAria.replace('{name}', c.name)}
                             disabled={!ready || pending}
                             onClick={() => startRename(c)}
                           >
                             <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                            Rename
+                            {t.rename}
                           </Button>
                           {/* Disabled when the category holds products — a
                               courtesy, not the control. The Server Action
@@ -330,8 +335,10 @@ export default function CategoriesClient({
                             size="sm"
                             aria-label={
                               count > 0
-                                ? `Cannot remove ${c.name} — ${count} product${count === 1 ? '' : 's'} still use it`
-                                : `Remove ${c.name}`
+                                ? (count === 1 ? t.cannotRemoveOne : t.cannotRemoveMany)
+                                    .replace('{name}', c.name)
+                                    .replace('{n}', String(count))
+                                : t.removeAria.replace('{name}', c.name)
                             }
                             disabled={count > 0 || !ready || pending || categories.length <= 1}
                             onClick={() => setConfirmSlug(c.slug)}
@@ -351,13 +358,13 @@ export default function CategoriesClient({
         <div className="sp-rise sp-delay-2 sp-e1 h-fit rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border pb-4">
             <Plus className="h-4.5 w-4.5 text-muted-strong" aria-hidden="true" />
-            <h2 className="sp-heading">Add a category</h2>
+            <h2 className="sp-heading">{t.addHeading}</h2>
           </div>
 
           <form onSubmit={handleAdd} className="mt-4 space-y-4">
             <Field
-              label="Category name"
-              hint="Shown on the product form and the inventory filter."
+              label={t.nameLabel}
+              hint={t.nameHint}
               error={newErrors.name}
               required
             >
@@ -368,7 +375,7 @@ export default function CategoriesClient({
                   maxLength={40}
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Frozen Foods"
+                  placeholder={t.namePlaceholder}
                   disabled={!ready}
                 />
               )}
@@ -379,14 +386,11 @@ export default function CategoriesClient({
                 of N equally-weighted row buttons is not a page's primary
                 action. */}
             <Button type="submit" fullWidth loading={busy === 'new' && pending} disabled={!ready}>
-              Add category
+              {t.addButton}
             </Button>
           </form>
 
-          <p className="mt-4 text-xs text-muted">
-            Renaming a category only changes its label. Products stay where they are, and
-            past sales keep the category they were filed under.
-          </p>
+          <p className="mt-4 text-xs text-muted">{t.footnote}</p>
         </div>
       </div>
     </div>

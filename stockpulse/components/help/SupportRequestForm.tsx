@@ -1,16 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { CheckCircle2, Send } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { Field, Input, Select, Textarea } from '@/components/ui/Field'
 import { submitSupportRequest } from '@/app/(dashboard)/help/actions'
 import {
-  SUPPORT_CATEGORIES,
+  supportCategories,
   validateSupportRequest,
   MAX_MESSAGE,
   type SupportRequestErrors,
 } from '@/lib/validation/supportRequest'
+import { useAppCopy } from '@/lib/i18n/client'
 
 /**
  * "Need more help", as a form that actually files something.
@@ -30,6 +31,8 @@ export default function SupportRequestForm({
   defaultName: string
   defaultEmail: string
 }) {
+  const t = useAppCopy().help
+  const categories = useMemo(() => supportCategories(t), [t])
   const [name, setName] = useState(defaultName)
   const [email, setEmail] = useState(defaultEmail)
   const [category, setCategory] = useState('other')
@@ -48,7 +51,7 @@ export default function SupportRequestForm({
 
     // Validate before the round trip so obvious mistakes are corrected without
     // waiting on the network. The action re-runs exactly these rules.
-    const found = validateSupportRequest(values)
+    const found = validateSupportRequest(values, t)
     if (Object.keys(found).length > 0) {
       setErrors(found)
       return
@@ -76,14 +79,14 @@ export default function SupportRequestForm({
       <div className="sp-card-p sp-rise sp-e1 rounded-2xl border border-border bg-surface">
         <div className="flex items-center gap-2 text-accent">
           <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
-          <h3 className="sp-heading">Request sent</h3>
+          <h3 className="sp-heading">{t.sentTitle}</h3>
         </div>
         {/* role="status" so the change is announced — a sighted user sees the
             panel swap, a screen reader user would otherwise get nothing. */}
         <p role="status" className="mt-3 text-sm leading-relaxed text-muted-strong">
-          Thanks — we have it. Your ticket reference is{' '}
-          <span className="font-mono font-bold text-foreground">{reference}</span>. Quote that if
-          you need to follow up. We usually reply within one business day.
+          {t.sentBefore}
+          <span className="font-mono font-bold text-foreground">{reference}</span>
+          {t.sentAfter}
         </p>
         <Button
           variant="secondary"
@@ -94,7 +97,7 @@ export default function SupportRequestForm({
             setCategory('other')
           }}
         >
-          Send another request
+          {t.sendAnother}
         </Button>
       </div>
     )
@@ -107,10 +110,8 @@ export default function SupportRequestForm({
       /* Same 16px -> 10px correction as the sent-confirmation panel above. */
       className="sp-card-p sp-rise sp-e1 rounded-2xl border border-border bg-surface"
     >
-      <h3 className="sp-heading">Need more help?</h3>
-      <p className="mt-1.5 text-sm leading-relaxed text-muted">
-        If none of the articles cover it, tell us what is happening and we will get back to you.
-      </p>
+      <h3 className="sp-heading">{t.formTitle}</h3>
+      <p className="mt-1.5 text-sm leading-relaxed text-muted">{t.formIntro}</p>
 
       {formError && (
         <div
@@ -122,7 +123,7 @@ export default function SupportRequestForm({
       )}
 
       <div className="mt-5 space-y-4">
-        <Field label="Your name" error={errors.name} required>
+        <Field label={t.fName} error={errors.name} required>
           {(props) => (
             <Input
               {...props}
@@ -133,7 +134,7 @@ export default function SupportRequestForm({
           )}
         </Field>
 
-        <Field label="Email" error={errors.email} required hint="Where we should send the reply.">
+        <Field label={t.fEmail} error={errors.email} required hint={t.fEmailHint}>
           {(props) => (
             <Input
               {...props}
@@ -145,10 +146,10 @@ export default function SupportRequestForm({
           )}
         </Field>
 
-        <Field label="What is it about?" error={errors.category} required>
+        <Field label={t.fCategory} error={errors.category} required>
           {(props) => (
             <Select {...props} value={category} onChange={(e) => setCategory(e.target.value)}>
-              {SUPPORT_CATEGORIES.map((c) => (
+              {categories.map((c) => (
                 <option key={c.value} value={c.value}>
                   {c.label}
                 </option>
@@ -158,10 +159,12 @@ export default function SupportRequestForm({
         </Field>
 
         <Field
-          label="Message"
+          label={t.fMessage}
           error={errors.message}
           required
-          hint={`${message.trim().length} of ${MAX_MESSAGE.toLocaleString()} characters`}
+          hint={t.fMessageHint
+            .replace('{n}', String(message.trim().length))
+            .replace('{max}', MAX_MESSAGE.toLocaleString())}
         >
           {(props) => (
             <Textarea
@@ -169,7 +172,7 @@ export default function SupportRequestForm({
               rows={5}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Tell us what you were trying to do, and what happened instead."
+              placeholder={t.fMessagePlaceholder}
             />
           )}
         </Field>
@@ -177,7 +180,7 @@ export default function SupportRequestForm({
 
       <Button type="submit" loading={submitting} fullWidth className="mt-5">
         {!submitting && <Send className="h-4 w-4" aria-hidden="true" />}
-        {submitting ? 'Sending…' : 'Send request'}
+        {submitting ? t.sending : t.send}
       </Button>
     </form>
   )

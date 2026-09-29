@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { resendInvite, revokeInvite } from '@/app/auth/actions'
 import { useToast } from '@/components/ui/Toast'
+import { useAppCopy } from '@/lib/i18n/client'
 
 /**
  * Resend / revoke for one pending invitation.
@@ -22,6 +23,7 @@ export default function InviteActions({
   fullName: string
   email: string
 }) {
+  const ts = useAppCopy().staff
   const router = useRouter()
   const toast = useToast()
   const [confirming, setConfirming] = useState(false)
@@ -31,10 +33,10 @@ export default function InviteActions({
     startTransition(async () => {
       const result = await resendInvite(profileId)
       if (result?.error) {
-        toast.error('Could not resend invitation', result.error)
+        toast.error(ts.resendFailed, result.error)
         return
       }
-      toast.success('Invitation resent', email)
+      toast.success(ts.resent, email)
     })
   }
 
@@ -43,10 +45,10 @@ export default function InviteActions({
     startTransition(async () => {
       const result = await revokeInvite(profileId)
       if (result?.error) {
-        toast.error('Could not revoke invitation', result.error)
+        toast.error(ts.revokeFailed, result.error)
         return
       }
-      toast.success('Invitation revoked', fullName)
+      toast.success(ts.revoked, fullName)
       // The row has to leave the table, and the list is server-rendered.
       router.refresh()
     })
@@ -56,7 +58,7 @@ export default function InviteActions({
     return (
       <span className="inline-flex items-center gap-1.5 text-xs text-muted">
         <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-        Working…
+        {ts.working}
       </span>
     )
   }
@@ -67,20 +69,20 @@ export default function InviteActions({
   if (confirming) {
     return (
       <span className="inline-flex items-center gap-2">
-        <span className="text-xs text-muted-strong">Revoke?</span>
+        <span className="text-xs text-muted-strong">{ts.revokeQ}</span>
         <button
           type="button"
           onClick={handleRevoke}
           className="rounded-md px-1.5 py-1 text-xs font-semibold text-danger hover:underline"
         >
-          Yes
+          {ts.yes}
         </button>
         <button
           type="button"
           onClick={() => setConfirming(false)}
           className="rounded-md px-1.5 py-1 text-xs font-semibold text-muted hover:underline"
         >
-          No
+          {ts.no}
         </button>
       </span>
     )
@@ -93,15 +95,15 @@ export default function InviteActions({
         onClick={handleResend}
         className="rounded-md px-1.5 py-1 text-xs font-semibold text-muted-strong hover:underline"
       >
-        Resend
+        {ts.resend}
       </button>
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        aria-label={`Revoke invitation for ${fullName}`}
+        aria-label={ts.revokeAria.replace('{name}', fullName)}
         className="rounded-md px-1.5 py-1 text-xs font-semibold text-muted hover:text-danger hover:underline"
       >
-        Revoke
+        {ts.revoke}
       </button>
     </span>
   )

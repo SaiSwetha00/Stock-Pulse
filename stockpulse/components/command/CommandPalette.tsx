@@ -5,6 +5,7 @@ import { Package, Search, SearchX } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import EmptyState from '@/components/ui/EmptyState'
+import { useAppCopy } from '@/lib/i18n/client'
 import { searchProducts } from '@/app/(dashboard)/inventory/actions'
 
 export type ProductHit = {
@@ -68,6 +69,7 @@ export default function CommandPalette({
    */
   onOpenProduct: (productId: string) => void
 }) {
+  const tp = useAppCopy().palette
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
@@ -157,7 +159,7 @@ export default function CommandPalette({
       .map(({ p }) => ({
         id: `product:${p.id}`,
         label: p.name,
-        group: 'Products',
+        group: tp.groupProducts,
         icon: Package,
         /**
          * Opens the product's own details dialog.
@@ -174,7 +176,7 @@ export default function CommandPalette({
       }))
 
     return [...products, ...scored]
-  }, [commands, query, productHits, onOpenProduct])
+  }, [commands, query, productHits, onOpenProduct, tp])
 
   // Clamp during render rather than resetting from an effect: filtering can
   // shrink the list below the stored index, and acting on a stale index would
@@ -312,7 +314,7 @@ export default function CommandPalette({
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Command palette"
+        aria-label={tp.ariaLabel}
         className="w-full max-w-lg overflow-hidden rounded-2xl bg-surface shadow-2xl"
       >
         <div className="flex items-center gap-3 border-b border-border px-4">
@@ -325,8 +327,8 @@ export default function CommandPalette({
               setActiveIndex(0)
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Search pages and actions..."
-            aria-label="Search pages and actions"
+            placeholder={tp.searchPlaceholder}
+            aria-label={tp.searchAria}
             role="combobox"
             aria-expanded="true"
             aria-controls={listboxId}
@@ -350,15 +352,15 @@ export default function CommandPalette({
           ref={listRef}
           id={listboxId}
           role="listbox"
-          aria-label="Results"
+          aria-label={tp.results}
           tabIndex={-1}
           className="max-h-80 overflow-y-auto py-2"
         >
           {results.length === 0 ? (
             <EmptyState
               icon={SearchX}
-              title="No results"
-              description={`Nothing matches “${query}”. Try a page name, or an action like “add product”.`}
+              title={tp.noResultsTitle}
+              description={tp.noResultsBody.replace('{query}', query)}
               // Compact: this sits inside a dropdown, not a full page.
               className="px-4 py-8"
             />

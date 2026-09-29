@@ -10,6 +10,8 @@ import ProductThumb from '@/components/ui/ProductThumb'
 import EmptyState from '@/components/ui/EmptyState'
 import Skeleton from '@/components/ui/Skeleton'
 import { formatCurrency } from '@/lib/format'
+import { useAppCopy } from '@/lib/i18n/client'
+import type { InventoryCopy } from '@/lib/i18n/app'
 import { expiryRelative, expiryTone, formatExpiry, nextExpiry } from '@/lib/expiry'
 import { getProductDetails, type ProductDetails } from '@/app/(dashboard)/inventory/actions'
 
@@ -60,10 +62,14 @@ import { getProductDetails, type ProductDetails } from '@/app/(dashboard)/invent
  * they change in both places: the badge in the search result and the badge in
  * the table are the same claim about the same product and must not disagree.
  */
-function statusFor(stock: number, threshold: number): { label: string; tone: BadgeTone } {
-  if (stock <= 0) return { label: 'Out of Stock', tone: 'danger' }
-  if (stock <= threshold) return { label: 'Low Stock', tone: 'warning' }
-  return { label: 'In Stock', tone: 'success' }
+function statusFor(
+  stock: number,
+  threshold: number,
+  t: InventoryCopy,
+): { label: string; tone: BadgeTone } {
+  if (stock <= 0) return { label: t.badgeOut, tone: 'danger' }
+  if (stock <= threshold) return { label: t.badgeLow, tone: 'warning' }
+  return { label: t.badgeIn, tone: 'success' }
 }
 
 /** One label/value pair. `value` is already formatted by the caller. */
@@ -86,6 +92,7 @@ export default function ProductDetailsModal({
   productId: string
   onClose: () => void
 }) {
+  const ti = useAppCopy().inventory
   const router = useRouter()
   const [state, setState] = useState<
     { status: 'loading' } | { status: 'missing' } | { status: 'ready'; data: ProductDetails }
@@ -121,7 +128,7 @@ export default function ProductDetailsModal({
 
   return (
     <Modal
-      title={product ? product.name : 'Product details'}
+      title={product ? product.name : ti.detailsTitle}
       onClose={onClose}
       width="xl"
       footer={
@@ -143,7 +150,7 @@ export default function ProductDetailsModal({
                 router.push(`/inventory?q=${encodeURIComponent(product.name)}`)
               }}
             >
-              Open in Inventory
+              {ti.openInInventory}
             </Button>
           </div>
         ) : undefined
@@ -154,7 +161,7 @@ export default function ProductDetailsModal({
           and the rest all wrap their children exactly this way). Without it
           the content sits flush against the panel edge. */}
       {state.status === 'loading' && (
-        <div className="space-y-4 px-6 py-5" aria-busy="true" aria-label="Loading product details">
+        <div className="space-y-4 px-6 py-5" aria-busy="true" aria-label={ti.detailsLoading}>
           <div className="flex items-center gap-3">
             <Skeleton className="h-16 w-16 rounded-lg" />
             <div className="flex-1 space-y-2">
@@ -179,8 +186,8 @@ export default function ProductDetailsModal({
       {state.status === 'missing' && (
         <EmptyState
           icon={PackageX}
-          title="Product not found"
-          description="It may have been deleted, or it belongs to another store."
+          title={ti.notFoundTitle}
+          description={ti.notFoundBody}
           className="py-10"
         />
       )}
@@ -191,8 +198,10 @@ export default function ProductDetailsModal({
 }
 
 function ProductDetailsBody({ details }: { details: ProductDetails }) {
+  const t = useAppCopy()
+  const ti = t.inventory
   const { product, categoryName, today, warningDays } = details
-  const badge = statusFor(product.stock, product.low_stock_threshold)
+  const badge = statusFor(product.stock, product.low_stock_threshold, ti)
 
   // The lots, as stored. Sorted earliest-expiry-first with undated lots last,
   // which is the order a shopkeeper reads them in — and the same ordering rule
@@ -214,7 +223,7 @@ function ProductDetailsBody({ details }: { details: ProductDetails }) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-base font-semibold text-foreground">{product.name}</p>
           <p className="mt-0.5 truncate text-sm text-muted">
-            {product.brand || 'No brand recorded'}
+            {product.brand || ti.noBrand}
           </p>
           <div className="mt-2">
             <Badge tone={badge.tone} dot>
@@ -226,20 +235,20 @@ function ProductDetailsBody({ details }: { details: ProductDetails }) {
 
       {/* ---- The record ---- */}
       <dl className="grid grid-cols-2 gap-x-4 gap-y-5 border-t border-border pt-5 sm:grid-cols-3">
-        <DetailRow label="SKU" value={product.sku || EMPTY} />
+        <DetailRow label={ti.dSku} value={product.sku || EMPTY} />
         {/* sp-num: the tabular figures the inventory row uses for barcodes. */}
         <DetailRow
-          label="Barcode"
+          label={ti.dBarcode}
           value={product.barcode ? <span className="sp-num">{product.barcode}</span> : EMPTY}
         />
         {/* The shop's own label, resolved server-side from the slug that
             `products.category` actually stores. */}
-        <DetailRow label="Category" value={categoryName} />
-        <DetailRow label="Brand" value={product.brand || EMPTY} />
-        <DetailRow label="Price" value={formatCurrency(product.unit_price)} />
-        <DetailRow label="Unit" value={product.unit} />
+        <DetailRow label={ti.dCategory} value={categoryName} />
+        <DetailRow label={ti.dBrand} value={product.brand || EMPTY} />
+        <DetailRow label={ti.dPrice} value={formatCurrency(product.unit_price)} />
+        <DetailRow label={ti.dUnit} value={product.unit} />
         <DetailRow
-          label="Current stock"
+          label={ti.dCurrentStock}
           value={
             <span
               className={
@@ -252,7 +261,7 @@ function ProductDetailsBody({ details }: { details: ProductDetails }) {
             </span>
           }
         />
-        <DetailRow label="Min stock" value={`${product.low_stock_threshold} ${product.unit}`} />
+        <DetailRow label={ti.dMinStock} value={`${product.low_stock_threshold} ${product.unit}`} />
         {/* DERIVED, and the only derived money in this dialog — there is no
             `inventory_value` column and none was added. It is `stock ×
             unit_price` from the two columns shown directly above and beside
@@ -267,11 +276,11 @@ function ProductDetailsBody({ details }: { details: ProductDetails }) {
             would add a second place where this currency's precision is
             decided, and lib/format.ts exists to keep that in one file. */}
         <DetailRow
-          label="Inventory value"
+          label={ti.dInventoryValue}
           value={formatCurrency(product.stock * product.unit_price)}
         />
         <DetailRow
-          label="Next expiry"
+          label={ti.dNextExpiry}
           value={
             soonest ? (
               <ExpiryText date={soonest} today={today} warningDays={warningDays} />
@@ -279,7 +288,7 @@ function ProductDetailsBody({ details }: { details: ProductDetails }) {
               // Not a warning colour, and not blank: most of what a kirana
               // shop sells never expires, and an unexpiring product must be
               // distinguishable from one whose date nobody has entered.
-              <span className="text-muted">No expiry date</span>
+              <span className="text-muted">{ti.noExpiryDate}</span>
             )
           }
         />
@@ -288,14 +297,15 @@ function ProductDetailsBody({ details }: { details: ProductDetails }) {
       {/* ---- Lots ---- */}
       <div className="border-t border-border pt-5">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
-          Batches / Lots{lots.length > 0 && ` (${lots.length})`}
+          {ti.batchesHeading}
+          {lots.length > 0 && ` (${lots.length})`}
         </h3>
 
         {lots.length === 0 ? (
           // A real state, not an error: a product can exist with no delivery
           // recorded against it, and its stock is then 0 by the 0016 trigger.
           <p className="mt-3 text-sm text-muted">
-            No batches recorded. Stock is tracked per delivery, so this product has none on hand.
+            {ti.noBatches}
           </p>
         ) : (
           <div className="mt-3 overflow-x-auto">
@@ -303,16 +313,16 @@ function ProductDetailsBody({ details }: { details: ProductDetails }) {
               <thead>
                 <tr className="border-b border-border text-left">
                   <th className="pb-2 pr-4 text-xs font-semibold uppercase tracking-wide text-muted">
-                    Quantity
+                    {ti.lotQuantity}
                   </th>
                   <th className="pb-2 pr-4 text-xs font-semibold uppercase tracking-wide text-muted">
-                    Expiry
+                    {ti.lotExpiry}
                   </th>
                   <th className="pb-2 pr-4 text-xs font-semibold uppercase tracking-wide text-muted">
-                    Received
+                    {ti.lotReceived}
                   </th>
                   <th className="pb-2 text-xs font-semibold uppercase tracking-wide text-muted">
-                    Note
+                    {ti.lotNote}
                   </th>
                 </tr>
               </thead>
@@ -342,7 +352,9 @@ function ProductDetailsBody({ details }: { details: ProductDetails }) {
                         EMPTY
                       )}
                     </td>
-                    <td className="py-2.5 pr-4 text-muted-strong">{formatExpiry(lot.received_on)}</td>
+                    <td className="py-2.5 pr-4 text-muted-strong">
+                      {formatExpiry(lot.received_on, t.expiry.months)}
+                    </td>
                     <td className="py-2.5 text-muted">{lot.note || EMPTY}</td>
                   </tr>
                 ))}
@@ -373,6 +385,7 @@ function ExpiryText({
   warningDays: number
   muted?: boolean
 }) {
+  const te = useAppCopy().expiry
   const tone = expiryTone(date, today, warningDays)
   const colour = muted
     ? 'text-muted'
@@ -384,8 +397,8 @@ function ExpiryText({
 
   return (
     <span className={colour}>
-      {formatExpiry(date)}
-      <span className="text-muted"> · {expiryRelative(date, today)}</span>
+      {formatExpiry(date, te.months)}
+      <span className="text-muted"> · {expiryRelative(date, today, te)}</span>
     </span>
   )
 }

@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import LandingNavy from '@/components/landing/LandingNavy'
+import { LOCALE_COOKIE, toLocale } from '@/lib/i18n'
 
 export const metadata: Metadata = {
   title: 'StockPulse — Store operations for independent grocers',
@@ -36,7 +38,16 @@ export default async function Home() {
 
   if (user) redirect('/dashboard')
 
+  // The visitor's chosen language, read on the SERVER so the page is rendered
+  // in it from the first byte — no flash of English, no hydration mismatch.
+  // Free here: this route is already dynamic because of the getUser() call
+  // above, so a cookie read costs nothing. Deliberately not done in
+  // app/layout.tsx, which every route shares and where it would make /login,
+  // /privacy and /terms dynamic too. Anything other than the three supported
+  // codes falls back to English inside toLocale().
+  const locale = toLocale((await cookies()).get(LOCALE_COOKIE)?.value)
+
   // Only ever reached signed out — the redirect above guarantees it, so the
   // landing page (below) doesn't need a signedIn prop at all.
-  return <LandingNavy />
+  return <LandingNavy locale={locale} />
 }

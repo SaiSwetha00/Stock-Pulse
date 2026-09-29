@@ -4,8 +4,10 @@ import { useMemo, useState } from 'react'
 import { Search, Plus, Truck, Pencil, Trash2, X } from 'lucide-react'
 import { RelativeTime, useLocalToday } from '@/components/ui/LocalTime'
 import {
+  // SHIPMENT_STATUS_LABELS is gone: shipmentBadge reads the dictionary now.
+  // SUPPLIER_CATEGORY_LABELS stays for the SORT accessor only, so the row
+  // order does not shift when the reader changes language.
   SUPPLIER_CATEGORY_LABELS,
-  SHIPMENT_STATUS_LABELS,
   type Shipment,
   type Supplier,
   type SupplierActivity,
@@ -21,6 +23,8 @@ import SortableTh from '@/components/ui/SortableTh'
 import Pagination from '@/components/ui/Pagination'
 import ExportCsvButton from '@/components/ui/ExportCsvButton'
 import { useTable, type SortAccessors } from '@/lib/useTable'
+import { useAppCopy } from '@/lib/i18n/client'
+import type { SuppliersCopy } from '@/lib/i18n/app'
 import type { CsvColumn } from '@/lib/csv'
 import SupplierModal from './SupplierModal'
 import DeleteSupplierDialog from './DeleteSupplierDialog'
@@ -29,14 +33,18 @@ import AddShipmentModal from './AddShipmentModal'
 // Must cover every value the suppliers.category check constraint allows —
 // 'beverages' and 'bakery' were missing, so those suppliers could not be
 // filtered to at all.
-const CATEGORY_FILTERS: { value: SupplierCategory | 'all'; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'produce', label: 'Produce' },
-  { value: 'dairy', label: 'Dairy' },
-  { value: 'dry_goods', label: 'Dry Goods' },
-  { value: 'beverages', label: 'Beverages' },
-  { value: 'bakery', label: 'Bakery' },
-]
+// Functions rather than constants: a module-scope literal cannot read a
+// hook. All stay module-private and are memoised at the call site.
+function categoryFilters(t: SuppliersCopy): { value: SupplierCategory | 'all'; label: string }[] {
+  return [
+    { value: 'all', label: t.catAll },
+    { value: 'produce', label: t.categoryLabels.produce },
+    { value: 'dairy', label: t.categoryLabels.dairy },
+    { value: 'dry_goods', label: t.categoryLabels.dry_goods },
+    { value: 'beverages', label: t.categoryLabels.beverages },
+    { value: 'bakery', label: t.categoryLabels.bakery },
+  ]
+}
 
 const STATUS_TONE: Record<Supplier['status'], BadgeTone> = {
   active: 'success',
@@ -49,22 +57,24 @@ const TRACKER_STAGES: ShipmentStatus[] = ['ordered', 'shipped', 'transit', 'dock
 // `today` is null until hydrated — the server's calendar day may not be the
 // viewer's, and "Arriving Today" is exactly the kind of claim that must not
 // differ between the server HTML and the client.
-function shipmentBadge(shipment: Shipment, today: string | null) {
+function shipmentBadge(shipment: Shipment, today: string | null, t: SuppliersCopy) {
   if (today !== null && shipment.eta === today && shipment.status !== 'dock') {
-    return { label: 'Arriving Today', className: 'bg-success-bg text-success' }
+    return { label: t.arrivingToday, className: 'bg-success-bg text-success' }
   }
   if (shipment.status === 'transit') {
-    return { label: 'In Transit', className: 'bg-surface-muted text-muted-strong' }
+    return { label: t.shipmentLabels.transit, className: 'bg-surface-muted text-muted-strong' }
   }
-  return { label: SHIPMENT_STATUS_LABELS[shipment.status], className: 'bg-surface-muted text-muted-strong' }
+  return { label: t.shipmentLabels[shipment.status], className: 'bg-surface-muted text-muted-strong' }
 }
 
-const STATUS_FILTERS: { value: SupplierStatus | 'all'; label: string }[] = [
-  { value: 'all', label: 'Any status' },
-  { value: 'active', label: 'Active' },
-  { value: 'issue', label: 'Issue' },
-  { value: 'inactive', label: 'Inactive' },
-]
+function statusFilters(t: SuppliersCopy): { value: SupplierStatus | 'all'; label: string }[] {
+  return [
+    { value: 'all', label: t.statusAny },
+    { value: 'active', label: t.statusLabels.active },
+    { value: 'issue', label: t.statusLabels.issue },
+    { value: 'inactive', label: t.statusLabels.inactive },
+  ]
+}
 
 type SortKey = 'name' | 'primary_contact' | 'category' | 'active_orders' | 'status'
 
@@ -73,6 +83,8 @@ type SortKey = 'name' | 'primary_contact' | 'category' | 'active_orders' | 'stat
 const SORT_ACCESSORS: SortAccessors<Supplier, SortKey> = {
   name: (s) => s.name,
   primary_contact: (s) => s.primary_contact,
+  // The ENGLISH label, deliberately: sorting on the translated one would
+  // reorder the table when the reader changes language.
   category: (s) => SUPPLIER_CATEGORY_LABELS[s.category],
   active_orders: (s) => s.active_orders ?? 0,
   // Needing-attention first rather than alphabetical.
@@ -83,19 +95,17 @@ const SORT_DEFAULT_DIRS: Partial<Record<SortKey, 'asc' | 'desc'>> = {
   active_orders: 'desc',
 }
 
-const STATUS_LABELS: Record<SupplierStatus, string> = {
-  active: 'Active',
-  inactive: 'Inactive',
-  issue: 'Issue',
+// Nothing parses a suppliers export, so its headers say what the table above
+// them says. The inventory export is the opposite case - see lib/importCsv.
+function csvColumns(t: SuppliersCopy): CsvColumn<Supplier>[] {
+  return [
+    { header: t.colName, value: (s) => s.name },
+    { header: t.colContact, value: (s) => s.primary_contact },
+    { header: t.colCategory, value: (s) => t.categoryLabels[s.category] },
+    { header: t.colActiveOrders, value: (s) => s.active_orders ?? 0 },
+    { header: t.colStatus, value: (s) => t.statusLabels[s.status] },
+  ]
 }
-
-const CSV_COLUMNS: CsvColumn<Supplier>[] = [
-  { header: 'Supplier Name', value: (s) => s.name },
-  { header: 'Primary Contact', value: (s) => s.primary_contact },
-  { header: 'Category', value: (s) => SUPPLIER_CATEGORY_LABELS[s.category] },
-  { header: 'Active Orders', value: (s) => s.active_orders ?? 0 },
-  { header: 'Status', value: (s) => STATUS_LABELS[s.status] },
-]
 
 export default function SuppliersClient({
   suppliers,
@@ -112,6 +122,12 @@ export default function SuppliersClient({
   totalPallets: number
   receivedPallets: number
 }) {
+  const t = useAppCopy()
+  const ts = t.suppliers
+  const tcm = t.common
+  const categoryOptions = useMemo(() => categoryFilters(ts), [ts])
+  const statusOptions = useMemo(() => statusFilters(ts), [ts])
+  const csvCols = useMemo(() => csvColumns(ts), [ts])
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<SupplierCategory | 'all'>('all')
   const [status, setStatus] = useState<SupplierStatus | 'all'>('all')
@@ -129,13 +145,13 @@ export default function SuppliersClient({
         !q ||
         s.name.toLowerCase().includes(q) ||
         (s.primary_contact?.toLowerCase().includes(q) ?? false) ||
-        SUPPLIER_CATEGORY_LABELS[s.category].toLowerCase().includes(q) ||
+        ts.categoryLabels[s.category].toLowerCase().includes(q) ||
         s.status.toLowerCase().includes(q)
       const matchesCategory = category === 'all' || s.category === category
       const matchesStatus = status === 'all' || s.status === status
       return matchesSearch && matchesCategory && matchesStatus
     })
-  }, [suppliers, search, category, status])
+  }, [suppliers, search, category, status, ts])
 
   const table = useTable<Supplier, SortKey>({
     items: filtered,
@@ -157,20 +173,20 @@ export default function SuppliersClient({
     <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="sp-eyebrow">Supply chain</p>
-          <h1 className="sp-title mt-2">Supplier Management</h1>
-          <p className="sp-body mt-2">Manage vendor relationships and track inbound freight.</p>
+          <p className="sp-eyebrow">{ts.eyebrow}</p>
+          <h1 className="sp-title mt-2">{ts.title}</h1>
+          <p className="sp-body mt-2">{ts.subtitle}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ExportCsvButton
-            columns={CSV_COLUMNS}
+            columns={csvCols}
             rows={table.allRows}
             filenameBase="suppliers"
-            itemLabel="suppliers"
+            itemLabel={ts.itemLabel}
           />
           <Button onClick={() => setEditing('new')}>
             <Plus className="h-4 w-4" aria-hidden="true" />
-            Add Supplier
+            {ts.addSupplier}
           </Button>
         </div>
       </div>
@@ -188,8 +204,8 @@ export default function SuppliersClient({
                     table.setPage(1)
                   }}
                   type="search"
-                  aria-label="Search suppliers"
-                  placeholder="Search name, contact, category, or status..."
+                  aria-label={ts.searchAria}
+                  placeholder={ts.searchPlaceholder}
                   className="control-h w-full rounded-lg border border-border bg-surface-muted pl-10 pr-12 text-sm placeholder:text-muted transition-[border-color,background-color] duration-150 focus:border-border-strong focus:bg-surface focus:outline-none"
                 />
                 {search && (
@@ -199,7 +215,7 @@ export default function SuppliersClient({
                       setSearch('')
                       table.setPage(1)
                     }}
-                    aria-label="Clear search"
+                    aria-label={tcm.clearSearch}
                     className="tap-target absolute right-1 top-1/2 -translate-y-1/2 rounded-lg text-muted transition hover:text-foreground"
                   >
                     <X className="h-4 w-4" aria-hidden="true" />
@@ -209,7 +225,7 @@ export default function SuppliersClient({
 
               <div className="flex items-center gap-2">
                 <label htmlFor="supplier-status" className="sr-only">
-                  Filter by status
+                  {ts.filterByStatus}
                 </label>
                 <select
                   id="supplier-status"
@@ -220,7 +236,7 @@ export default function SuppliersClient({
                   }}
                   className="control-h rounded-lg border border-border bg-surface-muted px-3 text-sm text-muted-strong transition-[border-color,background-color] duration-150 focus:border-border-strong focus:bg-surface focus:outline-none"
                 >
-                  {STATUS_FILTERS.map((f) => (
+                  {statusOptions.map((f) => (
                     <option key={f.value} value={f.value}>
                       {f.label}
                     </option>
@@ -232,12 +248,12 @@ export default function SuppliersClient({
                     onClick={clearFilters}
                     className="flex control-h shrink-0 items-center whitespace-nowrap rounded-lg px-3 text-sm font-semibold text-muted-strong underline-offset-4 transition hover:bg-surface-muted hover:underline"
                   >
-                    Clear all
+                    {tcm.clearAll}
                   </button>
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                {CATEGORY_FILTERS.map((f) => (
+                {categoryOptions.map((f) => (
                   <button
                     key={f.value}
                     onClick={() => {
@@ -264,13 +280,13 @@ export default function SuppliersClient({
               <table className="sp-table block w-full text-left text-sm lg:table">
                 <thead className="hidden lg:table-header-group">
                   <tr className="border-b border-border bg-surface-muted text-xs font-semibold uppercase tracking-wide text-muted">
-                    <SortableTh label="Supplier Name" sortKey="name" sort={table.sort} onSort={table.toggleSort} className="px-6" />
-                    <SortableTh label="Primary Contact" sortKey="primary_contact" sort={table.sort} onSort={table.toggleSort} className="px-4" />
-                    <SortableTh label="Category" sortKey="category" sort={table.sort} onSort={table.toggleSort} className="px-4" />
-                    <SortableTh label="Active Orders" sortKey="active_orders" sort={table.sort} onSort={table.toggleSort} align="right" className="px-4" />
-                    <SortableTh label="Status" sortKey="status" sort={table.sort} onSort={table.toggleSort} className="px-4" />
+                    <SortableTh label={ts.colName} sortKey="name" sort={table.sort} onSort={table.toggleSort} className="px-6" />
+                    <SortableTh label={ts.colContact} sortKey="primary_contact" sort={table.sort} onSort={table.toggleSort} className="px-4" />
+                    <SortableTh label={ts.colCategory} sortKey="category" sort={table.sort} onSort={table.toggleSort} className="px-4" />
+                    <SortableTh label={ts.colActiveOrders} sortKey="active_orders" sort={table.sort} onSort={table.toggleSort} align="right" className="px-4" />
+                    <SortableTh label={ts.colStatus} sortKey="status" sort={table.sort} onSort={table.toggleSort} className="px-4" />
                     <th scope="col" className="px-4 py-3.5 text-right">
-                      Actions
+                      {ts.colActions}
                     </th>
                   </tr>
                 </thead>
@@ -281,23 +297,23 @@ export default function SuppliersClient({
                         {suppliers.length === 0 ? (
                           <EmptyState
                             illustration={<LineArtTruck className="h-full w-full" />}
-                            title="No suppliers yet"
-                            description="Add a supplier to track incoming shipments and delivery performance."
+                            title={ts.emptyTitle}
+                            description={ts.emptyBody}
                             action={
                               <Button onClick={() => setEditing('new')}>
                                 <Plus className="h-4 w-4" aria-hidden="true" />
-                                Add Supplier
+                                {ts.addSupplier}
                               </Button>
                             }
                           />
                         ) : (
                           <EmptyState
                             icon={Search}
-                            title="No suppliers match your filters"
-                            description="Try a different search term or category."
+                            title={ts.noMatchTitle}
+                            description={ts.noMatchBody}
                             action={
                               <Button variant="secondary" onClick={clearFilters}>
-                                Clear filters
+                                {tcm.clearFilters}
                               </Button>
                             }
                           />
@@ -322,30 +338,30 @@ export default function SuppliersClient({
                           carries its own label. */}
                       <td className="mt-3 flex items-center justify-between gap-3 text-muted-strong lg:mt-0 lg:table-cell lg:px-4">
                         <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                          Contact
+                          {ts.colContact}
                         </span>
                         {s.primary_contact || '—'}
                       </td>
                       <td className="mt-2 flex items-center justify-between gap-3 lg:mt-0 lg:table-cell lg:px-4">
                         <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                          Category
+                          {ts.colCategory}
                         </span>
                         <span className="rounded bg-surface-muted px-2.5 py-1 text-xs font-semibold uppercase text-muted-strong">
-                          {SUPPLIER_CATEGORY_LABELS[s.category]}
+                          {ts.categoryLabels[s.category]}
                         </span>
                       </td>
                       <td className="sp-num mt-2 flex items-center justify-between gap-3 text-muted-strong lg:mt-0 lg:table-cell lg:px-4 lg:text-right">
                         <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                          Active Orders
+                          {ts.colActiveOrders}
                         </span>
                         {s.active_orders ?? 0}
                       </td>
                       <td className="mt-2 flex items-center justify-between gap-3 lg:mt-0 lg:table-cell lg:px-4">
                         <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                          Status
+                          {ts.colStatus}
                         </span>
                         <Badge tone={STATUS_TONE[s.status]} dot>
-                          {s.status.charAt(0).toUpperCase() + s.status.slice(1)}
+                          {ts.statusLabels[s.status]}
                         </Badge>
                       </td>
                       <td className="sp-row-actions mt-2 block border-t border-border pt-2 lg:mt-0 lg:table-cell lg:border-0 lg:px-4 lg:pt-0">
@@ -353,7 +369,7 @@ export default function SuppliersClient({
                           <button
                             type="button"
                             onClick={() => setEditing(s)}
-                            aria-label={`Edit ${s.name}`}
+                            aria-label={ts.editRow.replace('{name}', s.name)}
                             className="tap-target rounded-lg text-muted transition hover:bg-surface-muted hover:text-foreground"
                           >
                             <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -361,7 +377,7 @@ export default function SuppliersClient({
                           <button
                             type="button"
                             onClick={() => setDeleting(s)}
-                            aria-label={`Delete ${s.name}`}
+                            aria-label={ts.deleteRow.replace('{name}', s.name)}
                             className="tap-target rounded-lg text-muted transition hover:bg-danger-bg hover:text-danger"
                           >
                             <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -386,7 +402,7 @@ export default function SuppliersClient({
               rangeStart={table.rangeStart}
               rangeEnd={table.rangeEnd}
               total={table.total}
-              itemLabel="suppliers"
+              itemLabel={ts.itemLabel}
               className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-6 py-4"
             />
           </div>
@@ -394,16 +410,16 @@ export default function SuppliersClient({
 
         <div className="space-y-6">
           <div className="rounded-2xl bg-foreground p-6 shadow-sm">
-            <p className="text-sm font-semibold text-surface">Today&apos;s Inbound</p>
+            <p className="text-sm font-semibold text-surface">{ts.todaysInbound}</p>
             <p className="mt-2 text-4xl font-bold text-surface">{totalPallets}</p>
-            <p className="text-sm text-muted">Pallets Expected</p>
+            <p className="text-sm text-muted">{ts.palletsExpected}</p>
             <div className="mt-4 flex gap-6 border-t border-border pt-4 text-sm">
               <div>
-                <p className="text-muted">Received</p>
+                <p className="text-muted">{ts.received}</p>
                 <p className="font-semibold text-surface">{receivedPallets}</p>
               </div>
               <div>
-                <p className="text-muted">Pending</p>
+                <p className="text-muted">{ts.pending}</p>
                 <p className="font-semibold text-surface">{totalPallets - receivedPallets}</p>
               </div>
             </div>
@@ -411,13 +427,13 @@ export default function SuppliersClient({
 
           <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="sp-heading">Incoming Shipments</h2>
+              <h2 className="sp-heading">{ts.incomingShipments}</h2>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setShipmentOpen(true)}
                   className="tap-target rounded-lg text-muted hover:bg-surface-muted hover:text-foreground"
-                  aria-label="Add shipment"
+                  aria-label={ts.addShipment}
                 >
                   <Plus className="h-4 w-4" aria-hidden="true" />
                 </button>
@@ -429,13 +445,13 @@ export default function SuppliersClient({
               {shipments.length === 0 && (
                 <EmptyState
                   icon={Truck}
-                  title="No incoming shipments"
-                  description="Log a shipment to track it from dock to shelf."
+                  title={ts.noShipmentsTitle}
+                  description={ts.noShipmentsBody}
                   className="py-10"
                 />
               )}
               {shipments.map((s) => {
-                const badge = shipmentBadge(s, today)
+                const badge = shipmentBadge(s, today, ts)
                 const stageIndex = TRACKER_STAGES.indexOf(s.status)
                 return (
                   <div key={s.id} className="border-b border-border pb-5 last:border-0 last:pb-0">
@@ -462,10 +478,10 @@ export default function SuppliersClient({
                       ))}
                     </div>
                     <div className="mt-1 flex justify-between text-[10px] font-semibold uppercase tracking-wide text-muted">
-                      <span>Ordered</span>
-                      <span>Shipped</span>
-                      <span>Transit</span>
-                      <span>Dock</span>
+                      <span>{ts.trackOrdered}</span>
+                      <span>{ts.trackShipped}</span>
+                      <span>{ts.trackTransit}</span>
+                      <span>{ts.trackDock}</span>
                     </div>
                   </div>
                 )
@@ -475,10 +491,10 @@ export default function SuppliersClient({
           </div>
 
           <div className="sp-rise sp-e1 sp-delay-1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
-            <h2 className="sp-heading">Recent Supplier Activity</h2>
+            <h2 className="sp-heading">{ts.recentActivity}</h2>
             <div className="mt-4 space-y-4">
               {activity.length === 0 && (
-                <p className="text-sm text-muted">No recent activity.</p>
+                <p className="text-sm text-muted">{ts.noActivity}</p>
               )}
               {activity.map((a) => (
                 <div key={a.id} className="flex items-start gap-3">

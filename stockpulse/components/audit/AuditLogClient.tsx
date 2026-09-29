@@ -12,8 +12,8 @@ import { LocalDateTime } from '@/components/ui/LocalTime'
 import { useTable, type SortAccessors } from '@/lib/useTable'
 import type { CsvColumn } from '@/lib/csv'
 import {
-  ACTION_LABELS,
-  ENTITY_LABELS,
+  actionLabels,
+  entityLabels,
   diffFields,
   entityName,
   formatValue,
@@ -21,6 +21,8 @@ import {
   type AuditAction,
   type AuditLog,
 } from '@/lib/audit'
+import { useAppCopy } from '@/lib/i18n/client'
+import type { AuditCopy } from '@/lib/i18n/app'
 
 const ACTION_TONE: Record<AuditAction, BadgeTone> = {
   insert: 'success',
@@ -30,26 +32,50 @@ const ACTION_TONE: Record<AuditAction, BadgeTone> = {
 
 type SortKey = 'created_at' | 'actor_email' | 'entity' | 'action' | 'name'
 
-const SORT_ACCESSORS: SortAccessors<AuditLog, SortKey> = {
-  created_at: (l) => new Date(l.created_at).getTime(),
-  actor_email: (l) => l.actor_email,
-  entity: (l) => ENTITY_LABELS[l.entity] ?? l.entity,
-  action: (l) => l.action,
-  name: (l) => entityName(l),
+// Functions rather than constants: a module-scope literal cannot read a hook.
+// Both are memoised at the call site so the sort keeps a stable dependency.
+function sortAccessors(entities: Record<string, string>): SortAccessors<AuditLog, SortKey> {
+  return {
+    created_at: (l) => new Date(l.created_at).getTime(),
+    actor_email: (l) => l.actor_email,
+    entity: (l) => entities[l.entity] ?? l.entity,
+    action: (l) => l.action,
+    name: (l) => entityName(l),
+  }
 }
 
 const SORT_DEFAULT_DIRS: Partial<Record<SortKey, 'asc' | 'desc'>> = { created_at: 'desc' }
 
-const CSV_COLUMNS: CsvColumn<AuditLog>[] = [
-  { header: 'When', value: (l) => new Date(l.created_at).toLocaleString() },
-  { header: 'Who', value: (l) => l.actor_email ?? 'System' },
-  { header: 'Action', value: (l) => ACTION_LABELS[l.action] },
-  { header: 'Type', value: (l) => ENTITY_LABELS[l.entity] ?? l.entity },
-  { header: 'Record', value: (l) => entityName(l) },
-  { header: 'Changed', value: (l) => summarizeChange(l) },
-]
+/**
+ * The export's headers ARE translated, unlike inventory's: nothing parses this
+ * file back, so its columns can say exactly what the table above them says.
+ */
+function csvColumns(
+  t: AuditCopy,
+  entities: Record<string, string>,
+  actions: Record<AuditAction, string>,
+): CsvColumn<AuditLog>[] {
+  return [
+    { header: t.colWhen, value: (l) => new Date(l.created_at).toLocaleString() },
+    { header: t.colWho, value: (l) => l.actor_email ?? t.system },
+    { header: t.colAction, value: (l) => actions[l.action] },
+    { header: t.colType, value: (l) => entities[l.entity] ?? l.entity },
+    { header: t.colRecord, value: (l) => entityName(l) },
+    { header: t.colChanged, value: (l) => summarizeChange(l, t) },
+  ]
+}
 
-function Row({ log }: { log: AuditLog }) {
+function Row({
+  log,
+  t,
+  entities,
+  actions,
+}: {
+  log: AuditLog
+  t: AuditCopy
+  entities: Record<string, string>
+  actions: Record<AuditAction, string>
+}) {
   const [open, setOpen] = useState(false)
   const changes = diffFields(log.before, log.after)
   const canExpand = log.action === 'update' && changes.length > 0
@@ -63,27 +89,27 @@ function Row({ log }: { log: AuditLog }) {
         <td className="flex items-center justify-between gap-3 whitespace-nowrap text-xs text-muted lg:table-cell lg:px-4 lg:text-sm lg:text-muted-strong">
           <LocalDateTime iso={log.created_at} />
           <span className="lg:hidden">
-            <Badge tone={ACTION_TONE[log.action]}>{ACTION_LABELS[log.action]}</Badge>
+            <Badge tone={ACTION_TONE[log.action]}>{actions[log.action]}</Badge>
           </span>
         </td>
         <td className="mt-2 flex items-center justify-between gap-3 text-muted-strong lg:mt-0 lg:table-cell lg:px-4">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-            Who
+            {t.colWho}
           </span>
-          {log.actor_email ?? 'System'}
+          {log.actor_email ?? t.system}
         </td>
         <td className="hidden lg:table-cell lg:px-4">
-          <Badge tone={ACTION_TONE[log.action]}>{ACTION_LABELS[log.action]}</Badge>
+          <Badge tone={ACTION_TONE[log.action]}>{actions[log.action]}</Badge>
         </td>
         <td className="mt-2 flex items-center justify-between gap-3 text-muted-strong lg:mt-0 lg:table-cell lg:px-4">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-            Type
+            {t.colType}
           </span>
-          {ENTITY_LABELS[log.entity] ?? log.entity}
+          {entities[log.entity] ?? log.entity}
         </td>
         <td className="mt-2 flex items-center justify-between gap-3 font-medium text-foreground lg:mt-0 lg:table-cell lg:px-4">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-            Record
+            {t.colRecord}
           </span>
           {entityName(log)}
         </td>
@@ -95,14 +121,14 @@ function Row({ log }: { log: AuditLog }) {
               aria-expanded={open}
               className="flex control-h items-center gap-1.5 text-left text-sm text-muted-strong hover:text-foreground"
             >
-              {summarizeChange(log)}
+              {summarizeChange(log, t)}
               <ChevronDown
                 className={`h-4 w-4 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
                 aria-hidden="true"
               />
             </button>
           ) : (
-            <span className="text-sm text-muted">{summarizeChange(log)}</span>
+            <span className="text-sm text-muted">{summarizeChange(log, t)}</span>
           )}
         </td>
       </tr>
@@ -117,13 +143,13 @@ function Row({ log }: { log: AuditLog }) {
                   </dt>
                   <dd className="mt-1 flex flex-wrap items-center gap-2 text-sm">
                     <span className="rounded bg-danger-bg px-2 py-0.5 text-danger line-through">
-                      {formatValue(c.from)}
+                      {formatValue(c.from, t)}
                     </span>
                     <span aria-hidden="true" className="text-muted">
                       &rarr;
                     </span>
                     <span className="rounded bg-accent-soft px-2 py-0.5 text-accent-ink">
-                      {formatValue(c.to)}
+                      {formatValue(c.to, t)}
                     </span>
                   </dd>
                 </div>
@@ -143,6 +169,13 @@ function Row({ log }: { log: AuditLog }) {
  * disagree.
  */
 export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
+  const copy = useAppCopy()
+  const t = copy.audit
+  const tcm = copy.common
+  const entities = useMemo(() => entityLabels(t), [t])
+  const actions = useMemo(() => actionLabels(t), [t])
+  const accessors = useMemo(() => sortAccessors(entities), [entities])
+  const csvCols = useMemo(() => csvColumns(t, entities, actions), [t, entities, actions])
   const [search, setSearch] = useState('')
   const [entity, setEntity] = useState('all')
   const [action, setAction] = useState('all')
@@ -172,9 +205,9 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
       if (q) {
         const hay = [
           l.actor_email ?? '',
-          ENTITY_LABELS[l.entity] ?? l.entity,
+          entities[l.entity] ?? l.entity,
           entityName(l),
-          summarizeChange(l),
+          summarizeChange(l, t),
         ]
           .join(' ')
           .toLowerCase()
@@ -182,11 +215,11 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
       }
       return true
     })
-  }, [logs, search, entity, action, actor, from, to])
+  }, [logs, search, entity, action, actor, from, to, entities, t])
 
   const table = useTable<AuditLog, SortKey>({
     items: filtered,
-    accessors: SORT_ACCESSORS,
+    accessors,
     initialSort: { key: 'created_at', dir: 'desc' },
     defaultDirs: SORT_DEFAULT_DIRS,
   })
@@ -216,18 +249,15 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
     <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="sp-eyebrow">Accountability</p>
-          <h1 className="sp-title mt-2">Activity &amp; Audit Log</h1>
-          <p className="sp-body mt-2">
-            Every change to products, customers, suppliers and sales. Append-only — entries cannot
-            be edited or removed, including by you.
-          </p>
+          <p className="sp-eyebrow">{t.eyebrow}</p>
+          <h1 className="sp-title mt-2">{t.title}</h1>
+          <p className="sp-body mt-2">{t.subtitle}</p>
         </div>
         <ExportCsvButton
-          columns={CSV_COLUMNS}
+          columns={csvCols}
           rows={table.allRows}
           filenameBase="activity-log"
-          itemLabel="entries"
+          itemLabel={t.items}
         />
       </div>
 
@@ -240,15 +270,15 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
               table.setPage(1)
             }}
             type="search"
-            aria-label="Search activity"
-            placeholder="Search person, record, or field..."
+            aria-label={t.searchAria}
+            placeholder={t.searchPlaceholder}
             className="control-h w-full rounded-lg border border-border bg-surface-muted px-3 pr-11 text-sm placeholder:text-muted transition-[border-color,background-color] duration-150 focus:border-border-strong focus:bg-surface focus:outline-none"
           />
           {search && (
             <button
               type="button"
               onClick={() => setSearch('')}
-              aria-label="Clear search"
+              aria-label={tcm.clearSearch}
               className="tap-target absolute right-0 top-1/2 -translate-y-1/2 rounded-lg text-muted hover:text-foreground"
             >
               <X className="h-4 w-4" aria-hidden="true" />
@@ -257,7 +287,7 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
         </div>
 
         <label htmlFor="audit-entity" className="sr-only">
-          Filter by record type
+          {t.filterType}
         </label>
         <select
           id="audit-entity"
@@ -268,8 +298,8 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
           }}
           className={selectClass}
         >
-          <option value="all">All types</option>
-          {Object.entries(ENTITY_LABELS).map(([k, v]) => (
+          <option value="all">{t.allTypes}</option>
+          {Object.entries(entities).map(([k, v]) => (
             <option key={k} value={k}>
               {v}
             </option>
@@ -277,7 +307,7 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
         </select>
 
         <label htmlFor="audit-action" className="sr-only">
-          Filter by action
+          {t.filterAction}
         </label>
         <select
           id="audit-action"
@@ -288,16 +318,16 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
           }}
           className={selectClass}
         >
-          <option value="all">All actions</option>
-          <option value="insert">Created</option>
-          <option value="update">Updated</option>
-          <option value="delete">Deleted</option>
+          <option value="all">{t.allActions}</option>
+          <option value="insert">{t.actionInsert}</option>
+          <option value="update">{t.actionUpdate}</option>
+          <option value="delete">{t.actionDelete}</option>
         </select>
 
         {actors.length > 1 && (
           <>
             <label htmlFor="audit-actor" className="sr-only">
-              Filter by person
+              {t.filterPerson}
             </label>
             <select
               id="audit-actor"
@@ -308,7 +338,7 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
               }}
               className={selectClass}
             >
-              <option value="all">Anyone</option>
+              <option value="all">{t.anyone}</option>
               {actors.map((a) => (
                 <option key={a} value={a}>
                   {a}
@@ -319,7 +349,7 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
         )}
 
         <label htmlFor="audit-from" className="text-sm text-muted">
-          From
+          {t.from}
         </label>
         <input
           id="audit-from"
@@ -333,7 +363,7 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
           className={selectClass}
         />
         <label htmlFor="audit-to" className="text-sm text-muted">
-          To
+          {t.to}
         </label>
         <input
           id="audit-to"
@@ -353,7 +383,7 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
             onClick={clearFilters}
             className="flex control-h items-center rounded-lg px-3 text-sm font-semibold text-muted-strong underline-offset-4 transition hover:bg-surface-muted hover:underline"
           >
-            Clear all
+            {tcm.clearAll}
           </button>
         )}
       </div>
@@ -365,13 +395,13 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
           <table className="sp-table block w-full text-left text-sm lg:table">
             <thead className="hidden lg:table-header-group">
               <tr className="border-b border-border bg-surface-muted text-xs font-semibold uppercase tracking-wide text-muted">
-                <SortableTh label="When" sortKey="created_at" sort={table.sort} onSort={table.toggleSort} className="px-4" />
-                <SortableTh label="Who" sortKey="actor_email" sort={table.sort} onSort={table.toggleSort} className="px-4" />
-                <SortableTh label="Action" sortKey="action" sort={table.sort} onSort={table.toggleSort} className="px-4" />
-                <SortableTh label="Type" sortKey="entity" sort={table.sort} onSort={table.toggleSort} className="px-4" />
-                <SortableTh label="Record" sortKey="name" sort={table.sort} onSort={table.toggleSort} className="px-4" />
+                <SortableTh label={t.colWhen} sortKey="created_at" sort={table.sort} onSort={table.toggleSort} className="px-4" />
+                <SortableTh label={t.colWho} sortKey="actor_email" sort={table.sort} onSort={table.toggleSort} className="px-4" />
+                <SortableTh label={t.colAction} sortKey="action" sort={table.sort} onSort={table.toggleSort} className="px-4" />
+                <SortableTh label={t.colType} sortKey="entity" sort={table.sort} onSort={table.toggleSort} className="px-4" />
+                <SortableTh label={t.colRecord} sortKey="name" sort={table.sort} onSort={table.toggleSort} className="px-4" />
                 <th scope="col" className="px-4 py-3.5">
-                  Changed
+                  {t.colChanged}
                 </th>
               </tr>
             </thead>
@@ -385,17 +415,17 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
                     {logs.length === 0 ? (
                       <EmptyState
                         icon={History}
-                        title="No activity recorded yet"
-                        description="Changes to products, customers, suppliers and sales will appear here as they happen."
+                        title={t.emptyTitle}
+                        description={t.emptyBody}
                       />
                     ) : (
                       <EmptyState
                         icon={History}
-                        title="No entries match your filters"
-                        description="Try widening the date range or clearing a filter."
+                        title={t.noMatchTitle}
+                        description={t.noMatchBody}
                         action={
                           <Button variant="secondary" onClick={clearFilters}>
-                            Clear filters
+                            {tcm.clearFilters}
                           </Button>
                         }
                       />
@@ -404,7 +434,7 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
                 </tr>
               )}
               {table.rows.map((log) => (
-                <Row key={log.id} log={log} />
+                <Row key={log.id} log={log} t={t} entities={entities} actions={actions} />
               ))}
             </tbody>
           </table>
@@ -419,7 +449,7 @@ export default function AuditLogClient({ logs }: { logs: AuditLog[] }) {
           rangeStart={table.rangeStart}
           rangeEnd={table.rangeEnd}
           total={table.total}
-          itemLabel="entries"
+          itemLabel={t.items}
           className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-6 py-4"
         />
       </div>

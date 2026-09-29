@@ -1,4 +1,30 @@
 import { expiryRelative, expiryTone, formatExpiry } from '@/lib/expiry'
+import type { ExpiryCopy } from '@/lib/i18n/app'
+
+/**
+ * English, and the fallback when no dictionary is handed in.
+ *
+ * The copy arrives as a PROP rather than from useAppCopy(), because this is
+ * one of the few components rendered on both sides of the sign-in: the landing
+ * page's product panels are Server Components with no AppCopyProvider above
+ * them. A prop keeps this a Server Component, and keeps the state word and the
+ * relative phrase travelling together so a line cannot come out half
+ * translated.
+ */
+const EN: ExpiryCopy = {
+  months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  expired: 'Expired',
+  expiringSoon: 'Expiring soon',
+  expires: 'Expires',
+  noDate: 'No expiry date',
+  moreLot: '+{n} more lot',
+  moreLots: '+{n} more lots',
+  relToday: 'today',
+  relTomorrow: 'tomorrow',
+  relYesterday: 'yesterday',
+  relInDays: 'in {n} days',
+  relDaysAgo: '{n} days ago',
+}
 
 /**
  * One line saying when a product's nearest lot goes off, and how worried to be.
@@ -29,12 +55,14 @@ export default function ExpiryTag({
   lots = 1,
   /** `line` for stacked contexts (a cart row); `inline` to sit after text. */
   variant = 'line',
+  copy = EN,
 }: {
   date: string | null
   today: string
   warningDays: number
   lots?: number
   variant?: 'line' | 'inline'
+  copy?: ExpiryCopy
 }) {
   // No date is a real answer, not a missing one — most of what a kirana shop
   // sells never expires. It is said in muted grey and never in a warning
@@ -44,7 +72,7 @@ export default function ExpiryTag({
   if (!date) {
     return (
       <span className={variant === 'line' ? 'block text-xs text-muted' : 'text-xs text-muted'}>
-        No expiry date
+        {copy.noDate}
       </span>
     )
   }
@@ -59,8 +87,8 @@ export default function ExpiryTag({
       // Read out as one phrase rather than as the three fragments a screen
       // reader would otherwise announce with the dot separators between them.
       aria-label={`${
-        tone === 'expired' ? 'Expired' : tone === 'soon' ? 'Expiring soon' : 'Expires'
-      } ${formatExpiry(date)}, ${expiryRelative(date, today)}`}
+        tone === 'expired' ? copy.expired : tone === 'soon' ? copy.expiringSoon : copy.expires
+      } ${formatExpiry(date, copy.months)}, ${expiryRelative(date, today, copy)}`}
     >
       {/* The dot is the same size in all three states, so a row does not
           reflow when a lot crosses from soon to expired overnight. */}
@@ -71,13 +99,13 @@ export default function ExpiryTag({
         }`}
       />
       <span className={tone === 'ok' ? '' : 'font-semibold'}>
-        {tone === 'expired' ? 'Expired' : 'Expires'} {formatExpiry(date)}
+        {tone === 'expired' ? copy.expired : copy.expires} {formatExpiry(date, copy.months)}
       </span>
-      <span className="text-muted"> · {expiryRelative(date, today)}</span>
+      <span className="text-muted"> · {expiryRelative(date, today, copy)}</span>
       {lots > 1 && (
         <span className="text-muted">
           {' '}
-          · +{lots - 1} more lot{lots === 2 ? '' : 's'}
+          · {(lots === 2 ? copy.moreLot : copy.moreLots).replace('{n}', String(lots - 1))}
         </span>
       )}
     </span>

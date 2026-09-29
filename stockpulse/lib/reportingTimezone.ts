@@ -48,7 +48,24 @@ const DATE_FORMAT = new Intl.DateTimeFormat('en-CA', {
  * reporting boundary already does — so an unset value is a pre-existing
  * problem this makes visible rather than a new one it creates.
  */
-export function storeGreeting(at: Date = new Date()): string {
+/** The three greetings, so the caller can hand over translated ones. */
+export type GreetingCopy = {
+  greetMorning: string
+  greetAfternoon: string
+  greetEvening: string
+}
+
+/** English, and what a caller that passes nothing still gets. */
+const EN_GREETING: GreetingCopy = {
+  greetMorning: 'Good morning',
+  greetAfternoon: 'Good afternoon',
+  greetEvening: 'Good evening',
+}
+
+export function storeGreeting(
+  copy: GreetingCopy = EN_GREETING,
+  at: Date = new Date(),
+): string {
   const hour = Number(
     new Intl.DateTimeFormat('en-GB', {
       timeZone: REPORTING_TIMEZONE,
@@ -56,9 +73,9 @@ export function storeGreeting(at: Date = new Date()): string {
       hour12: false,
     }).format(at),
   )
-  if (hour < 12) return 'Good morning'
-  if (hour < 18) return 'Good afternoon'
-  return 'Good evening'
+  if (hour < 12) return copy.greetMorning
+  if (hour < 18) return copy.greetAfternoon
+  return copy.greetEvening
 }
 
 export function reportingDate(at: Date = new Date()): string {

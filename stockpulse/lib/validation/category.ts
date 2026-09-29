@@ -31,6 +31,22 @@ export type CategoryErrors = Partial<Record<keyof CategoryInput, string>>
  *  a description; anything longer breaks the inventory filter row. */
 export const MAX_CATEGORY_NAME = 40
 
+/** The four messages this can produce. "{n}" is MAX_CATEGORY_NAME. */
+export type CategoryValidationCopy = {
+  vNameRequired: string
+  vNameTooLong: string
+  vNameNoAlnum: string
+  vNameDuplicate: string
+}
+
+/** English, and what a caller that passes nothing still gets. */
+const EN_CATEGORY: CategoryValidationCopy = {
+  vNameRequired: 'Give the category a name.',
+  vNameTooLong: 'Keep the name to {n} characters or fewer.',
+  vNameNoAlnum: 'Use at least one letter or number.',
+  vNameDuplicate: 'You already have a category with that name.',
+}
+
 export function validateCategory(
   values: CategoryInput,
   /**
@@ -40,18 +56,19 @@ export function validateCategory(
    */
   existing: CategoryOption[] = [],
   excludeSlug?: string,
+  copy: CategoryValidationCopy = EN_CATEGORY,
 ): CategoryErrors {
   const errors: CategoryErrors = {}
 
   const name = values.name.trim()
 
   if (!name) {
-    errors.name = 'Give the category a name.'
+    errors.name = copy.vNameRequired
     return errors
   }
 
   if (name.length > MAX_CATEGORY_NAME) {
-    errors.name = `Keep the name to ${MAX_CATEGORY_NAME} characters or fewer.`
+    errors.name = copy.vNameTooLong.replace('{n}', String(MAX_CATEGORY_NAME))
     return errors
   }
 
@@ -60,7 +77,7 @@ export function validateCategory(
   // `categories_slug_shape` would refuse with a constraint violation nobody
   // can read. Caught here instead, where it can name the actual problem.
   if (!slugify(name)) {
-    errors.name = 'Use at least one letter or number.'
+    errors.name = copy.vNameNoAlnum
     return errors
   }
 
@@ -68,7 +85,7 @@ export function validateCategory(
     (c) => c.slug !== excludeSlug && c.name.trim().toLowerCase() === name.toLowerCase(),
   )
   if (clash) {
-    errors.name = 'You already have a category with that name.'
+    errors.name = copy.vNameDuplicate
   }
 
   return errors

@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Cinzel, Inter } from "next/font/google";
+// Constants only — from the leaf module, so the landing page's dictionary is
+// not pulled into every route's bundle by this layout.
+import { LOCALES, LOCALE_COOKIE, DEFAULT_LOCALE } from "@/lib/i18n/locales";
 import { siteUrl } from "@/lib/site";
 import "./globals.css";
 import RegisterServiceWorker from '@/components/pwa/RegisterServiceWorker'
@@ -53,6 +56,36 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
+/**
+ * The codes the boot script may write into <html lang>. English is excluded
+ * because it is what the attribute already says — derived from LOCALES rather
+ * than listed again, so adding a language cannot leave this behind.
+ */
+const TRANSLATED_LOCALES = LOCALES.filter((c) => c !== DEFAULT_LOCALE)
+
+/**
+ * Paths that stay English whatever the language preference says, so the boot
+ * script must not relabel them.
+ *
+ * Stage 1 did the opposite — it applied the locale only on `/` — because the
+ * landing page was then the only translated surface. Now that the auth pages
+ * and the authenticated shell are translated too, an allowlist would have to
+ * grow with every screen. A denylist of the surfaces that stay English is
+ * shorter and needs no edit as more of the app is translated.
+ *
+ * The legal pages are written and reviewed in English; the design previews are
+ * internal throwaways.
+ */
+const ENGLISH_ONLY_PATHS = [
+  '/privacy',
+  '/terms',
+  '/design-preview',
+  '/design-exploration',
+  '/auth-preview',
+  '/brand-preview',
+  '/landing-preview',
+]
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -61,16 +94,37 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${cinzel.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
-        {/* Applies the saved theme before paint so there is no light/dark flash.
+        {/* Applies the saved theme before paint so there is no light/dark
+            flash, and corrects <html lang> for the one translated page.
+
             Deliberately a raw <script> in <head>, NOT next/script with
             strategy="beforeInteractive": that variant left every authenticated
             route rendering an empty <main> on a full page load, because the
             hoisted script ran ahead of React's streaming swap and the Suspense
             boundary never resolved. React logs a dev-only warning about script
-            tags in components; a benign warning beats a blank page. */}
+            tags in components; a benign warning beats a blank page.
+
+            WHY THE LANGUAGE IS READ HERE AND NOT ON THE SERVER. Calling
+            cookies() in this layout would opt EVERY page into dynamic
+            rendering — /login, /signup, /privacy, /terms and the design
+            previews are all statically rendered today — to serve one attribute
+            on one page. Reading it in a script that already runs before paint
+            costs nothing and sets the attribute before anything is painted or
+            announced.
+
+            The attribute is then right in both cases, not merely close: a
+            request WITHOUT the cookie is served English content, so `lang=en`
+            in that HTML is correct rather than a compromise. Only a visitor
+            who has chosen Telugu or Hindi receives translated content, and
+            only for them does this rewrite it.
+
+            THE PATH GUARD IS LOAD-BEARING. The locale cookie belongs to the
+            landing page; the authenticated app is not translated. Without the
+            guard, choosing Telugu once would tell a screen reader that the
+            English dashboard is Telugu on every page thereafter. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var s=localStorage.getItem('sp-theme');var d=s?s==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark')}catch(e){}})()`,
+            __html: `(function(){var ENGLISH_ONLY=${JSON.stringify(ENGLISH_ONLY_PATHS)};try{var s=localStorage.getItem('sp-theme');var d=s?s==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark')}catch(e){}try{if(!ENGLISH_ONLY.some(function(x){return location.pathname===x||location.pathname.indexOf(x+'/')===0})){var m=document.cookie.match(/(?:^|; )${LOCALE_COOKIE}=([^;]*)/);var l=m&&decodeURIComponent(m[1]);if(${TRANSLATED_LOCALES.map((c) => `l==='${c}'`).join('||')})document.documentElement.lang=l}}catch(e){}})()`,
           }}
         />
       </head>

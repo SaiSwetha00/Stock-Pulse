@@ -1,6 +1,9 @@
 'use client'
 
 import { useSyncExternalStore } from 'react'
+import { useAppCopy, useLocale } from '@/lib/i18n/client'
+import { clockOptions, intlLocale } from '@/lib/i18n/dates'
+import type { RelativeTimeCopy } from '@/lib/format'
 
 const noopSubscribe = () => () => {}
 
@@ -44,28 +47,40 @@ function subscribeToClock(onChange: () => void) {
   }
 }
 
-function formatIn(iso: string, timeZone: string | undefined, opts: Intl.DateTimeFormatOptions) {
-  return new Date(iso).toLocaleString('en-US', timeZone ? { ...opts, timeZone } : opts)
+/**
+ * `locale` is a BCP-47 tag from intlLocale(), never a raw 'te'/'hi' code, and
+ * never omitted: leaving it out formats in the *machine's* locale, which
+ * differs between the server render and the browser and ignores the language
+ * the shopkeeper actually chose.
+ */
+function formatIn(
+  iso: string,
+  locale: string,
+  timeZone: string | undefined,
+  opts: Intl.DateTimeFormatOptions,
+) {
+  return new Date(iso).toLocaleString(locale, timeZone ? { ...opts, timeZone } : opts)
 }
 
 const DATE_OPTS: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
 const DATE_YEAR_OPTS: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
-const TIME_OPTS: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' }
 
 /** A calendar date in the viewer's timezone. */
 export function LocalDate({ iso, withYear = false }: { iso: string; withYear?: boolean }) {
   const hydrated = useIsHydrated()
+  const locale = intlLocale(useLocale())
   const opts = withYear ? DATE_YEAR_OPTS : DATE_OPTS
-  return <>{formatIn(iso, hydrated ? undefined : 'UTC', opts)}</>
+  return <>{formatIn(iso, locale, hydrated ? undefined : 'UTC', opts)}</>
 }
 
 /** Date and clock time in the viewer's timezone. */
 export function LocalDateTime({ iso }: { iso: string }) {
   const hydrated = useIsHydrated()
+  const locale = intlLocale(useLocale())
   const tz = hydrated ? undefined : 'UTC'
   return (
     <>
-      {formatIn(iso, tz, DATE_OPTS)}, {formatIn(iso, tz, TIME_OPTS)}
+      {formatIn(iso, locale, tz, DATE_OPTS)}, {formatIn(iso, locale, tz, clockOptions(locale))}
     </>
   )
 }
@@ -84,13 +99,18 @@ export function useLocalToday(): string | null {
   return `${d.getFullYear()}-${m}-${day}`
 }
 
-function relativeLabel(iso: string, now: number): string {
+/**
+ * Same wording as lib/format.ts#formatRelativeTime, against a supplied `now`
+ * rather than the clock, because this one re-renders on a 30s tick. The copy
+ * type is shared so the two say the same thing in every language.
+ */
+function relativeLabel(iso: string, now: number, copy: RelativeTimeCopy): string {
   const mins = Math.floor((now - new Date(iso).getTime()) / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 1) return copy.relJustNow
+  if (mins < 60) return copy.relMinutesAgo.replace('{n}', String(mins))
   const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.floor(hours / 24)}d ago`
+  if (hours < 24) return copy.relHoursAgo.replace('{n}', String(hours))
+  return copy.relDaysAgo.replace('{n}', String(Math.floor(hours / 24)))
 }
 
 /**
@@ -99,6 +119,8 @@ function relativeLabel(iso: string, now: number): string {
  */
 export function RelativeTime({ iso }: { iso: string }) {
   const hydrated = useIsHydrated()
+  const locale = intlLocale(useLocale())
+  const copy = useAppCopy().common
   const now = useSyncExternalStore(
     subscribeToClock,
     () => {
@@ -108,6 +130,6 @@ export function RelativeTime({ iso }: { iso: string }) {
     () => 0,
   )
 
-  if (!hydrated || now === 0) return <>{formatIn(iso, 'UTC', DATE_OPTS)}</>
-  return <>{relativeLabel(iso, now)}</>
+  if (!hydrated || now === 0) return <>{formatIn(iso, locale, 'UTC', DATE_OPTS)}</>
+  return <>{relativeLabel(iso, now, copy)}</>
 }

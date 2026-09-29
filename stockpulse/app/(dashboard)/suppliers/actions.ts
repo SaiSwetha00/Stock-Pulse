@@ -11,6 +11,20 @@ import {
   type SupplierErrors,
   type SupplierInput,
 } from '@/lib/validation/supplier'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
+
+/**
+ * The reader's copy, resolved server-side from the locale cookie. Each action
+ * reads it itself: a message the browser supplied is not one this server
+ * should repeat back.
+ *
+ * The activity-feed and notification strings it produces are PERSISTED, so a
+ * row keeps the language it was written in.
+ */
+async function copy() {
+  return appCopy(await getLocale()).suppliers
+}
 
 export type SupplierActionResult =
   | { ok: true }
@@ -31,11 +45,12 @@ export async function saveSupplier(
   supplierId?: string,
 ): Promise<SupplierActionResult> {
   const store = await requireOwner()
-  if (!store) return { ok: false, message: 'You do not have permission to manage suppliers.' }
+  const ts = await copy()
+  if (!store) return { ok: false, message: ts.actNoPermission }
 
-  const errors = validateSupplier(input)
+  const errors = validateSupplier(input, ts)
   if (Object.keys(errors).length > 0) {
-    return { ok: false, errors, message: 'Please correct the highlighted fields.' }
+    return { ok: false, errors, message: ts.actFixFields }
   }
 
   const supabase = await createClient()
@@ -65,14 +80,14 @@ export async function saveSupplier(
       store_id: store.id,
       supplier_id: data?.id ?? null,
       supplier_name: payload.name,
-      message: `${payload.name} added as a new supplier`,
+      message: ts.feedNewSupplier.replace('{name}', payload.name),
     })
 
     // Store-wide: a new vendor is operational news, not owner-only. Raised
     // only for a create — an edit to a phone number is not worth a bell.
     await notify({
-      title: 'New supplier added',
-      body: `${payload.name} is now on your supplier list.`,
+      title: ts.notifyNewSupplierTitle,
+      body: ts.notifyNewSupplierBody.replace('{name}', payload.name),
       kind: 'supplier',
       entity: 'suppliers',
       entityId: data?.id ?? undefined,
@@ -101,20 +116,21 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
  */
 export async function saveShipment(input: ShipmentInput): Promise<SupplierActionResult> {
   const store = await requireOwner()
-  if (!store) return { ok: false, message: 'You do not have permission to manage shipments.' }
+  const ts = await copy()
+  if (!store) return { ok: false, message: ts.actShipNoPermission }
 
   const poNumber = input.poNumber.trim()
-  if (!poNumber) return { ok: false, message: 'PO number is required.' }
+  if (!poNumber) return { ok: false, message: ts.actPoRequired }
   if (!SHIPMENT_STATUSES.includes(input.status)) {
-    return { ok: false, message: 'Choose a valid shipment status.' }
+    return { ok: false, message: ts.actBadStatus }
   }
   if (input.eta.trim() && !ISO_DATE.test(input.eta.trim())) {
-    return { ok: false, message: 'Use the date picker for the ETA.' }
+    return { ok: false, message: ts.actBadEta }
   }
 
   const pallets = Number(input.pallets.trim() || '0')
   if (!Number.isInteger(pallets) || pallets < 0) {
-    return { ok: false, message: 'Pallets must be a whole number, zero or more.' }
+    return { ok: false, message: ts.actBadPallets }
   }
 
   const supabase = await createClient()
@@ -128,7 +144,7 @@ export async function saveShipment(input: ShipmentInput): Promise<SupplierAction
     .eq('store_id', store.id)
     .maybeSingle()
 
-  if (!supplier) return { ok: false, message: 'That supplier is not on this store.' }
+  if (!supplier) return { ok: false, message: ts.actSupplierNotHere }
 
   const { error } = await supabase.from('shipments').insert({
     store_id: store.id,
@@ -145,12 +161,15 @@ export async function saveShipment(input: ShipmentInput): Promise<SupplierAction
     store_id: store.id,
     supplier_id: supplier.id,
     supplier_name: supplier.name,
-    message: `${supplier.name} PO ${poNumber} created`,
+    message: ts.feedShipment.replace('{supplier}', supplier.name).replace('{po}', poNumber),
   })
 
   await notify({
-    title: 'Incoming shipment logged',
-    body: `${supplier.name} PO ${poNumber}${input.eta.trim() ? `, due ${input.eta.trim()}` : ''}.`,
+    title: ts.notifyShipmentTitle,
+    body: (input.eta.trim() ? ts.notifyShipmentBodyEta : ts.notifyShipmentBody)
+      .replace('{supplier}', supplier.name)
+      .replace('{po}', poNumber)
+      .replace('{eta}', input.eta.trim()),
     kind: 'supplier',
     entity: 'suppliers',
     entityId: supplier.id,
@@ -162,7 +181,7 @@ export async function saveShipment(input: ShipmentInput): Promise<SupplierAction
 
 export async function deleteSupplier(supplierId: string): Promise<SupplierActionResult> {
   const store = await requireOwner()
-  if (!store) return { ok: false, message: 'You do not have permission to manage suppliers.' }
+  if (!store) return { ok: false, message: (await copy()).actNoPermission }
 
   const supabase = await createClient()
 
@@ -186,7 +205,7 @@ export async function deleteSupplier(supplierId: string): Promise<SupplierAction
     .select('id')
 
   if (error) return { ok: false, message: error.message }
-  if (!deleted?.length) return { ok: false, message: 'That supplier is no longer on this store.' }
+  if (!deleted?.length) return { ok: false, message: (await copy()).actSupplierGone }
 
   // Shipments cascade. The feed does not: left alone these rows keep printing
   // "<name> added as a new supplier" for a supplier that is gone, and they

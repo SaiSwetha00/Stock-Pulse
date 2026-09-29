@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import { canViewReports } from '@/lib/permissions'
-import { DAY_LABELS } from '@/lib/format'
+import { dayLabels } from '@/lib/format'
 import {
   REPORTING_TIMEZONE,
   reportingDate,
@@ -13,13 +13,16 @@ import {
 import { storeExpiryWarningDays } from '@/lib/expiry'
 import { getExpiringStock } from '@/lib/expiringStock'
 import type { Product, Sale } from '@/types'
-import { categoryLabel, getStoreCategories, labelMap } from '@/lib/categories'
+import { categoryLabel, getStoreCategories, labelMap, localizeCategories } from '@/lib/categories'
 import DashboardView, { type DashboardAlert } from '@/components/dashboard/DashboardView'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 
-export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "Today's takings, low stock, and what needs attention in your store.",
-  robots: { index: false, follow: false },
+export async function generateMetadata(): Promise<Metadata> {
+  // Page name only; app/layout.tsx appends " · StockPulse". In the
+  // signed-in language, read from the same cookie the layout uses.
+  const { title, description } = appCopy(await getLocale()).meta.dashboard
+  return { title, description, robots: { index: false, follow: false } }
 }
 
 /** One row per day from public.sales_daily_totals (migration 0004). */
@@ -29,6 +32,11 @@ export default async function DashboardPage() {
   const { profile, store } = await getCurrentUser()
   const supabase = await createClient()
   const isOwner = canViewReports(profile.role)
+  const copy = appCopy(await getLocale())
+  const t = copy.dash
+  // The axis reads the ROTA's day names rather than a second set of its own,
+  // so Monday is the same word on the chart and on the schedule.
+  const days7 = dayLabels(copy.staff)
 
   const now = new Date()
   const today = reportingDate(now)
@@ -95,7 +103,7 @@ export default async function DashboardPage() {
   const todayCount = Number(todayRow?.sale_count ?? 0)
 
   const trendData = days.map((d) => ({
-    label: DAY_LABELS[weekdayIndex(d.day)],
+    label: days7[weekdayIndex(d.day)],
     value: Number(d.total),
   }))
 
@@ -113,7 +121,8 @@ export default async function DashboardPage() {
   // Read here rather than baked in, so a shop that renamed "Packaged Goods"
   // sees its own word on the dashboard too.
   const { categories } = await getStoreCategories(supabase, store.id)
-  const categoryLabels = labelMap(categories)
+  // Display labels: seeded defaults follow the language, shop-named ones do not.
+  const categoryLabels = labelMap(localizeCategories(categories, copy.categoryNames))
 
   const alerts: DashboardAlert[] = []
 
@@ -124,12 +133,17 @@ export default async function DashboardPage() {
     alerts.push({
       id: 'expired',
       kind: 'expired',
-      title: `Expired: ${expiring.expired.length} item${expiring.expired.length === 1 ? '' : 's'}`,
+      title: (expiring.expired.length === 1 ? t.aExpiredTitleOne : t.aExpiredTitleMany).replace(
+        '{n}',
+        String(expiring.expired.length),
+      ),
       description:
         expiring.expired.length === 1
-          ? `${expiring.expired[0].name} is past its expiry date.`
-          : `${expiring.expired[0].name} and ${expiring.expired.length - 1} other${expiring.expired.length === 2 ? '' : 's'} are past their expiry date.`,
-      time: 'now',
+          ? t.aExpiredBodyOne.replace('{name}', expiring.expired[0].name)
+          : (expiring.expired.length === 2 ? t.aExpiredBodyTwo : t.aExpiredBodyMany)
+              .replace('{name}', expiring.expired[0].name)
+              .replace('{n}', String(expiring.expired.length - 1)),
+      time: t.timeNow,
     })
   }
 
@@ -137,9 +151,15 @@ export default async function DashboardPage() {
     alerts.push({
       id: 'expiring',
       kind: 'expiring',
-      title: `Expiring within ${warningDays} day${warningDays === 1 ? '' : 's'}`,
-      description: `${expiring.soon.length} item${expiring.soon.length === 1 ? '' : 's'} to sell or move while there is still time.`,
-      time: 'now',
+      title: (warningDays === 1 ? t.aExpiringTitleOne : t.aExpiringTitleMany).replace(
+        '{n}',
+        String(warningDays),
+      ),
+      description: (expiring.soon.length === 1
+        ? t.aExpiringBodyOne
+        : t.aExpiringBodyMany
+      ).replace('{n}', String(expiring.soon.length)),
+      time: t.timeNow,
     })
   }
 
@@ -148,9 +168,12 @@ export default async function DashboardPage() {
     alerts.push({
       id: 'low-stock',
       kind: 'stock',
-      title: `Low Stock: ${topCategory}`,
-      description: `${lowStockItems.length} item${lowStockItems.length === 1 ? '' : 's'} below minimum threshold.`,
-      time: 'now',
+      title: t.aLowStockTitle.replace('{category}', topCategory),
+      description: (lowStockItems.length === 1
+        ? t.aLowStockBodyOne
+        : t.aLowStockBodyMany
+      ).replace('{n}', String(lowStockItems.length)),
+      time: t.timeNow,
     })
   }
 
@@ -158,11 +181,8 @@ export default async function DashboardPage() {
     alerts.push({
       id: `station-${station.station_number}`,
       kind: 'device',
-      title: `Station 0${station.station_number} Alert`,
-      description:
-        station.alert_type === 'weight_mismatch'
-          ? 'Weight mismatch detected at bagging area.'
-          : 'Age verification required for restricted item.',
+      title: t.aStationTitle.replace('{n}', String(station.station_number)),
+      description: station.alert_type === 'weight_mismatch' ? t.aWeightMismatch : t.aAgeCheck,
       time: '',
       timeIso: station.updated_at,
     })
@@ -177,8 +197,8 @@ export default async function DashboardPage() {
     alerts.push({
       id: 'delivery',
       kind: 'delivery',
-      title: 'Delivery Arrived',
-      description: `${supplierName ?? 'Supplier'} delivery is ready for intake.`,
+      title: t.aDeliveryTitle,
+      description: t.aDeliveryBody.replace('{supplier}', supplierName ?? t.supplierFallback),
       time: '',
       timeIso: dockedShipment.created_at,
     })
@@ -187,7 +207,7 @@ export default async function DashboardPage() {
   return (
     <DashboardView
       isOwner={isOwner}
-      greeting={storeGreeting()}
+      greeting={storeGreeting(t)}
       fullName={profile.full_name}
       nowIso={now.toISOString()}
       todayTotal={todayTotal}
@@ -205,6 +225,8 @@ export default async function DashboardPage() {
       expiring={expiring}
       expiryWarningDays={warningDays}
       today={today}
+      t={t}
+      expiryCopy={copy.expiry}
     />
   )
 }

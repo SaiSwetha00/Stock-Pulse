@@ -4,12 +4,23 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import { canManage } from '@/lib/permissions'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 import {
   validateShift,
   toShiftPayload,
   type ShiftErrors,
   type ShiftInput,
 } from '@/lib/validation/shift'
+
+/**
+ * The reader's copy, resolved server-side from the locale cookie. Each action
+ * reads it itself: a message the browser supplied is not one this server
+ * should repeat back.
+ */
+async function copy() {
+  return appCopy(await getLocale()).staff
+}
 
 export type ShiftActionResult =
   | { ok: true }
@@ -31,11 +42,12 @@ export async function saveShift(
   shiftId?: string,
 ): Promise<ShiftActionResult> {
   const store = await requireOwner()
-  if (!store) return { ok: false, message: 'You do not have permission to change the schedule.' }
+  const ts = await copy()
+  if (!store) return { ok: false, message: ts.actSchedNoPermission }
 
-  const errors = validateShift(input)
+  const errors = validateShift(input, ts)
   if (Object.keys(errors).length > 0) {
-    return { ok: false, errors, message: 'Please correct the highlighted fields.' }
+    return { ok: false, errors, message: ts.actFixFields }
   }
 
   const supabase = await createClient()
@@ -51,7 +63,7 @@ export async function saveShift(
       .eq('store_id', store.id)
       .maybeSingle()
 
-    if (!member) return { ok: false, errors: { staffId: 'That person is not on this team.' } }
+    if (!member) return { ok: false, errors: { staffId: ts.actNotOnTeam } }
 
     /**
      * Nobody gets rostered on a day they are on leave.
@@ -85,8 +97,8 @@ export async function saveShift(
     if (leave && leave.length > 0) {
       return {
         ok: false,
-        errors: { shiftDate: 'That person is on leave on this date.' },
-        message: 'They are on leave that day. Choose another date, or remove the leave first.',
+        errors: { shiftDate: ts.actOnLeaveField },
+        message: ts.actOnLeaveMessage,
       }
     }
   }
@@ -103,7 +115,7 @@ export async function saveShift(
 
 export async function deleteShift(shiftId: string): Promise<ShiftActionResult> {
   const store = await requireOwner()
-  if (!store) return { ok: false, message: 'You do not have permission to change the schedule.' }
+  if (!store) return { ok: false, message: (await copy()).actSchedNoPermission }
 
   const supabase = await createClient()
   const { error } = await supabase

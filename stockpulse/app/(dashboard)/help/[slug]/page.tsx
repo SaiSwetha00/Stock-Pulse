@@ -2,15 +2,12 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { ArrowLeft, Info } from 'lucide-react'
-import {
-  HELP_ARTICLES,
-  getArticle,
-  categoryFor,
-  articlesInCategory,
-  type HelpBlock,
-} from '@/lib/help/articles'
+import { HELP_ARTICLES, type HelpBlock } from '@/lib/help/articles'
+import { localizedArticle } from '@/lib/help/localized'
 import SupportRequestForm from '@/components/help/SupportRequestForm'
 import { getCurrentUser } from '@/lib/data'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 
 /**
  * Enumerates the valid slugs, so an unknown one is a 404 rather than a page
@@ -31,11 +28,16 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }): Promise<Metadata> {
   const { slug } = await params
-  const article = getArticle(slug)
-  if (!article) return { title: 'Article not found' }
+  const locale = await getLocale()
+  const copy = appCopy(locale)
+  const found = localizedArticle(locale, slug)
+  if (!found) return { title: copy.help.articleNotFound }
+  // app/layout.tsx appends " · StockPulse", so the suffix here is only the
+  // Help Centre's own name — spelling "StockPulse Help" out rendered the
+  // product name twice in the tab.
   return {
-    title: `${article.title} · StockPulse Help`,
-    description: article.summary,
+    title: `${found.article.title} · ${copy.meta.help.title}`,
+    description: found.article.summary,
   }
 }
 
@@ -86,14 +88,15 @@ export default async function HelpArticlePage({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const article = getArticle(slug)
-  if (!article) notFound()
-
-  const category = categoryFor(article.category)
-  // "More in this category", minus the one being read.
-  const related = articlesInCategory(article.category).filter((a) => a.slug !== article.slug)
+  const locale = await getLocale()
+  // The article, its category and "more in this category" (minus the one
+  // being read), all in the reader's language.
+  const found = localizedArticle(locale, slug)
+  if (!found) notFound()
+  const { article, category, related } = found
 
   const { profile } = await getCurrentUser()
+  const t = appCopy(locale).help
 
   return (
     <div className="sp-page max-w-[1100px]">
@@ -102,7 +105,7 @@ export default async function HelpArticlePage({
         className="inline-flex items-center gap-1.5 rounded-lg text-sm font-semibold text-muted-strong transition hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        All help topics
+        {t.allTopics}
       </Link>
 
       <article className="mt-6">
@@ -127,7 +130,7 @@ export default async function HelpArticlePage({
 
       {related.length > 0 && (
         <section className="mt-12 border-t border-border pt-8">
-          <h2 className="sp-heading">More on this</h2>
+          <h2 className="sp-heading">{t.moreOnThis}</h2>
           <ul className="mt-4 space-y-2">
             {related.map((a) => (
               <li key={a.slug}>

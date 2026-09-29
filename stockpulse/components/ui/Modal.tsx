@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { useAppCopy } from '@/lib/i18n/client'
 
 // Exported because the two overlays that are not Modals — the assistant panel
 // and the phone nav drawer — have to trap focus over exactly the same set of
@@ -48,6 +49,7 @@ export default function Modal({
   footer?: React.ReactNode
   children: React.ReactNode
 }) {
+  const tc = useAppCopy().common
   const panelRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
   const prefersReduced = useReducedMotion()
@@ -189,7 +191,7 @@ export default function Modal({
               <button
                 type="button"
                 onClick={requestClose}
-                aria-label="Close dialog"
+                aria-label={tc.closeDialog}
                 className="tap-target rounded-lg text-muted transition-colors hover:bg-surface-muted hover:text-foreground"
               >
                 <X className="h-5 w-5" aria-hidden="true" />

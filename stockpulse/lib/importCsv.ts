@@ -1,3 +1,4 @@
+import type { ValidationCopy } from './validation/product'
 import {
   describeProductErrors,
   singleLot,
@@ -193,12 +194,25 @@ const EMPTY: ProductInput = {
  * `existingSkus` decides create-vs-update, so the preview can state honestly
  * which rows will overwrite something.
  */
+/** The two messages this parser owns, beyond the validator's. */
+export type ImportCopy = {
+  validation: ValidationCopy
+  /** "{v}" is the repeated SKU or barcode. */
+  dupSku: string
+  dupBarcode: string
+}
+
 export function buildImportPreview(
   text: string,
   existingSkus: Set<string>,
   /** The store's categories. A CSV may name one by slug or by label, and both
    *  have to resolve against this shop's list rather than a built-in five. */
   categories: CategoryOption[],
+  /**
+   * The reader's language. Optional with an English default so this module
+   * stays callable from anywhere - the rules do not change, only the words.
+   */
+  copy?: ImportCopy,
 ): ImportPreview {
   const table = parseCsv(text)
   if (table.length === 0) {
@@ -255,20 +269,30 @@ export function buildImportPreview(
     if (!input.unit) input.unit = 'ea'
     if (!input.category) input.category = 'packaged'
 
-    const errors = validateProduct(input, categories.map((c) => c.slug))
+    const errors = validateProduct(input, categories.map((c) => c.slug), copy?.validation)
     // Not Object.values: `lotRows` is an array of objects, which would reach a
     // shopkeeper's import report as "[object Object]".
-    const problems = describeProductErrors(errors)
+    const problems = describeProductErrors(errors, copy?.validation)
 
     const sku = input.sku.trim().toLowerCase()
     if (sku && seenInFile.has(sku)) {
-      problems.push(`Duplicate SKU "${input.sku.trim()}" appears earlier in this file.`)
+      problems.push(
+        (copy?.dupSku ?? 'Duplicate SKU "{v}" appears earlier in this file.').replace(
+          '{v}',
+          input.sku.trim(),
+        ),
+      )
     }
     if (sku) seenInFile.add(sku)
 
     const barcode = input.barcode.trim()
     if (barcode && seenBarcodes.has(barcode)) {
-      problems.push(`Duplicate barcode "${barcode}" appears earlier in this file.`)
+      problems.push(
+        (copy?.dupBarcode ?? 'Duplicate barcode "{v}" appears earlier in this file.').replace(
+          '{v}',
+          barcode,
+        ),
+      )
     }
     if (barcode) seenBarcodes.add(barcode)
 

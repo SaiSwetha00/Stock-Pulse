@@ -7,6 +7,7 @@ import SidebarNav from './SidebarNav'
 import { FOCUSABLE } from '@/components/ui/Modal'
 import { useCommandPalette } from '@/components/command/CommandPaletteProvider'
 import { storeInitials } from '@/lib/format'
+import { useAppCopy } from '@/lib/i18n/client'
 import type { Role, Store } from '@/types'
 
 /**
@@ -28,6 +29,7 @@ export default function MobileDrawer({
   role: Role
   store: Store
 }) {
+  const t = useAppCopy().shell
   const panelRef = useRef<HTMLDivElement>(null)
   const prefersReduced = useReducedMotion()
   const { open: openPalette } = useCommandPalette()
@@ -137,7 +139,7 @@ export default function MobileDrawer({
             ref={panelRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Navigation"
+            aria-label={t.navigation}
             tabIndex={-1}
             // Reduced motion keeps the backdrop fade and drops the travel: a
             // 288px slide is exactly the movement that setting asks to be
@@ -146,6 +148,9 @@ export default function MobileDrawer({
             animate={prefersReduced ? { opacity: 1 } : { x: 0 }}
             exit={prefersReduced ? { opacity: 0 } : { x: '-100%' }}
             transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+            // The phone's stand-in for the rail, so it joins the same family.
+            // Presentational hook only — see the note in Sidebar.tsx.
+            data-sp-surface="rail"
             className="flex h-full w-72 max-w-[85vw] flex-col border-r border-border bg-surface px-4 py-4 outline-none"
           >
             <div className="mb-6 flex items-center gap-2.5">
@@ -165,7 +170,7 @@ export default function MobileDrawer({
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Close navigation"
+                aria-label={t.closeNavigation}
                 className="tap-target ml-auto shrink-0 rounded-lg text-muted transition-colors hover:bg-surface-muted hover:text-foreground"
               >
                 <X className="h-5 w-5" aria-hidden="true" />
@@ -198,14 +203,14 @@ export default function MobileDrawer({
                 //
                 // The hamburger is the honest answer anyway: it is where the
                 // user was before the drawer, and it is still on screen.
-                document.querySelector<HTMLElement>('[aria-label="Open navigation"]')?.focus()
+                document.querySelector<HTMLElement>('[data-sp-nav-toggle]')?.focus()
                 onClose()
                 openPalette()
               }}
               className="control-h mb-3 flex w-full shrink-0 items-center gap-2.5 rounded-lg border border-border bg-surface-muted px-3 text-left text-sm text-muted transition-colors hover:border-border-strong hover:bg-surface"
             >
               <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="truncate">Search or jump to...</span>
+              <span className="truncate">{t.searchShort}</span>
             </button>
 
             {/* Following a link has to dismiss the drawer: the route changes

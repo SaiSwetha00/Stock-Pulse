@@ -1,4 +1,6 @@
 import Skeleton from '@/components/ui/Skeleton'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 
 /**
  * The loading shape shared by every workspace route. It deliberately mirrors
@@ -8,7 +10,7 @@ import Skeleton from '@/components/ui/Skeleton'
  * Rows collapse to cards below `lg`, matching the responsive tables they stand
  * in for.
  */
-export default function PageSkeleton({
+export default async function PageSkeleton({
   stats = 3,
   chart = false,
   rows = 6,
@@ -23,12 +25,14 @@ export default function PageSkeleton({
   /** Reserve a right-hand rail (the staff schedule's shape). */
   sidePanel?: boolean
 }) {
+  const tc = appCopy(await getLocale()).common
+
   return (
     <div
       // The whole region is decorative: a screen reader should hear the busy
       // state once, not read out two dozen empty boxes.
       role="status"
-      aria-label="Loading"
+      aria-label={tc.loading}
       // Same wrapper as a real page, so the skeleton occupies the exact box
       // its content will — otherwise the layout jumps when data lands.
       className="sp-page"
@@ -109,7 +113,7 @@ export default function PageSkeleton({
         )}
       </div>
 
-      <span className="sr-only">Loading page content…</span>
+      <span className="sr-only">{tc.loadingPage}</span>
     </div>
   )
 }

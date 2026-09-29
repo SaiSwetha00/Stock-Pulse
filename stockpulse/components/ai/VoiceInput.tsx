@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Mic, Square, Loader2 } from 'lucide-react'
+import { useAppCopy } from '@/lib/i18n/client'
+import type { AiCopy } from '@/lib/i18n/app'
 
 /**
  * Voice input for the assistant's composer.
@@ -94,17 +96,19 @@ function subscribeNever(): () => void {
  * `aborted` is absent on purpose: it fires when we stop the microphone
  * ourselves and is not an error.
  */
-const ERROR_MESSAGES: Record<string, string> = {
-  'audio-capture': 'No microphone found. Check one is connected and not in use by another app.',
-  network: 'Voice input needs an internet connection. Reconnect and try again.',
-  'no-speech': 'Didn’t catch that — try again, a little closer to the microphone.',
-  'language-not-supported': 'This browser cannot recognise speech here.',
-  'service-not-allowed': 'Speech recognition is turned off in this browser’s settings.',
+function errorMessages(t: AiCopy): Record<string, string> {
+  return {
+    'audio-capture': t.vAudioCapture,
+    network: t.vNetwork,
+    'no-speech': t.vNoSpeech,
+    'language-not-supported': t.vLangUnsupported,
+    'service-not-allowed': t.vServiceNotAllowed,
+  }
 }
 
-function blockedMessage(): string {
+function blockedMessage(t: AiCopy): string {
   const host = typeof window === 'undefined' ? 'this site' : window.location.host
-  return `Microphone access is blocked for ${host}. Permission is per-site, so allowing it elsewhere does not count — open the icon at the left of the address bar, set Microphone to Allow, then reload.`
+  return t.vBlocked.replace('{host}', host)
 }
 
 type VoiceState = 'idle' | 'listening' | 'processing'
@@ -118,6 +122,7 @@ export default function VoiceInput({
   onChange: (next: string) => void
   disabled?: boolean
 }) {
+  const t = useAppCopy().ai
   const [state, setState] = useState<VoiceState>('idle')
   const [error, setError] = useState<string | null>(null)
 
@@ -172,9 +177,7 @@ export default function VoiceInput({
     // naming separately, or someone on a LAN address keeps granting a
     // permission that was never the problem.
     if (!window.isSecureContext) {
-      setError(
-        `Voice input needs a secure connection. ${window.location.host} is plain http — use https, or open the app on localhost.`,
-      )
+      setError(t.vInsecure.replace('{host}', window.location.host))
       return
     }
 
@@ -215,12 +218,12 @@ export default function VoiceInput({
     recognition.onerror = (event: SpeechErrorEvent) => {
       if (event.error === 'aborted') return
       if (event.error === 'not-allowed') {
-        setError(blockedMessage())
+        setError(blockedMessage(t))
         return
       }
       // The raw code is included for anything unmapped. A message naming the
       // failure can be acted on; "something went wrong" cannot.
-      setError(ERROR_MESSAGES[event.error] ?? `Voice input stopped (${event.error}). Try again.`)
+      setError(errorMessages(t)[event.error] ?? t.vUnknown.replace('{code}', event.error))
     }
 
     recognition.onend = () => {
@@ -239,9 +242,9 @@ export default function VoiceInput({
       // than leave the button stuck in a state the user cannot clear.
       recognitionRef.current = null
       setState('idle')
-      setError('Voice input could not start. Try again.')
+      setError(t.vStartFailed)
     }
-  }, [])
+  }, [t])
 
   // Nothing is known on the first client render, and Firefox has no
   // SpeechRecognition at all. A button that can only fail is worse than none.
@@ -256,7 +259,7 @@ export default function VoiceInput({
         type="button"
         onClick={listening ? stop : start}
         disabled={disabled || processing}
-        aria-label={listening ? 'Stop recording' : 'Ask by voice'}
+        aria-label={listening ? t.vStop : t.vAsk}
         aria-pressed={listening}
         className={`tap-target relative shrink-0 rounded-full transition-colors disabled:opacity-40 ${
           listening
@@ -288,7 +291,7 @@ export default function VoiceInput({
           "recording", and a visible label would shove the composer around every
           time the microphone is used. */}
       <span className="sr-only" role="status">
-        {listening ? 'Recording. Speak now.' : processing ? 'Finishing transcription.' : ''}
+        {listening ? t.vRecording : processing ? t.vProcessing : ''}
       </span>
 
       {error && (

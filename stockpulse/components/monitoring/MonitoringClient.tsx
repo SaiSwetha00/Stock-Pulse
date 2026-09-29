@@ -41,39 +41,36 @@ import { formatCurrency } from '@/lib/format'
 // first needed, but it has no dashboard-specific behaviour.
 import AutoRefresh from '@/components/dashboard/AutoRefresh'
 import { useToast } from '@/components/ui/Toast'
-import { STATION_STATUS_LABELS } from '@/types'
+import { useAppCopy } from '@/lib/i18n/client'
 import type { CheckoutStation, Role, StationStatus } from '@/types'
 
+// The badge WORD comes from the dictionary (t.badge[status]); only the
+// colour and icon live here, because they do not change with the language.
 const STATUS_META: Record<
   StationStatus,
-  { label: string; badge: string; bar: string; icon: typeof AlertTriangle }
+  { badge: string; bar: string; icon: typeof AlertTriangle }
 > = {
   assistance: {
-    label: 'ASSISTANCE',
     badge: 'bg-danger-bg text-danger',
     bar: 'bg-danger',
     icon: AlertTriangle,
   },
   review: {
-    label: 'REVIEW',
     badge: 'bg-warning-bg text-warning',
     bar: 'bg-warning',
     icon: Eye,
   },
   in_use: {
-    label: 'IN USE',
     badge: 'bg-success-bg text-success',
     bar: 'bg-success',
     icon: Zap,
   },
   available: {
-    label: 'AVAILABLE',
     badge: 'bg-surface-muted text-muted-strong',
     bar: 'bg-surface-muted',
     icon: CheckCircle2,
   },
   maintenance: {
-    label: 'MAINTENANCE',
     badge: 'bg-surface-muted text-muted-strong',
     bar: 'bg-border-strong',
     icon: Wrench,
@@ -139,10 +136,15 @@ function sessionElapsed(startedAt: string | null, now: number): string {
  * fallback as an unnamed station, which is why the board looks unchanged on an
  * unmigrated database rather than breaking.
  */
-export function stationLabel(station: CheckoutStation): string {
+export function stationLabel(station: CheckoutStation, template = 'Station {n}'): string {
   const named = station.name?.trim()
   if (named) return named
-  return `Station ${String(station.station_number).padStart(2, '0')}`
+  return numberedLabel(station.station_number, template)
+}
+
+/** "Station 07" in the active language. `template` carries "{n}". */
+function numberedLabel(stationNumber: number, template: string): string {
+  return template.replace('{n}', String(stationNumber).padStart(2, '0'))
 }
 
 /**
@@ -175,6 +177,8 @@ export default function MonitoringClient({
   stations: CheckoutStation[]
 }) {
   const router = useRouter()
+  const t = useAppCopy().monitoring
+  const label = (station: CheckoutStation) => stationLabel(station, t.stationN)
   const canWrite = canManage(role)
   const toast = useToast()
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -215,10 +219,10 @@ export default function MonitoringClient({
     setBusyId(null)
     if (dbError) {
       setError(dbError.message)
-      toast.error('Could not clear alert', dbError.message)
+      toast.error(t.tClearFailed, dbError.message)
       return
     }
-    toast.success('Alert cleared', `Station 0${station.station_number}`)
+    toast.success(t.tCleared, label(station))
     router.refresh()
   }
 
@@ -234,12 +238,12 @@ export default function MonitoringClient({
     setBusyId(null)
     if (dbError) {
       setError(dbError.message)
-      toast.error('Could not change station status', dbError.message)
+      toast.error(t.tStatusFailed, dbError.message)
       return
     }
     toast.success(
-      next === 'maintenance' ? 'Station taken offline' : 'Station back online',
-      `Station 0${station.station_number}`
+      next === 'maintenance' ? t.tOffline : t.tOnline,
+      label(station)
     )
     router.refresh()
   }
@@ -255,10 +259,10 @@ export default function MonitoringClient({
     setBusyId(null)
     if (dbError) {
       setError(dbError.message)
-      toast.error('Could not dispatch staff', dbError.message)
+      toast.error(t.tDispatchFailed, dbError.message)
       return
     }
-    toast.success('Staff dispatched', `Station 0${station.station_number}`)
+    toast.success(t.tDispatched, label(station))
     router.refresh()
   }
 
@@ -280,7 +284,7 @@ export default function MonitoringClient({
     setBusyId(null)
     if (dbError) {
       setError(dbError.message)
-      toast.error('Could not remove counter', dbError.message)
+      toast.error(t.tRemoveFailed, dbError.message)
       return
     }
     if (!data || data.length === 0) {
@@ -289,17 +293,16 @@ export default function MonitoringClient({
       // fires in practice, on a second click), or RLS refused and said nothing.
       // Blaming the migration outright told a shopkeeper to run SQL for what
       // was really a double click.
-      const message =
-        'Nothing was removed — this counter may already be gone. If it stays on the board, apply supabase/migrations/0012_checkout_stations_delete_policy.sql.'
+      const message = t.tNotRemovedBody
       setError(message)
-      toast.error('Counter not removed', message)
+      toast.error(t.tNotRemoved, message)
       setConfirmingRemoveId(null)
       // Whichever cause it was, what is on screen is out of date.
       router.refresh()
       return
     }
     setConfirmingRemoveId(null)
-    toast.success('Counter removed', stationLabel(station))
+    toast.success(t.tRemoved, label(station))
     router.refresh()
   }
 
@@ -369,18 +372,17 @@ export default function MonitoringClient({
     setAdding(false)
     if (dbError) {
       setError(dbError.message)
-      toast.error('Could not add counter', dbError.message)
+      toast.error(t.tAddFailed, dbError.message)
       return
     }
 
     setNewName('')
     if (nameDropped) {
-      const message =
-        'The counter was added, but naming needs supabase/migrations/0020_checkout_station_name.sql applied first.'
+      const message = t.tAddedNoNameBody
       setError(message)
-      toast.info(`Station ${String(nextNumber).padStart(2, '0')} added without a name`, message)
+      toast.info(t.tAddedNoName.replace('{name}', numberedLabel(nextNumber, t.stationN)), message)
     } else {
-      toast.success('Counter added', name || `Station ${String(nextNumber).padStart(2, '0')}`)
+      toast.success(t.tAdded, name || numberedLabel(nextNumber, t.stationN))
     }
     router.refresh()
   }
@@ -409,23 +411,22 @@ export default function MonitoringClient({
     setBusyId(null)
     if (dbError) {
       const message = isMissingNameColumn(dbError)
-        ? 'Naming counters needs supabase/migrations/0020_checkout_station_name.sql applied first.'
+        ? t.tNamingNeedsMigration
         : dbError.message
       setError(message)
-      toast.error('Could not rename counter', message)
+      toast.error(t.tRenameFailed, message)
       return
     }
     if (!data || data.length === 0) {
-      const message =
-        'Nothing was renamed. Renaming a counter is a manager or owner action, and the counter may also have just been removed.'
+      const message = t.tNotRenamedBody
       setError(message)
-      toast.error('Counter not renamed', message)
+      toast.error(t.tNotRenamed, message)
       router.refresh()
       return
     }
 
     setRenamingId(null)
-    toast.success('Counter renamed', next || `Station ${String(station.station_number).padStart(2, '0')}`)
+    toast.success(t.tRenamed, next || numberedLabel(station.station_number, t.stationN))
     router.refresh()
   }
 
@@ -467,13 +468,13 @@ export default function MonitoringClient({
     <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="sp-eyebrow">Live operations</p>
-          <h1 className="sp-title mt-2">Live Operations Center</h1>
+          <p className="sp-eyebrow">{t.eyebrow}</p>
+          <h1 className="sp-title mt-2">{t.title}</h1>
           <p className="mt-1 flex items-center gap-2 text-sm text-muted">
             {/* This dot marks "monitoring is on", not an alarm — alert state
                 is shown by the counters below, so it shouldn't read as red. */}
             <span className="sp-pulse h-2.5 w-2.5 rounded-full bg-accent" aria-hidden="true" />
-            Monitoring {totalStations} Self-Checkout Station{totalStations === 1 ? '' : 's'}
+            {(totalStations === 1 ? t.subtitleOne : t.subtitleMany).replace('{n}', String(totalStations))}
           </p>
         </div>
         {/* "View Logs" and "Pause All New Sessions" buttons sat here with no
@@ -503,22 +504,22 @@ export default function MonitoringClient({
       */}
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
-          label="Active Alerts"
+          label={t.statAlerts}
           value={activeAlerts}
           icon={AlertTriangle}
-          trendLabel="Require immediate attention"
+          trendLabel={t.statAlertsHint}
         />
         <StatCard
-          label="Stations Active"
+          label={t.statActive}
           value={`${stationsActive}/${totalStations}`}
           icon={CheckCircle2}
-          trendLabel="Optimal utilization"
+          trendLabel={t.statActiveHint}
         />
         <StatCard
-          label="Current Intervention Rate"
+          label={t.statRate}
           value={`${interventionRate.toFixed(1)}%`}
           icon={TrendingUp}
-          trendLabel={`${activeAlerts} flagged now`}
+          trendLabel={t.statRateHint.replace('{n}', String(activeAlerts))}
         />
       </div>
 
@@ -545,15 +546,15 @@ export default function MonitoringClient({
       <div className="sp-rise sp-e1 mt-6 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="sp-heading">Station Setup</h2>
+            <h2 className="sp-heading">{t.setupTitle}</h2>
             <p className="mt-1 text-sm text-muted">
               {canWrite
-                ? 'Add the counters your shop actually has, and name them the way your staff do.'
-                : 'The counters configured for this store. Ask an owner or manager to change them.'}
+                ? t.setupIntroManage
+                : t.setupIntroView}
             </p>
           </div>
           <span className="shrink-0 rounded-full bg-surface-muted px-2.5 py-1 text-xs font-semibold text-muted-strong">
-            {totalStations} configured
+            {t.configured.replace('{n}', String(totalStations))}
           </span>
         </div>
 
@@ -574,20 +575,20 @@ export default function MonitoringClient({
                  someone to discover it. The number is assigned by the shop's
                  existing lanes, not typed, so there is nothing else to fill
                  in. */
-              placeholder="Counter name (optional) — e.g. Express"
-              aria-label="New counter name"
+              placeholder={t.newNamePlaceholder}
+              aria-label={t.newNameAria}
               maxLength={40}
               className="control-h min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong"
             />
             <Button type="submit" loading={adding}>
-              Add Counter
+              {t.addCounter}
             </Button>
           </form>
         )}
 
         {totalStations === 0 ? (
           <p className="mt-4 text-sm text-muted">
-            No counters configured yet.
+            {t.noCounters}
           </p>
         ) : (
           <ul className="mt-4 divide-y divide-border border-t border-border">
@@ -614,13 +615,13 @@ export default function MonitoringClient({
                         /* Blank is a real submission, not a cancelled one: it
                            clears the name and returns the lane to its number.
                            Cancel is the separate button. */
-                        placeholder={`Station ${String(station.station_number).padStart(2, '0')}`}
-                        aria-label={`Rename ${stationLabel(station)}`}
+                        placeholder={numberedLabel(station.station_number, t.stationN)}
+                        aria-label={t.renameAria.replace('{name}', label(station))}
                         maxLength={40}
                         className="control-h min-w-0 flex-1 rounded-lg border border-border bg-surface px-3 text-sm text-foreground placeholder:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong"
                       />
                       <Button type="submit" size="sm" loading={busyId === station.id}>
-                        Save
+                        {t.save}
                       </Button>
                       <Button
                         type="button"
@@ -628,22 +629,22 @@ export default function MonitoringClient({
                         variant="secondary"
                         onClick={() => setRenamingId(null)}
                       >
-                        Cancel
+                        {t.cancel}
                       </Button>
                     </form>
                   ) : (
                     <>
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-foreground">
-                          {stationLabel(station)}
+                          {label(station)}
                         </p>
                         {/* The number is always shown, even when a name
                             replaces it above. It is the station's identity in
                             the database and the thing two counters called
                             "Express" are told apart by. */}
                         <p className="text-xs text-muted">
-                          Station {String(station.station_number).padStart(2, '0')} ·{' '}
-                          {STATION_STATUS_LABELS[station.status]}
+                          {numberedLabel(station.station_number, t.stationN)} ·{' '}
+                          {t.status[station.status]}
                         </p>
                       </div>
 
@@ -663,7 +664,7 @@ export default function MonitoringClient({
                               setRenameDraft(station.name?.trim() ?? '')
                             }}
                           >
-                            Rename
+                            {t.rename}
                           </Button>
                           {/* Two-step, matching the board's own remove. A
                               counter is cheap to recreate but its removal is
@@ -678,7 +679,7 @@ export default function MonitoringClient({
                               else setConfirmingRemoveId(station.id)
                             }}
                           >
-                            {confirming ? 'Confirm' : 'Remove'}
+                            {confirming ? t.confirm : t.remove}
                           </Button>
                         </div>
                       )}
@@ -698,14 +699,14 @@ export default function MonitoringClient({
         <div className="sp-rise sp-e1 mt-6 rounded-2xl border border-border bg-surface shadow-sm">
           <EmptyState
             icon={MonitorSmartphone}
-            title="No checkout stations configured yet"
-            description="Set up your lanes to start monitoring live checkout activity."
+            title={t.emptyTitle}
+            description={t.emptyBody}
             action={
               /* The spinner carries the "working" state, so the label can stay
                  still instead of swapping to "Setting up…". */
               canWrite ? (
                 <Button onClick={seedStations} loading={seeding}>
-                  Set Up 4 Stations
+                  {t.setUpFour}
                 </Button>
               ) : undefined
             }
@@ -724,16 +725,20 @@ export default function MonitoringClient({
               <div className="p-5">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-xl font-bold text-foreground">
-                    {stationLabel(station)}
+                    {label(station)}
                   </h3>
                   <span
                     className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${meta.badge}`}
                   >
                     <Icon className="h-3 w-3" />
-                    {meta.label}
+                    {t.badge[station.status]}
                   </span>
                 </div>
-                <p className="mt-0.5 text-sm text-muted">{station.payment_type}</p>
+                <p className="mt-0.5 text-sm text-muted">
+                  {/* The app's own default is translated; any other stored
+                      value is the shop's and is shown as written. */}
+                  {station.payment_type === 'Cash & Card' ? t.paymentCashCard : station.payment_type}
+                </p>
 
                 {station.alert_type === 'weight_mismatch' && (
                   <div className="mt-4 overflow-hidden rounded-lg bg-surface-muted">
@@ -742,14 +747,14 @@ export default function MonitoringClient({
                     </div>
                     <div className="flex items-start justify-between gap-2 bg-danger px-3 py-2 text-[11px] font-bold text-surface">
                       <span>
-                        WEIGHT
+                        {t.weightLine1}
                         <br />
-                        MISMATCH
+                        {t.weightLine2}
                       </span>
                       <span className="text-right font-semibold">
-                        Expected: {station.alert_expected}kg
+                        {t.expected.replace('{v}', String(station.alert_expected))}
                         <br />
-                        Actual: {station.alert_actual}kg
+                        {t.actual.replace('{v}', String(station.alert_actual))}
                       </span>
                     </div>
                   </div>
@@ -762,9 +767,9 @@ export default function MonitoringClient({
                     </div>
                     <div className="flex items-start justify-between gap-2 bg-warning px-3 py-2 text-[11px] font-bold text-surface">
                       <span>
-                        AGE
+                        {t.ageLine1}
                         <br />
-                        VERIFICATION
+                        {t.ageLine2}
                       </span>
                       <span className="text-right">{station.alert_item}</span>
                     </div>
@@ -774,17 +779,17 @@ export default function MonitoringClient({
                 {station.status === 'in_use' && !station.alert_type && (
                   <div className="mt-4 space-y-2 rounded-lg border border-border p-3 text-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-muted">Items Scanned</span>
+                      <span className="text-muted">{t.itemsScanned}</span>
                       <span className="font-bold text-foreground">{station.items_scanned}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-muted">Current Total</span>
+                      <span className="text-muted">{t.currentTotal}</span>
                       <span className="font-bold text-foreground">
                         {formatCurrency(Number(station.current_total))}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-muted">Session Time</span>
+                      <span className="text-muted">{t.sessionTime}</span>
                       <span className="font-bold text-foreground">
                         {sessionElapsed(station.session_started_at, now)}
                       </span>
@@ -795,7 +800,7 @@ export default function MonitoringClient({
                 {(station.status === 'available' || station.status === 'maintenance') && (
                   <div className="mt-4 flex h-32 flex-col items-center justify-center rounded-lg bg-surface-muted text-muted">
                     <Receipt className="h-7 w-7" />
-                    <p className="mt-2 text-sm">Waiting for customer</p>
+                    <p className="mt-2 text-sm">{t.waitingForCustomer}</p>
                   </div>
                 )}
 
@@ -806,7 +811,7 @@ export default function MonitoringClient({
                       disabled={isBusy}
                       className="control-h w-full rounded-lg bg-foreground text-sm font-bold text-surface hover:opacity-90 disabled:opacity-60"
                     >
-                      {isBusy ? 'Working…' : 'Override & Approve'}
+                      {isBusy ? t.working : t.overrideApprove}
                     </button>
                   )}
                   {station.alert_type === 'age_verification' && canWrite && (
@@ -815,12 +820,12 @@ export default function MonitoringClient({
                       disabled={isBusy}
                       className="control-h w-full rounded-lg bg-foreground text-sm font-bold text-surface hover:opacity-90 disabled:opacity-60"
                     >
-                      {isBusy ? 'Working…' : 'Verify ID via Camera'}
+                      {isBusy ? t.working : t.verifyId}
                     </button>
                   )}
                   {station.alert_type && !canWrite && (
                     <p className="rounded-lg bg-surface-muted py-2.5 text-center text-xs text-muted">
-                      Owner approval required
+                      {t.ownerApproval}
                     </p>
                   )}
 
@@ -829,7 +834,7 @@ export default function MonitoringClient({
                       receipt to open — showing the live basket instead. */}
                   {station.status === 'in_use' && !station.alert_type && (
                     <p className="rounded-lg bg-surface-muted py-2.5 text-center text-xs text-muted">
-                      {station.items_scanned} item{station.items_scanned === 1 ? '' : 's'} ·{' '}
+                      {(station.items_scanned === 1 ? t.basketOne : t.basketMany).replace('{n}', String(station.items_scanned))} ·{' '}
                       {formatCurrency(Number(station.current_total))}
                     </p>
                   )}
@@ -845,10 +850,10 @@ export default function MonitoringClient({
                     >
                       <Wrench className="h-4 w-4" aria-hidden="true" />
                       {isBusy
-                        ? 'Working…'
+                        ? t.working
                         : station.status === 'maintenance'
-                          ? 'End Maintenance'
-                          : 'Maintenance Mode'}
+                          ? t.endMaintenance
+                          : t.maintenanceMode}
                     </button>
                   )}
 
@@ -863,7 +868,7 @@ export default function MonitoringClient({
                     (confirmingRemoveId === station.id ? (
                       <div className="rounded-lg bg-danger-bg p-2.5">
                         <p className="text-center text-xs font-semibold text-danger">
-                          Remove this counter?
+                          {t.removeQuestion}
                         </p>
                         {/* `flex-1 min-w-0`, not `fullWidth`: Button carries
                             `shrink-0` in its base class, so two `w-full`
@@ -881,7 +886,7 @@ export default function MonitoringClient({
                             loading={isBusy}
                             onClick={() => removeStation(station)}
                           >
-                            Remove
+                            {t.remove}
                           </Button>
                           <Button
                             variant="secondary"
@@ -890,7 +895,7 @@ export default function MonitoringClient({
                             disabled={isBusy}
                             onClick={() => setConfirmingRemoveId(null)}
                           >
-                            Cancel
+                            {t.cancel}
                           </Button>
                         </div>
                       </div>
@@ -902,7 +907,7 @@ export default function MonitoringClient({
                         className="flex control-h w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold text-muted hover:bg-danger-bg hover:text-danger disabled:opacity-60"
                       >
                         <Trash2 className="h-4 w-4" aria-hidden="true" />
-                        Remove Counter
+                        {t.removeCounter}
                       </button>
                     ))}
 
@@ -912,7 +917,7 @@ export default function MonitoringClient({
                       disabled={isBusy}
                       className="control-h w-full rounded-lg bg-surface-muted text-sm font-semibold text-muted-strong hover:bg-surface-muted disabled:opacity-60"
                     >
-                      Dispatch Staff
+                      {t.dispatchStaff}
                     </button>
                   )}
                 </div>

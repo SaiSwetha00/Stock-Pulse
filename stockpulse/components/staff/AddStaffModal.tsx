@@ -5,15 +5,19 @@ import { useRouter } from 'next/navigation'
 import Modal from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { inviteStaff } from '@/app/auth/actions'
-import { ASSIGNABLE_ROLES, ROLE_LABELS, type AssignableRole } from '@/lib/permissions'
+import { ASSIGNABLE_ROLES, type AssignableRole } from '@/lib/permissions'
+import { useAppCopy } from '@/lib/i18n/client'
+import type { StaffCopy } from '@/lib/i18n/app'
 
 /** What each role actually means, for someone choosing between them. */
-const ROLE_HINTS: Record<AssignableRole, string> = {
-  manager: 'Runs the shop: inventory, customers, suppliers, shifts and takings.',
-  staff: 'Works the floor: view stock, log sales, see their own shifts.',
+function roleHints(t: StaffCopy): Record<AssignableRole, string> {
+  return { manager: t.roleHintManager, staff: t.roleHintStaff }
 }
 
 export default function AddStaffModal({ storeId, onClose }: { storeId: string; onClose: () => void }) {
+  const t = useAppCopy()
+  const ts = t.staff
+  const hints = roleHints(ts)
   const router = useRouter()
   // Ties the footer submit back to the form it now sits outside of.
   const formId = useId()
@@ -34,17 +38,17 @@ export default function AddStaffModal({ storeId, onClose }: { storeId: string; o
     setSaving(false)
     if (result?.error) {
       setError(result.error)
-      toast.error('Could not invite staff member', result.error)
+      toast.error(ts.inviteFailed, result.error)
       return
     }
-    toast.success('Invitation sent', email)
+    toast.success(ts.invitationSent, email)
     setSuccess(true)
     router.refresh()
   }
 
   return (
     <Modal
-      title="Add Staff" onClose={onClose} width="sm"
+      title={ts.addStaffTitle} onClose={onClose} width="sm"
       /*
         Actions live in Modal's `footer`. `children` scrolls; `footer` is
         pinned, shrink-0, and carries the safe-area-inset-bottom padding. Left
@@ -59,7 +63,7 @@ export default function AddStaffModal({ storeId, onClose }: { storeId: string; o
           disabled={saving}
           className="control-h w-full rounded-lg bg-foreground text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-60"
         >
-          {saving ? 'Sending invite…' : 'Send Invite'}
+          {saving ? ts.sendingInvite : ts.sendInvite}
         </button>
       }
     >
@@ -67,15 +71,16 @@ export default function AddStaffModal({ storeId, onClose }: { storeId: string; o
         {success ? (
           <div className="px-6 py-8 text-center">
             <p className="text-sm text-muted-strong">
-              <span className="font-semibold">{fullName}</span> has been invited as{' '}
-              <span className="font-semibold">{ROLE_LABELS[role]}</span>. They&apos;ll receive an
-              email to set their password and sign in.
+              <span className="font-semibold">{fullName}</span>
+              {ts.invitedBodyA}
+              <span className="font-semibold">{t.roles[role]}</span>
+              {ts.invitedBodyB}
             </p>
             <button
               onClick={onClose}
               className="mt-5 control-h w-full rounded-lg bg-foreground text-sm font-semibold text-surface hover:opacity-90"
             >
-              Done
+              {ts.done}
             </button>
           </div>
         ) : (
@@ -83,7 +88,7 @@ export default function AddStaffModal({ storeId, onClose }: { storeId: string; o
             {error && <div className="rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">{error}</div>}
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-                Full Name
+                {ts.fFullName}
               </label>
               <input
                 required
@@ -94,7 +99,7 @@ export default function AddStaffModal({ storeId, onClose }: { storeId: string; o
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-                Work Email
+                {ts.fWorkEmail}
               </label>
               <input
                 type="email"
@@ -106,12 +111,12 @@ export default function AddStaffModal({ storeId, onClose }: { storeId: string; o
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-                Job Title
+                {ts.fJobTitle}
               </label>
               <input
                 value={jobTitle}
                 onChange={(e) => setJobTitle(e.target.value)}
-                placeholder="Cashier, Inventory Lead..."
+                placeholder={ts.jobTitlePlaceholder}
                 className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
               />
             </div>
@@ -120,7 +125,7 @@ export default function AddStaffModal({ storeId, onClose }: { storeId: string; o
                 htmlFor="staff-role"
                 className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong"
               >
-                Role
+                {ts.fRole}
               </label>
               <select
                 id="staff-role"
@@ -131,12 +136,12 @@ export default function AddStaffModal({ storeId, onClose }: { storeId: string; o
               >
                 {ASSIGNABLE_ROLES.map((option) => (
                   <option key={option} value={option}>
-                    {ROLE_LABELS[option]}
+                    {t.roles[option]}
                   </option>
                 ))}
               </select>
               <p id="staff-role-hint" className="mt-1.5 text-xs text-muted">
-                {ROLE_HINTS[role]}
+                {hints[role]}
               </p>
             </div>
           </form>

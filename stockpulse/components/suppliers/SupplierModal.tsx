@@ -14,13 +14,8 @@ import {
   type SupplierErrors,
   type SupplierInput,
 } from '@/lib/validation/supplier'
-import { SUPPLIER_CATEGORY_LABELS, type Supplier } from '@/types'
-
-const STATUS_LABELS: Record<string, string> = {
-  active: 'Active',
-  inactive: 'Inactive',
-  issue: 'Issue',
-}
+import { type Supplier } from '@/types'
+import { useAppCopy } from '@/lib/i18n/client'
 
 /**
  * Add or edit a supplier. Passing `supplier` switches to edit mode.
@@ -35,6 +30,8 @@ export default function SupplierModal({
   supplier?: Supplier | null
   onClose: () => void
 }) {
+  const t = useAppCopy()
+  const ts = t.suppliers
   const router = useRouter()
   const isEdit = Boolean(supplier)
 
@@ -59,7 +56,7 @@ export default function SupplierModal({
 
     const input: SupplierInput = { name, primaryContact, category, status }
 
-    const found = validateSupplier(input)
+    const found = validateSupplier(input, ts)
     setErrors(found)
     if (Object.keys(found).length > 0) return
 
@@ -68,8 +65,8 @@ export default function SupplierModal({
 
       if (!result.ok) {
         setErrors(result.errors ?? {})
-        setFormError(result.message ?? 'Could not save the supplier.')
-        toast.error(isEdit ? 'Could not update supplier' : 'Could not add supplier', result.message)
+        setFormError(result.message ?? ts.saveFailed)
+        toast.error(isEdit ? ts.updateFailedToast : ts.addFailedToast, result.message)
         return
       }
 
@@ -77,7 +74,7 @@ export default function SupplierModal({
       // Verified in production: without this the row only appeared after a
       // manual reload. Awaited inside the transition so `saving` stays true
       // until the table has actually re-rendered.
-      toast.success(isEdit ? 'Supplier updated' : 'Supplier added', input.name)
+      toast.success(isEdit ? ts.updatedToast : ts.addedToast, input.name)
       router.refresh()
       onClose()
     })
@@ -85,7 +82,7 @@ export default function SupplierModal({
 
   return (
     <Modal
-      title={isEdit ? 'Edit Supplier' : 'Add Supplier'} onClose={onClose} width="md"
+      title={isEdit ? ts.formEdit : ts.formAdd} onClose={onClose} width="md"
       /*
         Actions live in Modal's `footer`, not at the end of the form. `children`
         scrolls; `footer` is pinned, shrink-0, and carries the
@@ -101,10 +98,10 @@ export default function SupplierModal({
       footer={
         <div className="grid grid-cols-2 gap-3">
           <Button type="button" variant="secondary" fullWidth onClick={onClose}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button type="submit" form={formId} fullWidth loading={saving}>
-            {isEdit ? 'Save Changes' : 'Add Supplier'}
+            {isEdit ? ts.saveChanges : ts.formAdd}
           </Button>
         </div>
       }
@@ -116,40 +113,40 @@ export default function SupplierModal({
           </div>
         )}
 
-        <Field label="Supplier Name" required error={errors.name}>
+        <Field label={ts.fName} required error={errors.name}>
           {(p) => <Input {...p} value={name} onChange={(e) => setName(e.target.value)} autoFocus />}
         </Field>
 
-        <Field label="Primary Contact" error={errors.primaryContact} hint="Optional">
+        <Field label={ts.fContact} error={errors.primaryContact} hint={t.inventory.optional}>
           {(p) => (
             <Input
               {...p}
               value={primaryContact}
               onChange={(e) => setPrimaryContact(e.target.value)}
-              placeholder="Jane Doe"
+              placeholder={ts.contactPlaceholder}
             />
           )}
         </Field>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Category" error={errors.category}>
+          <Field label={ts.fCategory} error={errors.category}>
             {(p) => (
               <Select {...p} value={category} onChange={(e) => setCategory(e.target.value)}>
                 {SUPPLIER_CATEGORIES.map((c) => (
                   <option key={c} value={c}>
-                    {SUPPLIER_CATEGORY_LABELS[c]}
+                    {ts.categoryLabels[c]}
                   </option>
                 ))}
               </Select>
             )}
           </Field>
 
-          <Field label="Status" error={errors.status}>
+          <Field label={ts.fStatus} error={errors.status}>
             {(p) => (
               <Select {...p} value={status} onChange={(e) => setStatus(e.target.value)}>
                 {SUPPLIER_STATUSES.map((s) => (
                   <option key={s} value={s}>
-                    {STATUS_LABELS[s]}
+                    {ts.statusLabels[s]}
                   </option>
                 ))}
               </Select>

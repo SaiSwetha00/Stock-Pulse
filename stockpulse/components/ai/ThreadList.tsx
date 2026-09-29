@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { MessageSquare, Plus, Trash2, Loader2 } from 'lucide-react'
 import type { ThreadSummary } from '@/app/(dashboard)/ai/actions'
+import { useAppCopy } from '@/lib/i18n/client'
 
 /**
  * Groups the history into Today / Yesterday / Earlier.
@@ -38,6 +39,16 @@ export default function ThreadList({
   onNew: () => void
   onDelete: (id: string) => void
 }) {
+  const copy = useAppCopy()
+  const t = copy.ai
+  const tcm = copy.common
+  // The bucket KEYS stay English — they are how the code groups — and only the
+  // heading a person reads is translated.
+  const bucketLabels: Record<(typeof ORDER)[number], string> = {
+    Today: t.bucketToday,
+    Yesterday: t.bucketYesterday,
+    Earlier: t.bucketEarlier,
+  }
   // Deleting asks once, inline, by swapping the row for a confirm/cancel pair.
   // A full modal for "remove a chat about milk" is disproportionate; no
   // confirmation at all is not, because the thread and everything in it goes
@@ -58,7 +69,7 @@ export default function ThreadList({
           className="flex w-full items-center gap-2 rounded-xl border border-border px-3 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted"
         >
           <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
-          New chat
+          {t.newChat}
         </button>
       </div>
 
@@ -66,29 +77,27 @@ export default function ThreadList({
         {loading ? (
           <p className="flex items-center gap-2 px-2 py-6 text-sm text-muted">
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            Loading conversations…
+            {t.loadingThreads}
           </p>
         ) : threads.length === 0 ? (
-          <p className="px-2 py-6 text-sm text-muted">
-            No past conversations yet. Anything you ask is saved here so you can pick it up later.
-          </p>
+          <p className="px-2 py-6 text-sm text-muted">{t.noThreads}</p>
         ) : (
           grouped.map((group) => (
             <div key={group.label} className="mb-3">
               <h4 className="px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-muted">
-                {group.label}
+                {bucketLabels[group.label]}
               </h4>
               <ul className="space-y-0.5">
                 {group.items.map((thread) => {
                   const isActive = thread.id === activeId
-                  const label = thread.title ?? 'New conversation'
+                  const label = thread.title ?? t.untitled
 
                   if (thread.id === confirmingId) {
                     return (
                       <li key={thread.id}>
                         <div className="flex items-center gap-1 rounded-lg bg-surface-muted px-3 py-2">
                           <span className="flex-1 truncate text-xs text-muted-strong">
-                            Delete this chat?
+                            {t.deleteQ}
                           </span>
                           <button
                             type="button"
@@ -98,14 +107,14 @@ export default function ThreadList({
                             }}
                             className="rounded-md px-2 py-1 text-xs font-semibold text-danger hover:underline"
                           >
-                            Delete
+                            {tcm.delete}
                           </button>
                           <button
                             type="button"
                             onClick={() => setConfirmingId(null)}
                             className="rounded-md px-2 py-1 text-xs font-semibold text-muted hover:underline"
                           >
-                            Cancel
+                            {tcm.cancel}
                           </button>
                         </div>
                       </li>
@@ -133,7 +142,7 @@ export default function ThreadList({
                       <button
                         type="button"
                         onClick={() => setConfirmingId(thread.id)}
-                        aria-label={`Delete conversation: ${label}`}
+                        aria-label={t.deleteAria.replace('{name}', label)}
                         className="ml-1 shrink-0 rounded-md p-2 text-muted opacity-0 transition-opacity hover:text-danger focus-visible:opacity-100 group-hover:opacity-100"
                       >
                         <Trash2 className="h-4 w-4" aria-hidden="true" />

@@ -9,6 +9,7 @@ import { isOptimizableImage } from '@/lib/images'
 import { storeInitials } from '@/lib/format'
 import { pageTitleFor } from '@/lib/nav'
 import MobileDrawer from './MobileDrawer'
+import { useAppCopy } from '@/lib/i18n/client'
 import NotificationBell from '@/components/notifications/NotificationBell'
 import { useAIAssistant } from '@/components/ai/AIAssistantProvider'
 import type { Profile, Role, Store } from '@/types'
@@ -27,7 +28,8 @@ export default function MobileHeader({
   initialUnread?: number
 }) {
   const pathname = usePathname()
-  const title = pageTitleFor(pathname)
+  const t = useAppCopy()
+  const title = pageTitleFor(pathname, t.nav)
   const [navOpen, setNavOpen] = useState(false)
   const { open: openAssistant } = useAIAssistant()
 
@@ -37,7 +39,12 @@ export default function MobileHeader({
         <button
           type="button"
           onClick={() => setNavOpen(true)}
-          aria-label="Open navigation"
+          aria-label={t.shell.openNavigation}
+          // MobileDrawer restores focus here by this attribute. It used to find
+          // the button by aria-label="Open navigation" — a selector that
+          // matched nothing the moment that label was translated, so focus
+          // silently fell to <body> in Telugu and Hindi.
+          data-sp-nav-toggle=""
           aria-expanded={navOpen}
           className="tap-target -ml-2 shrink-0 rounded-lg text-muted-strong transition-colors hover:bg-surface-muted hover:text-foreground"
         >
@@ -79,7 +86,7 @@ export default function MobileHeader({
           <button
             type="button"
             onClick={openAssistant}
-            aria-label="AI Assistant"
+            aria-label={t.shell.aiAssistant}
             className="tap-target shrink-0 rounded-lg text-muted-strong transition-colors hover:bg-surface-muted hover:text-foreground"
           >
             <Sparkles className="h-5 w-5" aria-hidden="true" />
@@ -89,7 +96,7 @@ export default function MobileHeader({
 
           <Link
             href="/profile"
-            aria-label="Your profile"
+            aria-label={t.shell.yourProfile}
             className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-surface-muted"
           >
           {isOptimizableImage(profile.avatar_url) ? (

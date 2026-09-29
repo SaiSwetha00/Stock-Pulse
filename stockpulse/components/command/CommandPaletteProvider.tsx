@@ -6,6 +6,7 @@ import { LogOut, Sparkles, UserRound } from 'lucide-react'
 import { signOutEverywhereLocal } from '@/lib/offline/signOut'
 import { useAIAssistant } from '@/components/ai/AIAssistantProvider'
 import { navItemsFor } from '@/lib/nav'
+import { useAppCopy } from '@/lib/i18n/client'
 import type { Role } from '@/types'
 import CommandPalette, { type Command } from './CommandPalette'
 import ProductDetailsModal from '@/components/inventory/ProductDetailsModal'
@@ -29,6 +30,7 @@ export default function CommandPaletteProvider({
   role: Role
   children: React.ReactNode
 }) {
+  const t = useAppCopy()
   const [isOpen, setIsOpen] = useState(false)
   /**
    * The product whose details are open, or null.
@@ -65,8 +67,8 @@ export default function CommandPaletteProvider({
   const commands = useMemo<Command[]>(() => {
     const nav: Command[] = navItemsFor(role).map((item) => ({
       id: `nav:${item.href}`,
-      label: item.label,
-      group: 'Navigation',
+      label: t.nav[item.key],
+      group: t.palette.groupNavigation,
       icon: item.icon,
       keywords: item.href.replace('/', ''),
       run: () => router.push(item.href),
@@ -75,24 +77,24 @@ export default function CommandPaletteProvider({
     const actions: Command[] = [
       {
         id: 'action:assistant',
-        label: 'Open AI Assistant',
-        group: 'Actions',
+        label: t.palette.openAssistant,
+        group: t.palette.groupActions,
         icon: Sparkles,
         keywords: 'ai chat ask help',
         run: openAssistant,
       },
       {
         id: 'action:profile',
-        label: 'View Profile',
-        group: 'Actions',
+        label: t.palette.viewProfile,
+        group: t.palette.groupActions,
         icon: UserRound,
         keywords: 'account me settings',
         run: () => router.push('/profile'),
       },
       {
         id: 'action:logout',
-        label: 'Sign Out',
-        group: 'Actions',
+        label: t.palette.signOut,
+        group: t.palette.groupActions,
         icon: LogOut,
         keywords: 'log out exit leave',
         run: () => {
@@ -102,7 +104,7 @@ export default function CommandPaletteProvider({
     ]
 
     return [...nav, ...actions]
-  }, [role, router, openAssistant])
+  }, [role, router, openAssistant, t])
 
   const value = useMemo(() => ({ open, close }), [open, close])
 

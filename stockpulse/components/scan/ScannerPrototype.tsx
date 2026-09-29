@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Camera, CameraOff, ScanLine, TriangleAlert, X } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { decodeFrame, loadDecoder, type ScanOutcome } from '@/lib/barcode/decoder'
+import { useAppCopy } from '@/lib/i18n/client'
 
 /**
  * PHASE 2 PROTOTYPE. Camera in, decoded string on screen, and nothing else.
@@ -42,50 +43,9 @@ type CameraFaultKind =
  */
 type CameraFault = { kind: CameraFaultKind; raw?: string }
 
-const FAULT_COPY: Record<CameraFaultKind, { title: string; body: string }> = {
-  denied: {
-    title: 'Camera permission was refused',
-    // Names the actual remedy, because the browser will not ask again once it
-    // has been refused — waiting for another prompt is a dead end.
-    //
-    // Both layers are named on purpose. Android has TWO separate permissions
-    // and granting one does not grant the other: the OS permission for the
-    // Chrome app, and Chrome's own per-site permission for this origin. A user
-    // who has checked the first and been told "your browser is blocking the
-    // camera" has been sent to the wrong place.
-    body:
-      'This is set in two independent places, and both must allow it. In Chrome or Safari, tap the padlock or the icon at the left of the address bar and set Camera to Allow, then reload. Separately, on Android check Settings → Apps → Chrome → Permissions → Camera; on iPhone, Settings → Safari → Camera.',
-  },
-  'no-camera': {
-    title: 'No camera found',
-    body:
-      'This device has no camera the browser can reach. If you are on a desktop, try again on a phone or tablet, or plug in a webcam and reload.',
-  },
-  'in-use': {
-    title: 'The camera is busy',
-    body:
-      'Another app or browser tab already has the camera. Close it — video calls are the usual culprit — and try again.',
-  },
-  insecure: {
-    title: 'Camera needs a secure connection',
-    body:
-      'Browsers only allow camera access over HTTPS (or on localhost). Open this page over https:// and try again.',
-  },
-  unsupported: {
-    title: 'This browser cannot open a camera',
-    body:
-      'The browser does not support camera capture from a web page. Try the current version of Safari, Chrome, Edge or Firefox.',
-  },
-  iframe: {
-    title: 'Camera blocked inside an embedded frame',
-    body:
-      'This page is running inside an iframe that has not been given camera permission. Open it in its own tab, or the embedding page needs allow="camera" on the iframe.',
-  },
-  other: {
-    title: 'The camera could not be started',
-    body: 'The browser refused the camera for a reason it did not classify. The exact error is shown below.',
-  },
-}
+// Each fault's title and body live in the dictionary (useAppCopy().scanner.
+// faults, lib/i18n/operations.ts), keyed by CameraFaultKind, together with the
+// reasoning behind the 'denied' wording.
 
 /**
  * DOMException names are the only reliable signal; messages are localised.
@@ -207,6 +167,7 @@ export default function ScannerPrototype({
 }: {
   onDetected?: (value: string, format: string) => void
 } = {}) {
+  const t = useAppCopy().scanner
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -438,7 +399,7 @@ export default function ScannerPrototype({
               <div className="space-y-2">
                 <Camera className="mx-auto h-8 w-8 text-white/70" aria-hidden="true" />
                 <p className="text-sm text-white/70">
-                  {starting ? 'Asking for camera access…' : 'The camera is off.'}
+                  {starting ? t.asking : t.cameraOff}
                 </p>
               </div>
             </div>
@@ -453,7 +414,7 @@ export default function ScannerPrototype({
               />
               <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white">
                 <ScanLine className="h-3.5 w-3.5" aria-hidden="true" />
-                Scanning
+                {t.scanning}
               </div>
             </>
           )}
@@ -463,17 +424,17 @@ export default function ScannerPrototype({
           {running ? (
             <Button variant="secondary" onClick={stop}>
               <CameraOff className="h-4 w-4" aria-hidden="true" />
-              Stop camera
+              {t.stopCamera}
             </Button>
           ) : (
             <Button onClick={start} disabled={starting}>
               <Camera className="h-4 w-4" aria-hidden="true" />
-              {starting ? 'Starting…' : 'Start camera'}
+              {starting ? t.starting : t.startCamera}
             </Button>
           )}
           {running && (
             <p className="text-xs text-muted">
-              {frames} frame{frames === 1 ? '' : 's'} checked
+              {(frames === 1 ? t.framesOne : t.framesMany).replace('{n}', String(frames))}
             </p>
           )}
         </div>
@@ -487,8 +448,8 @@ export default function ScannerPrototype({
         >
           <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
           <div className="min-w-0 space-y-1">
-            <p className="font-semibold">{FAULT_COPY[fault.kind].title}</p>
-            <p className="text-sm">{FAULT_COPY[fault.kind].body}</p>
+            <p className="font-semibold">{t.faults[fault.kind].title}</p>
+            <p className="text-sm">{t.faults[fault.kind].body}</p>
             {/* The real error, always. The friendly sentence above is a guess
                 at what it means; this is what actually happened. */}
             {fault.raw && (
@@ -503,11 +464,10 @@ export default function ScannerPrototype({
       {videoWarning && !fault && (
         <div className="rounded-2xl border border-border bg-surface-muted p-4">
           <p className="text-sm font-semibold text-foreground">
-            The video element refused to start playing
+            {t.videoRefusedTitle}
           </p>
           <p className="mt-1 text-sm text-muted">
-            The camera is open and scanning continues — this is usually the browser&apos;s autoplay
-            policy and is harmless. Reported so it is not invisible.
+            {t.videoRefusedBody}
           </p>
           <p className="sp-num mt-2 break-all text-xs text-muted">{videoWarning}</p>
         </div>
@@ -515,7 +475,7 @@ export default function ScannerPrototype({
 
       {decoderError && (
         <div role="alert" className="rounded-2xl border border-border bg-danger-bg p-4 text-danger">
-          <p className="font-semibold">The decoder could not be loaded</p>
+          <p className="font-semibold">{t.decoderFailed}</p>
           <p className="text-sm">{decoderError}</p>
         </div>
       )}
@@ -525,17 +485,17 @@ export default function ScannerPrototype({
         <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm" aria-live="polite">
           {outcome.kind === 'none' && (
             <p className="text-sm text-muted">
-              Looking for a barcode… hold it inside the frame, filling most of the width.
+              {t.looking}
             </p>
           )}
 
           {outcome.kind === 'unsupported-symbology' && (
             <div className="space-y-1">
               <p className="text-sm font-semibold text-foreground">
-                That is a {outcome.format}, not a product barcode
+                {t.wrongKindTitle.replace('{format}', outcome.format)}
               </p>
               <p className="text-sm text-muted">
-                It scanned cleanly — the code just is not a retail barcode. It reads:{' '}
+                {t.wrongKindBody}{' '}
                 <span className="sp-num break-all">{outcome.text}</span>
               </p>
             </div>
@@ -543,7 +503,7 @@ export default function ScannerPrototype({
 
           {outcome.kind === 'product' && (
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-foreground">Barcode detected</p>
+              <p className="text-sm font-semibold text-foreground">{t.detected}</p>
               <p className="sp-num text-2xl font-semibold tracking-wide text-foreground">
                 {outcome.value}
               </p>
@@ -559,7 +519,7 @@ export default function ScannerPrototype({
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                Last decoded value
+                {t.lastDecoded}
               </p>
               <p className="sp-num text-xl font-semibold text-foreground">{lastProduct.value}</p>
               <p className="text-xs text-muted">
@@ -570,14 +530,13 @@ export default function ScannerPrototype({
               type="button"
               onClick={() => setLastProduct(null)}
               className="rounded-lg p-1.5 text-muted hover:bg-surface hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong"
-              aria-label="Clear the last decoded value"
+              aria-label={t.clearLastAria}
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
           <p className="mt-3 text-xs text-muted">
-            Nothing was saved. This prototype only reads the code — matching it to a product comes
-            in a later phase.
+            {t.nothingSaved}
           </p>
         </div>
       )}
@@ -593,19 +552,21 @@ export default function ScannerPrototype({
       {diag && (
         <details className="rounded-2xl border border-border bg-surface p-4">
           <summary className="cursor-pointer text-sm font-semibold text-foreground">
-            Diagnostics
+            {t.diagnostics}
           </summary>
           <dl className="mt-3 space-y-1.5 text-xs">
             {[
-              ['Secure context', String(diag.secure)],
-              ['Origin', `${diag.protocol}//${diag.host}`],
-              ['In an iframe', String(diag.inIframe)],
+              // Labels translate; values stay raw, because they are what gets
+              // read back to whoever is debugging the device.
+              [t.dSecure, String(diag.secure)],
+              [t.dOrigin, `${diag.protocol}//${diag.host}`],
+              [t.dIframe, String(diag.inIframe)],
               ['navigator.mediaDevices.getUserMedia', String(diag.hasMediaDevices)],
-              ['Permissions API camera state', diag.permission],
-              ['Video input devices', diag.videoInputs],
-              ['Video element', videoState || 'not sampled yet'],
-              ['Frames checked', String(frames)],
-              ['Last error', fault?.raw ?? videoWarning ?? 'none'],
+              [t.dPermission, diag.permission],
+              [t.dInputs, diag.videoInputs],
+              [t.dVideo, videoState || t.notSampled],
+              [t.dFrames, String(frames)],
+              [t.dLastError, fault?.raw ?? videoWarning ?? t.none],
             ].map(([k, v]) => (
               <div key={k} className="flex flex-wrap gap-x-2">
                 <dt className="text-muted">{k}:</dt>

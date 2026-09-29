@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -7,9 +9,11 @@ import { isOwner } from '@/lib/permissions'
 import TeamRosterClient, { type TeamMember } from '@/components/staff/TeamRosterClient'
 import type { Profile } from '@/types'
 
-export const metadata: Metadata = {
-  title: 'Team',
-  description: 'Everyone who works in your store, and what they can do.',
+export async function generateMetadata(): Promise<Metadata> {
+  // Page name only; app/layout.tsx appends " · StockPulse". In the
+  // signed-in language, read from the same cookie the layout uses.
+  const { title, description } = appCopy(await getLocale()).meta.team
+  return { title, description }
 }
 
 /**

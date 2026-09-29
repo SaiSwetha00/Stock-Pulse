@@ -33,6 +33,8 @@ import {
   setAssistantMuted,
   type ThreadSummary,
 } from '@/app/(dashboard)/ai/actions'
+import { useAppCopy } from '@/lib/i18n/client'
+import type { AiCopy } from '@/lib/i18n/app'
 
 interface Message {
   id: string
@@ -53,12 +55,12 @@ interface Message {
  * data whatever that store sells, so none of them can come back empty because
  * of the wording of the prompt.
  */
-const SUGGESTIONS = [
-  { icon: AlertTriangle, text: 'Which products are low on stock?' },
-  { icon: CalendarClock, text: 'Which products are expiring soon?' },
-  { icon: TrendingUp, text: "What were today's sales?" },
-  { icon: BarChart3, text: "Give me this week's sales summary" },
-  { icon: Archive, text: 'What is my total inventory value?' },
+const SUGGESTIONS: { icon: typeof Archive; key: keyof AiCopy }[] = [
+  { icon: AlertTriangle, key: 'sLowStock' },
+  { icon: CalendarClock, key: 'sExpiring' },
+  { icon: TrendingUp, key: 'sToday' },
+  { icon: BarChart3, key: 'sWeek' },
+  { icon: Archive, key: 'sValue' },
 ]
 
 export default function AIAssistantPanel({
@@ -70,6 +72,9 @@ export default function AIAssistantPanel({
   profile: Profile
   store: Store
 }) {
+  const copy = useAppCopy()
+  const t = copy.ai
+  const tcm = copy.common
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
@@ -156,9 +161,9 @@ export default function AIAssistantPanel({
     // server did not accept — the next page load would silently disagree.
     if (!res.ok) {
       setMuted(!next)
-      setNotice('Could not save that preference.')
+      setNotice(t.prefSaveFailed)
     }
-  }, [muted])
+  }, [muted, t])
 
   const sendMessage = useCallback(
     async (text: string) => {
@@ -177,7 +182,7 @@ export default function AIAssistantPanel({
         } else {
           // The answer is still worth having. Say plainly that this one will
           // not be kept rather than failing the whole send.
-          setNotice('Could not start a saved conversation — this exchange will not be kept.')
+          setNotice(t.threadStartFailed)
         }
       }
 
@@ -230,7 +235,7 @@ export default function AIAssistantPanel({
         setMessages((prev) =>
           prev.map((m) =>
             m.id === modelMsgId
-              ? { ...m, text: 'Sorry, something went wrong. Please try again.' }
+              ? { ...m, text: t.streamError }
               : m,
           ),
         )
@@ -239,7 +244,7 @@ export default function AIAssistantPanel({
         abortRef.current = null
       }
     },
-    [messages, isStreaming, threadId, muted, refreshThreads],
+    [messages, isStreaming, threadId, muted, refreshThreads, t],
   )
 
   const startNewChat = useCallback(() => {
@@ -260,12 +265,12 @@ export default function AIAssistantPanel({
     const res = await loadThread(id)
     setSwitching(false)
     if (!res.ok) {
-      setNotice('Could not open that conversation.')
+      setNotice(t.openFailed)
       return
     }
     setThreadId(id)
     setMessages(res.data.map((m) => ({ id: m.id, role: m.role, text: m.content })))
-  }, [])
+  }, [t])
 
   const removeThread = useCallback(
     async (id: string) => {
@@ -274,10 +279,10 @@ export default function AIAssistantPanel({
       setThreads((prev) => prev.filter((t) => t.id !== id))
       if (id === threadId) startNewChat()
       const res = await deleteThread(id)
-      if (!res.ok) setNotice('Could not delete that conversation.')
+      if (!res.ok) setNotice(t.deleteFailed)
       void refreshThreads()
     },
-    [threadId, startNewChat, refreshThreads],
+    [threadId, startNewChat, refreshThreads, t],
   )
 
   const doClearChat = useCallback(async () => {
@@ -288,12 +293,12 @@ export default function AIAssistantPanel({
     }
     const res = await clearThread(threadId)
     if (!res.ok) {
-      setNotice('Could not clear this conversation.')
+      setNotice(t.clearFailed)
       return
     }
     setMessages([])
     void refreshThreads()
-  }, [threadId, refreshThreads])
+  }, [threadId, refreshThreads, t])
 
   /**
    * Focus trap, Escape, and focus restore.
@@ -394,11 +399,11 @@ export default function AIAssistantPanel({
             </div>
             <div className="min-w-0">
               <h3 id="ai-assistant-title" className="truncate text-base font-bold text-foreground">
-                Store Assistant
+                {t.title}
               </h3>
               <p className="flex items-center gap-1.5 text-xs text-muted">
                 <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                Online
+                {t.online}
               </p>
             </div>
           </div>
@@ -407,7 +412,7 @@ export default function AIAssistantPanel({
             <button
               type="button"
               onClick={() => setHistoryOpen((v) => !v)}
-              aria-label="Conversation history"
+              aria-label={t.history}
               aria-expanded={historyOpen}
               className={`tap-target rounded-lg ${
                 historyOpen
@@ -420,7 +425,7 @@ export default function AIAssistantPanel({
             <button
               type="button"
               onClick={toggleMuted}
-              aria-label={muted ? 'Turn on spoken replies' : 'Turn off spoken replies'}
+              aria-label={muted ? t.unmute : t.mute}
               aria-pressed={!muted}
               className="tap-target rounded-lg text-muted hover:bg-surface-muted hover:text-foreground"
             >
@@ -433,7 +438,7 @@ export default function AIAssistantPanel({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close assistant"
+              aria-label={t.close}
               className="tap-target rounded-lg text-muted hover:bg-surface-muted hover:text-foreground"
             >
               <X className="h-5 w-5" aria-hidden="true" />
@@ -452,26 +457,24 @@ export default function AIAssistantPanel({
             {switching ? (
               <p className="flex items-center justify-center gap-2 py-10 text-sm text-muted">
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                Opening conversation…
+                {t.opening}
               </p>
             ) : messages.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center text-center">
                 <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-muted">
                   <Sparkles className="h-7 w-7 text-muted-strong" />
                 </div>
-                <h4 className="sp-heading">How can I help you today?</h4>
-                <p className="mt-2 max-w-xs text-sm text-muted">
-                  I can check stock, analyze sales data, or help manage staff schedules.
-                </p>
+                <h4 className="sp-heading">{t.emptyTitle}</h4>
+                <p className="mt-2 max-w-xs text-sm text-muted">{t.emptyBody}</p>
                 <div className="mt-6 w-full space-y-2.5">
                   {SUGGESTIONS.map((s) => (
                     <button
-                      key={s.text}
-                      onClick={() => sendMessage(s.text)}
+                      key={s.key}
+                      onClick={() => sendMessage(t[s.key])}
                       className="flex w-full items-center gap-3 rounded-xl bg-surface-muted px-4 py-3.5 text-left text-sm font-medium text-muted-strong hover:bg-surface-muted"
                     >
                       <s.icon className="h-4 w-4 shrink-0 text-muted" />
-                      {s.text}
+                      {t[s.key]}
                     </button>
                   ))}
                 </div>
@@ -525,7 +528,7 @@ export default function AIAssistantPanel({
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-strong transition-colors hover:bg-surface-muted hover:text-danger disabled:pointer-events-none disabled:opacity-40"
                 >
                   <Eraser className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  Clear current chat
+                  {t.clearCurrent}
                 </button>
               </div>
             </div>
@@ -544,7 +547,7 @@ export default function AIAssistantPanel({
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask about inventory, sales, or staff"
+              placeholder={t.placeholder}
               className="control-h min-w-0 flex-1 bg-transparent px-2 text-sm text-foreground placeholder:text-muted focus:outline-none"
             />
             {/* Voice input is independent of the speaker control above: muting
@@ -553,43 +556,40 @@ export default function AIAssistantPanel({
             <button
               type="submit"
               disabled={isStreaming || !input.trim()}
-              aria-label="Send message"
+              aria-label={t.sendAria}
               className="tap-target shrink-0 rounded-full bg-foreground text-surface disabled:opacity-40"
             >
               <Send className="h-4 w-4" aria-hidden="true" />
             </button>
           </form>
-          <p className="mt-2 text-center text-xs text-muted">
-            AI can make mistakes. Verify critical data before acting.
-          </p>
+          <p className="mt-2 text-center text-xs text-muted">{t.disclaimer}</p>
         </div>
       </div>
 
       {confirmClear && (
         <Modal
-          title="Clear this conversation?"
+          title={t.clearTitle}
           onClose={() => setConfirmClear(false)}
           width="sm"
           footer={
             <div className="flex justify-end gap-2">
               <Button variant="secondary" onClick={() => setConfirmClear(false)}>
-                Cancel
+                {tcm.cancel}
               </Button>
               <Button variant="destructive" onClick={doClearChat}>
-                Clear chat
+                {t.clearButton}
               </Button>
             </div>
           }
         >
           <div className="px-6 py-5">
             <p className="text-sm text-muted-strong">
-              This removes all {messages.length} message{messages.length === 1 ? '' : 's'} in this
-              conversation. It cannot be undone.
+              {(messages.length === 1 ? t.clearBodyOne : t.clearBodyMany).replace(
+                '{n}',
+                String(messages.length),
+              )}
             </p>
-            <p className="mt-3 text-sm text-muted">
-              The conversation itself stays open, so you can carry on asking questions — it just
-              starts empty. To remove it entirely, use the delete button in the history list.
-            </p>
+            <p className="mt-3 text-sm text-muted">{t.clearBody2}</p>
           </div>
         </Modal>
       )}

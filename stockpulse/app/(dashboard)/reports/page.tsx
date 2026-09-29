@@ -1,18 +1,21 @@
 import type { Metadata } from 'next'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import { canViewReports } from '@/lib/permissions'
 import { toLocalISODate } from '@/lib/format'
 import type { Category, Product } from '@/types'
-import { getStoreCategories, labelMap } from '@/lib/categories'
+import { getStoreCategories, labelMap, localizeCategories } from '@/lib/categories'
 import type { ReportItem, ReportSale } from '@/lib/reports'
 import ReportsClient from '@/components/reports/ReportsClient'
 
-export const metadata: Metadata = {
-  title: "Reports",
-  description: "Period reports for your store, exportable as CSV or PDF.",
-  robots: { index: false, follow: false },
+export async function generateMetadata(): Promise<Metadata> {
+  // Page name only; app/layout.tsx appends " · StockPulse". In the
+  // signed-in language, read from the same cookie the layout uses.
+  const { title, description } = appCopy(await getLocale()).meta.reports
+  return { title, description, robots: { index: false, follow: false } }
 }
 
 /**
@@ -92,7 +95,10 @@ export default async function ReportsPage() {
   // slug -> label, and both are needed because a sale records the product's
   // name while the category is stored as a slug.
   const { categories: storeCategories } = await getStoreCategories(supabase, store.id)
-  const categoryLabels = labelMap(storeCategories)
+  // Display labels: seeded defaults follow the language, shop-named ones do not.
+  const categoryLabels = labelMap(
+    localizeCategories(storeCategories, appCopy(await getLocale()).categoryNames),
+  )
 
   const productCategories: [string, Category][] = (
     (products ?? []) as Pick<Product, 'name' | 'category'>[]

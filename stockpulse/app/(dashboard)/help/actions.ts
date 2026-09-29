@@ -9,6 +9,17 @@ import {
   type SupportRequestErrors,
   type SupportRequestInput,
 } from '@/lib/validation/supportRequest'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
+
+/**
+ * The reader's copy, resolved server-side from the locale cookie. Read here
+ * rather than taken from the payload: a message the browser supplied is not
+ * one this server should repeat back.
+ */
+async function copy() {
+  return appCopy(await getLocale()).help
+}
 
 export type SupportRequestResult =
   | { ok: true; reference: string }
@@ -40,9 +51,11 @@ export async function submitSupportRequest(
   // deliberate — staff are the people most likely to hit something confusing,
   // and a support form they cannot reach is the same as no support form.
 
-  const errors = validateSupportRequest(input)
+  const t = await copy()
+
+  const errors = validateSupportRequest(input, t)
   if (Object.keys(errors).length > 0) {
-    return { ok: false, errors, message: 'Please correct the highlighted fields.' }
+    return { ok: false, errors, message: t.fixFields }
   }
 
   const supabase = await createClient()
@@ -62,27 +75,18 @@ export async function submitSupportRequest(
     // sentence. A single "something went wrong" is what makes an app feel
     // broken rather than merely unlucky.
     if (error.code === CHECK_VIOLATION) {
-      return {
-        ok: false,
-        message: 'Some of those details were rejected. Check the message length and try again.',
-      }
+      return { ok: false, message: t.detailsRejected }
     }
     if (error.code === RLS_VIOLATION) {
-      return {
-        ok: false,
-        message: 'Your account is not attached to a store, so this could not be filed.',
-      }
+      return { ok: false, message: t.noStore }
     }
-    return { ok: false, message: `Could not send your request: ${error.message}` }
+    return { ok: false, message: t.sendFailed.replace('{message}', error.message) }
   }
 
   // Defensive: `.single()` on a successful insert always returns the row, but a
   // null here would otherwise render "Ticket undefined" at the user.
   if (!data?.reference) {
-    return {
-      ok: false,
-      message: 'Your request was saved, but we could not read back its ticket number.',
-    }
+    return { ok: false, message: t.savedNoRef }
   }
 
   /**

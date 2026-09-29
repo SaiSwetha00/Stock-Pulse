@@ -49,27 +49,50 @@ export const MAX_PHONE = 40
  */
 const PHONE_SHAPE = /^[0-9+()\-.\s]{6,}$/
 
-export function validateStoreSettings(values: StoreSettingsInput): StoreSettingsErrors {
+/** The six messages this can produce. "{n}"/"{min}"/"{max}" are the limits. */
+export type StoreSettingsCopy = {
+  vNameRequired: string
+  vNameTooLong: string
+  vAddressTooLong: string
+  vPhoneTooLong: string
+  vPhoneShape: string
+  vExpiryRange: string
+}
+
+/** English, and what a caller that passes nothing still gets. */
+const EN_STORE_SETTINGS: StoreSettingsCopy = {
+  vNameRequired: 'Your store needs a name — it appears across the app.',
+  vNameTooLong: 'Keep the name to {n} characters or fewer.',
+  vAddressTooLong: 'Keep the address to {n} characters or fewer.',
+  vPhoneTooLong: 'That phone number is too long.',
+  vPhoneShape: 'Use digits, spaces and + ( ) - only.',
+  vExpiryRange: 'Choose between {min} and {max} days.',
+}
+
+export function validateStoreSettings(
+  values: StoreSettingsInput,
+  copy: StoreSettingsCopy = EN_STORE_SETTINGS,
+): StoreSettingsErrors {
   const errors: StoreSettingsErrors = {}
 
   const name = values.name.trim()
-  if (!name) errors.name = 'Your store needs a name — it appears across the app.'
+  if (!name) errors.name = copy.vNameRequired
   else if (name.length > MAX_STORE_NAME) {
-    errors.name = `Keep the name to ${MAX_STORE_NAME} characters or fewer.`
+    errors.name = copy.vNameTooLong.replace('{n}', String(MAX_STORE_NAME))
   }
 
   // Address and phone are both optional: the columns are nullable and a shop
   // that has not filled them in is not in an error state.
   const address = values.address.trim()
   if (address.length > MAX_ADDRESS) {
-    errors.address = `Keep the address to ${MAX_ADDRESS} characters or fewer.`
+    errors.address = copy.vAddressTooLong.replace('{n}', String(MAX_ADDRESS))
   }
 
   const phone = values.phone.trim()
   if (phone) {
-    if (phone.length > MAX_PHONE) errors.phone = 'That phone number is too long.'
+    if (phone.length > MAX_PHONE) errors.phone = copy.vPhoneTooLong
     else if (!PHONE_SHAPE.test(phone)) {
-      errors.phone = 'Use digits, spaces and + ( ) - only.'
+      errors.phone = copy.vPhoneShape
     }
   }
 
@@ -79,7 +102,9 @@ export function validateStoreSettings(values: StoreSettingsInput): StoreSettings
     days < MIN_EXPIRY_WARNING_DAYS ||
     days > MAX_EXPIRY_WARNING_DAYS
   ) {
-    errors.expiryWarningDays = `Choose between ${MIN_EXPIRY_WARNING_DAYS} and ${MAX_EXPIRY_WARNING_DAYS} days.`
+    errors.expiryWarningDays = copy.vExpiryRange
+      .replace('{min}', String(MIN_EXPIRY_WARNING_DAYS))
+      .replace('{max}', String(MAX_EXPIRY_WARNING_DAYS))
   }
 
   return errors

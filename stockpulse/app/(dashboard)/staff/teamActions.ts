@@ -6,6 +6,17 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { isAssignableRole, ROLE_LABELS, type AssignableRole } from '@/lib/permissions'
 import { notify } from '@/app/(dashboard)/notifications/actions'
 import type { Role } from '@/types'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
+
+/**
+ * The reader's copy, resolved server-side from the locale cookie. Each action
+ * reads it itself: a message the browser supplied is not one this server
+ * should repeat back.
+ */
+async function copy() {
+  return appCopy(await getLocale()).staff
+}
 
 export type TeamActionResult = { ok: true } | { ok: false; message: string }
 
@@ -28,7 +39,7 @@ async function requireOwner(): Promise<
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return { error: 'Not authenticated' }
+  if (!user) return { error: (await copy()).actNotAuthenticated }
 
   const { data: requester } = await supabase
     .from('profiles')
@@ -37,7 +48,7 @@ async function requireOwner(): Promise<
     .single()
 
   if (!requester || requester.role !== 'owner') {
-    return { error: 'Only the store owner can manage the team.' }
+    return { error: (await copy()).actOwnerOnly }
   }
   return { userId: user.id, storeId: requester.store_id as string }
 }
@@ -74,7 +85,7 @@ async function loadTeamMember(
   requesterId: string,
 ): Promise<{ ok: false; message: string } | { ok: true; profile: TeamMemberRow }> {
   if (profileId === requesterId) {
-    return { ok: false, message: 'You cannot change your own role or access from here.' }
+    return { ok: false, message: (await copy()).actOwnRole }
   }
 
   const admin = createAdminClient()
@@ -85,9 +96,9 @@ async function loadTeamMember(
     .eq('store_id', storeId)
     .single()
 
-  if (!profile) return { ok: false, message: 'That team member is not in this store.' }
+  if (!profile) return { ok: false, message: (await copy()).actNotInStore }
   if (profile.role === 'owner') {
-    return { ok: false, message: 'The store owner’s account cannot be changed from here.' }
+    return { ok: false, message: (await copy()).actOwnerAccount }
   }
   return { ok: true, profile: profile as TeamMemberRow }
 }
@@ -112,9 +123,10 @@ export async function updateTeamMember(input: {
   if (!found.ok) return found
 
   const fullName = input.fullName.trim()
-  if (!fullName) return { ok: false, message: 'A name is required.' }
+  const ts = await copy()
+  if (!fullName) return { ok: false, message: ts.actNameRequired }
   if (!isAssignableRole(input.role)) {
-    return { ok: false, message: 'Choose a valid role for this team member.' }
+    return { ok: false, message: ts.actBadRole }
   }
 
   const admin = createAdminClient()
@@ -135,8 +147,10 @@ export async function updateTeamMember(input: {
 
   if (found.profile.role !== input.role) {
     await notify({
-      title: 'Team role changed',
-      body: `${fullName} is now ${ROLE_LABELS[input.role]}.`,
+      title: ts.notifyRoleChanged,
+      body: ts.notifyRoleBody
+        .replace('{name}', fullName)
+        .replace('{role}', appCopy(await getLocale()).roles[input.role]),
       audience: 'managers',
       kind: 'staff',
       entity: 'profiles',
@@ -180,11 +194,13 @@ export async function setTeamMemberActive(
 
   if (error) return { ok: false, message: error.message }
 
+  const tsA = await copy()
   await notify({
-    title: active ? 'Team member reactivated' : 'Team member deactivated',
-    body: active
-      ? `${found.profile.full_name} can sign in again.`
-      : `${found.profile.full_name} can no longer sign in. Their history is kept.`,
+    title: active ? tsA.notifyReactivated : tsA.notifyDeactivated,
+    body: (active ? tsA.canSignInAgain : tsA.notifyDeactivatedBody).replace(
+      '{name}',
+      found.profile.full_name,
+    ),
     audience: 'managers',
     kind: 'staff',
     entity: 'profiles',

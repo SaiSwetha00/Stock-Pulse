@@ -1,17 +1,20 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
-import { DAY_LABELS } from '@/lib/format'
+import { dayLabels } from '@/lib/format'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 import { REPORTING_TIMEZONE, reportingDate, shiftDays, weekdayIndex } from '@/lib/reportingTimezone'
 import type { Product, Sale } from '@/types'
-import { categoryLabel, getStoreCategories, labelMap } from '@/lib/categories'
+import { categoryLabel, getStoreCategories, labelMap, localizeCategories } from '@/lib/categories'
 import SalesClient from '@/components/sales/SalesClient'
 import { storeExpiryWarningDays } from '@/lib/expiry'
 
-export const metadata: Metadata = {
-  title: "Sales",
-  description: "Log sales and review every transaction your store has taken.",
-  robots: { index: false, follow: false },
+export async function generateMetadata(): Promise<Metadata> {
+  // Page name only; app/layout.tsx appends " · StockPulse". In the
+  // signed-in language, read from the same cookie the layout uses.
+  const { title, description } = appCopy(await getLocale()).meta.sales
+  return { title, description, robots: { index: false, follow: false } }
 }
 
 /** Shapes returned by the aggregate functions in migration 0004. */
@@ -69,10 +72,13 @@ export default async function SalesPage() {
     }),
   ])
 
-  // Zero-filled and oldest-first, so this maps straight onto the chart.
+  // Zero-filled and oldest-first, so this maps straight onto the chart. The
+  // axis reads the ROTA's day names rather than a second set of its own, so
+  // Monday is the same word on the chart and on the schedule.
+  const days7 = dayLabels(appCopy(await getLocale()).staff)
   const days = (daily ?? []) as DailyTotal[]
   const trendData = days.map((d) => ({
-    label: DAY_LABELS[weekdayIndex(d.day)],
+    label: days7[weekdayIndex(d.day)],
     value: Number(d.total),
   }))
 
@@ -88,7 +94,10 @@ export default async function SalesPage() {
   // The RPC still groups by products.category and returns the slug, which is
   // why 0013 kept that column as text. Naming it is this page's job.
   const { categories: storeCategories } = await getStoreCategories(supabase, store.id)
-  const categoryLabels = labelMap(storeCategories)
+  // Display labels: seeded defaults follow the language, shop-named ones do not.
+  const categoryLabels = labelMap(
+    localizeCategories(storeCategories, appCopy(await getLocale()).categoryNames),
+  )
   const categoryBreakdown = categoryTotals.slice(0, BREAKDOWN_LIMIT).map((c) => ({
     label: categoryLabel(c.category, categoryLabels),
     pct: grandTotal ? Math.round((Number(c.total) / grandTotal) * 100) : 0,

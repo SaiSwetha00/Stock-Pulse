@@ -31,23 +31,43 @@ export type SupplierPayload = {
  * constraints enforce, so a bad value fails with a readable message instead of
  * a raw Postgres constraint violation.
  */
-export function validateSupplier(values: SupplierInput): SupplierErrors {
+/** The words, separate from the rules. English when no dictionary is given. */
+export type SupplierValidationCopy = {
+  vNameRequired: string
+  vNameTooLong: string
+  vContactTooLong: string
+  vCategoryInvalid: string
+  vStatusInvalid: string
+}
+
+const EN_SUPPLIER: SupplierValidationCopy = {
+  vNameRequired: 'Supplier name is required.',
+  vNameTooLong: 'Name must be 120 characters or fewer.',
+  vContactTooLong: 'Contact must be 120 characters or fewer.',
+  vCategoryInvalid: 'Choose a valid category.',
+  vStatusInvalid: 'Choose a valid status.',
+}
+
+export function validateSupplier(
+  values: SupplierInput,
+  copy: SupplierValidationCopy = EN_SUPPLIER,
+): SupplierErrors {
   const errors: SupplierErrors = {}
 
   const name = values.name.trim()
-  if (!name) errors.name = 'Supplier name is required.'
-  else if (name.length > 120) errors.name = 'Name must be 120 characters or fewer.'
+  if (!name) errors.name = copy.vNameRequired
+  else if (name.length > 120) errors.name = copy.vNameTooLong
 
   if (values.primaryContact.trim().length > 120) {
-    errors.primaryContact = 'Contact must be 120 characters or fewer.'
+    errors.primaryContact = copy.vContactTooLong
   }
 
   if (!SUPPLIER_CATEGORIES.includes(values.category as SupplierCategory)) {
-    errors.category = 'Choose a valid category.'
+    errors.category = copy.vCategoryInvalid
   }
 
   if (!SUPPLIER_STATUSES.includes(values.status as SupplierStatus)) {
-    errors.status = 'Choose a valid status.'
+    errors.status = copy.vStatusInvalid
   }
 
   return errors

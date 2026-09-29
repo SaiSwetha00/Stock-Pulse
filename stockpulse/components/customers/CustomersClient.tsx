@@ -23,15 +23,22 @@ import { useTable, type SortAccessors } from '@/lib/useTable'
 import type { CsvColumn } from '@/lib/csv'
 import CustomerModal from './CustomerModal'
 import DeleteCustomerDialog from './DeleteCustomerDialog'
-import { LOYALTY_TIER_LABELS, type Customer, type LoyaltyTier } from '@/types'
+import { type Customer, type LoyaltyTier } from '@/types'
+import { useAppCopy } from '@/lib/i18n/client'
+import type { CustomersCopy } from '@/lib/i18n/app'
 
-const TIER_FILTERS: { value: LoyaltyTier | 'all'; label: string }[] = [
-  { value: 'all', label: 'All Tiers' },
-  { value: 'platinum', label: 'Platinum' },
-  { value: 'gold', label: 'Gold' },
-  { value: 'silver', label: 'Silver' },
-  { value: 'bronze', label: 'Bronze' },
-]
+// Functions rather than constants: a module-scope literal cannot read a
+// hook. Both stay module-private and are memoised at the call site, so the
+// sort and filter memos keep their stable dependencies.
+function tierFilters(t: CustomersCopy): { value: LoyaltyTier | 'all'; label: string }[] {
+  return [
+    { value: 'all', label: t.allTiers },
+    { value: 'platinum', label: t.tierLabels.platinum },
+    { value: 'gold', label: t.tierLabels.gold },
+    { value: 'silver', label: t.tierLabels.silver },
+    { value: 'bronze', label: t.tierLabels.bronze },
+  ]
+}
 
 const TIER_STYLES: Record<LoyaltyTier, string> = {
   platinum: 'bg-foreground text-surface',
@@ -42,11 +49,13 @@ const TIER_STYLES: Record<LoyaltyTier, string> = {
 
 type Activity = 'active' | 'dormant'
 
-const ACTIVITY_FILTERS: { value: Activity | 'all'; label: string }[] = [
-  { value: 'all', label: 'Any activity' },
-  { value: 'active', label: 'Visited in 30 days' },
-  { value: 'dormant', label: 'Dormant 30+ days' },
-]
+function activityFilters(t: CustomersCopy): { value: Activity | 'all'; label: string }[] {
+  return [
+    { value: 'all', label: t.activityAny },
+    { value: 'active', label: t.activityRecent },
+    { value: 'dormant', label: t.activityDormant },
+  ]
+}
 
 const DORMANT_AFTER_DAYS = 30
 
@@ -77,22 +86,26 @@ const SORT_DEFAULT_DIRS: Partial<Record<SortKey, 'asc' | 'desc'>> = {
   loyalty_tier: 'desc',
 }
 
-const CSV_COLUMNS: CsvColumn<Customer>[] = [
-  { header: 'Name', value: (c) => c.full_name },
-  { header: 'Email', value: (c) => c.email },
-  { header: 'Phone', value: (c) => c.phone },
-  { header: 'Tier', value: (c) => LOYALTY_TIER_LABELS[c.loyalty_tier] },
-  { header: 'Visits', value: (c) => c.visits },
+// Nothing parses a customers export, so its headers say what the table above
+// them says. The inventory export is the opposite case - see lib/importCsv.
+function csvColumns(t: CustomersCopy): CsvColumn<Customer>[] {
+  return [
+  { header: t.csvName, value: (c) => c.full_name },
+  { header: t.csvEmail, value: (c) => c.email },
+  { header: t.csvPhone, value: (c) => c.phone },
+  { header: t.colTier, value: (c) => t.tierLabels[c.loyalty_tier] },
+  { header: t.colVisits, value: (c) => c.visits },
   // Raw number so the column totals in a spreadsheet.
-  { header: 'Total Spent', value: (c) => Number(c.total_spent) },
+  { header: t.colTotalSpent, value: (c) => Number(c.total_spent) },
   {
-    header: 'Last Visit',
+    header: t.colLastVisit,
     // The table shows this as "3d ago". A relative stamp is worthless in a
     // saved file — it decays the moment the export is written — so the
     // absolute local date goes into the CSV instead.
     value: (c) => (c.last_visit_at ? new Date(c.last_visit_at).toLocaleString() : ''),
   },
-]
+  ]
+}
 
 function initials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean)
@@ -107,6 +120,12 @@ export default function CustomersClient({
   // from the session, so the browser never names the target store.
   initialCustomers: Customer[]
 }) {
+  const t = useAppCopy()
+  const tc = t.customers
+  const tcm = t.common
+  const tierOptions = useMemo(() => tierFilters(tc), [tc])
+  const activityOptions = useMemo(() => activityFilters(tc), [tc])
+  const csvCols = useMemo(() => csvColumns(tc), [tc])
   const [search, setSearch] = useState('')
   const [tier, setTier] = useState<LoyaltyTier | 'all'>('all')
   const [activity, setActivity] = useState<Activity | 'all'>('all')
@@ -128,12 +147,12 @@ export default function CustomersClient({
         c.email?.toLowerCase().includes(q) ||
         c.phone?.toLowerCase().includes(q) ||
         // Visible in the row, so it should be findable.
-        LOYALTY_TIER_LABELS[c.loyalty_tier].toLowerCase().includes(q)
+        tc.tierLabels[c.loyalty_tier].toLowerCase().includes(q)
       const matchesTier = tier === 'all' || c.loyalty_tier === tier
       const matchesActivity = activity === 'all' || activityOf(c, now) === activity
       return matchesSearch && matchesTier && matchesActivity
     })
-  }, [initialCustomers, search, tier, activity, now])
+  }, [initialCustomers, search, tier, activity, now, tc])
 
   const table = useTable<Customer, SortKey>({
     items: filtered,
@@ -159,23 +178,21 @@ export default function CustomersClient({
     <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="sp-eyebrow">Relationships</p>
-          <h1 className="sp-title mt-2">Customers</h1>
-          <p className="sp-body mt-2">
-            Customer profiles, purchase history, and loyalty tiers.
-          </p>
+          <p className="sp-eyebrow">{tc.eyebrow}</p>
+          <h1 className="sp-title mt-2">{tc.title}</h1>
+          <p className="sp-body mt-2">{tc.subtitle}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <ExportCsvButton
-            columns={CSV_COLUMNS}
+            columns={csvCols}
             rows={table.allRows}
             filenameBase="customers"
-            itemLabel="customers"
+            itemLabel={tc.itemLabel}
           />
           <Button onClick={() => setEditing('new')}>
             <Plus className="h-4 w-4" aria-hidden="true" />
-            Add Customer
+            {tc.addCustomer}
           </Button>
         </div>
       </div>
@@ -190,8 +207,8 @@ export default function CustomersClient({
               table.setPage(1)
             }}
             type="search"
-            aria-label="Search customers"
-            placeholder="Search by name, email, phone, or tier..."
+            aria-label={tc.searchAria}
+            placeholder={tc.searchPlaceholder}
             className="control-h w-full rounded-lg border border-border bg-surface-muted pl-10 pr-12 text-sm placeholder:text-muted transition-[border-color,background-color] duration-150 focus:border-border-strong focus:bg-surface focus:outline-none"
           />
           {search && (
@@ -201,7 +218,7 @@ export default function CustomersClient({
                 setSearch('')
                 table.setPage(1)
               }}
-              aria-label="Clear search"
+              aria-label={tcm.clearSearch}
               className="tap-target absolute right-1 top-1/2 -translate-y-1/2 rounded-lg text-muted transition hover:text-foreground"
             >
               <X className="h-4 w-4" aria-hidden="true" />
@@ -211,7 +228,7 @@ export default function CustomersClient({
 
         <div className="flex items-center gap-2">
           <label htmlFor="customer-activity" className="sr-only">
-            Filter by activity
+            {tc.filterByActivity}
           </label>
           <select
             id="customer-activity"
@@ -222,7 +239,7 @@ export default function CustomersClient({
             }}
             className="control-h rounded-lg border border-border bg-surface-muted px-3 text-sm text-muted-strong transition-[border-color,background-color] duration-150 focus:border-border-strong focus:bg-surface focus:outline-none"
           >
-            {ACTIVITY_FILTERS.map((f) => (
+            {activityOptions.map((f) => (
               <option key={f.value} value={f.value}>
                 {f.label}
               </option>
@@ -230,7 +247,7 @@ export default function CustomersClient({
           </select>
         </div>
         <div className="flex flex-wrap gap-2">
-          {TIER_FILTERS.map((f) => (
+          {tierOptions.map((f) => (
             <button
               key={f.value}
               onClick={() => {
@@ -253,7 +270,7 @@ export default function CustomersClient({
         <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Total Customers
+              {tc.statTotal}
             </p>
             <Users className="h-5 w-5 text-muted" />
           </div>
@@ -262,7 +279,7 @@ export default function CustomersClient({
         <div className="sp-rise sp-e1 sp-delay-2 sp-delay-1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Lifetime Revenue
+              {tc.statRevenue}
             </p>
             <Wallet className="h-5 w-5 text-muted" />
           </div>
@@ -271,7 +288,7 @@ export default function CustomersClient({
         <div className="rounded-2xl bg-foreground p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Repeat Customers
+              {tc.statRepeat}
             </p>
             <Repeat className="h-5 w-5 text-muted" />
           </div>
@@ -286,14 +303,14 @@ export default function CustomersClient({
           <table className="sp-table block w-full text-left text-sm lg:table">
             <thead className="hidden lg:table-header-group">
               <tr className="border-b border-border bg-surface-muted text-xs font-semibold uppercase tracking-wide text-muted">
-                <SortableTh label="Customer" sortKey="full_name" sort={table.sort} onSort={table.toggleSort} className="px-6" />
-                <SortableTh label="Contact" sortKey="email" sort={table.sort} onSort={table.toggleSort} className="px-4" />
-                <SortableTh label="Tier" sortKey="loyalty_tier" sort={table.sort} onSort={table.toggleSort} className="px-4" />
-                <SortableTh label="Visits" sortKey="visits" sort={table.sort} onSort={table.toggleSort} align="right" className="px-4" />
-                <SortableTh label="Total Spent" sortKey="total_spent" sort={table.sort} onSort={table.toggleSort} align="right" className="px-4" />
-                <SortableTh label="Last Visit" sortKey="last_visit_at" sort={table.sort} onSort={table.toggleSort} className="px-4" />
+                <SortableTh label={tc.colCustomer} sortKey="full_name" sort={table.sort} onSort={table.toggleSort} className="px-6" />
+                <SortableTh label={tc.colContact} sortKey="email" sort={table.sort} onSort={table.toggleSort} className="px-4" />
+                <SortableTh label={tc.colTier} sortKey="loyalty_tier" sort={table.sort} onSort={table.toggleSort} className="px-4" />
+                <SortableTh label={tc.colVisits} sortKey="visits" sort={table.sort} onSort={table.toggleSort} align="right" className="px-4" />
+                <SortableTh label={tc.colTotalSpent} sortKey="total_spent" sort={table.sort} onSort={table.toggleSort} align="right" className="px-4" />
+                <SortableTh label={tc.colLastVisit} sortKey="last_visit_at" sort={table.sort} onSort={table.toggleSort} className="px-4" />
                 <th scope="col" className="px-4 py-3.5 text-right">
-                  Actions
+                  {tc.colActions}
                 </th>
               </tr>
             </thead>
@@ -307,23 +324,23 @@ export default function CustomersClient({
                     {initialCustomers.length === 0 ? (
                       <EmptyState
                         illustration={<LineArtPeople className="h-full w-full" />}
-                        title="No customers yet"
-                        description="Add a customer to start tracking purchase history and loyalty tiers."
+                        title={tc.emptyTitle}
+                        description={tc.emptyBody}
                         action={
                           <Button onClick={() => setEditing('new')}>
                             <Plus className="h-4 w-4" aria-hidden="true" />
-                            Add Customer
+                            {tc.addCustomer}
                           </Button>
                         }
                       />
                     ) : (
                       <EmptyState
                         icon={Search}
-                        title="No customers match these filters"
-                        description="Try a different search term or tier."
+                        title={tc.noMatchTitle}
+                        description={tc.noMatchBody}
                         action={
                           <Button variant="secondary" onClick={clearFilters}>
-                            Clear filters
+                            {tcm.clearFilters}
                           </Button>
                         }
                       />
@@ -349,7 +366,7 @@ export default function CustomersClient({
                       say what it is. */}
                   <td className="mt-3 flex items-baseline justify-between gap-3 lg:mt-0 lg:table-cell lg:px-4">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                      Contact
+                      {tc.colContact}
                     </span>
                     <span className="text-right lg:text-left">
                       <span className="block text-muted-strong">{c.email || '—'}</span>
@@ -358,29 +375,29 @@ export default function CustomersClient({
                   </td>
                   <td className="mt-2 flex items-center justify-between gap-3 lg:mt-0 lg:table-cell lg:px-4">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                      Tier
+                      {tc.colTier}
                     </span>
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-semibold ${TIER_STYLES[c.loyalty_tier]}`}
                     >
-                      {LOYALTY_TIER_LABELS[c.loyalty_tier]}
+                      {tc.tierLabels[c.loyalty_tier]}
                     </span>
                   </td>
                   <td className="sp-num mt-2 flex items-center justify-between gap-3 text-muted-strong lg:mt-0 lg:table-cell lg:px-4">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                      Visits
+                      {tc.colVisits}
                     </span>
                     {c.visits}
                   </td>
                   <td className="sp-num mt-2 flex items-center justify-between gap-3 font-semibold text-foreground lg:mt-0 lg:table-cell lg:px-4">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                      Total Spent
+                      {tc.colTotalSpent}
                     </span>
                     {formatCurrency(Number(c.total_spent))}
                   </td>
                   <td className="mt-2 flex items-center justify-between gap-3 text-muted lg:mt-0 lg:table-cell lg:px-4">
                     <span className="text-xs font-semibold uppercase tracking-wide text-muted lg:hidden">
-                      Last Visit
+                      {tc.colLastVisit}
                     </span>
                     {c.last_visit_at ? <RelativeTime iso={c.last_visit_at} /> : '—'}
                   </td>
@@ -389,7 +406,7 @@ export default function CustomersClient({
                       <button
                         type="button"
                         onClick={() => setEditing(c)}
-                        aria-label={`Edit ${c.full_name}`}
+                        aria-label={tc.editRow.replace('{name}', c.full_name)}
                         className="tap-target rounded-lg text-muted transition hover:bg-surface-muted hover:text-foreground"
                       >
                         <Pencil className="h-4 w-4" aria-hidden="true" />
@@ -397,7 +414,7 @@ export default function CustomersClient({
                       <button
                         type="button"
                         onClick={() => setDeleting(c)}
-                        aria-label={`Delete ${c.full_name}`}
+                        aria-label={tc.deleteRow.replace('{name}', c.full_name)}
                         className="tap-target rounded-lg text-muted transition hover:bg-danger-bg hover:text-danger"
                       >
                         <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -419,7 +436,7 @@ export default function CustomersClient({
           rangeStart={table.rangeStart}
           rangeEnd={table.rangeEnd}
           total={table.total}
-          itemLabel="customers"
+          itemLabel={tc.itemLabel}
           className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-6 py-4"
         />
       </div>

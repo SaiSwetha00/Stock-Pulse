@@ -1,14 +1,17 @@
 import type { Metadata } from 'next'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import { toLocalISODate } from '@/lib/format'
 import StaffScheduleClient from '@/components/staff/StaffScheduleClient'
 import type { Profile, Shift, StaffLeave } from '@/types'
 
-export const metadata: Metadata = {
-  title: "Staff Schedule",
-  description: "This week and who is covering each shift.",
-  robots: { index: false, follow: false },
+export async function generateMetadata(): Promise<Metadata> {
+  // Page name only; app/layout.tsx appends " · StockPulse". In the
+  // signed-in language, read from the same cookie the layout uses.
+  const { title, description } = appCopy(await getLocale()).meta.staff
+  return { title, description, robots: { index: false, follow: false } }
 }
 
 function startOfWeek(d: Date): Date {

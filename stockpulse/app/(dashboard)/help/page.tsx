@@ -1,14 +1,16 @@
 import type { Metadata } from 'next'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 import HelpCenterClient from '@/components/help/HelpCenterClient'
 import SupportRequestForm from '@/components/help/SupportRequestForm'
 import { getCurrentUser } from '@/lib/data'
+import { localizedHelp } from '@/lib/help/localized'
 
-export const metadata: Metadata = {
-  // Just the page's own name. app/layout.tsx supplies the "%s · StockPulse"
-  // template, so spelling the suffix out here rendered "Help Centre ·
-  // StockPulse · StockPulse" in the tab.
-  title: 'Help Centre',
-  description: 'Guides for running your store in StockPulse, and a way to reach support.',
+export async function generateMetadata(): Promise<Metadata> {
+  // Page name only; app/layout.tsx appends " · StockPulse". In the
+  // signed-in language, read from the same cookie the layout uses.
+  const { title, description } = appCopy(await getLocale()).meta.help
+  return { title, description }
 }
 
 /**
@@ -19,10 +21,13 @@ export const metadata: Metadata = {
  */
 export default async function HelpPage() {
   const { profile } = await getCurrentUser()
+  // Resolved here, in the reader's language, so the client half receives
+  // only that language's text rather than importing all three.
+  const { categories, articles } = localizedHelp(await getLocale())
 
   return (
     <>
-      <HelpCenterClient />
+      <HelpCenterClient categories={categories} articles={articles} />
       {/* sp-page, not a hand-rolled `px-6 pb-12` — the support form sits
           directly under HelpCenterClient and has to share its gutters, or the
           page has two different left edges. pt-0 because the article list

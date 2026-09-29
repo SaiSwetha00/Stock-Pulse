@@ -13,6 +13,7 @@ import {
   YAxis,
 } from 'recharts'
 import { formatCurrency, formatCurrencyWhole } from '@/lib/format'
+import { useAppCopy } from '@/lib/i18n/client'
 
 /**
  * The three charts /reports should always have had.
@@ -24,12 +25,15 @@ import { formatCurrency, formatCurrencyWhole } from '@/lib/format'
  * the tables below already render, so a chart and the table under it can never
  * disagree.
  *
- * COLOUR. Straight from the theme tokens, never hex. `--chart-1..3` are the
- * gold family, `--info` is this palette's coffee-brown (there is no blue in
- * this product) and `--danger` is the deep red. Using the variables rather
- * than literals is what makes these correct in dark mode for free — the
- * dashboard's SalesTrendChart hard-codes zinc hex values and is the one chart
- * that does not respond to the theme, which is worth fixing separately.
+ * COLOUR. Straight from the theme tokens, never hex — `--chart-1..3`, `--info`
+ * and `--danger`, whatever family the active palette gives those names. Using
+ * the variables rather than literals is what makes these correct in dark mode
+ * for free.
+ *
+ * This note used to end by saying the dashboard's SalesTrendChart hard-coded
+ * zinc hex values and was the one chart that did not respond to the theme.
+ * That has been fixed: it reads the same tokens through Tailwind `fill-*`
+ * utilities, so no chart in the app is exempt any more.
  *
  * LAYOUT STABILITY. Every chart sits in a wrapper with an explicit pixel
  * height, and ResponsiveContainer fills it. This is the whole CLS story:
@@ -88,6 +92,7 @@ export default function ReportsCharts({
    */
   topProductsExtra?: React.ReactNode
 }) {
+  const tr = useAppCopy().reports
   const prefersReduced = useReducedMotion()
   const animate = !prefersReduced
 
@@ -99,9 +104,12 @@ export default function ReportsCharts({
     <div className="mt-6 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
       {/* ---- Revenue over time ---- */}
       <section className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6 lg:col-span-2">
-        <h2 className="sp-heading">Revenue over time</h2>
+        <h2 className="sp-heading">{tr.chartRevenueOverTime}</h2>
         <p className="sp-body mt-1 text-sm">
-          {daily.length} day{daily.length === 1 ? '' : 's'} in the selected range
+          {(daily.length === 1 ? tr.rangeDaysOne : tr.rangeDaysMany).replace(
+            '{n}',
+            String(daily.length),
+          )}
         </p>
         <div className="mt-4 h-[240px] w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -129,7 +137,7 @@ export default function ReportsCharts({
                 cursor={{ stroke: 'var(--border)' }}
                 contentStyle={tooltipStyle}
                 labelStyle={{ color: 'var(--muted-strong)' }}
-                formatter={(value) => [formatCurrency(Number(value)), 'Revenue']}
+                formatter={(value) => [formatCurrency(Number(value)), tr.colRevenue]}
               />
               <Area
                 type="monotone"
@@ -148,8 +156,8 @@ export default function ReportsCharts({
 
       {/* ---- Sales by category ---- */}
       <section className="sp-rise sp-delay-1 sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
-        <h2 className="sp-heading">Sales by category</h2>
-        <p className="sp-body mt-1 text-sm">Revenue share across the store&apos;s categories</p>
+        <h2 className="sp-heading">{tr.chartSalesByCategory}</h2>
+        <p className="sp-body mt-1 text-sm">{tr.chartCategorySub}</p>
         <div className="mt-4 h-[240px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={categories} layout="vertical" margin={{ top: 4, right: 12, left: 4, bottom: 0 }}>
@@ -163,8 +171,10 @@ export default function ReportsCharts({
                 contentStyle={tooltipStyle}
                 labelStyle={{ color: 'var(--muted-strong)' }}
                 formatter={(value, _n, item) => [
-                  `${formatCurrency(Number(value))} · ${Number(item?.payload?.pct ?? 0).toFixed(1)}%`,
-                  'Revenue',
+                  tr.tooltipShare
+                    .replace('{money}', formatCurrency(Number(value)))
+                    .replace('{pct}', Number(item?.payload?.pct ?? 0).toFixed(1)),
+                  tr.colRevenue,
                 ]}
               />
               <Bar dataKey="revenue" radius={[0, 4, 4, 0]} isAnimationActive={animate} animationDuration={600}>
@@ -179,9 +189,9 @@ export default function ReportsCharts({
 
       {/* ---- Top products ---- */}
       <section className="sp-rise sp-delay-2 sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
-        <h2 className="sp-heading">Top products</h2>
+        <h2 className="sp-heading">{tr.chartTopProducts}</h2>
         <p className="sp-body mt-1 text-sm">
-          Highest revenue, best five of {products.length}
+          {tr.chartTopSub.replace('{n}', String(products.length))}
         </p>
         <div className="mt-4 h-[240px] w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -202,8 +212,10 @@ export default function ReportsCharts({
                 contentStyle={tooltipStyle}
                 labelStyle={{ color: 'var(--muted-strong)' }}
                 formatter={(value, _n, item) => [
-                  `${formatCurrency(Number(value))} · ${item?.payload?.units ?? 0} units`,
-                  'Revenue',
+                  tr.tooltipUnits
+                    .replace('{money}', formatCurrency(Number(value)))
+                    .replace('{n}', String(item?.payload?.units ?? 0)),
+                  tr.colRevenue,
                 ]}
               />
               <Bar

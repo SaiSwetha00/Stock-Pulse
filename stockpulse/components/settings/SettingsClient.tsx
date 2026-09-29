@@ -13,6 +13,7 @@ import Modal from '@/components/ui/Modal'
 import { removeSampleData } from '@/app/(dashboard)/inventory/actions'
 import { Field, Input, Textarea } from '@/components/ui/Field'
 import { useToast } from '@/components/ui/Toast'
+import { useAppCopy } from '@/lib/i18n/client'
 import {
   validateStoreSettings,
   type StoreSettingsErrors,
@@ -40,6 +41,9 @@ const SLIDER_MAX_DAYS = 30
 
 export default function SettingsClient({ store }: { store: StoreType }) {
   const router = useRouter()
+  const copy = useAppCopy()
+  const t = copy.settings
+  const tcm = copy.common
   const [name, setName] = useState(store.name)
   const [address, setAddress] = useState(store.address ?? '')
   const [phone, setPhone] = useState(store.contact_phone ?? '')
@@ -134,7 +138,10 @@ export default function SettingsClient({ store }: { store: StoreType }) {
     // Validate before the round trip. `stores.name` is `not null` but not
     // `not blank`, so an empty name used to save successfully and leave the
     // shop nameless everywhere it is printed.
-    const found = validateStoreSettings({ name, address, phone, expiryWarningDays: expiryDays })
+    const found = validateStoreSettings(
+      { name, address, phone, expiryWarningDays: expiryDays },
+      t,
+    )
     if (Object.keys(found).length > 0) {
       setErrors(found)
       return
@@ -170,15 +177,12 @@ export default function SettingsClient({ store }: { store: StoreType }) {
       // migration, and every settings save on this branch writes this field.
       const missingColumn =
         error.code === 'PGRST204' && /expiry_warning_days/i.test(error.message ?? '')
-      const message = missingColumn
-        ? 'The expiry warning setting is not set up on this database yet. Run ' +
-          'supabase/migrations/0017_store_expiry_warning_days.sql in the Supabase SQL editor.'
-        : error.message
+      const message = missingColumn ? t.needsMigration : error.message
       setSaveError(message)
-      toast.error('Could not save settings', message)
+      toast.error(t.saveFailed, message)
       return
     }
-    toast.success('Settings saved')
+    toast.success(t.savedToast)
     setSaved(true)
     router.refresh()
     setTimeout(() => setSaved(false), 2500)
@@ -188,27 +192,25 @@ export default function SettingsClient({ store }: { store: StoreType }) {
     <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="sp-eyebrow">Configuration</p>
-          <h1 className="sp-title mt-2">Store Settings</h1>
-          <p className="sp-body mt-2">
-            Configuration and operational parameters for {store.name}.
-          </p>
+          <p className="sp-eyebrow">{t.eyebrow}</p>
+          <h1 className="sp-title mt-2">{t.title}</h1>
+          <p className="sp-body mt-2">{t.subtitle.replace('{store}', store.name)}</p>
         </div>
         <div className="flex items-center gap-3">
           {dirty && (
             <span role="status" className="text-xs font-medium text-muted">
-              Unsaved changes
+              {t.unsaved}
             </span>
           )}
           <Button variant="secondary" onClick={discard} disabled={!dirty || saving}>
-            Discard
+            {t.discard}
           </Button>
           {/* The one high-emphasis button on this screen. Disabled when
               nothing has changed: a Save that is always available invites
               clicking it to check whether anything was missed, and every one
               of those is a pointless write. */}
           <Button onClick={handleSave} loading={saving} disabled={!dirty}>
-            {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save Changes'}
+            {saving ? t.saving : saved ? t.savedTick : t.save}
           </Button>
         </div>
       </div>
@@ -227,7 +229,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
         <div>
           {saveError && (
             <div role="alert" className="mt-4 rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">
-              Could not save settings: {saveError}
+              {t.saveErrorBanner.replace('{message}', saveError)}
             </div>
           )}
         </div>
@@ -238,7 +240,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
           <div className="sp-rise sp-delay-1 sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <Store className="h-4.5 w-4.5 text-muted-strong" />
-              <h2 className="sp-heading">Store Details</h2>
+              <h2 className="sp-heading">{t.details}</h2>
             </div>
             {/* Was three hand-rolled label+input pairs. Each label was a bare
                 <label> with no htmlFor, so none of them pointed at its own
@@ -248,7 +250,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
                 to a single line. Field/Input/Textarea fix all of that and
                 bring the error state with them. */}
             <div className="mt-4 space-y-4">
-              <Field label="Store Name" error={errors.name} required>
+              <Field label={t.storeName} error={errors.name} required>
                 {(props) => (
                   <Input
                     {...props}
@@ -259,7 +261,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
                 )}
               </Field>
 
-              <Field label="Primary Address" error={errors.address}>
+              <Field label={t.address} error={errors.address}>
                 {(props) => (
                   <Textarea
                     {...props}
@@ -271,7 +273,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
                 )}
               </Field>
 
-              <Field label="Contact Phone" error={errors.phone}>
+              <Field label={t.phone} error={errors.phone}>
                 {(props) => (
                   <Input
                     {...props}
@@ -288,12 +290,12 @@ export default function SettingsClient({ store }: { store: StoreType }) {
           <div className="sp-rise sp-delay-2 sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <Palette className="h-4.5 w-4.5 text-muted-strong" />
-              <h2 className="sp-heading">Appearance</h2>
+              <h2 className="sp-heading">{t.appearance}</h2>
             </div>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground">Interface Theme</p>
-                <p className="text-xs text-muted">Toggle light/dark mode</p>
+                <p className="text-sm font-semibold text-foreground">{t.theme}</p>
+                <p className="text-xs text-muted">{t.themeHint}</p>
               </div>
               {/* A segmented control, not two buttons. `rounded-sm` (6px)
                   inside a `rounded-lg` (10px) track with 4px of padding is
@@ -304,17 +306,17 @@ export default function SettingsClient({ store }: { store: StoreType }) {
                   elevation-ladder note in globals.css), so the selected side
                   was distinguished by background alone. */}
               <div className="flex shrink-0 rounded-lg bg-surface-muted p-1">
-                {(['light', 'dark'] as const).map((t) => (
+                {(['light', 'dark'] as const).map((mode) => (
                   <button
-                    key={t}
+                    key={mode}
                     type="button"
-                    onClick={() => applyTheme(t)}
-                    aria-pressed={theme === t}
+                    onClick={() => applyTheme(mode)}
+                    aria-pressed={theme === mode}
                     className={`control-h rounded-sm px-3 text-sm font-semibold transition-[background-color,color] duration-150 ${
-                      theme === t ? 'sp-e1 text-foreground' : 'text-muted hover:text-foreground'
+                      theme === mode ? 'sp-e1 text-foreground' : 'text-muted hover:text-foreground'
                     }`}
                   >
-                    {t === 'light' ? 'Light' : 'Dark'}
+                    {mode === 'light' ? t.light : t.dark}
                   </button>
                 ))}
               </div>
@@ -325,11 +327,11 @@ export default function SettingsClient({ store }: { store: StoreType }) {
         <div className="sp-rise sp-delay-3 sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border pb-4">
             <SlidersHorizontal className="h-4.5 w-4.5 text-muted-strong" />
-            <h2 className="sp-heading">Operational Controls</h2>
+            <h2 className="sp-heading">{t.controls}</h2>
           </div>
 
           <div className="mt-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Inventory Thresholds</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">{t.thresholds}</p>
             {/* `rounded-xl` is 16px — the modal/panel/drawer rung. These are
                 inner panels inside a 10px card, so they were the one radius
                 on the page that belonged to a different family. `rounded-lg`
@@ -346,9 +348,9 @@ export default function SettingsClient({ store }: { store: StoreType }) {
                 is the surface-grade gold per D22 and inverts correctly. */}
             <div className="mt-3 rounded-lg bg-surface-muted p-4">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-muted-strong">Global Low-Stock Alert</span>
+                <span className="font-medium text-muted-strong">{t.lowStock}</span>
                 <span className="sp-e1 rounded-sm px-2 py-1 text-xs font-semibold text-muted-strong">
-                  {threshold} Units
+                  {t.unitsValue.replace('{n}', String(threshold))}
                 </span>
               </div>
               <input
@@ -357,7 +359,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
                 max={50}
                 value={threshold}
                 onChange={(e) => setThreshold(Number(e.target.value))}
-                aria-label="Global low-stock alert, in units"
+                aria-label={t.lowStockAria}
                 className="mt-3 w-full accent-[var(--accent-fill)]"
               />
               <div className="mt-1 flex justify-between text-xs text-muted">
@@ -368,9 +370,9 @@ export default function SettingsClient({ store }: { store: StoreType }) {
 
             <div className="mt-3 rounded-lg bg-surface-muted p-4">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-muted-strong">Expiry Warning</span>
+                <span className="font-medium text-muted-strong">{t.expiryWarning}</span>
                 <span className="rounded-sm bg-warning-bg px-2 py-1 text-xs font-semibold text-warning">
-                  {expiryDays} {expiryDays === 1 ? 'Day' : 'Days'}
+                  {(expiryDays === 1 ? t.dayValue : t.daysValue).replace('{n}', String(expiryDays))}
                 </span>
               </div>
               {/* Days, not hours. This control used to read "48 Hours" and set
@@ -385,46 +387,46 @@ export default function SettingsClient({ store }: { store: StoreType }) {
                 max={SLIDER_MAX_DAYS}
                 value={expiryDays}
                 onChange={(e) => setExpiryDays(Number(e.target.value))}
-                aria-label="Expiry warning, in days"
+                aria-label={t.expiryAria}
                 className="mt-3 w-full accent-[var(--accent-fill)]"
               />
               <div className="mt-1 flex justify-between text-xs text-muted">
-                <span>1 day</span>
-                <span>{SLIDER_MAX_DAYS} days</span>
+                <span>{t.oneDay}</span>
+                <span>{t.maxDays.replace('{n}', String(SLIDER_MAX_DAYS))}</span>
               </div>
             </div>
           </div>
 
           <div className="mt-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Notifications</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">{t.notifications}</p>
             <div className="mt-3 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">Critical Stock Alerts</p>
-                  <p className="text-xs text-muted">SMS & Email when items hit 0</p>
+                  <p className="text-sm font-semibold text-foreground">{t.criticalAlerts}</p>
+                  <p className="text-xs text-muted">{t.criticalAlertsHint}</p>
                 </div>
                 <Toggle
                   checked={criticalAlerts}
                   onChange={setCriticalAlerts}
-                  label="Critical Stock Alerts"
+                  label={t.criticalAlerts}
                 />
               </div>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">Daily Digest</p>
-                  <p className="text-xs text-muted">End-of-day sales summary</p>
+                  <p className="text-sm font-semibold text-foreground">{t.dailyDigest}</p>
+                  <p className="text-xs text-muted">{t.dailyDigestHint}</p>
                 </div>
-                <Toggle checked={dailyDigest} onChange={setDailyDigest} label="Daily Digest" />
+                <Toggle checked={dailyDigest} onChange={setDailyDigest} label={t.dailyDigest} />
               </div>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-foreground">Supplier Updates</p>
-                  <p className="text-xs text-muted">Delivery ETA changes</p>
+                  <p className="text-sm font-semibold text-foreground">{t.supplierUpdates}</p>
+                  <p className="text-xs text-muted">{t.supplierUpdatesHint}</p>
                 </div>
                 <Toggle
                   checked={supplierUpdates}
                   onChange={setSupplierUpdates}
-                  label="Supplier Updates"
+                  label={t.supplierUpdates}
                 />
               </div>
             </div>
@@ -445,10 +447,8 @@ export default function SettingsClient({ store }: { store: StoreType }) {
             <Users className="h-4.5 w-4.5 text-muted-strong" aria-hidden="true" />
           </div>
           <div className="min-w-0">
-            <h2 className="sp-heading">Your team</h2>
-            <p className="mt-0.5 text-sm text-muted">
-              Invitations, roles and access moved to Staff, beside the rota.
-            </p>
+            <h2 className="sp-heading">{t.team}</h2>
+            <p className="mt-0.5 text-sm text-muted">{t.teamHint}</p>
           </div>
         </div>
         <Link
@@ -458,7 +458,7 @@ export default function SettingsClient({ store }: { store: StoreType }) {
           // not two different-looking controls on one card.
           className="control-h relative inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground shadow-xs transition-[background-color,box-shadow,filter] duration-150 hover:bg-surface-muted active:brightness-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong"
         >
-          Manage team
+          {t.manageTeam}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       </div>
@@ -477,17 +477,15 @@ export default function SettingsClient({ store }: { store: StoreType }) {
             <Tags className="h-4.5 w-4.5 text-muted-strong" aria-hidden="true" />
           </div>
           <div className="min-w-0">
-            <h2 className="sp-heading">Product categories</h2>
-            <p className="mt-0.5 text-sm text-muted">
-              Add, rename and reorder the categories your products are filed under.
-            </p>
+            <h2 className="sp-heading">{t.categories}</h2>
+            <p className="mt-0.5 text-sm text-muted">{t.categoriesHint}</p>
           </div>
         </div>
         <Link
           href="/settings/categories"
           className="control-h relative inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-border bg-surface px-4 text-sm font-semibold text-foreground shadow-xs transition-[background-color,box-shadow,filter] duration-150 hover:bg-surface-muted active:brightness-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-border-strong"
         >
-          Manage categories
+          {t.manageCategories}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       </div>
@@ -505,16 +503,14 @@ export default function SettingsClient({ store }: { store: StoreType }) {
             <Scale className="h-4.5 w-4.5 text-muted-strong" aria-hidden="true" />
           </div>
           <div className="min-w-0">
-            <h2 className="sp-heading">Legal</h2>
-            <p className="mt-0.5 text-sm text-muted">
-              The privacy policy and terms that apply to this store&apos;s account.
-            </p>
+            <h2 className="sp-heading">{t.legal}</h2>
+            <p className="mt-0.5 text-sm text-muted">{t.legalHint}</p>
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           {[
-            { href: '/privacy', label: 'Privacy Policy' },
-            { href: '/terms', label: 'Terms of Service' },
+            { href: '/privacy', label: t.privacy },
+            { href: '/terms', label: t.terms },
           ].map((doc) => (
             <Link
               key={doc.href}
@@ -542,32 +538,28 @@ export default function SettingsClient({ store }: { store: StoreType }) {
         <div className="min-w-0">
           <h2 className="sp-heading flex items-center gap-2">
             <Trash2 className="h-4 w-4 text-danger" aria-hidden="true" />
-            Sample data
+            {t.sample}
           </h2>
-          <p className="sp-body mt-1">
-            Clear the seeded example products so you can import your own catalogue.
-            Your categories, suppliers, staff and settings are kept, and any product
-            that already appears on a sale is left alone.
-          </p>
+          <p className="sp-body mt-1">{t.sampleHint}</p>
         </div>
         <Button
           variant="secondary"
           className="shrink-0 border-danger/40 text-danger hover:bg-danger-bg"
           onClick={() => setConfirmClear(true)}
         >
-          Remove Sample Data
+          {t.sampleButton}
         </Button>
       </div>
 
       {confirmClear && (
       <Modal
         onClose={() => setConfirmClear(false)}
-        title="Remove sample data?"
+        title={t.sampleTitle}
         width="sm"
         footer={
           <div className="grid grid-cols-2 gap-3">
             <Button variant="secondary" fullWidth onClick={() => setConfirmClear(false)} disabled={clearing}>
-              Cancel
+              {tcm.cancel}
             </Button>
             <Button
               fullWidth
@@ -579,33 +571,29 @@ export default function SettingsClient({ store }: { store: StoreType }) {
                 setClearing(false)
                 setConfirmClear(false)
                 if (!res.ok) {
-                  toast.error('Sample data kept', res.message)
+                  toast.error(t.sampleKept, res.message)
                   return
                 }
                 toast.success(
-                  `Removed ${res.removed} sample product${res.removed === 1 ? '' : 's'}`,
+                  (res.removed === 1 ? t.sampleRemovedOne : t.sampleRemovedMany).replace(
+                    '{n}',
+                    String(res.removed),
+                  ),
                   res.keptWithSales
-                    ? `${res.keptWithSales} kept because they appear on past sales.`
-                    : 'You can now import your own CSV from Inventory.',
+                    ? t.sampleWithSales.replace('{n}', String(res.keptWithSales))
+                    : t.sampleNext,
                 )
                 router.refresh()
               }}
             >
-              Remove Sample Data
+              {t.sampleButton}
             </Button>
           </div>
         }
       >
         <div className="px-6 py-5">
-          <p className="sp-body">
-            All sample products and related sample inventory data will be removed. This
-            action is intended to help you start with your own store data.
-          </p>
-          <p className="sp-body mt-3 text-muted">
-            Categories, suppliers, staff and store settings are not affected, and any
-            sample product that already appears on a sale is kept so your history stays
-            intact.
-          </p>
+          <p className="sp-body">{t.sampleBody1}</p>
+          <p className="sp-body mt-3 text-muted">{t.sampleBody2}</p>
         </div>
       </Modal>
       )}

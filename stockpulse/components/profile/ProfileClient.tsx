@@ -20,7 +20,8 @@ import { signOutEverywhereLocal } from '@/lib/offline/signOut'
 import type { Profile } from '@/types'
 import EditProfileModal from './EditProfileModal'
 import ChangePasswordModal from './ChangePasswordModal'
-import { ROLE_LABELS } from '@/lib/permissions'
+import { displayJobTitle } from '@/lib/jobTitle'
+import { useAppCopy } from '@/lib/i18n/client'
 
 export default function ProfileClient({
   profile,
@@ -31,12 +32,16 @@ export default function ProfileClient({
   itemsManaged: number
   staffCount: number
 }) {
+  const copy = useAppCopy()
+  const t = copy.profile
   const [editOpen, setEditOpen] = useState(false)
   const [passwordOpen, setPasswordOpen] = useState(false)
 
   const memberSince = new Date(profile.created_at).getFullYear()
   const roleLabel =
-    profile.role === 'owner' ? 'Store Owner' : profile.job_title || ROLE_LABELS[profile.role]
+    profile.role === 'owner'
+      ? t.storeOwner
+      : displayJobTitle(profile.job_title, { roles: copy.roles, storeOwner: copy.profile.storeOwner }) || copy.roles[profile.role]
 
   return (
     <div className="sp-page">
@@ -65,16 +70,16 @@ export default function ProfileClient({
             {/* The person's own name is the title here, so the eyebrow says
                 which page it is — the one case where the two carry different
                 information rather than repeating each other. */}
-            <p className="sp-eyebrow">Account</p>
+            <p className="sp-eyebrow">{t.eyebrow}</p>
             <h1 className="sp-title mt-1.5">{profile.full_name}</h1>
             <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-muted">
               <Store className="h-4 w-4" />
-              {roleLabel} <span>·</span> Member since {memberSince}
+              {roleLabel} <span>·</span> {t.memberSince.replace('{year}', String(memberSince))}
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
               <Button onClick={() => setEditOpen(true)}>
                 <Pencil className="h-4 w-4" aria-hidden="true" />
-                Edit Profile
+                {t.editProfile}
               </Button>
               <form action={signOutEverywhereLocal}>
                 <button
@@ -82,7 +87,7 @@ export default function ProfileClient({
                   className="flex control-h items-center gap-2 rounded-lg bg-danger-bg px-4 text-sm font-semibold text-danger hover:brightness-95"
                 >
                   <LogOut className="h-4 w-4" />
-                  Log out
+                  {t.logOut}
                 </button>
               </form>
             </div>
@@ -95,30 +100,30 @@ export default function ProfileClient({
           <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <User className="h-4.5 w-4.5 text-muted-strong" />
-              <h2 className="sp-heading">Personal Information</h2>
+              <h2 className="sp-heading">{t.personalInfo}</h2>
             </div>
             <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted">Full Name</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">{t.fullName}</p>
                 <p className="mt-1 text-sm font-medium text-foreground">{profile.full_name}</p>
               </div>
               <div>
                 <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
-                  <Mail className="h-3 w-3" /> Email Address
+                  <Mail className="h-3 w-3" /> {t.email}
                 </p>
                 <p className="mt-1 text-sm font-medium text-foreground">{profile.email}</p>
               </div>
               <div>
                 <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
-                  <Phone className="h-3 w-3" /> Phone Number
+                  <Phone className="h-3 w-3" /> {t.phone}
                 </p>
-                <p className="mt-1 text-sm font-medium text-foreground">{profile.phone || 'Not set'}</p>
+                <p className="mt-1 text-sm font-medium text-foreground">{profile.phone || t.notSet}</p>
               </div>
               <div>
                 <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted">
-                  <MapPin className="h-3 w-3" /> Location
+                  <MapPin className="h-3 w-3" /> {t.location}
                 </p>
-                <p className="mt-1 text-sm font-medium text-foreground">{profile.location || 'Not set'}</p>
+                <p className="mt-1 text-sm font-medium text-foreground">{profile.location || t.notSet}</p>
               </div>
             </div>
           </div>
@@ -126,18 +131,18 @@ export default function ProfileClient({
           <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2 border-b border-border pb-4">
               <ShieldCheck className="h-4.5 w-4.5 text-muted-strong" />
-              <h2 className="sp-heading">Account Security</h2>
+              <h2 className="sp-heading">{t.security}</h2>
             </div>
             <div className="mt-4 flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-foreground">Password</p>
-                <p className="text-xs text-muted">Keep your account secure with a strong password.</p>
+                <p className="text-sm font-semibold text-foreground">{t.password}</p>
+                <p className="text-xs text-muted">{t.passwordHint}</p>
               </div>
               <button
                 onClick={() => setPasswordOpen(true)}
                 className="control-h rounded-lg border border-border px-3.5 text-sm font-semibold text-muted-strong hover:bg-surface-muted"
               >
-                Update
+                {t.update}
               </button>
             </div>
           </div>
@@ -150,12 +155,12 @@ export default function ProfileClient({
               <p className="mt-3 text-2xl font-bold text-surface">
                 {itemsManaged >= 1000 ? `${(itemsManaged / 1000).toFixed(1)}k` : itemsManaged}
               </p>
-              <p className="text-xs text-muted">Items Managed</p>
+              <p className="text-xs text-muted">{t.itemsManaged}</p>
             </div>
             <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-5 shadow-sm">
               <Users className="h-5 w-5 text-muted" />
               <p className="mt-3 text-2xl font-bold text-foreground">{staffCount}</p>
-              <p className="text-xs text-muted">Staff Members</p>
+              <p className="text-xs text-muted">{t.staffMembers}</p>
             </div>
           </div>
         </div>

@@ -24,12 +24,17 @@ import { csvFilename } from '@/lib/csv'
 import ExportCsvButton from '@/components/ui/ExportCsvButton'
 import EmptyState from '@/components/ui/EmptyState'
 import { useToast } from '@/components/ui/Toast'
+import { useAppCopy, useLocale } from '@/lib/i18n/client'
+import { intlLocale } from '@/lib/i18n/dates'
+import type { ReportsCopy } from '@/lib/i18n/app'
 
-const PRESETS = [
-  { label: 'Last 7 days', days: 7 },
-  { label: 'Last 30 days', days: 30 },
-  { label: 'Last 90 days', days: 90 },
-]
+function presets(t: ReportsCopy) {
+  return [
+    { label: t.preset7, days: 7 },
+    { label: t.preset30, days: 30 },
+    { label: t.preset90, days: 90 },
+  ]
+}
 
 /**
  * Percentage change, or null when the comparison would be meaningless.
@@ -58,12 +63,14 @@ function Kpi({
   value,
   change,
   comparable,
+  t,
 }: {
   label: string
   value: string
   change: number | null
   /** False when the previous period predates the fetched window. */
   comparable: boolean
+  t: ReportsCopy
 }) {
   /*
     The `tone="dark"` variant is gone.
@@ -81,9 +88,9 @@ function Kpi({
       <p className="mt-2 text-2xl font-bold text-foreground lg:text-3xl">{value}</p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {!comparable ? (
-          <span className="text-xs text-muted">Outside compared window</span>
+          <span className="text-xs text-muted">{t.outsideWindow}</span>
         ) : change === null ? (
-          <span className="text-xs text-muted">No prior data</span>
+          <span className="text-xs text-muted">{t.noPriorData}</span>
         ) : (
           <>
             {change >= 0 ? (
@@ -95,7 +102,7 @@ function Kpi({
               {change >= 0 ? '+' : ''}
               {change.toFixed(1)}%
             </span>
-            <span className="text-xs text-muted">vs previous period</span>
+            <span className="text-xs text-muted">{t.vsPrevious}</span>
           </>
         )}
       </div>
@@ -136,6 +143,8 @@ export default function ReportsClient({
    *  panel and its CSV/PDF exports all label from this. */
   categoryLabels: Record<string, string>
 }) {
+  const tr = useAppCopy().reports
+  const dateLocale = intlLocale(useLocale())
   const toast = useToast()
   const router = useRouter()
   const [from, setFrom] = useState(defaultFrom)
@@ -188,15 +197,23 @@ export default function ReportsClient({
   }, [sales, items, previous])
 
   const kpis = useMemo(() => summarize(rangeSales, rangeItems), [rangeSales, rangeItems])
-  const daily = useMemo(() => revenueByDay(rangeSales, from, to), [rangeSales, from, to])
+  const daily = useMemo(
+    () => revenueByDay(rangeSales, from, to, dateLocale),
+    [rangeSales, from, to, dateLocale]
+  )
   const products = useMemo(() => topProducts(rangeItems), [rangeItems])
   const categories = useMemo(
-    () => categoryMix(rangeItems, categoryOf, categoryLabels),
-    [rangeItems, categoryOf, categoryLabels]
+    () => categoryMix(rangeItems, categoryOf, categoryLabels, tr.uncategorised),
+    [rangeItems, categoryOf, categoryLabels, tr]
   )
-  const payments = useMemo(() => paymentMix(rangeSales), [rangeSales])
+  const payLabels = useMemo(
+    () => ({ cash: tr.payCash, card: tr.payCard, nfc: tr.payNfc }),
+    [tr],
+  )
+  const payments = useMemo(() => paymentMix(rangeSales, payLabels), [rangeSales, payLabels])
 
-  const rangeLabel = from && to ? `${from} to ${to}` : 'All time'
+  const rangeLabel =
+    from && to ? tr.rangeLabel.replace('{from}', from).replace('{to}', to) : tr.allTime
   const isEmpty = rangeSales.length === 0 && rangeItems.length === 0
 
   function applyPreset(days: number) {
@@ -207,11 +224,15 @@ export default function ReportsClient({
 
   async function handlePdf() {
     if (isEmpty) {
-      toast.info('Nothing to export', 'No sales fall in the selected date range.')
+      toast.info(tr.nothingToExport, tr.nothingToExportBody)
       return
     }
     setPdfBusy(true)
     try {
+      // The document's own headings stay ENGLISH: lib/pdf.ts draws with
+      // jsPDF's core `helvetica`, which covers Latin-1 only, so Telugu and
+      // Devanagari would render as empty boxes. Same reason
+      // formatCurrencyAscii exists instead of printing a rupee sign.
       await exportReportPdf({
         title: `${storeName} — Sales Report`,
         subtitle: `${rangeLabel} · generated ${new Date().toLocaleString()}`,
@@ -258,10 +279,10 @@ export default function ReportsClient({
           },
         ],
       })
-      toast.success('Report exported', 'PDF saved to your downloads.')
+      toast.success(tr.exported, tr.exportedBody)
     } catch {
       // A failed export must not look like a successful one.
-      toast.error('Export failed', 'The PDF could not be generated. Please try again.')
+      toast.error(tr.exportFailed, tr.exportFailedBody)
     } finally {
       setPdfBusy(false)
     }
@@ -271,12 +292,15 @@ export default function ReportsClient({
     <div className="sp-page">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="sp-eyebrow">Reporting</p>
-          <h1 className="sp-title mt-2">Reports</h1>
+          <p className="sp-eyebrow">{tr.eyebrow}</p>
+          <h1 className="sp-title mt-2">{tr.title}</h1>
           <p className="sp-body mt-2">
             {comparable && previous
-              ? `${rangeLabel}, compared with ${previous.from} to ${previous.to}.`
-              : 'Sales performance for a date range you choose.'}
+              ? tr.subtitleCompared
+                  .replace('{range}', rangeLabel)
+                  .replace('{prevFrom}', previous.from)
+                  .replace('{prevTo}', previous.to)
+              : tr.subtitlePlain}
           </p>
         </div>
         {/* The label no longer swaps to "Preparing…" — the spinner says that,
@@ -284,14 +308,14 @@ export default function ReportsClient({
             it. */}
         <Button onClick={handlePdf} loading={pdfBusy}>
           {!pdfBusy && <FileDown className="h-4 w-4" aria-hidden="true" />}
-          Export PDF
+          {tr.exportPdf}
         </Button>
       </div>
 
       {/* ---- Date range ---- */}
       <div className="mt-6 flex flex-wrap items-center gap-2 sp-rise sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm">
         <label htmlFor="report-from" className="text-sm font-medium text-muted-strong">
-          From
+          {tr.from}
         </label>
         <input
           id="report-from"
@@ -302,7 +326,7 @@ export default function ReportsClient({
           className="control-h rounded-lg border border-border bg-surface-muted px-3 text-sm text-muted-strong transition-[border-color,background-color] duration-150 focus:border-border-strong focus:bg-surface focus:outline-none"
         />
         <label htmlFor="report-to" className="text-sm font-medium text-muted-strong">
-          To
+          {tr.to}
         </label>
         <input
           id="report-to"
@@ -314,7 +338,7 @@ export default function ReportsClient({
         />
 
         <div className="flex flex-wrap items-center gap-2 sm:ml-2">
-          {PRESETS.map((p) => (
+          {presets(tr).map((p) => (
             <button
               key={p.days}
               type="button"
@@ -330,28 +354,32 @@ export default function ReportsClient({
       {/* ---- KPIs ---- */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <Kpi
-          label="Revenue"
+          label={tr.kpiRevenue}
           value={formatCurrency(kpis.revenue)}
           change={prevKpis ? pctChange(kpis.revenue, prevKpis.revenue) : null}
           comparable={comparable}
+          t={tr}
         />
         <Kpi
-          label="Transactions"
+          label={tr.kpiTransactions}
           value={String(kpis.transactions)}
           change={prevKpis ? pctChange(kpis.transactions, prevKpis.transactions) : null}
           comparable={comparable}
+          t={tr}
         />
         <Kpi
-          label="Avg Order"
+          label={tr.kpiAvgOrder}
           value={formatCurrency(kpis.avgOrder)}
           change={prevKpis ? pctChange(kpis.avgOrder, prevKpis.avgOrder) : null}
           comparable={comparable}
+          t={tr}
         />
         <Kpi
-          label="Units Sold"
+          label={tr.kpiUnitsSold}
           value={String(kpis.unitsSold)}
           change={prevKpis ? pctChange(kpis.unitsSold, prevKpis.unitsSold) : null}
           comparable={comparable}
+          t={tr}
         />
       </div>
 
@@ -365,11 +393,11 @@ export default function ReportsClient({
               action the dashboard's empty trend panel offers. */}
           <EmptyState
             icon={BarChart3}
-            title="No sales in this range"
-            description="Widen the date range, or log a sale to see it reported here."
+            title={tr.emptyTitle}
+            description={tr.emptyBody}
             action={
               <Button variant="secondary" onClick={() => router.push('/sales')}>
-                Log a sale
+                {tr.logASale}
               </Button>
             }
           />
@@ -390,18 +418,18 @@ export default function ReportsClient({
             // how many rows that meant.
             <details className="group mt-4 border-t border-border pt-4">
               <summary className="cursor-pointer list-none text-sm font-semibold text-accent-ink hover:underline">
-                View all {products.length} products
+                {tr.viewAllProducts.replace('{n}', String(products.length))}
               </summary>
               <div className="mt-3 flex justify-end">
                 <ExportCsvButton
                   columns={[
-                    { header: 'Product', value: (p: (typeof products)[number]) => p.name },
-                    { header: 'Units', value: (p: (typeof products)[number]) => p.units },
-                    { header: 'Revenue', value: (p: (typeof products)[number]) => p.revenue },
+                    { header: tr.colProduct, value: (p: (typeof products)[number]) => p.name },
+                    { header: tr.colUnits, value: (p: (typeof products)[number]) => p.units },
+                    { header: tr.colRevenue, value: (p: (typeof products)[number]) => p.revenue },
                   ]}
                   rows={products}
                   filenameBase="top-products"
-                  itemLabel="products"
+                  itemLabel={tr.itemProducts}
                 />
               </div>
               <div className="mt-3 overflow-x-auto">
@@ -409,13 +437,13 @@ export default function ReportsClient({
                   <thead>
                     <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
                       <th scope="col" className="pb-3 pr-4">
-                        Product
+                        {tr.colProduct}
                       </th>
                       <th scope="col" className="pb-3 pr-4 text-right">
-                        Units
+                        {tr.colUnits}
                       </th>
                       <th scope="col" className="pb-3 text-right">
-                        Revenue
+                        {tr.colRevenue}
                       </th>
                     </tr>
                   </thead>
@@ -440,15 +468,15 @@ export default function ReportsClient({
           {/* Revenue by day */}
           <section className="sp-rise sp-delay-1 sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="sp-heading">Revenue by day</h2>
+              <h2 className="sp-heading">{tr.revenueByDay}</h2>
               <ExportCsvButton
                 columns={[
-                  { header: 'Date', value: (d: (typeof daily)[number]) => d.iso },
-                  { header: 'Revenue', value: (d: (typeof daily)[number]) => d.value },
+                  { header: tr.colDate, value: (d: (typeof daily)[number]) => d.iso },
+                  { header: tr.colRevenue, value: (d: (typeof daily)[number]) => d.value },
                 ]}
                 rows={daily}
                 filenameBase="revenue-by-day"
-                itemLabel="days"
+                itemLabel={tr.itemDays}
               />
             </div>
             {/* overflow-x as well as -y. This table does not reflow into
@@ -460,10 +488,10 @@ export default function ReportsClient({
                 <thead className="sticky top-0 bg-surface">
                   <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
                     <th scope="col" className="pb-3 pr-4">
-                      Date
+                      {tr.colDate}
                     </th>
                     <th scope="col" className="pb-3 text-right">
-                      Revenue
+                      {tr.colRevenue}
                     </th>
                   </tr>
                 </thead>
@@ -484,19 +512,19 @@ export default function ReportsClient({
           {/* Category mix */}
           <section className="sp-rise sp-delay-3 sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="sp-heading">Category mix</h2>
+              <h2 className="sp-heading">{tr.categoryMix}</h2>
               <ExportCsvButton
                 columns={[
-                  { header: 'Category', value: (c: (typeof categories)[number]) => c.label },
-                  { header: 'Revenue', value: (c: (typeof categories)[number]) => c.revenue },
+                  { header: tr.colCategory, value: (c: (typeof categories)[number]) => c.label },
+                  { header: tr.colRevenue, value: (c: (typeof categories)[number]) => c.revenue },
                   {
-                    header: 'Share %',
+                    header: tr.colShare,
                     value: (c: (typeof categories)[number]) => Number(c.pct.toFixed(1)),
                   },
                 ]}
                 rows={categories}
                 filenameBase="category-mix"
-                itemLabel="categories"
+                itemLabel={tr.itemCategories}
               />
             </div>
             <div className="mt-4 space-y-3">
@@ -519,20 +547,20 @@ export default function ReportsClient({
           {/* Payment methods */}
           <section className="sp-rise sp-delay-4 sp-e1 rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="sp-heading">Payment methods</h2>
+              <h2 className="sp-heading">{tr.paymentMethods}</h2>
               <ExportCsvButton
                 columns={[
-                  { header: 'Method', value: (p: (typeof payments)[number]) => p.label },
-                  { header: 'Transactions', value: (p: (typeof payments)[number]) => p.count },
-                  { header: 'Revenue', value: (p: (typeof payments)[number]) => p.revenue },
+                  { header: tr.colMethod, value: (p: (typeof payments)[number]) => p.label },
+                  { header: tr.colTransactions, value: (p: (typeof payments)[number]) => p.count },
+                  { header: tr.colRevenue, value: (p: (typeof payments)[number]) => p.revenue },
                   {
-                    header: 'Share %',
+                    header: tr.colShare,
                     value: (p: (typeof payments)[number]) => Number(p.pct.toFixed(1)),
                   },
                 ]}
                 rows={payments}
                 filenameBase="payment-methods"
-                itemLabel="methods"
+                itemLabel={tr.itemMethods}
               />
             </div>
             <div className="mt-4 space-y-3">

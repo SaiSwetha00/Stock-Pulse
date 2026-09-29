@@ -15,6 +15,7 @@ import {
   SubmitButton,
 } from '@/components/auth/AuthUI'
 import { fadeUp } from '@/lib/motion'
+import { useAuthCopy } from '@/lib/i18n/client'
 
 /**
  * Published on purpose — the same pair is in the repo README and in
@@ -29,6 +30,7 @@ import { fadeUp } from '@/lib/motion'
 const DEMO_PASSWORD = 'StockPulseDemo2026!'
 
 export default function LoginPage() {
+  const c = useAuthCopy().login
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -118,10 +120,10 @@ export default function LoginPage() {
             variants={fadeUp}
             className="font-serif-brand mt-5 text-[22px] font-semibold tracking-[0.01em] text-foreground"
           >
-            Welcome back
+            {c.title}
           </motion.h2>
           <motion.p variants={fadeUp} className="mt-1 text-sm text-muted-strong">
-            Sign in to your store dashboard.
+            {c.subtitle}
           </motion.p>
         </div>
 
@@ -132,10 +134,10 @@ export default function LoginPage() {
           className="mt-6 rounded-xl border border-[var(--sp-gold)]/40 bg-[var(--sp-gold)]/[0.07] p-4"
         >
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--sp-gold)]">
-            Reviewing this project?
+            {c.demoTitle}
           </p>
           <p className="mt-1.5 text-sm text-muted-strong">
-            Sign in to a demo store with 135 products and 30 days of sales already in it.
+            {c.demoBody}
           </p>
           <p className="mt-2 font-mono text-xs text-muted-strong">
             {DEMO_EMAIL}
@@ -149,7 +151,7 @@ export default function LoginPage() {
             disabled={loading}
             className="mt-3 w-full rounded-lg border border-[var(--sp-gold)]/60 bg-[var(--sp-gold)]/15 px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-[var(--sp-gold)]/25 disabled:opacity-60"
           >
-            {loading ? 'Signing in…' : 'Explore the demo store'}
+            {loading ? c.demoLoading : c.demoCta}
           </button>
         </motion.div>
 
@@ -157,7 +159,7 @@ export default function LoginPage() {
           {shownError && <AuthError message={shownError} />}
 
           <AuthField
-            label="Store Email"
+            label={c.email}
             icon={Mail}
             type="email"
             value={email}
@@ -169,7 +171,7 @@ export default function LoginPage() {
           />
 
           <AuthField
-            label="Password"
+            label={c.password}
             icon={Lock}
             type="password"
             value={password}
@@ -182,23 +184,23 @@ export default function LoginPage() {
                 href="/forgot-password"
                 className="text-xs font-medium text-muted-strong transition-colors hover:text-foreground"
               >
-                Forgot password?
+                {c.forgot}
               </Link>
             }
           />
 
           <div className="pt-1">
-            <SubmitButton loading={loading} loadingLabel="Signing in…">
-              Log In
+            <SubmitButton loading={loading} loadingLabel={c.submitLoading}>
+              {c.submit}
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </SubmitButton>
           </div>
         </form>
 
         <motion.p variants={fadeUp} className="mt-6 text-sm text-muted-strong">
-          New store owner?{' '}
+          {c.signupPrompt}{' '}
           <Link href="/signup" className="font-semibold text-foreground hover:underline">
-            Set up your store
+            {c.signupCta}
           </Link>
         </motion.p>
       </FormPanel>

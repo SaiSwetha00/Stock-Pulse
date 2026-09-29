@@ -31,6 +31,8 @@ import { landingSans, landingScript } from './fonts'
 import { ExpiringPanel, ExpiringTile, LotsTile, LowStockPanel, LowStockTile, ProductsTile } from './panels'
 import StockPulseMark from '@/components/brand/StockPulseMark'
 import MobileMenuDark from './MobileMenuDark'
+import LanguageSelector from './LanguageSelector'
+import { DEFAULT_LOCALE, landingCopy, type Locale } from '@/lib/i18n'
 
 /**
  * THE LANDING PAGE — app/page.tsx renders this for every signed-out visitor.
@@ -63,10 +65,15 @@ import MobileMenuDark from './MobileMenuDark'
 
 const ROUTES = { login: '/login', signup: '/signup', demo: '/login?demo=1', privacy: '/privacy', terms: '/terms' }
 
+/**
+ * Structure only. Every label on this page now comes from lib/i18n/landing in
+ * the visitor's language; what stays here is the thing that does not
+ * translate — ids, hrefs, icons and order.
+ */
 const NAV = [
-  { label: 'Product', href: '#product' },
-  { label: 'How it works', href: '#how-it-works' },
-  { label: 'Pricing', href: '#pricing' },
+  { key: 'product', href: '#product' },
+  { key: 'how', href: '#how-it-works' },
+  { key: 'pricing', href: '#pricing' },
 ] as const
 
 const PALETTE: Palette = {
@@ -99,104 +106,41 @@ const H2_SMALL = 'text-[clamp(1.9rem,3.4vw,2.8rem)] font-semibold leading-[1.08]
 
 type Visual = 'inventory' | 'sales' | 'alerts'
 
-const CHAPTERS: ReadonlyArray<{
-  id: string
-  kicker: string
-  title: string
-  body: string
-  points: readonly string[]
-  visual: Visual
-}> = [
-  {
-    id: 'inventory',
-    kicker: 'Inventory',
-    title: 'Every delivery keeps its own expiry date.',
-    body: 'Stock is kept lot by lot, so two deliveries of the same product never have to share one date. The nearest expiry is always the one you see.',
-    points: [
-      'Add products by hand, or import the spreadsheet you already keep',
-      'Export back to Excel with every column intact',
-      'A blank expiry is fine — most of a grocery shop does not perish',
-    ],
-    visual: 'inventory',
-  },
-  {
-    id: 'sales',
-    kicker: 'Sales',
-    title: 'A till that keeps selling when the internet drops.',
-    body: 'Log a sale by search or by scanning a barcode with the phone’s camera, and stock comes off by itself. With no signal, sales wait safely on the device and are sent when it returns.',
-    points: [
-      'A sale queued offline is checked on the device before it is called saved',
-      'The price charged is the price recorded — even if it changes later',
-      'A scan shows the product’s nearest expiry before it goes in the basket',
-    ],
-    visual: 'sales',
-  },
-  {
-    id: 'alerts',
-    kicker: 'Alerts',
-    title: 'Know what to reorder, and what to sell first.',
-    body: 'Each product has its own reorder level, and the dashboard lists what has fallen to it. Lots near their date are listed too — expired ones kept apart from the ones you can still sell.',
-    points: [
-      'Your own warning window, from one day to three months',
-      'Low stock and expiry on the first screen you open each morning',
-    ],
-    visual: 'alerts',
-  },
+const CHAPTERS: ReadonlyArray<{ id: 'inventory' | 'sales' | 'alerts'; visual: Visual }> = [
+  { id: 'inventory', visual: 'inventory' },
+  { id: 'sales', visual: 'sales' },
+  { id: 'alerts', visual: 'alerts' },
 ]
 
 /** The feature strip under the hero — the modules, each linking to where the page explains it. */
 const STRIP = [
-  { icon: Archive, label: 'Inventory', href: '#inventory' },
-  { icon: ReceiptText, label: 'Sales / POS', href: '#sales' },
-  { icon: CalendarClock, label: 'Expiry alerts', href: '#alerts' },
-  { icon: Truck, label: 'Suppliers', href: '#also' },
-  { icon: Users, label: 'Staff & shifts', href: '#also' },
-  { icon: BarChart3, label: 'Reports', href: '#also' },
-]
+  { icon: Archive, key: 'inventory', href: '#inventory' },
+  { icon: ReceiptText, key: 'sales', href: '#sales' },
+  { icon: CalendarClock, key: 'expiry', href: '#alerts' },
+  { icon: Truck, key: 'suppliers', href: '#also' },
+  { icon: Users, key: 'staff', href: '#also' },
+  { icon: BarChart3, key: 'reports', href: '#also' },
+] as const
 
-const ALSO = [
-  { icon: ScanBarcode, title: 'Barcode scanning', body: 'The phone’s camera is the scanner, at the shelf or at the till.' },
-  { icon: Truck, title: 'Suppliers', body: 'Every supplier’s details in one list.' },
-  { icon: UserSquare2, title: 'Staff and shifts', body: 'Invite your team and keep track of shifts.' },
-  { icon: FileText, title: 'Reports', body: 'Sales over any period, set against the one before.' },
-  { icon: Users, title: 'Customers', body: 'A record of the people who shop with you.' },
-  { icon: Bot, title: 'AI assistant', body: 'Ask about your own store in plain words.' },
-  { icon: Smartphone, title: 'Installs on a phone', body: 'Add it to the home screen like an app.' },
-  { icon: History, title: 'Activity log', body: 'See what changed in the store, and who changed it.' },
-]
-
-const STEPS = [
-  { title: 'Add your stock', body: 'Type it in, or import the spreadsheet you already keep.' },
-  { title: 'Sell as usual', body: 'Log sales at the counter, or scan a barcode.' },
-  { title: 'Open the dashboard', body: 'See what is low and what is expiring, every morning.' },
-]
-
-const COMMITMENTS = [
-  {
-    title: 'Your store’s data stays your store’s.',
-    body: 'Every record belongs to one store, and the database itself refuses to show it to anyone else.',
-  },
-  {
-    title: 'A shared phone is safe to share.',
-    body: 'The counter phone never keeps a signed-in page, so the next person cannot see the last person’s takings.',
-  },
-  {
-    title: 'Owners decide who can do what.',
-    body: 'Staff work the till. Prices, stock levels and reports stay with the owner and managers.',
-  },
-]
+/** Icons only, in the order the dictionary lists the items. */
+const ALSO_ICONS = [ScanBarcode, Truck, UserSquare2, FileText, Users, Bot, Smartphone, History]
 
 const FOOTER_LINKS = [
-  { l: 'Log in', h: ROUTES.login },
-  { l: 'Get started', h: ROUTES.signup },
-  { l: 'Demo', h: ROUTES.demo },
-  { l: 'Privacy', h: ROUTES.privacy },
-  { l: 'Terms', h: ROUTES.terms },
-]
+  { key: 'login', h: ROUTES.login },
+  { key: 'getStarted', h: ROUTES.signup },
+  { key: 'demo', h: ROUTES.demo },
+  { key: 'privacy', h: ROUTES.privacy },
+  { key: 'terms', h: ROUTES.terms },
+] as const
 
 /* ───────────────────────── page ───────────────────────── */
 
-export default function LandingNavy() {
+export default function LandingNavy({ locale = DEFAULT_LOCALE }: { locale?: Locale } = {}) {
+  // Resolved once, on the server. The prop defaults to English so the preview
+  // route (/design-exploration/3/full) keeps rendering without knowing about
+  // locales at all.
+  const t = landingCopy(locale)
+
   return (
     <div
       className={`${landingSans.variable} min-h-screen bg-[#0A0F1F] font-[family-name:var(--font-landing-sans)] text-[#EEF0F6] antialiased`}
@@ -214,32 +158,37 @@ export default function LandingNavy() {
           <nav aria-label="Primary" className="hidden items-center gap-10 text-[14px] text-[#A7AFC4] md:flex">
             {NAV.map((n) => (
               <a key={n.href} href={n.href} className={`hover:text-white ${focus}`}>
-                {n.label}
+                {t.nav[n.key]}
               </a>
             ))}
             <Link href={ROUTES.login} className={`hover:text-white ${focus}`}>
-              Log in
+              {t.nav.login}
             </Link>
           </nav>
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-3 sm:gap-5">
+            {/* The language control sits with the other header actions and
+                stays visible at every width — on a phone the rest of this
+                group collapses into the menu, and a setting nobody can find
+                is not a setting. */}
+            <LanguageSelector locale={locale} label={t.nav.languageLabel} />
             <Link
               href={ROUTES.signup}
               className={`hidden h-10 items-center gap-1.5 rounded-full bg-[#4F6BFF] px-5 text-[14px] font-medium text-white hover:bg-[#6580FF] sm:inline-flex ${focus}`}
             >
-              Get started <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              {t.nav.getStarted} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
             <Link
               href={ROUTES.demo}
               className={`hidden items-center gap-1.5 text-[14px] text-[#EEF0F6] hover:text-white lg:inline-flex ${focus}`}
             >
-              Explore demo <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              {t.nav.demoShort} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
             <MobileMenuDark
-              links={NAV}
+              links={NAV.map((n) => ({ label: t.nav[n.key], href: n.href }))}
               cta={[
-                { label: 'Get started', href: ROUTES.signup, className: `${btnPrimary} w-full` },
-                { label: 'Explore the demo store', href: ROUTES.demo, className: `${btnQuiet} w-full rounded-full border` },
-                { label: 'Log in', href: ROUTES.login, className: `py-2 text-center text-[15px] text-[#8A93AB] ${focus}` },
+                { label: t.nav.getStarted, href: ROUTES.signup, className: `${btnPrimary} w-full` },
+                { label: t.nav.demoLong, href: ROUTES.demo, className: `${btnQuiet} w-full rounded-full border` },
+                { label: t.nav.login, href: ROUTES.login, className: `py-2 text-center text-[15px] text-[#8A93AB] ${focus}` },
               ]}
             />
           </div>
@@ -259,7 +208,7 @@ export default function LandingNavy() {
             className="pointer-events-none absolute left-[28%] top-[35%] h-[560px] w-[560px] rounded-full bg-[radial-gradient(closest-side,rgba(150,110,255,0.16),transparent)]"
           />
 
-          <HeroPhoto variant="desktop" />
+          <HeroPhoto variant="desktop" caption={t.captions.figures} />
           {/* One more soft light straddling where words meet photo, drawn above
               the photo so the two halves share the same glow. */}
           <div
@@ -274,18 +223,18 @@ export default function LandingNavy() {
                 style={{ borderColor: 'rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.03)' }}
               >
                 <Store className="h-3.5 w-3.5 text-[#A898FF]" aria-hidden="true" />
-                Store management for independent grocers
+                {t.hero.badge}
               </p>
               <h1
                 id="hero-h"
                 className="mt-7 text-[clamp(2.6rem,4.1vw,4rem)] font-semibold leading-[1.04] tracking-[-0.045em]"
               >
-                Run the store.
+                {t.hero.titleA}
                 <br />
-                <span className="text-[#A9B4FF]">Not the </span>
+                <span className="text-[#A9B4FF]">{t.hero.titleAccent}</span>
                 <span className="relative inline-block whitespace-nowrap">
                   <span className="bg-gradient-to-r from-[#5B8CFF] to-[#B08CFF] bg-clip-text text-transparent">
-                    spreadsheets.
+                    {t.hero.titleHighlight}
                   </span>
                   <svg
                     aria-hidden="true"
@@ -302,35 +251,38 @@ export default function LandingNavy() {
                     <path d="M3 10 C 80 2, 200 2, 297 7" fill="none" stroke="url(#hero-swoosh)" strokeWidth="4" strokeLinecap="round" />
                   </svg>
                 </span>
+                {/* Empty in English. Telugu and Hindi put the negation after
+                    the noun, and it sits OUTSIDE the nowrap span so a long
+                    phrase can still wrap on a narrow screen. */}
+                <span className="text-[#A9B4FF]">{t.hero.titleTail}</span>
               </h1>
               <p className="mt-8 max-w-lg text-[17px] leading-[1.65] text-[#A7AFC4] sm:text-[18px]">
-                Inventory, sales, suppliers, staff, expiry dates and more — all in one simple app, so you spend less time
-                on paperwork and more time with your customers.
+                {t.hero.body}
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <Link href={ROUTES.signup} className={btnPrimary}>
-                  Get started <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  {t.nav.getStarted} <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
                 <Link
                   href={ROUTES.demo}
                   className={`inline-flex h-12 items-center justify-center gap-2 rounded-full border px-7 text-[15px] font-medium text-[#EEF0F6] transition-colors hover:bg-white/5 ${focus}`}
                   style={{ borderColor: 'rgba(255,255,255,0.18)' }}
                 >
-                  Explore the demo store <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  {t.nav.demoLong} <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </div>
-              <p className="mt-5 text-[13px] text-[#8A93AB]">Free while in beta · No card required</p>
+              <p className="mt-5 text-[13px] text-[#8A93AB]">{t.hero.note}</p>
             </div>
 
-            <HeroPhoto variant="mobile" />
+            <HeroPhoto variant="mobile" caption={t.captions.figures} />
           </div>
         </section>
 
         {/* ─── Feature strip: the modules, one line ─── */}
         <nav aria-label="Features" className="relative border-y">
           <ul className={`${WRAP} grid grid-cols-2 gap-y-1 py-4 sm:grid-cols-3 lg:grid-cols-6`}>
-            {STRIP.map(({ icon: Icon, label, href }) => (
-              <li key={label}>
+            {STRIP.map(({ icon: Icon, key, href }) => (
+              <li key={key}>
                 <a
                   href={href}
                   className={`flex items-center gap-3 rounded-lg px-2 py-2.5 text-[14px] text-[#C4CADB] transition-colors hover:text-white ${focus}`}
@@ -338,7 +290,7 @@ export default function LandingNavy() {
                   <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#4F6BFF]/12 text-[#8FA2FF] ring-1 ring-[#4F6BFF]/25">
                     <Icon className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" />
                   </span>
-                  {label}
+                  {t.strip[key]}
                 </a>
               </li>
             ))}
@@ -351,24 +303,21 @@ export default function LandingNavy() {
             <figure className="min-w-0">
               <DashboardShot palette={PALETTE} />
               <figcaption className="mt-4 text-[12.5px] text-[#6B7489]">
-                The real StockPulse dashboard · demo store, {SNAPSHOT_LABEL}
+                {t.product.caption}, {SNAPSHOT_LABEL}
               </figcaption>
             </figure>
             <FadeIn>
               <p className={LABEL}>
                 <span className="h-1.5 w-1.5 rounded-full bg-[#A898FF]" aria-hidden="true" />
-                The product
+                {t.product.label}
               </p>
               <h2 id="product-h" className={`mt-5 ${H2_SMALL}`}>
-                Everything you need,
-                <span className="text-[#A9B4FF]"> in one place.</span>
+                {t.product.titleA}
+                <span className="text-[#A9B4FF]">{t.product.titleB}</span>
               </h2>
-              <p className="mt-5 text-[16.5px] leading-[1.7] text-[#A7AFC4]">
-                One dashboard for the whole store — what is running low, what is close to its date, and everything from
-                stock and sales to suppliers, staff and reports.
-              </p>
+              <p className="mt-5 text-[16.5px] leading-[1.7] text-[#A7AFC4]">{t.product.body}</p>
               <a href="#inventory" className={`mt-7 inline-flex items-center gap-1.5 text-[15px] text-[#EEF0F6] hover:text-white ${focus}`}>
-                See what it does <ArrowRight className="h-4 w-4 text-[#8FA2FF]" aria-hidden="true" />
+                {t.product.cta} <ArrowRight className="h-4 w-4 text-[#8FA2FF]" aria-hidden="true" />
               </a>
             </FadeIn>
           </div>
@@ -378,6 +327,7 @@ export default function LandingNavy() {
         <section aria-label="What StockPulse does" className="border-t">
           {CHAPTERS.map((c, i) => {
             const flip = i % 2 === 1
+            const copy = t.chapters[c.id]
             return (
               <article key={c.id} id={c.id} aria-labelledby={`${c.id}-h`} className={`scroll-mt-20 ${WRAP}`}>
                 <FadeIn
@@ -386,17 +336,17 @@ export default function LandingNavy() {
                   <div className={`lg:col-span-5 ${flip ? 'lg:order-2' : ''}`}>
                     <p className="text-[13px] tabular-nums text-[#8FA2FF]">
                       0{i + 1}
-                      <span className="ml-3 text-[#8A93AB]">{c.kicker}</span>
+                      <span className="ml-3 text-[#8A93AB]">{copy.kicker}</span>
                     </p>
                     <h3
                       id={`${c.id}-h`}
                       className="mt-5 text-[clamp(1.75rem,3.2vw,2.6rem)] font-semibold leading-[1.12] tracking-[-0.035em]"
                     >
-                      {c.title}
+                      {copy.title}
                     </h3>
-                    <p className="mt-5 text-[16.5px] leading-[1.7] text-[#A7AFC4]">{c.body}</p>
+                    <p className="mt-5 text-[16.5px] leading-[1.7] text-[#A7AFC4]">{copy.body}</p>
                     <ul className="mt-8 border-t">
-                      {c.points.map((p) => (
+                      {copy.points.map((p) => (
                         <li key={p} className="border-b py-3.5 text-[14.5px] leading-[1.55] text-[#C4CADB]">
                           {p}
                         </li>
@@ -406,10 +356,8 @@ export default function LandingNavy() {
                   <figure className={`lg:col-span-7 ${flip ? 'lg:order-1' : ''}`}>
                     <ChapterVisual kind={c.visual} />
                     <figcaption className="mt-4 text-[12.5px] text-[#6B7489]">
-                      {c.visual === 'sales'
-                        ? 'What a barcode scan shows: the product and its nearest expiry.'
-                        : 'From the StockPulse dashboard.'}{' '}
-                      Demo store, {SNAPSHOT_LABEL}.
+                      {c.visual === 'sales' ? t.captions.sales : t.captions.standard}{' '}
+                      {t.captions.demoStore}, {SNAPSHOT_LABEL}.
                     </figcaption>
                   </figure>
                 </FadeIn>
@@ -423,20 +371,23 @@ export default function LandingNavy() {
           <FadeIn className={`${WRAP} py-20 sm:py-24`}>
             <div className="grid gap-12 lg:grid-cols-12">
               <div className="lg:col-span-4">
-                <p className={LABEL}>Also in StockPulse</p>
+                <p className={LABEL}>{t.also.label}</p>
                 <h2 id="also-h" className={`mt-6 ${H2_SMALL}`}>
-                  Suppliers, staff and reports,
-                  <span className="text-[#A9B4FF]"> in the same app.</span>
+                  {t.also.titleA}
+                  <span className="text-[#A9B4FF]">{t.also.titleB}</span>
                 </h2>
               </div>
               <ul className="grid border-l border-t sm:grid-cols-2 lg:col-span-8 xl:grid-cols-4">
-                {ALSO.map(({ icon: Icon, title, body }) => (
-                  <li key={title} className="border-b border-r p-6">
-                    <Icon className="h-5 w-5 text-[#8FA2FF]" strokeWidth={1.5} aria-hidden="true" />
-                    <h3 className="mt-6 text-[15.5px] font-medium tracking-[-0.01em]">{title}</h3>
-                    <p className="mt-1.5 text-[14px] leading-[1.55] text-[#7F88A1]">{body}</p>
-                  </li>
-                ))}
+                {t.also.items.map((item, i) => {
+                  const Icon = ALSO_ICONS[i]
+                  return (
+                    <li key={item.title} className="border-b border-r p-6">
+                      <Icon className="h-5 w-5 text-[#8FA2FF]" strokeWidth={1.5} aria-hidden="true" />
+                      <h3 className="mt-6 text-[15.5px] font-medium tracking-[-0.01em]">{item.title}</h3>
+                      <p className="mt-1.5 text-[14px] leading-[1.55] text-[#7F88A1]">{item.body}</p>
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           </FadeIn>
@@ -445,13 +396,13 @@ export default function LandingNavy() {
         {/* ─── How it works ─── */}
         <section id="how-it-works" aria-labelledby="how-h" className="scroll-mt-20 border-t">
           <FadeIn className={`${WRAP} py-20 sm:py-24`}>
-            <p className={LABEL}>How it works</p>
+            <p className={LABEL}>{t.how.label}</p>
             <h2 id="how-h" className={`mt-6 max-w-3xl ${H2}`}>
-              From your spreadsheet
-              <span className="text-[#A9B4FF]"> to your first sale.</span>
+              {t.how.titleA}
+              <span className="text-[#A9B4FF]">{t.how.titleB}</span>
             </h2>
             <ol className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
-              {STEPS.map((s, i) => (
+              {t.how.steps.map((s, i) => (
                 <li key={s.title} className="border-t pt-8">
                   <span className="block text-[clamp(3rem,5vw,4.5rem)] font-light leading-none tracking-[-0.04em] text-[#8FA2FF]">
                     {i + 1}
@@ -469,14 +420,14 @@ export default function LandingNavy() {
           <FadeIn className={`${WRAP} py-20 sm:py-24`}>
             <div className="grid gap-12 lg:grid-cols-12">
               <div className="lg:col-span-4">
-                <p className={LABEL}>Built for the counter</p>
+                <p className={LABEL}>{t.trust.label}</p>
                 <h2 id="trust-h" className={`mt-6 ${H2_SMALL}`}>
-                  Private to your store.
-                  <span className="text-[#A9B4FF]"> Safe on a shared phone.</span>
+                  {t.trust.titleA}
+                  <span className="text-[#A9B4FF]">{t.trust.titleB}</span>
                 </h2>
               </div>
               <ul className="grid gap-10 sm:grid-cols-3 lg:col-span-8 lg:gap-8">
-                {COMMITMENTS.map((c) => (
+                {t.trust.items.map((c) => (
                   <li key={c.title} className="border-t pt-6">
                     <h3 className="text-[17px] font-medium leading-[1.35] tracking-[-0.01em]">{c.title}</h3>
                     <p className="mt-3 text-[14.5px] leading-[1.65] text-[#8A93AB]">{c.body}</p>
@@ -492,21 +443,21 @@ export default function LandingNavy() {
           <FadeIn className={`${WRAP} py-20 sm:py-28`}>
             <p className={LABEL}>
               <span className="h-1.5 w-1.5 rounded-full bg-[#A898FF]" aria-hidden="true" />
-              Pricing
+              {t.pricing.label}
             </p>
             <h2 id="pricing-h" className="mt-8 text-[clamp(2.6rem,6vw,5rem)] font-semibold leading-[1.02] tracking-[-0.045em]">
-              Free while we’re in beta.
+              {t.pricing.title}
             </h2>
             <div className="mt-12 grid gap-10 border-t pt-10 lg:grid-cols-12">
               <p className="text-[17px] leading-[1.65] text-[#A7AFC4] lg:col-span-5">
-                Every feature, for every store. No card required — and nothing to install.
+                {t.pricing.body}
               </p>
               <div className="flex flex-wrap items-center gap-6 lg:col-span-7 lg:justify-end">
                 <Link href={ROUTES.signup} className={btnPrimary}>
-                  Get started <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  {t.nav.getStarted} <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
                 <Link href={ROUTES.demo} className={btnQuiet}>
-                  Explore the demo store <ArrowUpRight className="h-4 w-4 text-[#8FA2FF]" aria-hidden="true" />
+                  {t.nav.demoLong} <ArrowUpRight className="h-4 w-4 text-[#8FA2FF]" aria-hidden="true" />
                 </Link>
               </div>
             </div>
@@ -526,9 +477,9 @@ export default function LandingNavy() {
           </div>
           <ul className="flex flex-wrap gap-x-8 gap-y-2 text-[14px] text-[#8A93AB]">
             {FOOTER_LINKS.map((x) => (
-              <li key={x.l}>
+              <li key={x.key}>
                 <Link href={x.h} className={`inline-block py-1 hover:text-white ${focus}`}>
-                  {x.l}
+                  {t.footer[x.key]}
                 </Link>
               </li>
             ))}
@@ -609,7 +560,7 @@ function ChapterVisual({ kind }: { kind: Visual }) {
 const STORE_PHOTO = '/landing/store-owner.webp'
 const STORE_PHOTO_ALT = 'A grocery store owner checking stock on a tablet in the aisle of her store'
 
-function HeroPhoto({ variant }: { variant: 'desktop' | 'mobile' }) {
+function HeroPhoto({ variant, caption }: { variant: 'desktop' | 'mobile'; caption: string }) {
   const hasPhoto = existsSync(join(process.cwd(), 'public', STORE_PHOTO))
   const desktop = variant === 'desktop'
   return (
@@ -681,7 +632,7 @@ function HeroPhoto({ variant }: { variant: 'desktop' | 'mobile' }) {
         )}
       </div>
       <p className={`absolute text-[11.5px] text-[#8A93AB] ${desktop ? 'bottom-6 right-10' : 'bottom-4 right-4'}`}>
-        Figures from the demo store
+        {caption}
       </p>
     </div>
   )

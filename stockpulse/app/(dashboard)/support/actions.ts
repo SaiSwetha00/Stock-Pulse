@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import { canManage } from '@/lib/permissions'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 
 export type ResolveResult = { ok: true } | { ok: false; message: string }
 
@@ -25,7 +27,7 @@ export async function setRequestStatus(
   // Mirrors the RLS policy so a refusal reads as a sentence rather than as
   // zero rows updated. lib/permissions.ts and can_manage() must stay in step.
   if (!canManage(profile.role)) {
-    return { ok: false, message: 'Only an owner or manager can change a request.' }
+    return { ok: false, message: appCopy(await getLocale()).support.noPermission }
   }
 
   const supabase = await createClient()

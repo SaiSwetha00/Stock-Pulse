@@ -1,12 +1,15 @@
 import type { Metadata } from 'next'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import ProfileClient from '@/components/profile/ProfileClient'
 
-export const metadata: Metadata = {
-  title: "Profile",
-  description: "Your name, photo, contact details and password.",
-  robots: { index: false, follow: false },
+export async function generateMetadata(): Promise<Metadata> {
+  // Page name only; app/layout.tsx appends " · StockPulse". In the
+  // signed-in language, read from the same cookie the layout uses.
+  const { title, description } = appCopy(await getLocale()).meta.profile
+  return { title, description, robots: { index: false, follow: false } }
 }
 
 export default async function ProfilePage() {

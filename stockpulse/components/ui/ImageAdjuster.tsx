@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ZoomIn, ZoomOut, Loader2 } from 'lucide-react'
 import Button from '@/components/ui/Button'
+import { useAppCopy } from '@/lib/i18n/client'
 
 /**
  * Square crop + zoom, shared by the profile photo and product images.
@@ -29,7 +30,7 @@ export default function ImageAdjuster({
   quality = 0.85,
   onCancel,
   onConfirm,
-  confirmLabel = 'Use photo',
+  confirmLabel,
 }: {
   file: File
   /** Square edge of the produced image, in device pixels. */
@@ -39,6 +40,7 @@ export default function ImageAdjuster({
   onConfirm: (result: AdjustedImage) => void
   confirmLabel?: string
 }) {
+  const tc = useAppCopy().common
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
   const [zoom, setZoom] = useState(1)
   /**
@@ -127,7 +129,7 @@ export default function ImageAdjuster({
       canvas.width = outputSize
       canvas.height = outputSize
       const ctx = canvas.getContext('2d')
-      if (!ctx) throw new Error('Canvas is unavailable in this browser.')
+      if (!ctx) throw new Error(tc.canvasError)
 
       const ratio = outputSize / VIEWPORT
       const offsetX = (VIEWPORT - drawnW) / 2 + pan.x
@@ -139,14 +141,14 @@ export default function ImageAdjuster({
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, 'image/webp', quality),
       )
-      if (!blob) throw new Error('Could not process that image.')
+      if (!blob) throw new Error(tc.imageError)
 
       onConfirm({ blob, previewUrl: canvas.toDataURL('image/webp', quality) })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not process that image.')
+      setError(err instanceof Error ? err.message : tc.imageError)
       setWorking(false)
     }
-  }, [natural, drawnW, drawnH, pan, outputSize, quality, onConfirm])
+  }, [natural, drawnW, drawnH, pan, outputSize, quality, onConfirm, tc])
 
   return (
     <div className="space-y-4">
@@ -193,7 +195,7 @@ export default function ImageAdjuster({
         </div>
       </div>
 
-      <p className="text-center text-xs text-muted">Drag to reposition</p>
+      <p className="text-center text-xs text-muted">{tc.dragToReposition}</p>
 
       <div className="flex items-center gap-3">
         <ZoomOut className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
@@ -204,7 +206,7 @@ export default function ImageAdjuster({
           step={0.01}
           value={zoom}
           onChange={(e) => setZoom(Number(e.target.value))}
-          aria-label="Zoom"
+          aria-label={tc.zoom}
           className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-surface-muted accent-accent"
         />
         <ZoomIn className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
@@ -218,11 +220,11 @@ export default function ImageAdjuster({
 
       <div className="flex justify-end gap-2">
         <Button variant="secondary" onClick={onCancel} disabled={working}>
-          Cancel
+          {tc.cancel}
         </Button>
         <Button onClick={confirm} disabled={working || !natural}>
           {working && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-          {confirmLabel}
+          {confirmLabel ?? tc.usePhoto}
         </Button>
       </div>
     </div>

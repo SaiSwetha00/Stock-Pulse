@@ -6,6 +6,7 @@ import Modal from '@/components/ui/Modal'
 import { useToast } from '@/components/ui/Toast'
 import { saveShipment } from '@/app/(dashboard)/suppliers/actions'
 import type { ShipmentStatus, Supplier } from '@/types'
+import { useAppCopy } from '@/lib/i18n/client'
 
 export default function AddShipmentModal({
   suppliers,
@@ -15,6 +16,8 @@ export default function AddShipmentModal({
   suppliers: Supplier[]
   onClose: () => void
 }) {
+  const t = useAppCopy()
+  const ts = t.suppliers
   // Ties the footer submit back to the form it now sits outside of.
   const formId = useId()
   const [supplierId, setSupplierId] = useState(suppliers[0]?.id ?? '')
@@ -38,12 +41,12 @@ export default function AddShipmentModal({
       const result = await saveShipment({ supplierId, poNumber, status, pallets, eta })
 
       if (!result.ok) {
-        setError(result.message ?? 'Could not save the shipment.')
-        toast.error('Could not log shipment', result.message)
+        setError(result.message ?? ts.shipmentSaveFailed)
+        toast.error(ts.shipmentFailedToast, result.message)
         return
       }
 
-      toast.success('Shipment logged', poNumber ? `PO ${poNumber}` : undefined)
+      toast.success(ts.shipmentLogged, poNumber ? ts.poPrefix.replace('{n}', poNumber) : undefined)
 
       // revalidatePath alone does not repaint the client; see SupplierModal.
       router.refresh()
@@ -53,7 +56,7 @@ export default function AddShipmentModal({
 
   return (
     <Modal
-      title="New Purchase Order" onClose={onClose} width="md"
+      title={ts.poTitle} onClose={onClose} width="md"
       /*
         Actions live in Modal's `footer`. `children` scrolls; `footer` is
         pinned, shrink-0, and carries the safe-area-inset-bottom padding. Left
@@ -68,7 +71,7 @@ export default function AddShipmentModal({
             onClick={onClose}
             className="control-h flex-1 rounded-lg border border-border text-sm font-semibold text-muted-strong hover:bg-surface-muted"
           >
-            Cancel
+            {t.common.cancel}
           </button>
           <button
             type="submit"
@@ -76,7 +79,7 @@ export default function AddShipmentModal({
             disabled={saving || !suppliers.length}
             className="control-h flex-1 rounded-lg bg-foreground text-sm font-semibold text-surface hover:opacity-90 disabled:opacity-60"
           >
-            {saving ? 'Saving…' : 'Create PO'}
+            {saving ? ts.poSaving : ts.poCreate}
           </button>
         </div>
       }
@@ -86,7 +89,7 @@ export default function AddShipmentModal({
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-              Supplier
+              {ts.fSupplier}
             </label>
             <select
               required
@@ -104,13 +107,13 @@ export default function AddShipmentModal({
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-              PO Number
+              {ts.fPoNumber}
             </label>
             <input
               required
               value={poNumber}
               onChange={(e) => setPoNumber(e.target.value)}
-              placeholder="PO-2024-0891"
+              placeholder={ts.poPlaceholder}
               className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
             />
           </div>
@@ -118,22 +121,22 @@ export default function AddShipmentModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-                Status
+                {ts.fStatus}
               </label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as ShipmentStatus)}
                 className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
               >
-                <option value="ordered">Ordered</option>
-                <option value="shipped">Shipped</option>
-                <option value="transit">In Transit</option>
-                <option value="dock">At Dock</option>
+                <option value="ordered">{ts.shipmentLabels.ordered}</option>
+                <option value="shipped">{ts.shipmentLabels.shipped}</option>
+                <option value="transit">{ts.shipmentLabels.transit}</option>
+                <option value="dock">{ts.shipmentLabels.dock}</option>
               </select>
             </div>
             <div>
               <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-                Pallets
+                {ts.fPallets}
               </label>
               <input
                 type="number"
@@ -147,7 +150,7 @@ export default function AddShipmentModal({
 
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-              Arrival Estimate
+              {ts.fEta}
             </label>
             <input
               type="date"
@@ -158,7 +161,7 @@ export default function AddShipmentModal({
           </div>
 
           {!suppliers.length && (
-            <p className="text-center text-xs text-muted">Add a supplier first.</p>
+            <p className="text-center text-xs text-muted">{ts.addSupplierFirst}</p>
           )}
         </form>
     </Modal>

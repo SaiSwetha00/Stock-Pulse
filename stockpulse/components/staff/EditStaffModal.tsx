@@ -6,13 +6,14 @@ import Modal from '@/components/ui/Modal'
 import Button from '@/components/ui/Button'
 import { useToast } from '@/components/ui/Toast'
 import { updateTeamMember } from '@/app/(dashboard)/staff/teamActions'
-import { ASSIGNABLE_ROLES, ROLE_LABELS, type AssignableRole } from '@/lib/permissions'
+import { ASSIGNABLE_ROLES, type AssignableRole } from '@/lib/permissions'
+import { useAppCopy } from '@/lib/i18n/client'
+import type { StaffCopy } from '@/lib/i18n/app'
 import type { Profile } from '@/types'
 
 /** What each role actually means, for someone choosing between them. */
-const ROLE_HINTS: Record<AssignableRole, string> = {
-  manager: 'Runs the shop: inventory, customers, suppliers, shifts and takings.',
-  staff: 'Works the floor: view stock, log sales, see their own shifts.',
+function roleHints(t: StaffCopy): Record<AssignableRole, string> {
+  return { manager: t.roleHintManager, staff: t.roleHintStaff }
 }
 
 const INPUT =
@@ -38,6 +39,9 @@ export default function EditStaffModal({
   member: Profile
   onClose: () => void
 }) {
+  const t = useAppCopy()
+  const ts = t.staff
+  const hints = roleHints(ts)
   const router = useRouter()
   const toast = useToast()
   // Ties the footer submit back to the form it now sits outside of.
@@ -68,10 +72,10 @@ export default function EditStaffModal({
     setSaving(false)
     if (!result.ok) {
       setError(result.message)
-      toast.error('Could not save changes', result.message)
+      toast.error(ts.editSaveFailed, result.message)
       return
     }
-    toast.success('Team member updated', fullName)
+    toast.success(ts.memberUpdated, fullName)
     // The row is server-rendered, so the table only shows the new role once
     // the route re-renders.
     router.refresh()
@@ -80,7 +84,7 @@ export default function EditStaffModal({
 
   return (
     <Modal
-      title={`Edit ${member.full_name}`} onClose={onClose} width="sm"
+      title={ts.editStaffTitle.replace('{name}', member.full_name)} onClose={onClose} width="sm"
       /*
         Actions live in Modal's `footer`, not at the end of the form. `children`
         scrolls; `footer` is pinned, shrink-0, and carries the
@@ -96,10 +100,10 @@ export default function EditStaffModal({
       footer={
         <div className="flex items-center justify-end gap-3 pt-1">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+            {t.common.cancel}
           </Button>
           <Button type="submit" form={formId} loading={saving} disabled={!dirty}>
-            Save Changes
+            {ts.saveChanges}
           </Button>
         </div>
       }
@@ -113,7 +117,7 @@ export default function EditStaffModal({
 
         <div>
           <label htmlFor="edit-staff-name" className={LABEL}>
-            Full Name
+            {ts.fFullName}
           </label>
           <input
             id="edit-staff-name"
@@ -125,31 +129,31 @@ export default function EditStaffModal({
         </div>
 
         <div>
-          <p className={LABEL}>Work Email</p>
+          <p className={LABEL}>{ts.fWorkEmail}</p>
           <p className="rounded-lg border border-border bg-surface-muted px-3.5 py-2.5 text-sm text-muted">
             {member.email}
           </p>
           <p className="mt-1.5 text-xs text-muted">
-            The sign-in address cannot be changed here.
+            {ts.emailNote}
           </p>
         </div>
 
         <div>
           <label htmlFor="edit-staff-title" className={LABEL}>
-            Job Title
+            {ts.fJobTitle}
           </label>
           <input
             id="edit-staff-title"
             value={jobTitle}
             onChange={(e) => setJobTitle(e.target.value)}
-            placeholder="Cashier, Inventory Lead…"
+            placeholder={ts.jobTitlePlaceholder}
             className={INPUT}
           />
         </div>
 
         <div>
           <label htmlFor="edit-staff-role" className={LABEL}>
-            Role
+            {ts.fRole}
           </label>
           <select
             id="edit-staff-role"
@@ -160,12 +164,12 @@ export default function EditStaffModal({
           >
             {ASSIGNABLE_ROLES.map((option) => (
               <option key={option} value={option}>
-                {ROLE_LABELS[option]}
+                {t.roles[option]}
               </option>
             ))}
           </select>
           <p id="edit-staff-role-hint" className="mt-1.5 text-xs text-muted">
-            {ROLE_HINTS[role]}
+            {hints[role]}
           </p>
         </div>
 </form>

@@ -80,15 +80,40 @@ export function formatCurrencyAscii(n: number): string {
   return MONEY_ASCII.format(n)
 }
 
-export function formatRelativeTime(dateStr: string): string {
+/**
+ * The four phrases a "how long ago" stamp can produce. {n} is a whole count.
+ *
+ * Shared with <RelativeTime> in components/ui/LocalTime.tsx, which needs the
+ * same words against a ticking clock rather than against Date.now(). One type
+ * and one English default, so the two cannot drift apart in wording.
+ */
+export type RelativeTimeCopy = {
+  relJustNow: string
+  relMinutesAgo: string
+  relHoursAgo: string
+  relDaysAgo: string
+}
+
+/** English, and what a caller that passes nothing still gets. */
+export const EN_RELATIVE_TIME: RelativeTimeCopy = {
+  relJustNow: 'just now',
+  relMinutesAgo: '{n}m ago',
+  relHoursAgo: '{n}h ago',
+  relDaysAgo: '{n}d ago',
+}
+
+export function formatRelativeTime(
+  dateStr: string,
+  copy: RelativeTimeCopy = EN_RELATIVE_TIME,
+): string {
   const diffMs = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diffMs / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 1) return copy.relJustNow
+  if (mins < 60) return copy.relMinutesAgo.replace('{n}', String(mins))
   const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24) return copy.relHoursAgo.replace('{n}', String(hours))
   const days = Math.floor(hours / 24)
-  return `${days}d ago`
+  return copy.relDaysAgo.replace('{n}', String(days))
 }
 
 export function formatDate(dateStr: string): string {
@@ -101,6 +126,26 @@ export function formatDate(dateStr: string): string {
 }
 
 export const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/**
+ * The same seven labels, translated. Indexed Sunday-first to match
+ * `weekdayIndex`, and shaped to read straight off the STAFF copy — the rota
+ * already owns the day names, and one Monday for the whole app is better than
+ * two that can disagree.
+ */
+export type DayLabelCopy = {
+  daySun: string
+  dayMon: string
+  dayTue: string
+  dayWed: string
+  dayThu: string
+  dayFri: string
+  daySat: string
+}
+
+export function dayLabels(copy: DayLabelCopy): string[] {
+  return [copy.daySun, copy.dayMon, copy.dayTue, copy.dayWed, copy.dayThu, copy.dayFri, copy.daySat]
+}
 
 // Formats a Date's LOCAL calendar date as YYYY-MM-DD. Never use .toISOString()
 // for this — it converts to UTC and silently shifts the date in timezones

@@ -8,6 +8,7 @@ import { Lock, ArrowRight, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { AuthError, AuthField, AuthShell, FormPanel, SubmitButton } from '@/components/auth/AuthUI'
 import { fadeUp } from '@/lib/motion'
+import { useAuthCopy } from '@/lib/i18n/client'
 
 const MIN_LENGTH = 8
 const SUCCESS_REDIRECT_MS = 2500
@@ -15,6 +16,7 @@ const SUCCESS_REDIRECT_MS = 2500
 type Status = 'checking' | 'ready' | 'invalid' | 'success'
 
 export default function ResetPasswordPage() {
+  const c = useAuthCopy().reset
   const router = useRouter()
   const [status, setStatus] = useState<Status>('checking')
   const [password, setPassword] = useState('')
@@ -87,11 +89,11 @@ export default function ResetPasswordPage() {
     setError('')
 
     if (password.length < MIN_LENGTH) {
-      setError(`Password must be at least ${MIN_LENGTH} characters long.`)
+      setError(c.tooShort.replace('{n}', String(MIN_LENGTH)))
       return
     }
     if (password !== confirm) {
-      setError('Both passwords must match.')
+      setError(c.mismatch)
       return
     }
 
@@ -121,7 +123,7 @@ export default function ResetPasswordPage() {
           {status === 'success' ? (
             <>
               <CheckCircle2 className="mx-auto mt-4 h-8 w-8 text-success" aria-hidden="true" />
-              <h2 className="font-serif-brand mt-3 text-[22px] font-semibold tracking-[0.01em] text-foreground">Password updated</h2>
+              <h2 className="font-serif-brand mt-3 text-[22px] font-semibold tracking-[0.01em] text-foreground">{c.updatedTitle}</h2>
               <p className="mt-1 text-sm text-muted-strong">
                 Taking you to the login page so you can sign in with your new password…
               </p>
@@ -130,29 +132,29 @@ export default function ResetPasswordPage() {
                 className="mt-6 flex w-full items-center justify-center rounded-xl py-4 text-sm font-semibold text-accent-ink transition-transform hover:-translate-y-px"
                 style={{ background: 'linear-gradient(135deg, var(--sp-gold), var(--sp-gold-deep))' }}
               >
-                Go to login now
+                {c.goToLogin}
               </Link>
             </>
           ) : status === 'invalid' ? (
             <>
               <AlertTriangle className="mx-auto mt-4 h-8 w-8 text-danger" aria-hidden="true" />
-              <h2 className="font-serif-brand mt-3 text-[22px] font-semibold tracking-[0.01em] text-foreground">This link has expired</h2>
+              <h2 className="font-serif-brand mt-3 text-[22px] font-semibold tracking-[0.01em] text-foreground">{c.expiredTitle}</h2>
               <p className="mt-1 text-sm text-muted-strong">
                 {linkError ||
-                  'Password reset links expire and can only be used once. Request a new one and it will work from any device.'}
+                  c.expiredBody}
               </p>
               <Link
                 href="/forgot-password"
                 className="mt-6 flex w-full items-center justify-center rounded-xl py-4 text-sm font-semibold text-accent-ink transition-transform hover:-translate-y-px"
                 style={{ background: 'linear-gradient(135deg, var(--sp-gold), var(--sp-gold-deep))' }}
               >
-                Request a new link
+                {c.requestNew}
               </Link>
             </>
           ) : (
             <motion.div variants={fadeUp}>
-              <h2 className="font-serif-brand mt-5 text-[22px] font-semibold tracking-[0.01em] text-foreground">Set New Password</h2>
-              <p className="mt-1 text-sm text-muted-strong">Choose a new password for your account.</p>
+              <h2 className="font-serif-brand mt-5 text-[22px] font-semibold tracking-[0.01em] text-foreground">{c.title}</h2>
+              <p className="mt-1 text-sm text-muted-strong">{c.subtitle}</p>
             </motion.div>
           )}
         </div>
@@ -168,7 +170,7 @@ export default function ResetPasswordPage() {
             {error && <AuthError message={error} />}
 
             <AuthField
-              label="New Password"
+              label={c.newPassword}
               icon={Lock}
               type="password"
               value={password}
@@ -176,11 +178,11 @@ export default function ResetPasswordPage() {
               placeholder="••••••••"
               autoComplete="new-password"
               required
-              hint={`Must be at least ${MIN_LENGTH} characters long.`}
+              hint={c.lengthHint.replace('{n}', String(MIN_LENGTH))}
             />
 
             <AuthField
-              label="Confirm Password"
+              label={c.confirmPassword}
               icon={Lock}
               type="password"
               value={confirm}
@@ -191,8 +193,8 @@ export default function ResetPasswordPage() {
             />
 
             <div className="pt-1">
-              <SubmitButton loading={loading} loadingLabel="Updating…">
-                Update Password
+              <SubmitButton loading={loading} loadingLabel={c.submitLoading}>
+                {c.submit}
                 <ArrowRight className="h-4 w-4" />
               </SubmitButton>
             </div>

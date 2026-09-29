@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { isOptimizableImage } from '@/lib/images'
 import Modal from '@/components/ui/Modal'
 import ImageAdjuster, { type AdjustedImage } from '@/components/ui/ImageAdjuster'
+import { useAppCopy } from '@/lib/i18n/client'
 
 /**
  * Mirrors the bucket's own limits in 0008. Checked here so the user gets a
@@ -26,6 +27,7 @@ export default function AvatarUpload({
   value: string | null
   onChange: (url: string | null) => void
 }) {
+  const t = useAppCopy().profile
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,11 +39,11 @@ export default function AvatarUpload({
     setError(null)
 
     if (!ACCEPTED.includes(file.type)) {
-      setError('Choose a JPEG, PNG or WebP image.')
+      setError(t.avatarType)
       return
     }
     if (file.size > MAX_BYTES) {
-      setError(`That image is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is 2 MB.`)
+      setError(t.avatarTooBig.replace('{size}', (file.size / 1024 / 1024).toFixed(1)))
       return
     }
 
@@ -68,8 +70,8 @@ export default function AvatarUpload({
       setBusy(false)
       setError(
         uploadError.message.toLowerCase().includes('bucket')
-          ? 'Photo storage is not set up yet. Apply migration 0008, then try again.'
-          : `Upload failed: ${uploadError.message}`,
+          ? t.avatarNoBucket
+          : t.avatarFailed.replace('{message}', uploadError.message),
       )
       return
     }
@@ -99,7 +101,7 @@ export default function AvatarUpload({
   return (
     <div>
       <p className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
-        Profile Photo
+        {t.avatarLabel}
       </p>
       <div className="flex items-center gap-4">
         <div className="h-16 w-16 shrink-0 overflow-hidden rounded-full bg-surface-muted">
@@ -147,7 +149,7 @@ export default function AvatarUpload({
             ) : (
               <Upload className="h-3.5 w-3.5" aria-hidden="true" />
             )}
-            {value ? 'Replace' : 'Upload photo'}
+            {value ? t.avatarReplace : t.avatarUpload}
           </button>
           {value && (
             <button
@@ -157,16 +159,16 @@ export default function AvatarUpload({
               className="control-h-sm inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-danger hover:bg-danger-bg disabled:opacity-60"
             >
               <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-              Remove
+              {t.avatarRemove}
             </button>
           )}
         </div>
       </div>
 
-      <p className="mt-2 text-xs text-muted">JPEG, PNG or WebP. Up to 2 MB.</p>
+      <p className="mt-2 text-xs text-muted">{t.avatarHint}</p>
 
       {pending && (
-        <Modal title="Adjust your photo" onClose={() => setPending(null)} width="sm">
+        <Modal title={t.avatarAdjust} onClose={() => setPending(null)} width="sm">
           <div className="px-6 py-5">
             <ImageAdjuster
               file={pending}

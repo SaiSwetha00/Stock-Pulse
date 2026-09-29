@@ -191,6 +191,50 @@ export function totalLotQuantity(values: ProductInput): number {
  * Blank numeric inputs are normalised to '0' rather than becoming NaN, matching
  * the convention validateCustomerForm already uses.
  */
+/**
+ * The words, separate from the rules.
+ *
+ * Optional everywhere and defaulting to English: this module is imported by a
+ * Client Component, by a Server Action and by the CSV parser, and making the
+ * dictionary required would mean threading one through call sites that have no
+ * reader to speak to. The rules below are untouched — only the words move.
+ */
+export type ValidationCopy = {
+  nameRequired: string
+  nameTooLong: string
+  skuTooLong: string
+  barcodeShape: string
+  brandTooLong: string
+  categoryInvalid: string
+  priceMin: string
+  priceTooLarge: string
+  thresholdWhole: string
+  unitRequired: string
+  tooManyLots: string
+  quantityWhole: string
+  useDatePicker: string
+  badYear: string
+  lotPrefix: string
+}
+
+const EN_VALIDATION: ValidationCopy = {
+  nameRequired: 'Name is required.',
+  nameTooLong: 'Name must be 120 characters or fewer.',
+  skuTooLong: 'SKU must be 40 characters or fewer.',
+  barcodeShape: 'Use 8 to 14 digits, numbers only.',
+  brandTooLong: 'Brand must be 80 characters or fewer.',
+  categoryInvalid: 'Choose a valid category.',
+  priceMin: 'Must be zero or more.',
+  priceTooLarge: 'That price looks too large.',
+  thresholdWhole: 'Must be a whole number, zero or more.',
+  unitRequired: 'Unit is required.',
+  tooManyLots: 'At most {n} lots per product.',
+  quantityWhole: 'Must be a whole number, zero or more.',
+  useDatePicker: 'Use the date picker.',
+  badYear: 'Check the year — nothing expires in {year}.',
+  lotPrefix: 'Lot {n}: {message}',
+}
+
 export function validateProduct(
   values: ProductInput,
   /**
@@ -200,42 +244,44 @@ export function validateProduct(
    * exactly the kind of hole that compiles.
    */
   allowedCategories: readonly string[],
+  /** The reader's language, or English when the caller has no reader. */
+  copy: ValidationCopy = EN_VALIDATION,
 ): ProductErrors {
   const errors: ProductErrors = {}
 
   const name = values.name.trim()
-  if (!name) errors.name = 'Name is required.'
-  else if (name.length > 120) errors.name = 'Name must be 120 characters or fewer.'
+  if (!name) errors.name = copy.nameRequired
+  else if (name.length > 120) errors.name = copy.nameTooLong
 
-  if (values.sku.trim().length > 40) errors.sku = 'SKU must be 40 characters or fewer.'
+  if (values.sku.trim().length > 40) errors.sku = copy.skuTooLong
 
   // Optional: blank is a valid answer and must not be an error, since most
   // products will have no barcode on the day this ships.
   const barcode = values.barcode.trim()
   if (barcode && !BARCODE.test(barcode)) {
-    errors.barcode = 'Use 8 to 14 digits, numbers only.'
+    errors.barcode = copy.barcodeShape
   }
 
-  if (values.brand.trim().length > 80) errors.brand = 'Brand must be 80 characters or fewer.'
+  if (values.brand.trim().length > 80) errors.brand = copy.brandTooLong
 
   if (!allowedCategories.includes(values.category)) {
-    errors.category = 'Choose a valid category.'
+    errors.category = copy.categoryInvalid
   }
 
   const price = Number(values.unitPrice.trim() || '0')
-  if (!Number.isFinite(price) || price < 0) errors.unitPrice = 'Must be zero or more.'
-  else if (price > 1_000_000) errors.unitPrice = 'That price looks too large.'
+  if (!Number.isFinite(price) || price < 0) errors.unitPrice = copy.priceMin
+  else if (price > 1_000_000) errors.unitPrice = copy.priceTooLarge
 
   const threshold = Number(values.lowStockThreshold.trim() || '0')
   if (!Number.isInteger(threshold) || threshold < 0) {
-    errors.lowStockThreshold = 'Must be a whole number, zero or more.'
+    errors.lowStockThreshold = copy.thresholdWhole
   }
 
-  if (!values.unit.trim()) errors.unit = 'Unit is required.'
+  if (!values.unit.trim()) errors.unit = copy.unitRequired
 
   // --- lots ---------------------------------------------------------------
   if (values.lots.length > MAX_LOTS) {
-    errors.lots = `At most ${MAX_LOTS} lots per product.`
+    errors.lots = copy.tooManyLots.replace('{n}', String(MAX_LOTS))
   }
 
   // Index-aligned with values.lots, INCLUDING blank rows, so the form can put
@@ -250,19 +296,19 @@ export function validateProduct(
 
     const quantity = Number(lot.quantity.trim() || '0')
     if (!Number.isInteger(quantity) || quantity < 0) {
-      row.quantity = 'Must be a whole number, zero or more.'
+      row.quantity = copy.quantityWhole
     }
 
     const expiry = lot.expiryDate.trim()
     if (expiry) {
       if (!ISO_DATE.test(expiry)) {
-        row.expiryDate = 'Use the date picker.'
+        row.expiryDate = copy.useDatePicker
       } else {
         const year = expiry.slice(0, 4)
         if (Number(year) < MIN_EXPIRY_YEAR || Number(year) > MAX_EXPIRY_YEAR) {
           // Names the year back, because the typo is invisible in a date
           // control that renders "02/02/0202" in a 90px box.
-          row.expiryDate = `Check the year — nothing expires in ${year}.`
+          row.expiryDate = copy.badYear.replace('{year}', year)
         }
       }
     }
@@ -284,7 +330,10 @@ export function validateProduct(
  * `lotRows` is an array of objects, so the old expression would have joined
  * "[object Object]" into a shopkeeper's import report.
  */
-export function describeProductErrors(errors: ProductErrors): string[] {
+export function describeProductErrors(
+  errors: ProductErrors,
+  copy: ValidationCopy = EN_VALIDATION,
+): string[] {
   const out: string[] = []
   for (const [key, value] of Object.entries(errors)) {
     if (key === 'lotRows') continue
@@ -294,7 +343,7 @@ export function describeProductErrors(errors: ProductErrors): string[] {
     for (const message of [row.quantity, row.expiryDate]) {
       // Numbered, because "Use the date picker." on its own does not say
       // which of four lots the file got wrong.
-      if (message) out.push(`Lot ${i + 1}: ${message}`)
+      if (message) out.push(copy.lotPrefix.replace('{n}', String(i + 1)).replace('{message}', message))
     }
   }
   return out

@@ -3,16 +3,21 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentUser } from '@/lib/data'
 import { canManage } from '@/lib/permissions'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 import PageHeader from '@/components/ui/PageHeader'
 import SupportClient, { type SupportRequestRow } from '@/components/support/SupportClient'
 
-export const metadata: Metadata = {
-  title: 'Support',
-  description: 'Requests raised from the Help Centre.',
+export async function generateMetadata(): Promise<Metadata> {
+  // Page name only; app/layout.tsx appends " · StockPulse". In the
+  // signed-in language, read from the same cookie the layout uses.
+  const { title, description } = appCopy(await getLocale()).meta.support
+  return { title, description }
 }
 
 export default async function SupportPage() {
   const { profile } = await getCurrentUser()
+  const t = appCopy(await getLocale()).support
   // Mirrors the RLS policy and this route's NAV_ITEMS roles. All three must
   // agree, or the nav offers a link that bounces.
   if (!canManage(profile.role)) redirect('/dashboard')
@@ -33,12 +38,12 @@ export default async function SupportPage() {
   return (
     <div className="sp-page">
       <PageHeader
-        eyebrow="Support"
-        title="Help requests"
+        eyebrow={t.eyebrow}
+        title={t.title}
         description={
           openCount > 0
-            ? `${openCount} request${openCount === 1 ? '' : 's'} waiting on a reply.`
-            : 'Everything raised from the Help Centre, and what has been dealt with.'
+            ? (openCount === 1 ? t.waitingOne : t.waitingMany).replace('{n}', String(openCount))
+            : t.allDescription
         }
       />
       <SupportClient requests={requests} />
