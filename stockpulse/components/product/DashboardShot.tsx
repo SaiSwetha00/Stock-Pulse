@@ -5,6 +5,8 @@ import Badge from '@/components/ui/Badge'
 import ExpiryTag from '@/components/ui/ExpiryTag'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { EXPIRING, LOW_STOCK, SNAPSHOT_DATE, SNAPSHOT_LABEL, TOTALS, WARNING_DAYS } from '@/components/landing/snapshot'
+import { DEFAULT_CATEGORIES } from '@/lib/categories'
+import { fillShot, PRODUCT_SHOT_EN, type ProductShotCopy } from '@/lib/i18n/productShot'
 
 /**
  * The one product visual the three design directions share.
@@ -66,21 +68,48 @@ export const PRODUCT_LABEL = `The StockPulse dashboard for the demo store on ${S
 
 const STAT_FIT = 'p-4 max-sm:[&_span.inline-flex]:hidden'
 
+/**
+ * A snapshot category, as the reader should see it. The snapshot stores the
+ * demo store's category NAMES; the five seeded ones follow the language (the
+ * same rule as localizeCategories in lib/categories.ts), anything else is the
+ * store's own word and is shown as stored.
+ */
+export function shotCategory(name: string, shot: ProductShotCopy): string {
+  const seeded = DEFAULT_CATEGORIES.find((c) => c.name === name)
+  return (seeded && shot.categoryNames?.[seeded.slug]) || name
+}
+
+/** The picture's screen-reader description in the reader's language. */
+export function productLabel(shot: ProductShotCopy): string {
+  return fillShot(shot.productLabel, {
+    date: shot.snapshotLabel,
+    products: TOTALS.products,
+    lots: TOTALS.liveLots,
+    low: TOTALS.lowStock,
+    soon: TOTALS.expiringSoonLots,
+    days: WARNING_DAYS,
+    expired: TOTALS.expiredLots,
+  })
+}
+
 export default function ProductShot({
   palette,
   sidebar = true,
   /** `tiles` trims the alert cards to one — for compositions where the window is narrow. */
   tiles = false,
   className = '',
+  /** The words, in the reader's language. English when omitted — see lib/i18n/productShot. */
+  shot = PRODUCT_SHOT_EN,
 }: {
   palette: Palette
   sidebar?: boolean
   tiles?: boolean
   className?: string
+  shot?: ProductShotCopy
 }) {
   const alertRows = (
     <Card>
-      <CardHeader title="Expiring Soon" subtitle={`${TOTALS.expiredLots} lots already expired`} />
+      <CardHeader title={shot.expiringSoon} subtitle={fillShot(shot.expiredLots, { n: TOTALS.expiredLots })} />
       <CardBody>
         <ul className="divide-y" style={{ borderColor: palette.line }}>
           {EXPIRING.slice(0, tiles ? 2 : 3).map((e) => {
@@ -89,12 +118,12 @@ export default function ProductShot({
               <li key={e.name} className="flex items-center justify-between gap-3 py-2.5">
                 <span className="min-w-0">
                   <span className="block truncate text-[13px] font-semibold text-[#111827]">
-                    {e.name} <span className="font-normal text-[#6B7280]">· {e.quantity} units</span>
+                    {e.name} <span className="font-normal text-[#6B7280]">· {fillShot(shot.units, { n: e.quantity })}</span>
                   </span>
-                  <ExpiryTag date={e.expiry} today={SNAPSHOT_DATE} warningDays={WARNING_DAYS} />
+                  <ExpiryTag date={e.expiry} today={SNAPSHOT_DATE} warningDays={WARNING_DAYS} copy={shot.expiry} />
                 </span>
                 <Badge tone={expired ? 'danger' : 'neutral'} className="shrink-0 whitespace-nowrap">
-                  {expired ? 'Write off' : 'Discount'}
+                  {expired ? shot.writeOff : shot.discount}
                 </Badge>
               </li>
             )
@@ -107,7 +136,7 @@ export default function ProductShot({
   return (
     <div
       role="img"
-      aria-label={PRODUCT_LABEL}
+      aria-label={productLabel(shot)}
       className={`overflow-hidden border bg-white text-left ${className}`}
       style={{ ...productTokens(palette), borderColor: palette.line, borderRadius: palette.radius, boxShadow: palette.shadow }}
     >
@@ -127,7 +156,7 @@ export default function ProductShot({
               <ul className="space-y-0.5">
                 {navItemsFor('owner')
                   .slice(0, 9)
-                  .map(({ href, label, icon: Icon }) => (
+                  .map(({ href, key, label, icon: Icon }) => (
                     <li
                       key={href}
                       className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[12.5px]"
@@ -138,40 +167,40 @@ export default function ProductShot({
                       }
                     >
                       <Icon className="h-4 w-4" />
-                      {label}
+                      {shot.nav?.[key] ?? label}
                     </li>
                   ))}
               </ul>
             </aside>
           )}
           <div className="min-w-0 flex-1 p-4 sm:p-5" style={{ background: palette.tint }}>
-            <p className="text-[11.5px] font-medium text-[#6B7280]">Saturday, 19 September</p>
-            <p className="mb-4 text-[17px] font-bold tracking-tight text-[#111827]">Dashboard</p>
+            <p className="text-[11.5px] font-medium text-[#6B7280]">{shot.dateLine}</p>
+            <p className="mb-4 text-[17px] font-bold tracking-tight text-[#111827]">{shot.dashboard}</p>
             <div className={`grid gap-2.5 sm:gap-3 ${tiles ? 'grid-cols-2' : 'grid-cols-2 xl:grid-cols-4'}`}>
-              <StatCard label="Products" value={TOTALS.products} icon={Archive} className={STAT_FIT} />
-              <StatCard label="Stock lots" value={TOTALS.liveLots} icon={Layers} className={STAT_FIT} />
-              <StatCard label="Low Stock" value={TOTALS.lowStock} icon={AlertTriangle} className={STAT_FIT} />
-              <StatCard label="Expiring Soon" value={TOTALS.expiringSoonLots} icon={CalendarClock} className={STAT_FIT} />
+              <StatCard label={shot.products} value={TOTALS.products} icon={Archive} className={STAT_FIT} />
+              <StatCard label={shot.stockLots} value={TOTALS.liveLots} icon={Layers} className={STAT_FIT} />
+              <StatCard label={shot.lowStock} value={TOTALS.lowStock} icon={AlertTriangle} className={STAT_FIT} />
+              <StatCard label={shot.expiringSoon} value={TOTALS.expiringSoonLots} icon={CalendarClock} className={STAT_FIT} />
             </div>
 
             <div className={`mt-3 grid gap-3 ${tiles ? '' : 'md:grid-cols-2'}`}>
               {!tiles && (
                 <Card>
-                  <CardHeader title="Low Stock Alerts" subtitle="At or below each product’s own threshold" />
+                  <CardHeader title={shot.lowStockAlerts} subtitle={shot.lowStockSub} />
                   <CardBody>
                     <ul className="divide-y" style={{ borderColor: palette.line }}>
                       {LOW_STOCK.map((p) => (
                         <li key={p.name} className="flex items-center justify-between gap-3 py-2.5">
                           <span className="min-w-0">
                             <span className="block truncate text-[13px] font-semibold text-[#111827]">{p.name}</span>
-                            <span className="text-[12px] text-[#6B7280]">{p.category}</span>
+                            <span className="text-[12px] text-[#6B7280]">{shotCategory(p.category, shot)}</span>
                           </span>
                           <span className="flex shrink-0 items-center gap-3">
                             <span className="text-[13px] tabular-nums text-[#4B5563]">
                               {p.stock} <span className="text-[#6B7280]">/ {p.threshold}</span>
                             </span>
                             <Badge tone="warning" className="whitespace-nowrap">
-                              Reorder
+                              {shot.reorder}
                             </Badge>
                           </span>
                         </li>

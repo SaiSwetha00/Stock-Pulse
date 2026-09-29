@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { authCopy } from '@/lib/i18n/auth'
 import { AuthCopyProvider } from '@/lib/i18n/client'
 import { getLocale } from '@/lib/i18n/server'
@@ -25,6 +26,16 @@ import { getLocale } from '@/lib/i18n/server'
  * forms whose prerendering bought nothing, and the root layout is deliberately
  * left alone so /privacy, /terms and the rest stay static.
  */
+/**
+ * The auth pages' title and description in the visitor's language. They had
+ * none of their own and inherited the root layout's English default.
+ * `absolute` keeps the root "%s · StockPulse" template from repeating the name.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const { title, description } = authCopy(await getLocale()).meta
+  return { title: { absolute: title }, description }
+}
+
 export default async function AuthLocaleLayout({ children }: { children: React.ReactNode }) {
   const locale = await getLocale()
   return (

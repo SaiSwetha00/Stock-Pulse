@@ -161,7 +161,7 @@ export default function ResetPasswordPage() {
 
         {status === 'checking' && (
           <p className="mt-8 text-center text-sm text-muted-strong" role="status">
-            Verifying your link…
+            {c.verifying}
           </p>
         )}
 

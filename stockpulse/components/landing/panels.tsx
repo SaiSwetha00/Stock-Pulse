@@ -4,6 +4,8 @@ import Badge from '@/components/ui/Badge'
 import ExpiryTag from '@/components/ui/ExpiryTag'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { EXPIRING, LOW_STOCK, SNAPSHOT_DATE, TOTALS, WARNING_DAYS } from '@/components/landing/snapshot'
+import { shotCategory } from '@/components/product/DashboardShot'
+import { fillShot, PRODUCT_SHOT_EN, type ProductShotCopy } from '@/lib/i18n/productShot'
 
 /**
  * Shared by the three explorations: the StockPulse mark, the copy that must
@@ -58,40 +60,48 @@ export function Mark({
 
 /* ─────────── Real dashboard panels, one at a time ─────────── */
 
-export function ProductsTile({ className = '' }: { className?: string }) {
-  return <StatCard label="Products" value={TOTALS.products} icon={Archive} className={className} />
+// Every panel takes `shot`, the words in the reader's language (English when
+// omitted), resolved on the server — see lib/i18n/productShot.
+type ShotProp = { shot?: ProductShotCopy }
+
+export function ProductsTile({ className = '', shot = PRODUCT_SHOT_EN }: { className?: string } & ShotProp) {
+  return <StatCard label={shot.products} value={TOTALS.products} icon={Archive} className={className} />
 }
 
-export function LotsTile({ className = '' }: { className?: string }) {
-  return <StatCard label="Stock lots" value={TOTALS.liveLots} icon={Layers} className={className} />
+export function LotsTile({ className = '', shot = PRODUCT_SHOT_EN }: { className?: string } & ShotProp) {
+  return <StatCard label={shot.stockLots} value={TOTALS.liveLots} icon={Layers} className={className} />
 }
 
-export function LowStockTile({ className = '' }: { className?: string }) {
-  return <StatCard label="Low Stock" value={TOTALS.lowStock} icon={AlertTriangle} className={className} />
+export function LowStockTile({ className = '', shot = PRODUCT_SHOT_EN }: { className?: string } & ShotProp) {
+  return <StatCard label={shot.lowStock} value={TOTALS.lowStock} icon={AlertTriangle} className={className} />
 }
 
-export function ExpiringTile({ className = '' }: { className?: string }) {
-  return <StatCard label="Expiring Soon" value={TOTALS.expiringSoonLots} icon={CalendarClock} className={className} />
+export function ExpiringTile({ className = '', shot = PRODUCT_SHOT_EN }: { className?: string } & ShotProp) {
+  return <StatCard label={shot.expiringSoon} value={TOTALS.expiringSoonLots} icon={CalendarClock} className={className} />
 }
 
-export function LowStockPanel({ line, className = '' }: { line: string; className?: string }) {
+export function LowStockPanel({
+  line,
+  className = '',
+  shot = PRODUCT_SHOT_EN,
+}: { line: string; className?: string } & ShotProp) {
   return (
     <Card className={className}>
-      <CardHeader title="Low Stock Alerts" subtitle="At or below each product’s own threshold" />
+      <CardHeader title={shot.lowStockAlerts} subtitle={shot.lowStockSub} />
       <CardBody>
         <ul className="divide-y" style={{ borderColor: line }}>
           {LOW_STOCK.map((p) => (
             <li key={p.name} className="flex items-center justify-between gap-3 py-2.5">
               <span className="min-w-0">
                 <span className="block truncate text-[13px] font-semibold text-[#111827]">{p.name}</span>
-                <span className="text-[12px] text-[#6B7280]">{p.category}</span>
+                <span className="text-[12px] text-[#6B7280]">{shotCategory(p.category, shot)}</span>
               </span>
               <span className="flex shrink-0 items-center gap-3">
                 <span className="text-[13px] tabular-nums text-[#4B5563]">
                   {p.stock} <span className="text-[#6B7280]">/ {p.threshold}</span>
                 </span>
                 <Badge tone="warning" className="whitespace-nowrap">
-                  Reorder
+                  {shot.reorder}
                 </Badge>
               </span>
             </li>
@@ -102,10 +112,15 @@ export function LowStockPanel({ line, className = '' }: { line: string; classNam
   )
 }
 
-export function ExpiringPanel({ line, rows = 3, className = '' }: { line: string; rows?: number; className?: string }) {
+export function ExpiringPanel({
+  line,
+  rows = 3,
+  className = '',
+  shot = PRODUCT_SHOT_EN,
+}: { line: string; rows?: number; className?: string } & ShotProp) {
   return (
     <Card className={className}>
-      <CardHeader title="Expiring Soon" subtitle={`${TOTALS.expiredLots} lots already expired`} />
+      <CardHeader title={shot.expiringSoon} subtitle={fillShot(shot.expiredLots, { n: TOTALS.expiredLots })} />
       <CardBody>
         <ul className="divide-y" style={{ borderColor: line }}>
           {EXPIRING.slice(0, rows).map((e) => {
@@ -114,12 +129,12 @@ export function ExpiringPanel({ line, rows = 3, className = '' }: { line: string
               <li key={e.name} className="flex items-center justify-between gap-3 py-2.5">
                 <span className="min-w-0">
                   <span className="block truncate text-[13px] font-semibold text-[#111827]">
-                    {e.name} <span className="font-normal text-[#6B7280]">· {e.quantity} units</span>
+                    {e.name} <span className="font-normal text-[#6B7280]">· {fillShot(shot.units, { n: e.quantity })}</span>
                   </span>
-                  <ExpiryTag date={e.expiry} today={SNAPSHOT_DATE} warningDays={WARNING_DAYS} />
+                  <ExpiryTag date={e.expiry} today={SNAPSHOT_DATE} warningDays={WARNING_DAYS} copy={shot.expiry} />
                 </span>
                 <Badge tone={expired ? 'danger' : 'neutral'} className="shrink-0 whitespace-nowrap">
-                  {expired ? 'Write off' : 'Discount'}
+                  {expired ? shot.writeOff : shot.discount}
                 </Badge>
               </li>
             )

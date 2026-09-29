@@ -26,7 +26,9 @@ import FadeIn from '@/components/landing/FadeIn'
 import ExpiryTag from '@/components/ui/ExpiryTag'
 import Badge from '@/components/ui/Badge'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
-import { EXPIRING, SNAPSHOT_DATE, SNAPSHOT_LABEL, TOTALS, WARNING_DAYS } from '@/components/landing/snapshot'
+import { EXPIRING, SNAPSHOT_DATE, TOTALS, WARNING_DAYS } from '@/components/landing/snapshot'
+import { fillShot, type ProductShotCopy } from '@/lib/i18n/productShot'
+import { resolveProductShot } from '@/lib/i18n/productShotResolve'
 import { landingSans, landingScript } from './fonts'
 import { ExpiringPanel, ExpiringTile, LotsTile, LowStockPanel, LowStockTile, ProductsTile } from './panels'
 import StockPulseMark from '@/components/brand/StockPulseMark'
@@ -140,6 +142,9 @@ export default function LandingNavy({ locale = DEFAULT_LOCALE }: { locale?: Loca
   // route (/design-exploration/3/full) keeps rendering without knowing about
   // locales at all.
   const t = landingCopy(locale)
+  // The product previews' words — the dashboard picture, its panels, the hero
+  // cards and the scan card — in the same language as the prose around them.
+  const shot = resolveProductShot(locale)
 
   return (
     <div
@@ -151,11 +156,18 @@ export default function LandingNavy({ locale = DEFAULT_LOCALE }: { locale?: Loca
       {/* ─── Navbar ─── */}
       <header className="sticky top-0 z-50 border-b bg-[#0A0F1F]">
         <div className={`relative flex h-20 items-center justify-between ${WRAP}`}>
-          <Link href="/" aria-label="StockPulse home" className={`inline-flex items-center gap-3 rounded-md ${focus}`}>
+          <Link href="/" aria-label={shot.ariaHome} className={`inline-flex items-center gap-3 rounded-md ${focus}`}>
             <StockPulseMark uid="landing-nav" className="h-8 w-8" />
             <span className="text-[17px] font-semibold tracking-[-0.01em]">StockPulse</span>
           </Link>
-          <nav aria-label="Primary" className="hidden items-center gap-10 text-[14px] text-[#A7AFC4] md:flex">
+          {/* Telugu and Hindi labels are too long for the inline nav to fit a
+              768px tablet (measured: 15px of horizontal overflow and the logo
+              touching the first link), so those two languages keep the menu
+              button up to lg. English fits and keeps its approved md layout. */}
+          <nav
+            aria-label={shot.ariaPrimary}
+            className={`hidden items-center gap-10 text-[14px] text-[#A7AFC4] ${locale === 'en' ? 'md:flex' : 'lg:flex'}`}
+          >
             {NAV.map((n) => (
               <a key={n.href} href={n.href} className={`hover:text-white ${focus}`}>
                 {t.nav[n.key]}
@@ -184,6 +196,9 @@ export default function LandingNavy({ locale = DEFAULT_LOCALE }: { locale?: Loca
               {t.nav.demoShort} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
             <MobileMenuDark
+              openLabel={shot.ariaOpenMenu}
+              closeLabel={shot.ariaCloseMenu}
+              collapseBelow={locale === 'en' ? 'md' : 'lg'}
               links={NAV.map((n) => ({ label: t.nav[n.key], href: n.href }))}
               cta={[
                 { label: t.nav.getStarted, href: ROUTES.signup, className: `${btnPrimary} w-full` },
@@ -208,7 +223,7 @@ export default function LandingNavy({ locale = DEFAULT_LOCALE }: { locale?: Loca
             className="pointer-events-none absolute left-[28%] top-[35%] h-[560px] w-[560px] rounded-full bg-[radial-gradient(closest-side,rgba(150,110,255,0.16),transparent)]"
           />
 
-          <HeroPhoto variant="desktop" caption={t.captions.figures} />
+          <HeroPhoto variant="desktop" caption={t.captions.figures} shot={shot} />
           {/* One more soft light straddling where words meet photo, drawn above
               the photo so the two halves share the same glow. */}
           <div
@@ -274,12 +289,12 @@ export default function LandingNavy({ locale = DEFAULT_LOCALE }: { locale?: Loca
               <p className="mt-5 text-[13px] text-[#8A93AB]">{t.hero.note}</p>
             </div>
 
-            <HeroPhoto variant="mobile" caption={t.captions.figures} />
+            <HeroPhoto variant="mobile" caption={t.captions.figures} shot={shot} />
           </div>
         </section>
 
         {/* ─── Feature strip: the modules, one line ─── */}
-        <nav aria-label="Features" className="relative border-y">
+        <nav aria-label={shot.ariaFeatures} className="relative border-y">
           <ul className={`${WRAP} grid grid-cols-2 gap-y-1 py-4 sm:grid-cols-3 lg:grid-cols-6`}>
             {STRIP.map(({ icon: Icon, key, href }) => (
               <li key={key}>
@@ -301,9 +316,9 @@ export default function LandingNavy({ locale = DEFAULT_LOCALE }: { locale?: Loca
         <section id="product" aria-labelledby="product-h" className="relative scroll-mt-20">
           <div className={`${WRAP} grid items-center gap-12 py-16 sm:py-20 lg:grid-cols-[1.6fr_1fr] lg:gap-14`}>
             <figure className="min-w-0">
-              <DashboardShot palette={PALETTE} />
+              <DashboardShot palette={PALETTE} shot={shot} />
               <figcaption className="mt-4 text-[12.5px] text-[#6B7489]">
-                {t.product.caption}, {SNAPSHOT_LABEL}
+                {t.product.caption}, {shot.snapshotLabel}
               </figcaption>
             </figure>
             <FadeIn>
@@ -324,7 +339,7 @@ export default function LandingNavy({ locale = DEFAULT_LOCALE }: { locale?: Loca
         </section>
 
         {/* ─── Three numbered chapters ─── */}
-        <section aria-label="What StockPulse does" className="border-t">
+        <section aria-label={shot.ariaWhat} className="border-t">
           {CHAPTERS.map((c, i) => {
             const flip = i % 2 === 1
             const copy = t.chapters[c.id]
@@ -354,10 +369,10 @@ export default function LandingNavy({ locale = DEFAULT_LOCALE }: { locale?: Loca
                     </ul>
                   </div>
                   <figure className={`lg:col-span-7 ${flip ? 'lg:order-1' : ''}`}>
-                    <ChapterVisual kind={c.visual} />
+                    <ChapterVisual kind={c.visual} shot={shot} />
                     <figcaption className="mt-4 text-[12.5px] text-[#6B7489]">
                       {c.visual === 'sales' ? t.captions.sales : t.captions.standard}{' '}
-                      {t.captions.demoStore}, {SNAPSHOT_LABEL}.
+                      {t.captions.demoStore}, {shot.snapshotLabel}.
                     </figcaption>
                   </figure>
                 </FadeIn>
@@ -500,7 +515,7 @@ const LIFT = 'shadow-[0_30px_60px_-30px_rgba(0,0,0,0.6)]'
  * shared components render in the light product palette without being edited.
  * Decorative to assistive tech — the chapter text and figcaption carry it.
  */
-function ChapterVisual({ kind }: { kind: Visual }) {
+function ChapterVisual({ kind, shot }: { kind: Visual; shot: ProductShotCopy }) {
   return (
     <div
       aria-hidden="true"
@@ -510,26 +525,26 @@ function ChapterVisual({ kind }: { kind: Visual }) {
       {kind === 'inventory' && (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <ProductsTile className={`p-4 ${LIFT}`} />
-            <LotsTile className={`p-4 ${LIFT}`} />
+            <ProductsTile className={`p-4 ${LIFT}`} shot={shot} />
+            <LotsTile className={`p-4 ${LIFT}`} shot={shot} />
           </div>
-          <ExpiringPanel line={PALETTE.line} className={LIFT} />
+          <ExpiringPanel line={PALETTE.line} className={LIFT} shot={shot} />
         </div>
       )}
 
       {kind === 'alerts' && (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <LowStockTile className={`p-4 ${LIFT}`} />
-            <ExpiringTile className={`p-4 ${LIFT}`} />
+            <LowStockTile className={`p-4 ${LIFT}`} shot={shot} />
+            <ExpiringTile className={`p-4 ${LIFT}`} shot={shot} />
           </div>
-          <LowStockPanel line={PALETTE.line} className={LIFT} />
+          <LowStockPanel line={PALETTE.line} className={LIFT} shot={shot} />
         </div>
       )}
 
       {kind === 'sales' && (
         <div className="mx-auto max-w-md py-2 sm:py-6">
-          <ScanResult />
+          <ScanResult shot={shot} />
         </div>
       )}
     </div>
@@ -558,9 +573,16 @@ function ChapterVisual({ kind }: { kind: Visual }) {
  * rounded block under the words, with two cards instead of four.
  */
 const STORE_PHOTO = '/landing/store-owner.webp'
-const STORE_PHOTO_ALT = 'A grocery store owner checking stock on a tablet in the aisle of her store'
 
-function HeroPhoto({ variant, caption }: { variant: 'desktop' | 'mobile'; caption: string }) {
+function HeroPhoto({
+  variant,
+  caption,
+  shot,
+}: {
+  variant: 'desktop' | 'mobile'
+  caption: string
+  shot: ProductShotCopy
+}) {
   const hasPhoto = existsSync(join(process.cwd(), 'public', STORE_PHOTO))
   const desktop = variant === 'desktop'
   return (
@@ -585,7 +607,7 @@ function HeroPhoto({ variant, caption }: { variant: 'desktop' | 'mobile'; captio
       {hasPhoto ? (
         <Image
           src={STORE_PHOTO}
-          alt={STORE_PHOTO_ALT}
+          alt={shot.photoAlt}
           fill
           priority={desktop}
           sizes={desktop ? '52vw' : '100vw'}
@@ -605,27 +627,27 @@ function HeroPhoto({ variant, caption }: { variant: 'desktop' | 'mobile'; captio
       )}
 
       <div aria-hidden="true" className="select-none">
-        {desktop && <Annotation className="absolute left-[30%] top-[8%]" />}
-        {desktop && <NoteCard className="absolute right-[4%] top-[9%]" />}
+        {desktop && <Annotation className="absolute left-[30%] top-[8%]" lines={shot.annotation} />}
+        {desktop && <NoteCard className="absolute right-[4%] top-[9%]" shot={shot} />}
         <FloatStat
           icon={AlertTriangle}
           tone="blue"
-          label="Low Stock"
-          value={`${TOTALS.lowStock} items`}
+          label={shot.lowStock}
+          value={fillShot(shot.heroItems, { n: TOTALS.lowStock })}
           className={desktop ? 'left-[27%] top-[47%]' : 'bottom-[5.25rem] left-4'}
         />
         <FloatStat
           icon={CalendarClock}
           tone="purple"
-          label="Expiring Soon"
-          value={`${TOTALS.expiringSoonLots} lots`}
+          label={shot.expiringSoon}
+          value={fillShot(shot.heroLots, { n: TOTALS.expiringSoonLots })}
           className={desktop ? 'left-[32%] top-[61%]' : 'bottom-4 left-4'}
         />
         {desktop && (
           <FloatStat
             icon={Archive}
             tone="blue"
-            label="Products tracked"
+            label={shot.productsTracked}
             value={`${TOTALS.products}`}
             className="bottom-[16%] right-[5%]"
           />
@@ -690,12 +712,12 @@ function FloatStat({
   )
 }
 
-function NoteCard({ className }: { className: string }) {
+function NoteCard({ className, shot }: { className: string; shot: ProductShotCopy }) {
   return (
     <div className={`flex items-start gap-3 rounded-2xl bg-white px-4 py-3 shadow-[0_24px_48px_-18px_rgba(0,0,0,0.6)] ${className}`}>
       <span className="leading-snug">
-        <span className="block text-[13px] font-medium text-[#111827]">Less manual work</span>
-        <span className="block text-[13px] text-[#4B5563]">More time for customers</span>
+        <span className="block text-[13px] font-medium text-[#111827]">{shot.noteA}</span>
+        <span className="block text-[13px] text-[#4B5563]">{shot.noteB}</span>
       </span>
       <Heart className="mt-0.5 h-4 w-4 text-[#7A5AF8]" />
     </div>
@@ -703,16 +725,17 @@ function NoteCard({ className }: { className: string }) {
 }
 
 /** The reference's handwritten aside, with its arrow curling down toward the grocer. */
-function Annotation({ className }: { className: string }) {
+function Annotation({ className, lines }: { className: string; lines: readonly string[] }) {
   return (
     <div
       className={`${landingScript.variable} -rotate-6 font-[family-name:var(--font-landing-script)] text-[27px] font-medium leading-[1.02] text-[#E6E9FF] ${className}`}
     >
-      A simpler
-      <br />
-      way to run
-      <br />
-      your store
+      {lines.map((line, i) => (
+        <span key={i}>
+          {i > 0 && <br />}
+          {line}
+        </span>
+      ))}
       <svg viewBox="0 0 60 50" className="ml-16 mt-1 h-10 w-12 text-[#E6E9FF]" fill="none">
         <path d="M4 4 C 30 6, 44 18, 48 40" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         <path d="M40 34 L48 42 L54 32" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -728,7 +751,7 @@ function Annotation({ className }: { className: string }) {
  * units, expiring 24 Sep) is a real row of the demo snapshot, and "Discount"
  * is the badge the dashboard gives it.
  */
-function ScanResult() {
+function ScanResult({ shot }: { shot: ProductShotCopy }) {
   const item = EXPIRING[2]
   return (
     <div className="space-y-3">
@@ -737,17 +760,17 @@ function ScanResult() {
           <ScanBarcode className="h-[18px] w-[18px]" />
         </span>
         <span className="min-w-0 text-[13px] text-[#4B5563]">
-          <span className="block font-semibold text-[#111827]">Barcode found</span>
-          Matched in this store’s products
+          <span className="block font-semibold text-[#111827]">{shot.scanFound}</span>
+          {shot.scanMatched}
         </span>
       </div>
       <Card className={LIFT}>
-        <CardHeader title={item.name} subtitle={`${item.quantity} units in stock`} />
+        <CardHeader title={item.name} subtitle={fillShot(shot.unitsInStock, { n: item.quantity })} />
         <CardBody>
           <div className="flex items-center justify-between gap-3 border-t pt-3.5">
-            <ExpiryTag date={item.expiry} today={SNAPSHOT_DATE} warningDays={WARNING_DAYS} />
+            <ExpiryTag date={item.expiry} today={SNAPSHOT_DATE} warningDays={WARNING_DAYS} copy={shot.expiry} />
             <Badge tone="neutral" className="shrink-0 whitespace-nowrap">
-              Discount
+              {shot.discount}
             </Badge>
           </div>
         </CardBody>

@@ -79,7 +79,7 @@ export default function SignupPage() {
       <FormPanel>
         <div className="mb-6">
           <div className="mb-2 flex items-center justify-between text-xs font-medium text-muted-strong">
-            <span>Step {Math.min(step + 1, 3)} of 3</span>
+            <span>{c.stepOf.replace('{n}', String(Math.min(step + 1, 3))).replace('{total}', '3')}</span>
             <span>{Math.round((progress / 3) * 100)}%</span>
           </div>
           <div
@@ -150,7 +150,7 @@ export default function SignupPage() {
                     icon={Store}
                     value={storeName}
                     onChange={setStoreName}
-                    placeholder="e.g. Corner Grocer"
+                    placeholder={c.storeNamePlaceholder}
                     autoComplete="organization"
                     required
                     autoFocus
@@ -225,7 +225,7 @@ export default function SignupPage() {
 
         {!succeeded && (
           <motion.p variants={fadeUp} className="mt-6 text-sm text-muted-strong">
-            Already registered?{' '}
+            {c.loginPrompt}{' '}
             <Link href="/login" className="font-semibold text-foreground hover:underline">
               {c.loginCta}
             </Link>

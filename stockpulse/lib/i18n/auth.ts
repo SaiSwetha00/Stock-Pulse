@@ -1,4 +1,6 @@
 import type { Locale } from './locales'
+import type { ProductShotCopy } from './productShot'
+import { resolveProductShot } from './productShotResolve'
 
 /**
  * THE AUTH PAGES' COPY — /login, /signup, /forgot-password, /reset-password.
@@ -19,6 +21,13 @@ import type { Locale } from './locales'
  */
 
 export interface AuthCopy {
+  /** The auth pages' <title> and description (the root layout's default, translated). */
+  meta: { title: string; description: string }
+  /**
+   * The blurred dashboard behind the auth pages. Attached by authCopy() on the
+   * server rather than stored below — see lib/i18n/productShot.
+   */
+  shot: ProductShotCopy
   /** The shared shell every auth page renders inside (components/auth/AuthUI). */
   shell: {
     backToSite: string
@@ -67,6 +76,9 @@ export interface AuthCopy {
     createCta: string
     createLoading: string
     loginPrompt: string
+    /** "{n}" of "{total}" wizard steps. */
+    stepOf: string
+    storeNamePlaceholder: string
     loginCta: string
   }
   forgot: {
@@ -79,6 +91,7 @@ export interface AuthCopy {
     backToLogin: string
   }
   reset: {
+    verifying: string
     /** "{n}" is the minimum length. */
     tooShort: string
     lengthHint: string
@@ -97,7 +110,11 @@ export interface AuthCopy {
   }
 }
 
-const en: AuthCopy = {
+const en: AuthDictionary = {
+  meta: {
+    title: 'StockPulse — Neighborhood Market Operations',
+    description: 'Inventory, sales, and store management for small grocery stores.',
+  },
   shell: {
     backToSite: 'Back to site',
     heroTitle: 'Sign in to your store.',
@@ -149,7 +166,9 @@ const en: AuthCopy = {
     continueCta: 'Continue',
     createCta: 'Create Account',
     createLoading: 'Creating…',
-    loginPrompt: 'Already have an account?',
+    loginPrompt: 'Already registered?',
+    stepOf: 'Step {n} of {total}',
+    storeNamePlaceholder: 'e.g. Corner Grocer',
     loginCta: 'Sign in',
   },
   forgot: {
@@ -162,6 +181,7 @@ const en: AuthCopy = {
     backToLogin: 'Back to login',
   },
   reset: {
+    verifying: 'Verifying your link…',
     tooShort: 'Password must be at least {n} characters long.',
     lengthHint: 'Must be at least {n} characters long.',
     mismatch: 'Both passwords must match.',
@@ -180,7 +200,11 @@ const en: AuthCopy = {
   },
 }
 
-const te: AuthCopy = {
+const te: AuthDictionary = {
+  meta: {
+    title: 'StockPulse — పొరుగు దుకాణ నిర్వహణ',
+    description: 'చిన్న కిరాణా దుకాణాల కోసం నిల్వ, అమ్మకాలు, దుకాణ నిర్వహణ.',
+  },
   shell: {
     backToSite: 'సైట్కు తిరిగి',
     heroTitle: 'మీ దుకాణంలోకి సైన్ ఇన్ చేయండి.',
@@ -233,6 +257,8 @@ const te: AuthCopy = {
     createCta: 'ఖాతా సృష్టించండి',
     createLoading: 'సృష్టిస్తోంది…',
     loginPrompt: 'ఇప్పటికే ఖాతా ఉందా?',
+    stepOf: 'దశ {n} / {total}',
+    storeNamePlaceholder: 'ఉదా. లక్ష్మి కిరాణా',
     loginCta: 'సైన్ ఇన్',
   },
   forgot: {
@@ -245,6 +271,7 @@ const te: AuthCopy = {
     backToLogin: 'లాగిన్‌కు తిరిగి',
   },
   reset: {
+    verifying: 'మీ లింక్‌ను ధృవీకరిస్తోంది…',
     tooShort: 'పాస్‌వర్డ్ కనీసం {n} అక్షరాలు ఉండాలి.',
     lengthHint: 'కనీసం {n} అక్షరాలు ఉండాలి.',
     mismatch: 'రెండు పాస్‌వర్డ్‌లూ ఒకేలా ఉండాలి.',
@@ -263,7 +290,11 @@ const te: AuthCopy = {
   },
 }
 
-const hi: AuthCopy = {
+const hi: AuthDictionary = {
+  meta: {
+    title: 'StockPulse — पड़ोस की दुकान का संचालन',
+    description: 'छोटी किराना दुकानों के लिए स्टॉक, बिक्री और दुकान प्रबंधन।',
+  },
   shell: {
     backToSite: 'साइट पर वापस',
     heroTitle: 'अपनी दुकान में साइन इन कीजिए।',
@@ -316,6 +347,8 @@ const hi: AuthCopy = {
     createCta: 'खाता बनाइए',
     createLoading: 'बनाया जा रहा है…',
     loginPrompt: 'पहले से खाता है?',
+    stepOf: 'चरण {n} / {total}',
+    storeNamePlaceholder: 'जैसे शर्मा किराना',
     loginCta: 'साइन इन',
   },
   forgot: {
@@ -328,6 +361,7 @@ const hi: AuthCopy = {
     backToLogin: 'लॉग इन पर वापस',
   },
   reset: {
+    verifying: 'आपका लिंक जाँचा जा रहा है…',
     tooShort: 'पासवर्ड कम से कम {n} अक्षरों का होना चाहिए।',
     lengthHint: 'कम से कम {n} अक्षर होने चाहिए।',
     mismatch: 'दोनों पासवर्ड एक जैसे होने चाहिए।',
@@ -346,8 +380,11 @@ const hi: AuthCopy = {
   },
 }
 
-export const AUTH_COPY: Record<Locale, AuthCopy> = { en, te, hi }
+/** The stored strings; `shot` is resolved per request by authCopy(). */
+type AuthDictionary = Omit<AuthCopy, 'shot'>
+
+export const AUTH_COPY: Record<Locale, AuthDictionary> = { en, te, hi }
 
 export function authCopy(locale: Locale): AuthCopy {
-  return AUTH_COPY[locale]
+  return { ...AUTH_COPY[locale], shot: resolveProductShot(locale) }
 }

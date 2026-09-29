@@ -10,11 +10,11 @@ import type { Locale } from './locales'
  * sentences below. Translating a product name would make the page claim
  * something the store does not contain.
  *
- * THE PRODUCT SCREENSHOTS STAY IN ENGLISH, deliberately. The panels on this
- * page are the app's own components, and the app itself is not translated — so
- * a Telugu page showing a Telugu dashboard would be advertising a product that
- * does not exist. The page describes the product in your language and shows it
- * as it actually is.
+ * THE PRODUCT PREVIEWS ARE TRANSLATED TOO — their words live in
+ * ./productShot. They used to stay English because the app itself was English;
+ * the app is translated now, so a Telugu page shows the Telugu dashboard a
+ * Telugu visitor will actually get. The demo store's data (product names,
+ * counts) still comes from snapshot.ts and is never translated.
  *
  * SPLIT HEADINGS. Several headings are two fields (`titleA` / `titleB`)
  * because the design colours the second half. They split on a clause boundary,
@@ -30,6 +30,8 @@ import type { Locale } from './locales'
  */
 
 export interface LandingCopy {
+  /** The landing page's <title> and meta description. */
+  meta: { title: string; description: string }
   nav: {
     product: string
     how: string
@@ -75,6 +77,11 @@ interface Item {
 }
 
 const en: LandingCopy = {
+  meta: {
+    title: 'StockPulse — Store operations for independent grocers',
+    description:
+      'Inventory, point of sale, staff and suppliers, held in one calm place. Built for the shops that feed a neighbourhood. Free while we are in beta.',
+  },
   nav: {
     product: 'Product',
     how: 'How it works',
@@ -206,6 +213,11 @@ const en: LandingCopy = {
 }
 
 const te: LandingCopy = {
+  meta: {
+    title: 'StockPulse — స్వతంత్ర కిరాణా దుకాణాల నిర్వహణ',
+    description:
+      'నిల్వ, బిల్లింగ్, సిబ్బంది, సరఫరాదారులు — అన్నీ ఒకే ప్రశాంతమైన చోట. పొరుగువారికి సరుకులు అందించే దుకాణాల కోసం తయారైంది. బీటాలో ఉన్నంత వరకు ఉచితం.',
+  },
   nav: {
     product: 'ఉత్పత్తి',
     how: 'ఎలా పనిచేస్తుంది',
@@ -337,6 +349,11 @@ const te: LandingCopy = {
 }
 
 const hi: LandingCopy = {
+  meta: {
+    title: 'StockPulse — स्वतंत्र किराना दुकानों का संचालन',
+    description:
+      'स्टॉक, बिलिंग, स्टाफ़ और सप्लायर — सब एक शांत जगह पर। मोहल्ले का पेट भरने वाली दुकानों के लिए बना। बीटा में रहने तक मुफ़्त।',
+  },
   nav: {
     product: 'प्रोडक्ट',
     how: 'यह कैसे काम करता है',

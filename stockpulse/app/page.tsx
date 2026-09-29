@@ -3,12 +3,14 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import LandingNavy from '@/components/landing/LandingNavy'
-import { LOCALE_COOKIE, toLocale } from '@/lib/i18n'
+import { LOCALE_COOKIE, landingCopy, toLocale } from '@/lib/i18n'
 
-export const metadata: Metadata = {
-  title: 'StockPulse — Store operations for independent grocers',
-  description:
-    'Inventory, point of sale, staff and suppliers, held in one calm place. Built for the shops that feed a neighbourhood. Free while we are in beta.',
+export async function generateMetadata(): Promise<Metadata> {
+  // In the visitor's language, from the same cookie the page itself reads.
+  // `absolute` because this title already names the product, and the root
+  // layout's "%s · StockPulse" template would say it twice.
+  const { title, description } = landingCopy(toLocale((await cookies()).get(LOCALE_COOKIE)?.value)).meta
+  return { title: { absolute: title }, description }
 }
 
 /**

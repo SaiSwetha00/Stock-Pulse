@@ -7,4 +7,4 @@
  * user in before they choose a new password. That rule lives in
  * lib/supabase/middleware.ts and is untouched by adding a layout here.
  */
-export { default } from '@/components/auth/AuthLocaleLayout'
+export { default, generateMetadata } from '@/components/auth/AuthLocaleLayout'

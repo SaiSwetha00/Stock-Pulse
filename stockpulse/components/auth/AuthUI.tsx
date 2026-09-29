@@ -85,7 +85,9 @@ export function AuthShell({
    */
   dayFill?: number
 }) {
-  const c = useAuthCopy().shell
+  const copy = useAuthCopy()
+  const c = copy.shell
+  const shot = copy.shot
   const showProgress = dayFill < 1
 
   return (
@@ -107,7 +109,7 @@ export function AuthShell({
             className="opacity-[0.26] blur-[10px]"
             style={{ filter: 'saturate(0.85)', boxShadow: '0 80px 140px -60px rgba(0,0,0,1)' }}
           >
-            <DashboardShot palette={BACKDROP_PALETTE} />
+            <DashboardShot palette={BACKDROP_PALETTE} shot={shot} />
           </div>
         </div>
         <div
@@ -211,7 +213,7 @@ export function AuthShell({
         </main>
 
         <footer className={`${WRAP} py-6 lg:py-8`}>
-          <p className="text-[12px] text-muted">The StockPulse dashboard · demo store</p>
+          <p className="text-[12px] text-muted">{shot.backdropCaption}</p>
         </footer>
       </div>
     </div>

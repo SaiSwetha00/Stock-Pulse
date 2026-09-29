@@ -15,6 +15,7 @@ import {
   actionLabels,
   entityLabels,
   diffFields,
+  fieldLabel,
   entityName,
   formatValue,
   summarizeChange,
@@ -139,7 +140,7 @@ function Row({
               {changes.map((c) => (
                 <div key={c.field} className="rounded-lg border border-border bg-surface p-3">
                   <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
-                    {c.field.replace(/_/g, ' ')}
+                    {fieldLabel(c.field, t)}
                   </dt>
                   <dd className="mt-1 flex flex-wrap items-center gap-2 text-sm">
                     <span className="rounded bg-danger-bg px-2 py-0.5 text-danger line-through">

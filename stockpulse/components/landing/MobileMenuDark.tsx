@@ -14,9 +14,21 @@ import { Menu, X } from 'lucide-react'
 export default function MobileMenuDark({
   links,
   cta,
+  openLabel = 'Open menu',
+  closeLabel = 'Close menu',
+  collapseBelow = 'md',
 }: {
   links: ReadonlyArray<{ label: string; href: string }>
   cta: ReadonlyArray<{ label: string; href: string; className: string }>
+  /** The toggle's accessible names, in the page's language. English when omitted. */
+  openLabel?: string
+  closeLabel?: string
+  /**
+   * The width up to which this menu stands in for the inline nav. `md` for
+   * English; `lg` where the translated labels are too long for the inline nav
+   * to fit a tablet (see LandingNavy).
+   */
+  collapseBelow?: 'md' | 'lg'
 }) {
   const [open, setOpen] = useState(false)
   const id = useId()
@@ -32,12 +44,12 @@ export default function MobileMenuDark({
     'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8FA2FF]'
 
   return (
-    <div className="md:hidden">
+    <div className={collapseBelow === 'lg' ? 'lg:hidden' : 'md:hidden'}>
       <button
         type="button"
         aria-expanded={open}
         aria-controls={id}
-        aria-label={open ? 'Close menu' : 'Open menu'}
+        aria-label={open ? closeLabel : openLabel}
         onClick={() => setOpen((o) => !o)}
         className={`grid h-11 w-11 place-items-center rounded-full border text-[#EEF0F6] ${focus}`}
       >

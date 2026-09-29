@@ -29,6 +29,12 @@ export type AuditLabelCopy = {
   summaryNoChanges: string
   yes: string
   no: string
+  /**
+   * Display names for the audited columns, by column name. Optional: English
+   * has none and keeps the humanised column name it always showed; Telugu and
+   * Hindi supply their own so a translated screen never prints a raw column.
+   */
+  fields?: Record<string, string>
 }
 
 /** English, and what every caller that passes nothing still gets. */
@@ -129,7 +135,12 @@ export function summarizeChange(log: AuditLog, copy: AuditLabelCopy = EN_AUDIT):
   if (log.action === 'delete') return copy.summaryDeleted
   const changes = diffFields(log.before, log.after)
   if (changes.length === 0) return copy.summaryNoChanges
-  return changes.map((c) => c.field.replace(/_/g, ' ')).join(', ')
+  return changes.map((c) => fieldLabel(c.field, copy)).join(', ')
+}
+
+/** A changed column as the reader should see it; unknown columns are humanised. */
+export function fieldLabel(field: string, copy: AuditLabelCopy = EN_AUDIT): string {
+  return copy.fields?.[field] ?? field.replace(/_/g, ' ')
 }
 
 export function formatValue(v: unknown, copy: AuditLabelCopy = EN_AUDIT): string {
