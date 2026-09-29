@@ -120,7 +120,7 @@ export default function Topbar({
               {profile.full_name}
             </span>
             <span className="block max-w-[9rem] truncate text-[11px] text-muted">
-              {displayJobTitle(profile.job_title, { roles: t.roles, storeOwner: t.profile.storeOwner }) || roleLabel}
+              {displayJobTitle(profile.job_title, { roles: t.roles, storeOwner: t.profile.storeOwner, storeOwnerDemo: t.profile.storeOwnerDemo }) || roleLabel}
             </span>
           </span>
 

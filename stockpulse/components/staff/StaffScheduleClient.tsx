@@ -506,7 +506,7 @@ export default function StaffScheduleClient({
                         ? ts.leaveUntil
                             .replace('{kind}', ts.leaveKindLabels[onLeaveToday.kind])
                             .replace('{date}', onLeaveToday.ends_on)
-                        : displayJobTitle(profile.job_title, { roles: copy.roles, storeOwner: copy.profile.storeOwner }) || ts.staffFallback}
+                        : displayJobTitle(profile.job_title, { roles: copy.roles, storeOwner: copy.profile.storeOwner, storeOwnerDemo: copy.profile.storeOwnerDemo }) || ts.staffFallback}
                     </p>
                   </div>
                   {/* Three states, not two. "Not scheduled" and "on leave"

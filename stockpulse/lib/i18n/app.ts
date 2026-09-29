@@ -975,6 +975,8 @@ export type SettingsCopy = {
 export type ProfileCopy = {
   eyebrow: string
   storeOwner: string
+  /** The demo account's title, 'Store Owner (demo)' as stored; see lib/jobTitle.ts. */
+  storeOwnerDemo: string
   /** "{year}" is the year the account was created. */
   memberSince: string
   editProfile: string
@@ -2480,6 +2482,7 @@ const en: AppCopy = {
   profile: {
     eyebrow: 'Account',
     storeOwner: 'Store Owner',
+    storeOwnerDemo: 'Store Owner (demo)',
     memberSince: 'Member since {year}',
     editProfile: 'Edit Profile',
     logOut: 'Log out',
@@ -3772,6 +3775,7 @@ const te: AppCopy = {
   profile: {
     eyebrow: 'ఖాతా',
     storeOwner: 'స్టోర్ యజమాని',
+    storeOwnerDemo: 'స్టోర్ యజమాని (డెమో)',
     memberSince: '{year} నుండి సభ్యులు',
     editProfile: 'ప్రొఫైల్ సవరించు',
     logOut: 'లాగ్ అవుట్',
@@ -5109,6 +5113,7 @@ const hi: AppCopy = {
   profile: {
     eyebrow: 'खाता',
     storeOwner: 'स्टोर मालिक',
+    storeOwnerDemo: 'स्टोर मालिक (डेमो)',
     memberSince: '{year} से सदस्य',
     editProfile: 'प्रोफ़ाइल बदलें',
     logOut: 'लॉग आउट',

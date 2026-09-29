@@ -193,7 +193,7 @@ export default function TeamRosterClient({
                           </Badge>
                           {!isOwnerRow && m.job_title && (
                             <span className="truncate text-xs text-muted">
-                              {displayJobTitle(m.job_title, { roles: t.roles, storeOwner: t.profile.storeOwner })}
+                              {displayJobTitle(m.job_title, { roles: t.roles, storeOwner: t.profile.storeOwner, storeOwnerDemo: t.profile.storeOwnerDemo })}
                             </span>
                           )}
                         </span>

@@ -41,7 +41,7 @@ export default function ProfileClient({
   const roleLabel =
     profile.role === 'owner'
       ? t.storeOwner
-      : displayJobTitle(profile.job_title, { roles: copy.roles, storeOwner: copy.profile.storeOwner }) || copy.roles[profile.role]
+      : displayJobTitle(profile.job_title, { roles: copy.roles, storeOwner: copy.profile.storeOwner, storeOwnerDemo: copy.profile.storeOwnerDemo }) || copy.roles[profile.role]
 
   return (
     <div className="sp-page">

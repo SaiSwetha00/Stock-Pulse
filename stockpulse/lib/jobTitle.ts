@@ -7,7 +7,9 @@ import type { Role } from '@/types'
  * `profiles.job_title` is free text the owner types, and that stays exactly as
  * typed — it is the shop's own word, like a product name. But the app also
  * WRITES this column itself, in English, in two places:
- *   - signup stores 'Store Owner' (app/auth/actions.ts), and
+ *   - signup stores 'Store Owner' (app/auth/actions.ts),
+ *   - the demo account is seeded with 'Store Owner (demo)'
+ *     (scripts/acceptance/ensure-demo-user.cjs), and
  *   - an invite with the title left blank stores the role's English label
  *     (ROLE_LABELS, via teamActions.ts and auth/actions.ts).
  * Those are app vocabulary that happens to live in a data column — the same
@@ -19,11 +21,12 @@ import type { Role } from '@/types'
  */
 export function displayJobTitle(
   jobTitle: string | null | undefined,
-  copy: { roles: Record<Role, string>; storeOwner: string },
+  copy: { roles: Record<Role, string>; storeOwner: string; storeOwnerDemo: string },
 ): string | null | undefined {
   const value = jobTitle?.trim()
   if (!value) return jobTitle
   if (value === 'Store Owner') return copy.storeOwner
+  if (value === 'Store Owner (demo)') return copy.storeOwnerDemo
   const role = (Object.keys(ROLE_LABELS) as Role[]).find((r) => ROLE_LABELS[r] === value)
   return role ? copy.roles[role] : jobTitle
 }
