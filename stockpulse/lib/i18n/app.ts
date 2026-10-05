@@ -1544,6 +1544,20 @@ export interface AppCopy extends OperationsCopy {
   ai: AiCopy
   /** /dashboard. */
   dash: DashboardCopy
+  /**
+   * The 404 page (app/not-found.tsx) and the dashboard error fallback
+   * (app/(dashboard)/error.tsx). English matches what those pages shipped with.
+   */
+  errors: {
+    notFoundEyebrow: string
+    notFoundTitle: string
+    notFoundBody: string
+    backToDashboard: string
+    errorTitle: string
+    errorBody: string
+    unknownError: string
+    tryAgain: string
+  }
   palette: {
     ariaLabel: string
     searchPlaceholder: string
@@ -2838,6 +2852,18 @@ const en: AppCopy = {
     supplierFallback: 'Supplier',
     timeNow: 'now',
   },
+  errors: {
+    notFoundEyebrow: 'Error 404',
+    notFoundTitle: 'Page not found',
+    notFoundBody:
+      "That page doesn't exist, or it may have moved. Check the address, or head back to your dashboard.",
+    backToDashboard: 'Back to Dashboard',
+    errorTitle: 'Something went wrong',
+    errorBody:
+      "This page couldn't finish loading. Retrying will re-fetch the data; if it keeps failing, the store database may be unreachable.",
+    unknownError: 'Unknown error',
+    tryAgain: 'Try again',
+  },
   palette: {
     ariaLabel: 'Command palette',
     searchPlaceholder: 'Search pages and actions...',
@@ -3897,7 +3923,7 @@ const te: AppCopy = {
   },
   notif: {
     panelTitle: 'నోటిఫికేషన్లు',
-    markAllRead: 'అన్నీ చదినవిగా గుర్తించు',
+    markAllRead: 'అన్నీ చదివినవిగా గుర్తించు',
     loading: 'లోడ్ అవుతోంది…',
     caughtUp: 'అన్నీ చూసేశారు.',
     unread: 'చదవనిది',
@@ -4175,6 +4201,18 @@ const te: AppCopy = {
     aDeliveryBody: '{supplier} డెలివరీ స్వీకరించడానికి సిద్ధంగా ఉంది.',
     supplierFallback: 'సప్లయర్',
     timeNow: 'ఇప్పుడు',
+  },
+  errors: {
+    notFoundEyebrow: 'లోపం 404',
+    notFoundTitle: 'పేజీ కనబడలేదు',
+    notFoundBody:
+      'ఆ పేజీ లేదు, లేదా వేరే చోటికి మారి ఉండవచ్చు. చిరునామాను సరిచూడండి, లేదా మీ డాష్‌బోర్డ్‌కు తిరిగి వెళ్లండి.',
+    backToDashboard: 'డాష్‌బోర్డ్‌కు తిరిగి వెళ్లు',
+    errorTitle: 'ఏదో పొరపాటు జరిగింది',
+    errorBody:
+      'ఈ పేజీ పూర్తిగా లోడ్ కాలేదు. మళ్లీ ప్రయత్నిస్తే డేటా మళ్లీ తెచ్చుకుంటుంది; అయినా విఫలమవుతూ ఉంటే, దుకాణ డేటాబేస్ అందుబాటులో లేకపోవచ్చు.',
+    unknownError: 'తెలియని లోపం',
+    tryAgain: 'మళ్లీ ప్రయత్నించు',
   },
   palette: {
     ariaLabel: 'కమాండ్ ప్యాలెట్',
@@ -5511,6 +5549,18 @@ const hi: AppCopy = {
     aDeliveryBody: '{supplier} की डिलीवरी लेने के लिए तैयार है।',
     supplierFallback: 'सप्लायर',
     timeNow: 'अभी',
+  },
+  errors: {
+    notFoundEyebrow: 'त्रुटि 404',
+    notFoundTitle: 'पेज नहीं मिला',
+    notFoundBody:
+      'वह पेज मौजूद नहीं है, या शायद कहीं और चला गया है। पता जाँचें, या अपने डैशबोर्ड पर वापस जाएँ।',
+    backToDashboard: 'डैशबोर्ड पर वापस जाएँ',
+    errorTitle: 'कुछ गड़बड़ हो गई',
+    errorBody:
+      'यह पेज पूरी तरह लोड नहीं हो सका। दोबारा कोशिश करने पर डेटा फिर से लाया जाएगा; अगर यह बार-बार विफल हो, तो शायद दुकान का डेटाबेस उपलब्ध नहीं है।',
+    unknownError: 'अज्ञात त्रुटि',
+    tryAgain: 'फिर से कोशिश करें',
   },
   palette: {
     ariaLabel: 'कमांड पैलेट',

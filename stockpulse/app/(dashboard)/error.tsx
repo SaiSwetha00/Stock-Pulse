@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import Button from '@/components/ui/Button'
 import Link from 'next/link'
 import { AlertTriangle, RotateCw, ArrowLeft } from 'lucide-react'
+import { useAppCopy } from '@/lib/i18n/client'
 
 export default function DashboardError({
   error,
@@ -12,6 +13,8 @@ export default function DashboardError({
   error: Error & { digest?: string }
   unstable_retry: () => void
 }) {
+  const t = useAppCopy().errors
+
   useEffect(() => {
     console.error(error)
   }, [error])
@@ -23,29 +26,28 @@ export default function DashboardError({
           <AlertTriangle className="h-6 w-6 text-danger" />
         </div>
         <h1 className="mt-5 text-xl font-bold tracking-tight text-foreground">
-          Something went wrong
+          {t.errorTitle}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          This page couldn&apos;t finish loading. Retrying will re-fetch the data; if it keeps
-          failing, the store database may be unreachable.
+          {t.errorBody}
         </p>
 
         <p className="mt-4 break-words rounded-lg bg-surface-muted px-3.5 py-2.5 font-mono text-xs text-muted-strong">
-          {error.message || 'Unknown error'}
+          {error.message || t.unknownError}
           {error.digest && <span className="block text-muted">digest: {error.digest}</span>}
         </p>
 
         <div className="mt-6 flex flex-wrap gap-3">
           <Button onClick={() => unstable_retry()}>
             <RotateCw className="h-4 w-4" aria-hidden="true" />
-            Try again
+            {t.tryAgain}
           </Button>
           <Link
             href="/dashboard"
             className="inline-flex control-h items-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold text-muted-strong transition hover:bg-surface-muted"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
+            {t.backToDashboard}
           </Link>
         </div>
       </div>

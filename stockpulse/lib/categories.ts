@@ -69,9 +69,10 @@ export type DefaultCategorySlug = 'produce' | 'dairy' | 'packaged' | 'beverages'
  *   - the inventory CSV export, and the import matcher in lib/importCsv.ts,
  *     which resolve categories by their STORED name. The export -> Excel ->
  *     import round trip must not depend on the language it was exported in.
- *   - the Settings > Product Categories editor, which edits the stored name.
- *     Showing a translation there would save it into the database on the next
- *     rename.
+ *   - the Settings > Product Categories editor's RENAME FIELD, which edits the
+ *     stored name. Showing a translation there would save it into the
+ *     database on the next rename. The editor's row labels do use it; the
+ *     input is seeded from the stored name.
  *
  * `names` is `appCopy(locale).categoryNames` / `useAppCopy().categoryNames`.
  * With the English dictionary this is a no-op.

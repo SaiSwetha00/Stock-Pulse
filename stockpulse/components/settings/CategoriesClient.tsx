@@ -8,7 +8,7 @@ import Button from '@/components/ui/Button'
 import { Field, Input } from '@/components/ui/Field'
 import { useToast } from '@/components/ui/Toast'
 import EmptyState from '@/components/ui/EmptyState'
-import type { CategoryOption } from '@/lib/categories'
+import { labelMap, localizeCategories, type CategoryOption } from '@/lib/categories'
 import { validateCategory, type CategoryErrors } from '@/lib/validation/category'
 import { useAppCopy } from '@/lib/i18n/client'
 import {
@@ -51,6 +51,14 @@ export default function CategoriesClient({
   const copy = useAppCopy()
   const t = copy.settings.cat
   const tcm = copy.common
+  /**
+   * What each row is CALLED on screen. The five untouched seeded categories
+   * read in the chosen language; anything the shop named stays as typed (see
+   * localizeCategories). Display only: the rename field, validation and every
+   * Server Action still work on the stored `c.name`, so a translation can
+   * never be saved into the database.
+   */
+  const labels = labelMap(localizeCategories(categories, copy.categoryNames))
 
   const [newName, setNewName] = useState('')
   const [newErrors, setNewErrors] = useState<CategoryErrors>({})
@@ -208,6 +216,7 @@ export default function CategoriesClient({
                 const rowBusy = busy === c.slug && pending
                 const editing = editingSlug === c.slug
                 const confirming = confirmSlug === c.slug
+                const label = labels[c.slug] ?? c.name
 
                 return (
                   <li
@@ -258,7 +267,7 @@ export default function CategoriesClient({
                       <div className="space-y-3">
                         <p className="text-sm text-foreground">
                           {t.removePrefix}
-                          <span className="font-semibold">{c.name}</span>
+                          <span className="font-semibold">{label}</span>
                           {t.removeSuffix}
                         </p>
                         <div className="flex gap-3">
@@ -275,7 +284,7 @@ export default function CategoriesClient({
                             size="sm"
                             className="flex-1 min-w-0"
                             loading={rowBusy}
-                            onClick={() => handleDelete(c.slug, c.name)}
+                            onClick={() => handleDelete(c.slug, label)}
                           >
                             {t.remove}
                           </Button>
@@ -285,7 +294,7 @@ export default function CategoriesClient({
                       <div className="flex flex-wrap items-center gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-foreground">
-                            {c.name}
+                            {label}
                           </p>
                           <p className="mt-0.5 text-xs text-muted">
                             {count === 0
@@ -301,7 +310,7 @@ export default function CategoriesClient({
                           <Button
                             variant="ghost"
                             size="sm"
-                            aria-label={t.moveUp.replace('{name}', c.name)}
+                            aria-label={t.moveUp.replace('{name}', label)}
                             disabled={i === 0 || !ready || pending}
                             onClick={() => handleMove(c.slug, 'up')}
                           >
@@ -310,7 +319,7 @@ export default function CategoriesClient({
                           <Button
                             variant="ghost"
                             size="sm"
-                            aria-label={t.moveDown.replace('{name}', c.name)}
+                            aria-label={t.moveDown.replace('{name}', label)}
                             disabled={i === categories.length - 1 || !ready || pending}
                             onClick={() => handleMove(c.slug, 'down')}
                           >
@@ -319,7 +328,7 @@ export default function CategoriesClient({
                           <Button
                             variant="secondary"
                             size="sm"
-                            aria-label={t.renameAria.replace('{name}', c.name)}
+                            aria-label={t.renameAria.replace('{name}', label)}
                             disabled={!ready || pending}
                             onClick={() => startRename(c)}
                           >
@@ -336,9 +345,9 @@ export default function CategoriesClient({
                             aria-label={
                               count > 0
                                 ? (count === 1 ? t.cannotRemoveOne : t.cannotRemoveMany)
-                                    .replace('{name}', c.name)
+                                    .replace('{name}', label)
                                     .replace('{n}', String(count))
-                                : t.removeAria.replace('{name}', c.name)
+                                : t.removeAria.replace('{name}', label)
                             }
                             disabled={count > 0 || !ready || pending || categories.length <= 1}
                             onClick={() => setConfirmSlug(c.slug)}

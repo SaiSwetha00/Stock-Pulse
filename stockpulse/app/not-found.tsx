@@ -1,7 +1,11 @@
 import Link from 'next/link'
 import { Compass, ArrowLeft } from 'lucide-react'
+import { appCopy } from '@/lib/i18n/app'
+import { getLocale } from '@/lib/i18n/server'
 
-export default function NotFound() {
+export default async function NotFound() {
+  const t = appCopy(await getLocale()).errors
+
   return (
     <div className="flex min-h-screen flex-1 items-center justify-center bg-background px-6">
       <div className="w-full max-w-md sp-rise sp-e1 rounded-2xl border border-border bg-surface p-8 text-center shadow-sm">
@@ -13,19 +17,18 @@ export default function NotFound() {
           <Compass className="h-7 w-7 text-muted-strong" />
         </div>
         <p className="mt-6 text-xs font-bold uppercase tracking-[0.16em] text-muted">
-          Error 404
+          {t.notFoundEyebrow}
         </p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">Page not found</h1>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-foreground">{t.notFoundTitle}</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted">
-          That page doesn&apos;t exist, or it may have moved. Check the address, or head back to
-          your dashboard.
+          {t.notFoundBody}
         </p>
         <Link
           href="/dashboard"
           className="mt-7 inline-flex control-h items-center gap-2 rounded-xl bg-foreground px-5 text-sm font-semibold text-surface transition hover:opacity-90 active:scale-[0.98]"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Dashboard
+          {t.backToDashboard}
         </Link>
       </div>
     </div>
