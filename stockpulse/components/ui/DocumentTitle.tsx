@@ -10,10 +10,23 @@ import { useEffect } from 'react'
  * and adopting it would replace the root layout for every unmatched URL — an
  * architectural change to fix a tab label. A 404 is `noindex`, so a title set
  * after hydration costs nothing a crawler would read.
+ *
+ * WHY IT WATCHES <head>. Setting document.title once in an effect was measured
+ * NOT to stick in production: Next streams the metadata <title> in after
+ * hydration, and React claims the title element and writes the root layout's
+ * English title over ours. So the title is re-applied whenever the head
+ * changes, only while this component is mounted, and only when it differs -
+ * which cannot loop, because the second write finds it equal.
  */
 export default function DocumentTitle({ title }: { title: string }) {
   useEffect(() => {
-    document.title = title
+    const apply = () => {
+      if (document.title !== title) document.title = title
+    }
+    apply()
+    const observer = new MutationObserver(apply)
+    observer.observe(document.head, { subtree: true, childList: true, characterData: true })
+    return () => observer.disconnect()
   }, [title])
   return null
 }
