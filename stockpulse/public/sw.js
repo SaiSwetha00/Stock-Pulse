@@ -63,7 +63,14 @@
  */
 
 const STATIC_CACHE = 'stockpulse-static-v1'
-const SHELL_CACHE = 'stockpulse-shell-v1'
+// BUMP THIS when public/offline.html changes. The offline page is precached
+// only at `install`, and a browser re-runs `install` only when this file
+// changes byte-for-byte - so without a bump, a device that already installed
+// the app keeps serving the previous offline page indefinitely. v2: the
+// offline till became English/Telugu/Hindi (2026-10-12). `activate` deletes
+// the old shell cache; STATIC_CACHE and IndexedDB (the sale queue and the
+// saved product list) are untouched.
+const SHELL_CACHE = 'stockpulse-shell-v2'
 // A STATIC FILE, not a route. An App Router page cannot be served offline
 // from a precached document: hydrating one needs its RSC payload, which this
 // worker refuses to cache so that no signed-in page data is ever stored on a

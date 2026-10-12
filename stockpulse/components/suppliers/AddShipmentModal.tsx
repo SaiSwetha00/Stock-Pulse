@@ -85,13 +85,14 @@ export default function AddShipmentModal({
       }
     >
         <form id={formId} onSubmit={handleSubmit} className="space-y-4 px-6 py-5">
-          {error && <div className="rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">{error}</div>}
+          {error && <div role="alert" className="rounded-lg bg-danger-bg px-4 py-2.5 text-sm text-danger">{error}</div>}
 
           <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
+            <label htmlFor={`${formId}-supplier`} className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
               {ts.fSupplier}
             </label>
             <select
+              id={`${formId}-supplier`}
               required
               value={supplierId}
               onChange={(e) => setSupplierId(e.target.value)}
@@ -106,10 +107,11 @@ export default function AddShipmentModal({
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
+            <label htmlFor={`${formId}-po`} className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
               {ts.fPoNumber}
             </label>
             <input
+              id={`${formId}-po`}
               required
               value={poNumber}
               onChange={(e) => setPoNumber(e.target.value)}
@@ -120,10 +122,11 @@ export default function AddShipmentModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
+              <label htmlFor={`${formId}-status`} className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
                 {ts.fStatus}
               </label>
               <select
+                id={`${formId}-status`}
                 value={status}
                 onChange={(e) => setStatus(e.target.value as ShipmentStatus)}
                 className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
@@ -135,10 +138,11 @@ export default function AddShipmentModal({
               </select>
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
+              <label htmlFor={`${formId}-pallets`} className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
                 {ts.fPallets}
               </label>
               <input
+                id={`${formId}-pallets`}
                 type="number"
                 min="0"
                 value={pallets}
@@ -149,10 +153,11 @@ export default function AddShipmentModal({
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
+            <label htmlFor={`${formId}-eta`} className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">
               {ts.fEta}
             </label>
             <input
+              id={`${formId}-eta`}
               type="date"
               value={eta}
               onChange={(e) => setEta(e.target.value)}

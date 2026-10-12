@@ -2,12 +2,14 @@ import Link from 'next/link'
 import { Compass, ArrowLeft } from 'lucide-react'
 import { appCopy } from '@/lib/i18n/app'
 import { getLocale } from '@/lib/i18n/server'
+import DocumentTitle from '@/components/ui/DocumentTitle'
 
 export default async function NotFound() {
   const t = appCopy(await getLocale()).errors
 
   return (
     <div className="flex min-h-screen flex-1 items-center justify-center bg-background px-6">
+      <DocumentTitle title={`${t.notFoundTitle} · StockPulse`} />
       <div className="w-full max-w-md sp-rise sp-e1 rounded-2xl border border-border bg-surface p-8 text-center shadow-sm">
         {/* No border and no entrance of its own: this is a 56px icon tile
             inside the card above, not a card. The elevation sweep's prefix

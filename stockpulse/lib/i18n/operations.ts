@@ -282,6 +282,17 @@ export type ServerCopy = {
   missingBatches: string
   lotRefused: string
   productNotSaved: string
+  /** Supabase Auth refusals, by error code - see authErrorText in app/auth/actions.ts. */
+  authInvalidCredentials: string
+  authEmailNotConfirmed: string
+  authUserExists: string
+  authWeakPassword: string
+  authSamePassword: string
+  authRateLimited: string
+  authUnavailable: string
+  authGeneric: string
+  authResetEmailFailed: string
+  authResetTooMany: string
   productInPastSales: string
   /** "{limit}" is the row cap. */
   importTooMany: string
@@ -331,6 +342,16 @@ const en: OperationsCopy = {
     lotRefused:
       'That stock lot could not be changed - it may have just been removed, or your account may not have permission. Refresh and try again.',
     productNotSaved: 'That product could not be saved - it may have just been removed. Refresh and try again.',
+    authInvalidCredentials: 'Incorrect email or password.',
+    authEmailNotConfirmed: 'This email address has not been confirmed yet.',
+    authUserExists: 'An account with this email already exists. Sign in instead.',
+    authWeakPassword: 'That password is too weak. Use a longer one.',
+    authSamePassword: 'Choose a password different from your current one.',
+    authRateLimited: 'Too many attempts. Wait a few minutes and try again.',
+    authUnavailable: 'Could not reach the sign-in service. Check your connection and try again.',
+    authGeneric: 'Something went wrong. Please try again.',
+    authResetEmailFailed: 'The reset email could not be sent right now. Try again later, or contact support.',
+    authResetTooMany: 'Too many reset emails requested. Wait a few minutes and try again.',
     productInPastSales:
       'This product appears in past sales and cannot be removed. Set its stock to 0 to retire it instead.',
     importTooMany: 'Too many rows in one import (limit {limit}).',
@@ -633,6 +654,16 @@ const te: OperationsCopy = {
     lotRefused:
       'ఆ స్టాక్ లాట్‌ను మార్చలేకపోయాం — అది ఇప్పుడే తీసివేయబడి ఉండవచ్చు, లేదా మీ ఖాతాకు అనుమతి లేకపోవచ్చు. రిఫ్రెష్ చేసి మళ్లీ ప్రయత్నించండి.',
     productNotSaved: 'ఆ వస్తువును సేవ్ చేయలేకపోయాం — అది ఇప్పుడే తీసివేయబడి ఉండవచ్చు. రిఫ్రెష్ చేసి మళ్లీ ప్రయత్నించండి.',
+    authInvalidCredentials: 'ఈమెయిల్ లేదా పాస్\u200cవర్డ్ తప్పు.',
+    authEmailNotConfirmed: 'ఈ ఈమెయిల్ చిరునామా ఇంకా నిర్ధారించబడలేదు.',
+    authUserExists: 'ఈ ఈమెయిల్\u200cతో ఇప్పటికే ఖాతా ఉంది. బదులుగా సైన్ ఇన్ చేయండి.',
+    authWeakPassword: 'ఆ పాస్\u200cవర్డ్ బలహీనంగా ఉంది. ఇంకా పొడవైనది వాడండి.',
+    authSamePassword: 'ప్రస్తుత పాస్\u200cవర్డ్ కంటే వేరేది ఎంచుకోండి.',
+    authRateLimited: 'చాలా ఎక్కువ ప్రయత్నాలు. కొన్ని నిమిషాలు ఆగి మళ్లీ ప్రయత్నించండి.',
+    authUnavailable: 'సైన్-ఇన్ సేవను చేరుకోలేకపోయాం. మీ కనెక్షన్\u200cను తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.',
+    authGeneric: 'ఏదో పొరపాటు జరిగింది. దయచేసి మళ్లీ ప్రయత్నించండి.',
+    authResetEmailFailed: 'రీసెట్ ఈమెయిల్\u200cను ఇప్పుడు పంపలేకపోయాం. తర్వాత మళ్లీ ప్రయత్నించండి, లేదా సహాయాన్ని సంప్రదించండి.',
+    authResetTooMany: 'చాలా ఎక్కువ రీసెట్ ఈమెయిల్\u200cలు అడిగారు. కొన్ని నిమిషాలు ఆగి మళ్లీ ప్రయత్నించండి.',
     productInPastSales:
       'ఈ వస్తువు పాత అమ్మకాల్లో ఉంది, కాబట్టి తొలగించలేరు. దాన్ని నిలిపివేయడానికి నిల్వను 0కి మార్చండి.',
     importTooMany: 'ఒకే దిగుమతిలో వరుసలు చాలా ఎక్కువ (పరిమితి {limit}).',
@@ -926,6 +957,16 @@ const hi: OperationsCopy = {
     lotRefused:
       'वह स्टॉक लॉट बदला नहीं जा सका — हो सकता है वह अभी-अभी हटाया गया हो, या आपके खाते को अनुमति न हो। रीफ़्रेश करके फिर कोशिश करें।',
     productNotSaved: 'वह सामान सेव नहीं हो सका — हो सकता है वह अभी-अभी हटाया गया हो। रीफ़्रेश करके फिर कोशिश करें।',
+    authInvalidCredentials: 'ईमेल या पासवर्ड गलत है।',
+    authEmailNotConfirmed: 'यह ईमेल पता अभी पुष्ट नहीं हुआ है।',
+    authUserExists: 'इस ईमेल से पहले से एक खाता मौजूद है। इसके बजाय साइन इन करें।',
+    authWeakPassword: 'यह पासवर्ड कमज़ोर है। लंबा पासवर्ड इस्तेमाल करें।',
+    authSamePassword: 'मौजूदा पासवर्ड से अलग पासवर्ड चुनें।',
+    authRateLimited: 'बहुत ज़्यादा कोशिशें हुईं। कुछ मिनट रुककर फिर कोशिश करें।',
+    authUnavailable: 'साइन-इन सेवा तक नहीं पहुँच सके। अपना कनेक्शन जाँचकर फिर कोशिश करें।',
+    authGeneric: 'कुछ गड़बड़ हो गई। कृपया फिर कोशिश करें।',
+    authResetEmailFailed: 'रीसेट ईमेल अभी नहीं भेजा जा सका। बाद में फिर कोशिश करें, या सहायता से संपर्क करें।',
+    authResetTooMany: 'बहुत ज़्यादा रीसेट ईमेल माँगे गए। कुछ मिनट रुककर फिर कोशिश करें।',
     productInPastSales:
       'यह सामान पुरानी बिक्री में शामिल है, इसलिए हटाया नहीं जा सकता। इसे बंद करने के लिए इसका स्टॉक 0 कर दें।',
     importTooMany: 'एक इम्पोर्ट में बहुत ज़्यादा पंक्तियाँ (सीमा {limit})।',

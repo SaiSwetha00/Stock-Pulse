@@ -33,12 +33,17 @@
 export async function sendPasswordResetEmail(
   email: string,
   redirectTo: string,
-): Promise<{ error?: string; success?: boolean }> {
+): Promise<{
+  error?: string
+  success?: boolean
+  /** What failed, so the caller can answer in the user's language. */
+  kind?: 'not_configured' | 'unreachable' | 'rate_limited' | 'refused'
+}> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!url || !key) {
-    return { error: 'Authentication is not configured. Contact your administrator.' }
+    return { error: 'Authentication is not configured. Contact your administrator.', kind: 'not_configured' }
   }
 
   let response: Response
@@ -53,7 +58,7 @@ export async function sendPasswordResetEmail(
       body: JSON.stringify({ email }),
     })
   } catch {
-    return { error: 'Could not reach the authentication service. Check your connection.' }
+    return { error: 'Could not reach the authentication service. Check your connection.', kind: 'unreachable' }
   }
 
   if (response.ok) return { success: true }
@@ -64,6 +69,7 @@ export async function sendPasswordResetEmail(
     return {
       error:
         'Too many reset emails requested. Supabase limits how many can be sent per hour — wait a few minutes and try again.',
+      kind: 'rate_limited',
     }
   }
 
@@ -72,5 +78,5 @@ export async function sendPasswordResetEmail(
     (body && (body.msg || body.message || body.error_description || body.error)) ||
     `Could not send the reset email (HTTP ${response.status}).`
 
-  return { error: String(message) }
+  return { error: String(message), kind: 'refused' }
 }

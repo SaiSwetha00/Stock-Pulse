@@ -14,6 +14,41 @@ async function serverCopy() {
   return appCopy(await getLocale())
 }
 
+/**
+ * A Supabase Auth refusal in the reader's language.
+ *
+ * supabase-js returns English sentences ("Invalid login credentials"), which
+ * Telugu and Hindi screens printed verbatim. The common ones are matched by
+ * their stable `code`; anything unrecognised keeps Supabase's own sentence in
+ * English (it is often the most specific thing available) and becomes a
+ * translated general message elsewhere, with the original logged so it is
+ * still diagnosable.
+ */
+async function authErrorText(error: { code?: string; message: string; status?: number }) {
+  const locale = await getLocale()
+  const t = appCopy(locale).server
+  switch (error.code) {
+    case 'invalid_credentials':
+      return t.authInvalidCredentials
+    case 'email_not_confirmed':
+      return t.authEmailNotConfirmed
+    case 'user_already_exists':
+    case 'email_exists':
+      return t.authUserExists
+    case 'weak_password':
+      return t.authWeakPassword
+    case 'same_password':
+      return t.authSamePassword
+    case 'over_request_rate_limit':
+    case 'over_email_send_rate_limit':
+      return t.authRateLimited
+  }
+  if (error.status === 429) return t.authRateLimited
+  if (locale === 'en') return error.message
+  console.error('[auth] untranslated refusal:', error.code ?? '(no code)', error.message)
+  return t.authGeneric
+}
+
 export async function signUpOwner(formData: {
   storeName: string
   fullName: string
@@ -42,7 +77,7 @@ export async function signUpOwner(formData: {
     password: formData.password,
   })
 
-  if (authError) return { error: authError.message }
+  if (authError) return { error: await authErrorText(authError) }
   if (!authData.user) return { error: t.accountFailed }
 
   const admin = createAdminClient()
@@ -77,7 +112,7 @@ export async function login(formData: { email: string; password: string }) {
     password: formData.password,
   })
 
-  if (error) return { error: error.message }
+  if (error) return { error: await authErrorText(error) }
 
   redirect('/dashboard')
 }
@@ -96,13 +131,28 @@ export async function requestPasswordReset(email: string) {
   // the tokens in the link's #fragment, so the email can be opened on a phone
   // after requesting on a laptop. A fragment never reaches the server, so this
   // targets the page directly rather than /auth/callback.
-  return sendPasswordResetEmail(email, `${origin}/reset-password`)
+  const result = await sendPasswordResetEmail(email, `${origin}/reset-password`)
+  if (!result.error) return result
+
+  // The provider's own sentence is logged, not shown: it is English, and the
+  // useful detail ("Error sending recovery email" = the mail provider refused
+  // to send) belongs in the server log where it can be diagnosed.
+  console.error('[password reset] not sent:', result.kind ?? 'refused', result.error)
+  const t = (await serverCopy()).server
+  return {
+    error:
+      result.kind === 'rate_limited'
+        ? t.authResetTooMany
+        : result.kind === 'unreachable'
+          ? t.authUnavailable
+          : t.authResetEmailFailed,
+  }
 }
 
 export async function updatePassword(password: string) {
   const supabase = await createClient()
   const { error } = await supabase.auth.updateUser({ password })
-  if (error) return { error: error.message }
+  if (error) return { error: await authErrorText(error) }
   return { success: true }
 }
 
