@@ -8,7 +8,7 @@
  *
  * THIS FILE IS THE ONLY DRAWING OF THE MARK IN THE APP. The favicon, Apple
  * icon and PWA icons under app/ and public/icons are PNG/ICO renders of this
- * same geometry (see scripts/render-brand-icons.cjs), and
+ * same geometry (see scripts/render-brand-icons.mjs), and
  * components/marketing/StockPulseLogo and the landing page's header both
  * render this component. If the geometry below changes, re-run that script or
  * the raster icons silently disagree with the vector one.

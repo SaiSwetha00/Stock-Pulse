@@ -255,6 +255,11 @@ export type InventoryCopy = {
   actNoPermission: string
   actFixFields: string
   actSkuExists: string
+  /** "{name}" is the product already holding the barcode. */
+  actBarcodeUsedBy: string
+  actBarcodeUsedOther: string
+  actImportVanished: string
+  actLotsNotWritten: string
   actBadBarcode: string
   actNoImportPermission: string
   actNothingToImport: string
@@ -1845,6 +1850,10 @@ const en: AppCopy = {
     actNoPermission: 'You do not have permission to change inventory.',
     actFixFields: 'Please correct the highlighted fields.',
     actSkuExists: 'A product with that SKU already exists.',
+    actBarcodeUsedBy: 'This barcode is already used by {name}.',
+    actBarcodeUsedOther: 'This barcode is already used by another product in this store.',
+    actImportVanished: 'That product could not be found when the write ran. Re-run the import.',
+    actLotsNotWritten: 'The stock lots could not be written.',
     actBadBarcode: 'That is not a valid barcode.',
     actNoImportPermission: 'You do not have permission to import inventory.',
     actNothingToImport: 'Nothing to import.',
@@ -3152,6 +3161,10 @@ const te: AppCopy = {
     actNoPermission: 'నిల్వను మార్చడానికి మీకు అనుమతి లేదు.',
     actFixFields: 'గుర్తించిన ఫీల్డ్‌లను సరిచేయండి.',
     actSkuExists: 'ఆ SKU ఉన్న వస్తువు ఇప్పటికే ఉంది.',
+    actBarcodeUsedBy: 'ఈ బార్‌కోడ్‌ను ఇప్పటికే {name} ఉపయోగిస్తోంది.',
+    actBarcodeUsedOther: 'ఈ బార్‌కోడ్‌ను ఈ దుకాణంలోని మరో వస్తువు ఇప్పటికే ఉపయోగిస్తోంది.',
+    actImportVanished: 'సేవ్ చేసే సమయానికి ఆ వస్తువు కనబడలేదు. దిగుమతిని మళ్లీ చేయండి.',
+    actLotsNotWritten: 'స్టాక్ లాట్‌లను సేవ్ చేయలేకపోయాం.',
     actBadBarcode: 'అది సరైన బార్‌కోడ్ కాదు.',
     actNoImportPermission: 'నిల్వను దిగుమతి చేయడానికి మీకు అనుమతి లేదు.',
     actNothingToImport: 'దిగుమతి చేయడానికి ఏమీ లేదు.',
@@ -4502,6 +4515,10 @@ const hi: AppCopy = {
     actNoPermission: 'स्टॉक बदलने की आपको अनुमति नहीं है।',
     actFixFields: 'चिह्नित ख़ानों को ठीक कीजिए।',
     actSkuExists: 'उस SKU वाला सामान पहले से मौजूद है।',
+    actBarcodeUsedBy: 'यह बारकोड पहले से {name} के लिए इस्तेमाल हो रहा है।',
+    actBarcodeUsedOther: 'यह बारकोड इस दुकान के किसी दूसरे सामान के लिए पहले से इस्तेमाल हो रहा है।',
+    actImportVanished: 'सेव करते समय वह सामान नहीं मिला। इम्पोर्ट दोबारा चलाएँ।',
+    actLotsNotWritten: 'स्टॉक लॉट सेव नहीं हो सके।',
     actBadBarcode: 'यह मान्य बारकोड नहीं है।',
     actNoImportPermission: 'स्टॉक इम्पोर्ट करने की आपको अनुमति नहीं है।',
     actNothingToImport: 'इम्पोर्ट करने को कुछ नहीं।',

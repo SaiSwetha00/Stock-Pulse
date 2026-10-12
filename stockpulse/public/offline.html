@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
-<title>Offline · StockPulse</title>
+<title data-i18n="title">Offline · StockPulse</title>
 <!--
   A PLAIN STATIC DOCUMENT, and that is the architectural point.
 
@@ -28,6 +28,14 @@
   Each is marked below. If the app's versions change, these must change with
   them - the same standing hazard CLAUDE.md records for the app-layer and
   database-layer barcode rules.
+
+  WORDS, DECLARED THE SAME WAY. The page reads the language the app already
+  remembers (the `sp-locale` cookie, set by the landing page's selector) and
+  shows English, Telugu or Hindi from the COPY table in the script. The
+  sentences are copied from lib/i18n/app.ts and lib/i18n/operations.ts where
+  the app already says the same thing (the waiting-to-sync line, "Saved on this
+  device", the could-not-save warning, the expiry words and month names), so a
+  cashier reads one vocabulary online and off. Change them together.
 -->
 <style>
   :root {
@@ -92,13 +100,13 @@
 <body>
 <div class="wrap">
   <p class="eyebrow">StockPulse</p>
-  <h1>No connection</h1>
-  <p class="lede">
+  <h1 data-i18n="heading">No connection</h1>
+  <p class="lede" data-i18n="lede">
     Your shop&rsquo;s data is safe on the server &mdash; nothing has been lost. Below is the product
-    list saved on this device, so you can still look up a price or a barcode.
+    list saved on this device, so you can still look up prices and barcodes and make sales.
   </p>
 
-  <div id="status" class="card muted">Opening your saved product list&hellip;</div>
+  <div id="status" class="card muted" data-i18n="opening">Opening your saved product list&hellip;</div>
 
   <div id="live" hidden>
     <div class="stale" id="stale" role="status"></div>
@@ -106,7 +114,8 @@
       <span aria-hidden="true">&#128269;</span>
       <input id="q" type="search" autocomplete="off"
              placeholder="Search a name, or scan/type a barcode"
-             aria-label="Search saved products" />
+             aria-label="Search saved products"
+             data-i18n-placeholder="searchPlaceholder" data-i18n-aria="searchAria" />
     </label>
     <ul class="rows" id="list"></ul>
     <p class="sub" id="count"></p>
@@ -114,10 +123,10 @@
     <!-- The till. A cold navigation with no signal lands on this document
          rather than /sales, so this is where an offline sale is actually made. -->
     <div class="panel" id="cart" hidden>
-      <h2>This sale</h2>
+      <h2 data-i18n="thisSale">This sale</h2>
       <ul class="rows" id="cart-list"></ul>
-      <div class="totrow"><span>Total</span><span id="cart-total"></span></div>
-      <button type="button" class="primary" id="complete">Complete sale (save on this device)</button>
+      <div class="totrow"><span data-i18n="total">Total</span><span id="cart-total"></span></div>
+      <button type="button" class="primary" id="complete" data-i18n="complete">Complete sale (save on this device)</button>
     </div>
 
     <p id="till-msg" hidden role="status"></p>
@@ -125,28 +134,193 @@
     <div class="panel" id="queue" hidden>
       <h2 id="queue-head"></h2>
       <ul class="rows" id="queue-list"></ul>
-      <p class="sub" style="margin-top:8px">
-        Saved on this device only. They stay here - including through a reload or a restart -
-        until syncing is switched on.
+      <p class="sub" style="margin-top:8px" data-i18n="queueNote">
+        Saved on this device only. They stay here, including through a reload or a restart,
+        and sync automatically when you are back online.
       </p>
     </div>
   </div>
 
   <div class="card" style="margin-top:18px">
-    <strong>While you are offline</strong>
+    <strong data-i18n="whileOffline">While you are offline</strong>
     <ul class="notes">
-      <li>Sales and stock changes cannot be saved yet.</li>
-      <li>Prices and stock below may have changed since they were saved.</li>
-      <li>Move somewhere with signal and reload.</li>
+      <li data-i18n="note1">Sales you complete here are saved on this device and sync automatically when you are back online.</li>
+      <li data-i18n="note2">Prices and stock below may have changed since they were saved.</li>
+      <li data-i18n="note3">Move somewhere with signal and reload.</li>
     </ul>
   </div>
 
-  <a class="btn" href="/dashboard">Try again</a>
+  <a class="btn" href="/dashboard" data-i18n="tryAgain">Try again</a>
 </div>
 
 <script>
 (function () {
   'use strict';
+
+  // ===================== WORDS (English, Telugu, Hindi) =====================
+  // The three languages the app supports, and only those. Read from the cookie
+  // the app already sets, so there is no second language control here.
+  var COPY = {
+    en: {
+      title: 'Offline · StockPulse',
+      heading: 'No connection',
+      lede: 'Your shop’s data is safe on the server — nothing has been lost. Below is the product list saved on this device, so you can still look up prices and barcodes and make sales.',
+      opening: 'Opening your saved product list…',
+      searchPlaceholder: 'Search a name, or scan/type a barcode',
+      searchAria: 'Search saved products',
+      thisSale: 'This sale',
+      total: 'Total',
+      complete: 'Complete sale (save on this device)',
+      queueNote: 'Saved on this device only. They stay here, including through a reload or a restart, and sync automatically when you are back online.',
+      whileOffline: 'While you are offline',
+      note1: 'Sales you complete here are saved on this device and sync automatically when you are back online.',
+      note2: 'Prices and stock below may have changed since they were saved.',
+      note3: 'Move somewhere with signal and reload.',
+      tryAgain: 'Try again',
+      outOfStock: '{name} is out of stock.',
+      onlyLeft: 'Only {n} left of {name}.',
+      notSaved: 'This sale could NOT be saved. Write it down before the customer leaves.',
+      saved: 'Saved on this device · {total} · will sync when back online.',
+      each: '{price} each',
+      remove: 'Remove',
+      waitingOne: '{n} sale waiting to sync · {total}',
+      waitingMany: '{n} sales waiting to sync · {total}',
+      lineOne: '{time} · {n} item',
+      lineMany: '{time} · {n} items',
+      noMatch: 'Nothing in the saved list matches that.',
+      expired: 'Expired',
+      expires: 'Expires',
+      leftPending: '{left} left ({n} pending)',
+      inStock: '{n} in stock',
+      addToSale: 'Add to sale',
+      savedOne: 'Showing {shown} of {n} saved product.',
+      savedMany: 'Showing {shown} of {n} saved products.',
+      matchOne: 'Showing {shown} of {n} matching product.',
+      matchMany: 'Showing {shown} of {n} matching products.',
+      failNoPointer: 'No saved product list on this device yet. Sign in once with a connection and open Inventory or Sales; the list is saved automatically after that.',
+      failNoStorage: 'This browser will not let StockPulse save data offline.',
+      failOpen: 'Could not open the saved product list on this device.',
+      failNoList: 'No saved product list on this device yet. Reconnect once to download it.',
+      failRead: 'Could not read the saved product list.',
+      failNoStoreList: 'No saved product list for this store yet. Reconnect once to download it.',
+      staleFrom: 'Saved list from {time} · prices and stock may have changed since',
+      unknownTime: 'an unknown time',
+      months: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    },
+    te: {
+      title: 'ఆఫ్‌లైన్ · StockPulse',
+      heading: 'కనెక్షన్ లేదు',
+      lede: 'మీ దుకాణ డేటా సర్వర్‌లో సురక్షితంగా ఉంది — ఏదీ పోలేదు. ఈ పరికరంలో సేవ్ చేసిన వస్తువుల జాబితా కింద ఉంది, కాబట్టి మీరు ధరలు, బార్‌కోడ్‌లు చూడవచ్చు, అమ్మకాలు కూడా చేయవచ్చు.',
+      opening: 'సేవ్ చేసిన వస్తువుల జాబితా తెరుస్తోంది…',
+      searchPlaceholder: 'పేరు వెతకండి, లేదా బార్‌కోడ్ స్కాన్/టైప్ చేయండి',
+      searchAria: 'సేవ్ చేసిన వస్తువులను వెతకండి',
+      thisSale: 'ఈ అమ్మకం',
+      total: 'మొత్తం',
+      complete: 'అమ్మకం పూర్తి చేయి (ఈ పరికరంలో సేవ్ చేయి)',
+      queueNote: 'ఇవి ఈ పరికరంలో మాత్రమే సేవ్ అయ్యాయి. రీలోడ్ చేసినా, రీస్టార్ట్ చేసినా ఇక్కడే ఉంటాయి; మీరు మళ్లీ ఆన్‌లైన్‌కు వచ్చినప్పుడు ఆటోమేటిక్‌గా సింక్ అవుతాయి.',
+      whileOffline: 'మీరు ఆఫ్‌లైన్‌లో ఉన్నప్పుడు',
+      note1: 'ఇక్కడ పూర్తి చేసే అమ్మకాలు ఈ పరికరంలో సేవ్ అవుతాయి, మళ్లీ ఆన్‌లైన్‌కు వచ్చినప్పుడు ఆటోమేటిక్‌గా సింక్ అవుతాయి.',
+      note2: 'కింద ఉన్న ధరలు, నిల్వ సేవ్ చేసిన తర్వాత మారి ఉండవచ్చు.',
+      note3: 'సిగ్నల్ ఉన్న చోటికి వెళ్లి రీలోడ్ చేయండి.',
+      tryAgain: 'మళ్లీ ప్రయత్నించండి',
+      outOfStock: '{name} స్టాక్‌లో లేదు.',
+      onlyLeft: '{name} {n} మాత్రమే మిగిలి ఉన్నాయి.',
+      notSaved: 'ఈ అమ్మకం సేవ్ కాలేదు. కస్టమర్ వెళ్లేలోపు దీన్ని రాసి పెట్టుకోండి.',
+      saved: 'ఈ పరికరంలో సేవ్ అయింది · {total} · ఆన్‌లైన్‌కు వచ్చాక సింక్ అవుతుంది.',
+      each: 'ఒక్కొక్కటి {price}',
+      remove: 'తీసివేయి',
+      waitingOne: '{n} అమ్మకం సింక్ కోసం వేచి ఉంది · {total}',
+      waitingMany: '{n} అమ్మకాలు సింక్ కోసం వేచి ఉన్నాయి · {total}',
+      lineOne: '{time} · {n} వస్తువు',
+      lineMany: '{time} · {n} వస్తువులు',
+      noMatch: 'సేవ్ చేసిన జాబితాలో దీనికి సరిపోయేది ఏదీ లేదు.',
+      expired: 'గడువు ముగిసింది',
+      expires: 'గడువు',
+      leftPending: '{left} మిగిలాయి ({n} పెండింగ్‌లో)',
+      inStock: '{n} స్టాక్‌లో',
+      addToSale: 'అమ్మకానికి చేర్చు',
+      savedOne: 'సేవ్ చేసిన {n} వస్తువులో {shown} చూపుతోంది.',
+      savedMany: 'సేవ్ చేసిన {n} వస్తువులలో {shown} చూపుతోంది.',
+      matchOne: 'సరిపోలిన {n} వస్తువులో {shown} చూపుతోంది.',
+      matchMany: 'సరిపోలిన {n} వస్తువులలో {shown} చూపుతోంది.',
+      failNoPointer: 'ఈ పరికరంలో ఇంకా సేవ్ చేసిన వస్తువుల జాబితా లేదు. ఒకసారి కనెక్షన్‌తో సైన్ ఇన్ చేసి నిల్వ లేదా అమ్మకాలు తెరవండి; ఆ తర్వాత జాబితా ఆటోమేటిక్‌గా సేవ్ అవుతుంది.',
+      failNoStorage: 'ఈ బ్రౌజర్ StockPulse‌ను ఆఫ్‌లైన్‌లో డేటా సేవ్ చేయనివ్వడం లేదు.',
+      failOpen: 'ఈ పరికరంలో సేవ్ చేసిన వస్తువుల జాబితాను తెరవలేకపోయాం.',
+      failNoList: 'ఈ పరికరంలో ఇంకా సేవ్ చేసిన వస్తువుల జాబితా లేదు. దాన్ని డౌన్‌లోడ్ చేయడానికి ఒకసారి మళ్లీ కనెక్ట్ అవ్వండి.',
+      failRead: 'సేవ్ చేసిన వస్తువుల జాబితాను చదవలేకపోయాం.',
+      failNoStoreList: 'ఈ దుకాణానికి ఇంకా సేవ్ చేసిన వస్తువుల జాబితా లేదు. దాన్ని డౌన్‌లోడ్ చేయడానికి ఒకసారి మళ్లీ కనెక్ట్ అవ్వండి.',
+      staleFrom: '{time} నాటి సేవ్ చేసిన జాబితా · అప్పటి నుండి ధరలు, నిల్వ మారి ఉండవచ్చు',
+      unknownTime: 'తెలియని సమయం',
+      months: ['జన','ఫిబ్ర','మార్చి','ఏప్రి','మే','జూన్','జులై','ఆగ','సెప్టెం','అక్టో','నవం','డిసెం']
+    },
+    hi: {
+      title: 'ऑफ़लाइन · StockPulse',
+      heading: 'कनेक्शन नहीं है',
+      lede: 'आपकी दुकान का डेटा सर्वर पर सुरक्षित है — कुछ भी खोया नहीं है। नीचे इस डिवाइस पर सेव की गई सामान की सूची है, ताकि आप अब भी दाम और बारकोड देख सकें और बिक्री कर सकें।',
+      opening: 'सेव की गई सामान सूची खुल रही है…',
+      searchPlaceholder: 'नाम खोजें, या बारकोड स्कैन/टाइप करें',
+      searchAria: 'सेव किए गए सामान खोजें',
+      thisSale: 'यह बिक्री',
+      total: 'कुल',
+      complete: 'बिक्री पूरी करें (इस डिवाइस पर सेव करें)',
+      queueNote: 'ये सिर्फ़ इसी डिवाइस पर सेव हैं। रीलोड या रीस्टार्ट के बाद भी यहीं रहेंगी, और ऑनलाइन आने पर अपने-आप सिंक हो जाएँगी।',
+      whileOffline: 'जब आप ऑफ़लाइन हैं',
+      note1: 'यहाँ पूरी की गई बिक्रियाँ इस डिवाइस पर सेव होती हैं और ऑनलाइन आने पर अपने-आप सिंक हो जाती हैं।',
+      note2: 'नीचे दिए दाम और स्टॉक सेव होने के बाद बदल गए हो सकते हैं।',
+      note3: 'सिग्नल वाली जगह पर जाकर पेज रीलोड करें।',
+      tryAgain: 'फिर कोशिश करें',
+      outOfStock: '{name} स्टॉक में नहीं है।',
+      onlyLeft: '{name} के सिर्फ़ {n} बचे हैं।',
+      notSaved: 'यह बिक्री सेव नहीं हो सकी। ग्राहक के जाने से पहले इसे लिख लीजिए।',
+      saved: 'इस डिवाइस पर सेव हुई · {total} · ऑनलाइन आने पर सिंक होगी।',
+      each: 'प्रति नग {price}',
+      remove: 'हटाएँ',
+      waitingOne: '{n} बिक्री सिंक होने का इंतज़ार कर रही है · {total}',
+      waitingMany: '{n} बिक्रियाँ सिंक होने का इंतज़ार कर रही हैं · {total}',
+      lineOne: '{time} · {n} सामान',
+      lineMany: '{time} · {n} सामान',
+      noMatch: 'सेव की गई सूची में इससे मेल खाता कुछ नहीं है।',
+      expired: 'एक्सपायर हो गया',
+      expires: 'एक्सपायरी',
+      leftPending: '{left} बचे ({n} सिंक बाकी)',
+      inStock: '{n} स्टॉक में',
+      addToSale: 'बिक्री में जोड़ें',
+      savedOne: 'सेव किए गए {n} सामान में से {shown} दिख रहा है।',
+      savedMany: 'सेव किए गए {n} सामानों में से {shown} दिख रहे हैं।',
+      matchOne: 'मेल खाते {n} सामान में से {shown} दिख रहा है।',
+      matchMany: 'मेल खाते {n} सामानों में से {shown} दिख रहे हैं।',
+      failNoPointer: 'इस डिवाइस पर अभी कोई सेव की गई सामान सूची नहीं है। एक बार कनेक्शन के साथ साइन इन करके स्टॉक या बिक्री खोलें; उसके बाद सूची अपने-आप सेव हो जाती है।',
+      failNoStorage: 'यह ब्राउज़र StockPulse को ऑफ़लाइन डेटा सेव करने नहीं दे रहा।',
+      failOpen: 'इस डिवाइस पर सेव की गई सामान सूची नहीं खुल सकी।',
+      failNoList: 'इस डिवाइस पर अभी कोई सेव की गई सामान सूची नहीं है। इसे डाउनलोड करने के लिए एक बार फिर कनेक्ट करें।',
+      failRead: 'सेव की गई सामान सूची पढ़ी नहीं जा सकी।',
+      failNoStoreList: 'इस दुकान की अभी कोई सेव की गई सामान सूची नहीं है। इसे डाउनलोड करने के लिए एक बार फिर कनेक्ट करें।',
+      staleFrom: '{time} की सेव की गई सूची · तब से दाम और स्टॉक बदल गए हो सकते हैं',
+      unknownTime: 'अज्ञात समय',
+      months: ['जन','फ़र','मार्च','अप्रैल','मई','जून','जुल','अग','सित','अक्तू','नव','दिस']
+    }
+  };
+  var LANG = (function () {
+    var m = /(?:^|;\s*)sp-locale=(en|te|hi)(?:;|$)/.exec(document.cookie || '');
+    return m ? m[1] : 'en';
+  })();
+  var W = COPY[LANG];
+  function T(key, vars) {
+    var text = W[key] != null ? W[key] : COPY.en[key];
+    if (vars) for (var k in vars) text = text.split('{' + k + '}').join(String(vars[k]));
+    return text;
+  }
+  function applyStaticCopy() {
+    document.documentElement.lang = LANG;
+    document.title = T('title');
+    var i, els = document.querySelectorAll('[data-i18n]');
+    for (i = 0; i < els.length; i++) els[i].textContent = T(els[i].getAttribute('data-i18n'));
+    els = document.querySelectorAll('[data-i18n-placeholder]');
+    for (i = 0; i < els.length; i++) els[i].setAttribute('placeholder', T(els[i].getAttribute('data-i18n-placeholder')));
+    els = document.querySelectorAll('[data-i18n-aria]');
+    for (i = 0; i < els.length; i++) els[i].setAttribute('aria-label', T(els[i].getAttribute('data-i18n-aria')));
+  }
+  applyStaticCopy();
 
   var DB_NAME = 'stockpulse-offline';
   var STORE = 'snapshots';
@@ -192,7 +366,7 @@
     if (date <= shiftDays(today, WARNING_DAYS)) return 'soon';
     return 'ok';
   }
-  var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var MONTHS = W.months;
   function formatExpiry(d) {
     var p = d.split('-');
     return Number(p[2]) + ' ' + (MONTHS[Number(p[1]) - 1] || '?') + ' ' + p[0];
@@ -271,10 +445,10 @@
 
   function addToCart(p) {
     var avail = effectiveStock(p);
-    if (avail <= 0) { flash(p.name + ' is out of stock.'); return; }
+    if (avail <= 0) { flash(T('outOfStock', { name: p.name })); return; }
     for (var i = 0; i < cart.length; i++) {
       if (cart[i].product.id === p.id) {
-        if (cart[i].qty >= avail) { flash('Only ' + avail + ' left of ' + p.name + '.'); return; }
+        if (cart[i].qty >= avail) { flash(T('onlyLeft', { n: avail, name: p.name })); return; }
         cart[i].qty++; renderCart(); return;
       }
     }
@@ -320,7 +494,7 @@
 
     withDb(function (db) {
       if (!db || !db.objectStoreNames.contains(QUEUE_STORE)) {
-        flash('This sale could NOT be saved. Write it down before the customer leaves.');
+        flash(T('notSaved'));
         return;
       }
       var t = db.transaction(QUEUE_STORE, 'readwrite');
@@ -332,17 +506,17 @@
         readQueue(function (rows) {
           var saved = rows.some(function (s) { return s.id === sale.id; });
           if (!saved) {
-            flash('This sale could NOT be saved. Write it down before the customer leaves.');
+            flash(T('notSaved'));
             return;
           }
           queued = rows; recomputePending();
           cart = [];
           renderCart(); renderQueue(); render();
-          flash('Saved on this device · ' + money(sale.total) + ' · will sync when back online.');
+          flash(T('saved', { total: money(sale.total) }));
         });
       };
       t.onerror = function () {
-        flash('This sale could NOT be saved. Write it down before the customer leaves.');
+        flash(T('notSaved'));
       };
     });
   }
@@ -359,14 +533,14 @@
       var left = document.createElement('div');
       left.innerHTML = '<div class="name"></div><div class="sub"></div>';
       left.querySelector('.name').textContent = l.qty + ' x ' + l.product.name;
-      left.querySelector('.sub').textContent = money(l.product.unit_price) + ' each';
+      left.querySelector('.sub').textContent = T('each', { price: money(l.product.unit_price) });
       var right = document.createElement('div');
       right.className = 'right';
       var amt = document.createElement('div');
       amt.className = 'price';
       amt.textContent = money(l.product.unit_price * l.qty);
       var rm = document.createElement('button');
-      rm.type = 'button'; rm.className = 'link'; rm.textContent = 'Remove';
+      rm.type = 'button'; rm.className = 'link'; rm.textContent = T('remove');
       rm.addEventListener('click', function () { cart.splice(idx, 1); renderCart(); });
       right.appendChild(amt); right.appendChild(rm);
       li.appendChild(left); li.appendChild(right);
@@ -383,8 +557,8 @@
     if (!queued.length) { box.hidden = true; return; }
     box.hidden = false;
     var total = queued.reduce(function (s, q) { return s + q.total; }, 0);
-    head.textContent = queued.length + ' sale' + (queued.length === 1 ? '' : 's') +
-      ' waiting to sync · ' + money(total);
+    head.textContent = T(queued.length === 1 ? 'waitingOne' : 'waitingMany',
+      { n: queued.length, total: money(total) });
     queued.forEach(function (s) {
       var li = document.createElement('li');
       var when = new Date(s.createdAt);
@@ -393,8 +567,8 @@
       var names = s.items.map(function (i) { return i.quantity + 'x ' + i.product_name; }).join(', ');
       li.innerHTML = '<div><div class="name"></div><div class="sub"></div></div>' +
                      '<div class="right"><div class="price"></div></div>';
-      li.querySelector('.name').textContent = t + ' · ' + s.items.length + ' item' +
-        (s.items.length === 1 ? '' : 's');
+      li.querySelector('.name').textContent = T(s.items.length === 1 ? 'lineOne' : 'lineMany',
+        { time: t, n: s.items.length });
       li.querySelector('.sub').textContent = names;
       li.querySelector('.price').textContent = money(s.total);
       list.appendChild(li);
@@ -434,7 +608,7 @@
     if (!shown.length) {
       var none = document.createElement('li');
       none.className = 'muted';
-      none.textContent = 'Nothing in the saved list matches that.';
+      none.textContent = T('noMatch');
       listEl.appendChild(none);
     }
     shown.forEach(function (p) {
@@ -453,7 +627,7 @@
         var tone = expiryTone(due, today);
         var ex = document.createElement('div');
         ex.className = 'sub' + (tone === 'expired' ? ' expired' : tone === 'soon' ? ' soon' : '');
-        ex.textContent = (tone === 'expired' ? 'Expired ' : 'Expires ') + formatExpiry(due);
+        ex.textContent = T(tone === 'expired' ? 'expired' : 'expires') + ' ' + formatExpiry(due);
         left.appendChild(ex);
       }
       var right = document.createElement('div');
@@ -467,17 +641,17 @@
       // adjusted figure would look like the truth; naming the pending part
       // lets a cashier reconcile the shelf against the queue.
       st.textContent = owed
-        ? effectiveStock(p) + ' left (' + owed + ' pending)'
-        : p.stock + ' in stock';
+        ? T('leftPending', { left: effectiveStock(p), n: owed })
+        : T('inStock', { n: p.stock });
       var addBtn = document.createElement('button');
-      addBtn.type = 'button'; addBtn.className = 'add'; addBtn.textContent = 'Add to sale';
+      addBtn.type = 'button'; addBtn.className = 'add'; addBtn.textContent = T('addToSale');
       addBtn.addEventListener('click', function () { addToCart(p); });
       right.appendChild(pr); right.appendChild(st); right.appendChild(addBtn);
       li.appendChild(left); li.appendChild(right);
       listEl.appendChild(li);
     });
-    countEl.textContent = 'Showing ' + shown.length + ' of ' + items.length +
-      (q ? ' matching' : ' saved') + ' product' + (items.length === 1 ? '' : 's') + '.';
+    countEl.textContent = T((q ? 'match' : 'saved') + (items.length === 1 ? 'One' : 'Many'),
+      { shown: shown.length, n: items.length });
   }
 
   function start() {
@@ -487,39 +661,39 @@
       // No pointer means no snapshot has ever been written on this device.
       // Guessing "the first record in the database" is exactly how one store's
       // products would appear under another's login, so it is not done.
-      fail('No saved product list on this device yet. Sign in once with a connection and open Inventory or Sales; the list is saved automatically after that.');
+      fail(T('failNoPointer'));
       return;
     }
     var req;
     try { req = indexedDB.open(DB_NAME); } catch (e) {
-      fail('This browser will not let StockPulse save data offline.');
+      fail(T('failNoStorage'));
       return;
     }
-    req.onerror = function () { fail('Could not open the saved product list on this device.'); };
+    req.onerror = function () { fail(T('failOpen')); };
     req.onsuccess = function () {
       var db = req.result;
       if (!db.objectStoreNames.contains(STORE)) {
-        fail('No saved product list on this device yet. Reconnect once to download it.');
+        fail(T('failNoList'));
         return;
       }
       var tx = db.transaction(STORE, 'readonly');
       var get = tx.objectStore(STORE).get(storeId);
-      get.onerror = function () { fail('Could not read the saved product list.'); };
+      get.onerror = function () { fail(T('failRead')); };
       get.onsuccess = function () {
         var snap = get.result;
         // Keyed by store, and the body is checked against the key as well. A
         // record that disagrees with its own key is corrupt and is refused
         // rather than shown.
         if (!snap || snap.storeId !== storeId || !snap.products || !snap.products.length) {
-          fail('No saved product list for this store yet. Reconnect once to download it.');
+          fail(T('failNoStoreList'));
           return;
         }
         snapshot = snap;
         currentStoreId = storeId;
         var t = new Date(snap.syncedAt);
-        var clock = isNaN(t.getTime()) ? 'an unknown time'
+        var clock = isNaN(t.getTime()) ? T('unknownTime')
           : String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
-        staleEl.textContent = 'Saved list from ' + clock + ' · prices and stock may have changed since';
+        staleEl.textContent = T('staleFrom', { time: clock });
         statusEl.hidden = true;
         liveEl.hidden = false;
         // The queue is read BEFORE the first render, so the optimistic stock

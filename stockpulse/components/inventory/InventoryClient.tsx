@@ -597,8 +597,8 @@ export default function InventoryClient({
         </div>
         <div className="sp-rise sp-delay-2 rounded-2xl bg-foreground p-4 shadow-sm lg:p-6">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">{ti.outOfStock}</p>
-            <PackageX className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-inverse">{ti.outOfStock}</p>
+            <PackageX className="h-5 w-5 shrink-0 text-muted-inverse" aria-hidden="true" />
           </div>
           <p className="mt-2 text-2xl font-bold text-surface">
             {ti.itemsCount.replace('{n}', String(outOfStockCount))}

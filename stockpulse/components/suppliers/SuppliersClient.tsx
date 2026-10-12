@@ -412,14 +412,14 @@ export default function SuppliersClient({
           <div className="rounded-2xl bg-foreground p-6 shadow-sm">
             <p className="text-sm font-semibold text-surface">{ts.todaysInbound}</p>
             <p className="mt-2 text-4xl font-bold text-surface">{totalPallets}</p>
-            <p className="text-sm text-muted">{ts.palletsExpected}</p>
+            <p className="text-sm text-muted-inverse">{ts.palletsExpected}</p>
             <div className="mt-4 flex gap-6 border-t border-border pt-4 text-sm">
               <div>
-                <p className="text-muted">{ts.received}</p>
+                <p className="text-muted-inverse">{ts.received}</p>
                 <p className="font-semibold text-surface">{receivedPallets}</p>
               </div>
               <div>
-                <p className="text-muted">{ts.pending}</p>
+                <p className="text-muted-inverse">{ts.pending}</p>
                 <p className="font-semibold text-surface">{totalPallets - receivedPallets}</p>
               </div>
             </div>

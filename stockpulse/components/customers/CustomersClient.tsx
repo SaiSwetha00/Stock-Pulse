@@ -287,10 +287,10 @@ export default function CustomersClient({
         </div>
         <div className="rounded-2xl bg-foreground p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-inverse">
               {tc.statRepeat}
             </p>
-            <Repeat className="h-5 w-5 text-muted" />
+            <Repeat className="h-5 w-5 text-muted-inverse" />
           </div>
           <p className="mt-2 text-2xl font-bold text-surface">{repeatCustomers}</p>
         </div>

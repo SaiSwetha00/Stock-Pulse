@@ -47,6 +47,10 @@
   --foreground: #14100c;
   --muted-strong: #4a4139;
   --muted: #6b6157;
+  /* Muted text ON an inverted surface: the bg-foreground stat tiles.
+     --muted is tuned for light cards and measures 3.13:1 on #14100c;
+     this measures 5.97:1 there (WCAG AA is 4.5:1). */
+  --muted-inverse: #9a8f82;
   /* Coffee-brown hairlines. The old #e6e2db measured 1.29 against a
      white card, which is a border you cannot see. */
   --border: #d6c3a3;
@@ -132,6 +136,8 @@
   --foreground: #f4e8d4;
   --muted-strong: #d3bd9c;
   --muted: #a08a6b;
+  /* On the dark theme's inverted tiles (#f4e8d4): 5.22:1. */
+  --muted-inverse: #6e5d48;
   --border: #4a3524;
   --border-strong: #6b4e34;
 
@@ -305,6 +311,7 @@ div:focus-visible {
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-muted-strong: var(--muted-strong);
+  --color-muted-inverse: var(--muted-inverse);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-accent: var(--accent);

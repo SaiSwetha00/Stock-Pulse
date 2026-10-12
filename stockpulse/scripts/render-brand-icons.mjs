@@ -4,15 +4,15 @@
  * The geometry here MUST match components/brand/StockPulseMark.tsx — that
  * component is the vector the app renders, these files are what a browser tab,
  * an iOS home screen and an Android launcher show. Re-run after any change to
- * the mark:  node scripts/render-brand-icons.cjs
+ * the mark:  node scripts/render-brand-icons.mjs
  *
  * Writes: app/favicon.ico (16/32/48), app/apple-icon.png (180, full-bleed —
  * iOS rounds it and fills transparency with black), public/icons/icon-{192,512}
  * (rounded, on transparency) and public/icons/maskable-{192,512} (full-bleed,
  * symbol inside the safe zone because Android crops these to a circle).
  */
-const sharp = require('sharp')
-const fs = require('fs')
+import sharp from 'sharp'
+import fs from 'node:fs'
 
 const defs = `<defs>
 <linearGradient id="f" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4F6BFF"/><stop offset="1" stop-color="#8B5CF6"/></linearGradient>

@@ -95,7 +95,7 @@ html { scroll-behavior: smooth; }
 
 const focus =
   'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#8FA2FF]'
-const btnPrimary = `inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#4F6BFF] px-7 text-[15px] font-medium text-white transition-colors hover:bg-[#6580FF] ${focus}`
+const btnPrimary = `inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#4864F7] px-7 text-[15px] font-medium text-white transition-colors hover:bg-[#3F5AE6] ${focus}`
 const btnQuiet = `inline-flex h-12 items-center justify-center gap-1.5 text-[15px] text-[#EEF0F6] transition-colors hover:text-white ${focus}`
 
 /** Section rhythm, shared so every section starts on the same grid. */
@@ -185,7 +185,7 @@ export default function LandingNavy({ locale = DEFAULT_LOCALE }: { locale?: Loca
             <LanguageSelector locale={locale} label={t.nav.languageLabel} />
             <Link
               href={ROUTES.signup}
-              className={`hidden h-10 items-center gap-1.5 rounded-full bg-[#4F6BFF] px-5 text-[14px] font-medium text-white hover:bg-[#6580FF] sm:inline-flex ${focus}`}
+              className={`hidden h-10 items-center gap-1.5 rounded-full bg-[#4864F7] px-5 text-[14px] font-medium text-white hover:bg-[#3F5AE6] sm:inline-flex ${focus}`}
             >
               {t.nav.getStarted} <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>

@@ -23,6 +23,9 @@
   /* The one accent, and the purple that supports it. */
   --sp-blue: #4f6bff;
   --sp-blue-hover: #6580ff;
+  /* The FILL behind white button text. #4f6bff measures 4.30:1 with white;
+     this is 4.73:1 (WCAG AA 4.5:1). --sp-blue stays for rings and bars. */
+  --sp-blue-fill: #4864f7;
   --sp-periwinkle: #8fa2ff;
   --sp-purple: #a898ff;
 

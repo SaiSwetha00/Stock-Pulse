@@ -65,6 +65,7 @@
   --foreground: #0c1b2a;
   --muted-strong: #3b5163;
   --muted: #5a6b7c;
+  --muted-inverse: #8aa0b4; /* 6.44:1 on the #0c1b2a tiles */
 
   /* ---- hairlines ---- */
   --border: #dce4ec;
@@ -152,6 +153,7 @@
   --foreground: #eaf1f8;
   --muted-strong: #a9bccd;
   --muted: #8aa0b4;
+  --muted-inverse: #5a6b7c; /* 4.82:1 on the #eaf1f8 tiles */
 
   --border: rgba(255, 255, 255, 0.11);
   --border-strong: rgba(255, 255, 255, 0.24);

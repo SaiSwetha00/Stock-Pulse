@@ -155,7 +155,7 @@ export default function ProfileClient({
               <p className="mt-3 text-2xl font-bold text-surface">
                 {itemsManaged >= 1000 ? `${(itemsManaged / 1000).toFixed(1)}k` : itemsManaged}
               </p>
-              <p className="text-xs text-muted">{t.itemsManaged}</p>
+              <p className="text-xs text-muted-inverse">{t.itemsManaged}</p>
             </div>
             <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-5 shadow-sm">
               <Users className="h-5 w-5 text-muted" />

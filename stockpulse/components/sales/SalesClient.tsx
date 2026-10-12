@@ -229,7 +229,7 @@ export default function SalesClient({
               {categoryBreakdown.map((c) => (
                 <div key={c.label}>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted">{c.label}</span>
+                    <span className="text-muted-inverse">{c.label}</span>
                     <span className="font-semibold text-surface">{c.pct}%</span>
                   </div>
                   {/* A chart colour, not --success. This bar is a share of

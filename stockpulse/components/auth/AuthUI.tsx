@@ -380,7 +380,7 @@ export function SubmitButton({
           : 'border border-border text-foreground hover:bg-[rgba(255,255,255,0.06)]'
       } ${className}`}
       /* A flat fill, not a gradient: the landing page's one filled control. */
-      style={isPrimary ? { background: 'var(--sp-blue)' } : undefined}
+      style={isPrimary ? { background: 'var(--sp-blue-fill)' } : undefined}
     >
       {loading ? (
         <>

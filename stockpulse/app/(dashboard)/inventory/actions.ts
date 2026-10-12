@@ -10,7 +10,7 @@ import { reportingDate } from '@/lib/reportingTimezone'
 import { storeExpiryWarningDays } from '@/lib/expiry'
 import { notify } from '@/app/(dashboard)/notifications/actions'
 import type { Product } from '@/types'
-import { appCopy } from '@/lib/i18n/app'
+import { appCopy, type AppCopy } from '@/lib/i18n/app'
 import { getLocale } from '@/lib/i18n/server'
 import {
   validateProduct,
@@ -100,10 +100,41 @@ async function barcodeConflict(
  * between the failed write and this read. "Another product" is vague and true;
  * inventing a name would be neither.
  */
-function duplicateBarcodeMessage(conflict: { name: string } | null): string {
+function duplicateBarcodeMessage(
+  conflict: { name: string } | null,
+  t: AppCopy['inventory'],
+): string {
   return conflict
-    ? `This barcode is already used by ${conflict.name}.`
-    : 'This barcode is already used by another product in this store.'
+    ? t.actBarcodeUsedBy.replace('{name}', conflict.name)
+    : t.actBarcodeUsedOther
+}
+
+/**
+ * Another product in this store already carrying `sku`, compared the way the
+ * CSV import matches SKUs: trimmed and case-insensitive.
+ *
+ * There is no unique index on (store_id, sku) — FOUND-ISSUES records it — so
+ * this read IS the rule for the product form, not a nicer message in front of
+ * one. Two saves racing could both pass it; the index is the real fix and
+ * needs the owner to apply a migration. Measured before adding this: zero
+ * duplicate SKUs in any store, so it cannot lock an existing product out of
+ * being edited.
+ *
+ * `ilike` without escaping can only OVER-match (a `%` or `_` in a SKU acts as a
+ * wildcard), so candidates are re-checked exactly here rather than trusted.
+ */
+async function skuConflict(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  storeId: string,
+  sku: string,
+  excludeProductId?: string,
+): Promise<boolean> {
+  const wanted = sku.trim().toLowerCase()
+  if (!wanted) return false
+  let q = supabase.from('products').select('id, sku').eq('store_id', storeId).ilike('sku', sku.trim())
+  if (excludeProductId) q = q.neq('id', excludeProductId)
+  const { data } = await q.limit(20)
+  return (data ?? []).some((r) => (r.sku ?? '').trim().toLowerCase() === wanted)
 }
 
 /**
@@ -335,9 +366,17 @@ export async function saveProduct(
     if (conflict) {
       return {
         ok: false,
-        errors: { barcode: duplicateBarcodeMessage(conflict) },
-        message: duplicateBarcodeMessage(conflict),
+        errors: { barcode: duplicateBarcodeMessage(conflict, t.inventory) },
+        message: duplicateBarcodeMessage(conflict, t.inventory),
       }
+    }
+  }
+
+  if (payload.sku && (await skuConflict(supabase, store.id, payload.sku, productId))) {
+    return {
+      ok: false,
+      errors: { sku: t.inventory.actSkuExists },
+      message: t.inventory.actSkuExists,
     }
   }
 
@@ -368,7 +407,7 @@ export async function saveProduct(
         !error.message || /barcode/i.test(`${error.message} ${error.details ?? ''}`)
       if (isBarcode && payload.barcode) {
         const conflict = await barcodeConflict(supabase, store.id, payload.barcode, productId)
-        const message = duplicateBarcodeMessage(conflict)
+        const message = duplicateBarcodeMessage(conflict, t.inventory)
         return { ok: false, errors: { barcode: message }, message }
       }
       return { ok: false, message: t.inventory.actSkuExists }
@@ -668,9 +707,10 @@ export async function importProducts(
         // constraint" 6 times is a file nobody can fix.
         reason = duplicateBarcodeMessage(
           await barcodeConflict(supabase, store.id, payload.barcode, existingId),
+          tImport.inventory,
         )
       } else if (error.code === UNIQUE_VIOLATION) {
-        reason = 'A product with that SKU already exists.'
+        reason = tImport.inventory.actSkuExists
       } else if (isMissingBarcodeColumn(error)) {
         reason = (await missingBarcodeColumn()).message
       } else {
@@ -687,7 +727,7 @@ export async function importProducts(
       // look identical, so the message names both).
       failed.push({
         line,
-        reason: 'That product could not be found when the write ran. Re-run the import.',
+        reason: tImport.inventory.actImportVanished,
       })
       continue
     }
@@ -697,7 +737,7 @@ export async function importProducts(
     if (replaceLots) {
       const lots = await syncProductLots(supabase, store.id, rowId, toLotPayloads(input))
       if (!lots.ok) {
-        failed.push({ line, reason: lots.message ?? 'The stock lots could not be written.' })
+        failed.push({ line, reason: lots.message ?? tImport.inventory.actLotsNotWritten })
         continue
       }
     }
