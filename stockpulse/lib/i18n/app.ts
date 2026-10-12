@@ -621,6 +621,16 @@ export type SuppliersCopy = {
   categoryLabels: { produce: string; dairy: string; dry_goods: string; beverages: string; bakery: string }
   statusLabels: { active: string; inactive: string; issue: string }
   shipmentLabels: { ordered: string; shipped: string; transit: string; dock: string }
+  /** The button that moves a shipment one stage on. "{stage}" is a shipmentLabels value. */
+  advanceTo: string
+  /** Its accessible name; "{po}" is the PO number. */
+  advanceAria: string
+  /** The activity-feed line for a stage change. */
+  feedStage: string
+  actShipNotFound: string
+  actShipAtDock: string
+  stageMovedToast: string
+  stageFailedToast: string
 }
 
 /**
@@ -1751,7 +1761,7 @@ const en: AppCopy = {
     barcodePlaceholder: 'e.g. 8901234567895',
     fCategory: 'Category',
     manageCategories: 'Manage categories',
-    fPrice: 'Price ($)',
+    fPrice: 'Price (₹)',
     fUnit: 'Unit',
     unitPlaceholder: 'ea, lb, gal',
     fThreshold: 'Low Stock Threshold',
@@ -2166,6 +2176,13 @@ const en: AppCopy = {
     categoryLabels: { produce: 'Produce', dairy: 'Dairy', dry_goods: 'Dry Goods', beverages: 'Beverages', bakery: 'Bakery' },
     statusLabels: { active: 'Active', inactive: 'Inactive', issue: 'Issue' },
     shipmentLabels: { ordered: 'Ordered', shipped: 'Shipped', transit: 'In Transit', dock: 'At Dock' },
+    advanceTo: 'Next stage: {stage}',
+    advanceAria: 'Move {po} to the next stage: {stage}',
+    feedStage: '{supplier} PO {po}: {stage}',
+    actShipNotFound: 'That shipment could not be found. Refresh and try again.',
+    actShipAtDock: 'This shipment is already at the dock.',
+    stageMovedToast: 'Shipment updated',
+    stageFailedToast: 'Could not update shipment',
   },
   staff: {
     eyebrow: 'Team',
@@ -3062,7 +3079,7 @@ const te: AppCopy = {
     barcodePlaceholder: 'ఉదా. 8901234567895',
     fCategory: 'వర్గం',
     manageCategories: 'వర్గాలను నిర్వహించండి',
-    fPrice: 'ధర ($)',
+    fPrice: 'ధర (₹)',
     fUnit: 'యూనిట్',
     unitPlaceholder: 'ea, lb, gal',
     fThreshold: 'తక్కువ స్టాక్ పరిమితి',
@@ -3477,6 +3494,13 @@ const te: AppCopy = {
     categoryLabels: { produce: 'కూరగాయలు', dairy: 'పాల ఉత్పత్తులు', dry_goods: 'పొడి సరుకులు', beverages: 'పానీయాలు', bakery: 'బేకరీ' },
     statusLabels: { active: 'చురుకైన', inactive: 'నిష్క్రియ', issue: 'సమస్య' },
     shipmentLabels: { ordered: 'ఆర్డర్ చేశారు', shipped: 'పంపారు', transit: 'దారిలో', dock: 'డాక్‌లో' },
+    advanceTo: 'తదుపరి దశ: {stage}',
+    advanceAria: '{po}ను తదుపరి దశకు మార్చు: {stage}',
+    feedStage: '{supplier} PO {po}: {stage}',
+    actShipNotFound: 'ఆ సరుకు కనబడలేదు. రిఫ్రెష్ చేసి మళ్లీ ప్రయత్నించండి.',
+    actShipAtDock: 'ఈ సరుకు ఇప్పటికే డాక్‌లో ఉంది.',
+    stageMovedToast: 'సరుకు నవీకరించబడింది',
+    stageFailedToast: 'సరుకును నవీకరించలేకపోయాం',
   },
   staff: {
     eyebrow: 'బృందం',
@@ -4416,7 +4440,7 @@ const hi: AppCopy = {
     barcodePlaceholder: 'जैसे 8901234567895',
     fCategory: 'श्रेणी',
     manageCategories: 'श्रेणियाँ संभालें',
-    fPrice: 'क़ीमत ($)',
+    fPrice: 'क़ीमत (₹)',
     fUnit: 'यूनिट',
     unitPlaceholder: 'ea, lb, gal',
     fThreshold: 'कम स्टॉक सीमा',
@@ -4831,6 +4855,13 @@ const hi: AppCopy = {
     categoryLabels: { produce: 'सब्ज़ी-फल', dairy: 'डेयरी', dry_goods: 'सूखा सामान', beverages: 'पेय', bakery: 'बेकरी' },
     statusLabels: { active: 'सक्रिय', inactive: 'निष्क्रिय', issue: 'समस्या' },
     shipmentLabels: { ordered: 'ऑर्डर हुआ', shipped: 'भेजा गया', transit: 'रास्ते में', dock: 'डॉक पर' },
+    advanceTo: 'अगला चरण: {stage}',
+    advanceAria: '{po} को अगले चरण पर ले जाएँ: {stage}',
+    feedStage: '{supplier} PO {po}: {stage}',
+    actShipNotFound: 'वह माल नहीं मिला। पेज रीफ़्रेश करके फिर कोशिश करें।',
+    actShipAtDock: 'यह माल पहले से डॉक पर है।',
+    stageMovedToast: 'माल अपडेट हुआ',
+    stageFailedToast: 'माल अपडेट नहीं हो सका',
   },
   staff: {
     eyebrow: 'टीम',

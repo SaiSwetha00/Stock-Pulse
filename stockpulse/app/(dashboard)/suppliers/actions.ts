@@ -179,6 +179,64 @@ export async function saveShipment(input: ShipmentInput): Promise<SupplierAction
   return { ok: true }
 }
 
+/**
+ * Moves a shipment ONE stage along ordered -> shipped -> transit -> dock, and
+ * writes the change to the supplier activity feed.
+ *
+ * Until this existed a shipment's stage was chosen when it was logged and
+ * could never change, so the four-stage tracker showed a fixed dot.
+ *
+ * The UPDATE is conditional on the status the row had when it was read, so
+ * two people pressing the button at once move it one stage, not two: the
+ * second write matches no row and is reported, not silently repeated (D24 -
+ * a zero-row result is checked, never assumed to be success). RLS already
+ * limits shipment updates to managers and owners; requireOwner() is the
+ * readable refusal in front of it, not the guarantee.
+ */
+export async function advanceShipment(shipmentId: string): Promise<SupplierActionResult> {
+  const store = await requireOwner()
+  const ts = await copy()
+  if (!store) return { ok: false, message: ts.actShipNoPermission }
+
+  const supabase = await createClient()
+  const { data: shipment } = await supabase
+    .from('shipments')
+    .select('id, po_number, status, supplier_id, suppliers(name)')
+    .eq('id', shipmentId)
+    .eq('store_id', store.id)
+    .maybeSingle()
+  if (!shipment) return { ok: false, message: ts.actShipNotFound }
+
+  const at = SHIPMENT_STATUSES.indexOf(shipment.status)
+  const next = at >= 0 ? SHIPMENT_STATUSES[at + 1] : undefined
+  if (!next) return { ok: false, message: ts.actShipAtDock }
+
+  const { data: moved, error } = await supabase
+    .from('shipments')
+    .update({ status: next })
+    .eq('id', shipment.id)
+    .eq('store_id', store.id)
+    .eq('status', shipment.status)
+    .select('id')
+  if (error) return { ok: false, message: error.message }
+  if (!moved?.length) return { ok: false, message: ts.actShipNotFound }
+
+  const supplierName =
+    (Array.isArray(shipment.suppliers) ? shipment.suppliers[0]?.name : (shipment.suppliers as { name?: string } | null)?.name) ?? ''
+  await supabase.from('supplier_activity').insert({
+    store_id: store.id,
+    supplier_id: shipment.supplier_id,
+    supplier_name: supplierName,
+    message: ts.feedStage
+      .replace('{supplier}', supplierName)
+      .replace('{po}', shipment.po_number)
+      .replace('{stage}', ts.shipmentLabels[next as keyof typeof ts.shipmentLabels]),
+  })
+
+  revalidatePath('/suppliers')
+  return { ok: true }
+}
+
 export async function deleteSupplier(supplierId: string): Promise<SupplierActionResult> {
   const store = await requireOwner()
   if (!store) return { ok: false, message: (await copy()).actNoPermission }

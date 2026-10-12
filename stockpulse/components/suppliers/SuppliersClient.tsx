@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Search, Plus, Truck, Pencil, Trash2, X } from 'lucide-react'
 import { RelativeTime, useLocalToday } from '@/components/ui/LocalTime'
 import {
@@ -24,6 +25,8 @@ import Pagination from '@/components/ui/Pagination'
 import ExportCsvButton from '@/components/ui/ExportCsvButton'
 import { useTable, type SortAccessors } from '@/lib/useTable'
 import { useAppCopy } from '@/lib/i18n/client'
+import { useToast } from '@/components/ui/Toast'
+import { advanceShipment } from '@/app/(dashboard)/suppliers/actions'
 import type { SuppliersCopy } from '@/lib/i18n/app'
 import type { CsvColumn } from '@/lib/csv'
 import SupplierModal from './SupplierModal'
@@ -124,6 +127,23 @@ export default function SuppliersClient({
 }) {
   const t = useAppCopy()
   const ts = t.suppliers
+  const router = useRouter()
+  const toast = useToast()
+  /** The shipment whose stage change is in flight, so only its button spins. */
+  const [advancing, setAdvancing] = useState<string | null>(null)
+
+  async function advance(s: Shipment) {
+    setAdvancing(s.id)
+    const result = await advanceShipment(s.id)
+    setAdvancing(null)
+    if (!result.ok) {
+      toast.error(ts.stageFailedToast, result.message)
+      router.refresh()
+      return
+    }
+    toast.success(ts.stageMovedToast, ts.poPrefix.replace('{n}', s.po_number))
+    router.refresh()
+  }
   const tcm = t.common
   const categoryOptions = useMemo(() => categoryFilters(ts), [ts])
   const statusOptions = useMemo(() => statusFilters(ts), [ts])
@@ -483,6 +503,22 @@ export default function SuppliersClient({
                       <span>{ts.trackTransit}</span>
                       <span>{ts.trackDock}</span>
                     </div>
+                    {stageIndex >= 0 && stageIndex < TRACKER_STAGES.length - 1 && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="mt-3"
+                        loading={advancing === s.id}
+                        disabled={advancing !== null}
+                        aria-label={ts.advanceAria
+                          .replace('{po}', s.po_number)
+                          .replace('{stage}', ts.shipmentLabels[TRACKER_STAGES[stageIndex + 1]])}
+                        onClick={() => advance(s)}
+                      >
+                        {ts.advanceTo.replace('{stage}', ts.shipmentLabels[TRACKER_STAGES[stageIndex + 1]])}
+                      </Button>
+                    )}
                   </div>
                 )
               })}
