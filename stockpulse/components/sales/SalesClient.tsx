@@ -15,7 +15,7 @@ import type { CsvColumn } from '@/lib/csv'
 import { formatCurrency, toLocalISODate } from '@/lib/format'
 import type { Product, Role, Sale } from '@/types'
 import { LocalDateTime } from '@/components/ui/LocalTime'
-import LogSaleModal from './LogSaleModal'
+import LogSaleModal, { type SaleCustomer } from './LogSaleModal'
 import OfflineStatus from '@/components/offline/OfflineStatus'
 import SalesTrendChart from '@/components/dashboard/SalesTrendChartLazy'
 import { useAppCopy, useLocale } from '@/lib/i18n/client'
@@ -111,6 +111,7 @@ export default function SalesClient({
   expiryWarningDays,
   storeId,
   userId,
+  customers,
   sales,
   trendData,
   categoryBreakdown,
@@ -125,6 +126,8 @@ export default function SalesClient({
   expiryWarningDays: number
   storeId: string
   userId: string
+  /** Empty for staff - see the sales page. */
+  customers: SaleCustomer[]
   sales: Sale[]
   trendData: { label: string; value: number }[]
   categoryBreakdown: { label: string; pct: number }[]
@@ -497,6 +500,7 @@ export default function SalesClient({
           expiryWarningDays={expiryWarningDays}
           storeId={storeId}
           userId={userId}
+          customers={customers}
           onClose={() => setModalOpen(false)}
         />
       )}

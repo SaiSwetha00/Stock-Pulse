@@ -17,7 +17,7 @@ import ScannerPrototype from '@/components/scan/ScannerPrototype'
 import ExpiryTag from '@/components/ui/ExpiryTag'
 import { expiryRelative, expiryTone, formatExpiry, nextExpiry } from '@/lib/expiry'
 import { enqueueSale, newSaleId, type QueuedSale } from '@/lib/offline/queue'
-import type { Product } from '@/types'
+import type { Customer, Product } from '@/types'
 import { useAppCopy } from '@/lib/i18n/client'
 import type { ExpiryCopy, PosCopy } from '@/lib/i18n/app'
 
@@ -27,6 +27,17 @@ import type { ExpiryCopy, PosCopy } from '@/lib/i18n/app'
  * the milestones are worth.
  */
 const SALE_MILESTONES = [10, 25, 50, 100, 200, 500]
+
+/** What the optional customer picker needs, and nothing more. */
+export type SaleCustomer = Pick<Customer, 'id' | 'full_name' | 'phone' | 'loyalty_tier'>
+
+/** record_customer_sale's answer - migration 0023. */
+type AttributionResult = {
+  status: 'recorded' | 'duplicate' | 'already_attributed'
+  total_spent?: number
+  visits?: number
+  loyalty_tier?: Customer['loyalty_tier']
+}
 
 /**
  * Fires only when the day's count lands exactly on a milestone, so each one
@@ -142,6 +153,7 @@ export default function LogSaleModal({
   expiryWarningDays,
   storeId,
   userId,
+  customers = [],
   onClose,
 }: {
   products: Product[]
@@ -152,6 +164,8 @@ export default function LogSaleModal({
   /** Shop's calendar date and warning window, decided server-side. */
   today: string
   expiryWarningDays: number
+  /** Owners and managers only; empty hides the picker (customers RLS). */
+  customers?: SaleCustomer[]
   onClose: () => void
 }) {
   const t = useAppCopy()
@@ -163,6 +177,9 @@ export default function LogSaleModal({
   const toast = useToast()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  // '' = walk-in. Attribution is optional and never a condition of the sale.
+  const [customerId, setCustomerId] = useState('')
+  const customer = customers.find((c) => c.id === customerId) ?? null
 
   // --- barcode scanning (Phase 4) -----------------------------------------
   const [scanOpen, setScanOpen] = useState(false)
@@ -327,7 +344,7 @@ export default function LogSaleModal({
     setError('')
     const supabase = createClient()
 
-    const { error: rpcError } = await supabase.rpc('log_sale', {
+    const { data: saleId, error: rpcError } = await supabase.rpc('log_sale', {
       p_items: cart.map((l) => ({ product_id: l.product.id, quantity: l.quantity })),
       p_payment_method: paymentMethod,
     })
@@ -378,18 +395,22 @@ export default function LogSaleModal({
             .replace('{n}', String(cart.length))
             .replace('{total}', formatCurrency(total)),
         )
+        // A queued sale carries no customer: replay_sale knows nothing of
+        // 0023, and guessing an attribution at sync time could count it on
+        // the wrong day. Said aloud rather than dropped silently.
+        if (customer) toast.info(tp.customerOfflineNotLinked)
         // No router.refresh(): there is nothing new on the server to fetch, and
         // offline it would fail. The queue badge updates from its own storage.
         onClose()
         return
       }
 
+      setSaving(false)
       setError(rpcError.message)
       toast.error(tp.couldNotLog, rpcError.message)
       return
     }
 
-    setSaving(false)
     toast.success(
       tp.saleLogged,
       (cart.length === 1 ? tp.saleLoggedOne : tp.saleLoggedMany)
@@ -397,13 +418,53 @@ export default function LogSaleModal({
         .replace('{total}', formatCurrency(total)),
     )
 
+    // Second call, AFTER the sale is committed - 0023 keeps log_sale untouched
+    // so a failed attribution can never fail the sale. Awaited so the
+    // customer's new totals are on screen after the refresh; idempotent in SQL
+    // (the sale row is locked and an attributed sale is never counted again),
+    // so a repeated call reports 'duplicate' rather than double-counting.
+    if (customer && typeof saleId === 'string') {
+      await attributeSale(supabase, saleId, customer)
+    }
+
     // Deliberately not awaited: the sale is already committed and the toast
     // already shown, so a slow or failed milestone check must not hold the
     // modal open or surface an error for work the user did not ask for.
     void raiseMilestoneIfReached(supabase, tp)
 
+    // Released only now: while the attribution call is in flight the button
+    // must stay disabled, or a second tap would log the same cart again.
+    setSaving(false)
     router.refresh()
     onClose()
+  }
+
+  async function attributeSale(
+    supabase: ReturnType<typeof createClient>,
+    saleId: string,
+    c: SaleCustomer,
+  ) {
+    const { data, error: linkError } = await supabase.rpc('record_customer_sale', {
+      p_sale_id: saleId,
+      p_customer_id: c.id,
+    })
+    const result = data as AttributionResult | null
+    if (linkError || !result) {
+      console.warn('[sales] customer attribution failed:', linkError?.message)
+      toast.error(tp.customerLinkFailed.replace('{name}', c.full_name))
+      return
+    }
+    if (result.status === 'recorded') {
+      toast.success(
+        tp.customerLinked.replace('{name}', c.full_name),
+        tp.customerLinkedBody
+          .replace('{tier}', t.customers.tierLabels[result.loyalty_tier ?? c.loyalty_tier])
+          .replace('{total}', formatCurrency(Number(result.total_spent ?? 0)))
+          .replace('{visits}', String(result.visits ?? 0)),
+      )
+    } else {
+      toast.info(tp.customerAlready)
+    }
   }
 
   return (
@@ -579,6 +640,34 @@ export default function LogSaleModal({
               </div>
             ))}
           </div>
+
+          {customers.length > 0 && (
+            <div className="mt-5">
+              <label
+                htmlFor="sale-customer"
+                className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong"
+              >
+                {tp.customerLabel}
+              </label>
+              <select
+                id="sale-customer"
+                value={customerId}
+                onChange={(e) => setCustomerId(e.target.value)}
+                aria-describedby="sale-customer-hint"
+                className="control-h w-full rounded-lg border border-border bg-surface-muted px-3.5 text-sm focus:border-border-strong focus:bg-surface focus:outline-none"
+              >
+                <option value="">{tp.customerNone}</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.phone ? `${c.full_name} · ${c.phone}` : c.full_name}
+                  </option>
+                ))}
+              </select>
+              <p id="sale-customer-hint" className="mt-1.5 text-xs text-muted">
+                {tp.customerHint}
+              </p>
+            </div>
+          )}
 
           <div className="mt-5">
             <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-strong">

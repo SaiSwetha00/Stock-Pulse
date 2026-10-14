@@ -6,8 +6,10 @@ import { appCopy } from '@/lib/i18n/app'
 import { getLocale } from '@/lib/i18n/server'
 import { REPORTING_TIMEZONE, reportingDate, shiftDays, weekdayIndex } from '@/lib/reportingTimezone'
 import type { Product, Sale } from '@/types'
+import { canManage } from '@/lib/permissions'
 import { categoryLabel, getStoreCategories, labelMap, localizeCategories } from '@/lib/categories'
 import SalesClient from '@/components/sales/SalesClient'
+import type { SaleCustomer } from '@/components/sales/LogSaleModal'
 import { storeExpiryWarningDays } from '@/lib/expiry'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -42,6 +44,7 @@ export default async function SalesPage() {
     { data: daily },
     { data: categories },
     { data: top },
+    { data: customers },
   ] = await Promise.all([
     // Lots embedded for the same reason /inventory embeds them: the cart
     // shows each line's nearest expiry, and a product reached by SEARCH must
@@ -70,6 +73,16 @@ export default async function SalesPage() {
       p_tz: REPORTING_TIMEZONE,
       p_limit: BREAKDOWN_LIMIT,
     }),
+    // For the optional customer picker. Customers RLS lets only owners and
+    // managers read the table, so staff are not asked - an empty list hides
+    // the picker rather than offering a choice the database would refuse.
+    canManage(profile.role)
+      ? supabase
+          .from('customers')
+          .select('id, full_name, phone, loyalty_tier')
+          .eq('store_id', store.id)
+          .order('full_name')
+      : Promise.resolve({ data: [] }),
   ])
 
   // Zero-filled and oldest-first, so this maps straight onto the chart. The
@@ -126,6 +139,7 @@ export default async function SalesPage() {
       expiryWarningDays={storeExpiryWarningDays(store)}
       storeId={store.id}
       userId={profile.id}
+      customers={(customers ?? []) as SaleCustomer[]}
     />
   )
 }

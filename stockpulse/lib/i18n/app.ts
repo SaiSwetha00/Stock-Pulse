@@ -355,6 +355,15 @@ export type PosCopy = {
   saleLogged: string
   saleLoggedOne: string
   saleLoggedMany: string
+  /** Optional customer on a sale - migration 0023's record_customer_sale. */
+  customerLabel: string
+  customerNone: string
+  customerHint: string
+  customerLinked: string
+  customerLinkedBody: string
+  customerAlready: string
+  customerLinkFailed: string
+  customerOfflineNotLinked: string
   /**
    * The milestone notification. It is PERSISTED, so a notification keeps the
    * language it was written in even if the shop later switches.
@@ -1943,6 +1952,14 @@ const en: AppCopy = {
     saleLogged: 'Sale logged',
     saleLoggedOne: '{n} line item · {total}',
     saleLoggedMany: '{n} line items · {total}',
+    customerLabel: 'Customer (optional)',
+    customerNone: 'Walk-in — no customer',
+    customerHint: 'Their total spend, visits and loyalty tier update when the sale completes.',
+    customerLinked: 'Linked to {name}',
+    customerLinkedBody: '{tier} · {total} spent across {visits} visits',
+    customerAlready: 'This sale was already linked to a customer — nothing was counted twice.',
+    customerLinkFailed: 'Sale logged, but it could not be linked to {name}. Their totals were not changed.',
+    customerOfflineNotLinked: 'Saved without a customer: offline sales cannot update loyalty.',
     milestoneTitle: '{n} sales today',
     milestoneBody: 'Today’s takings are {total} across {n} transactions.',
   },
@@ -3261,6 +3278,14 @@ const te: AppCopy = {
     saleLogged: 'అమ్మకం నమోదైంది',
     saleLoggedOne: '{n} లైన్ ఐటమ్ · {total}',
     saleLoggedMany: '{n} లైన్ ఐటమ్‌లు · {total}',
+    customerLabel: 'కస్టమర్ (ఐచ్ఛికం)',
+    customerNone: 'నేరుగా వచ్చిన కొనుగోలుదారు — కస్టమర్ లేరు',
+    customerHint: 'అమ్మకం పూర్తయినప్పుడు వారి మొత్తం ఖర్చు, సందర్శనలు, లాయల్టీ స్థాయి నవీకరించబడతాయి.',
+    customerLinked: '{name}కి లింక్ చేయబడింది',
+    customerLinkedBody: '{tier} · {visits} సందర్శనల్లో {total} ఖర్చు',
+    customerAlready: 'ఈ అమ్మకం ఇప్పటికే ఒక కస్టమర్‌కి లింక్ అయింది — ఏదీ రెండుసార్లు లెక్కించబడలేదు.',
+    customerLinkFailed: 'అమ్మకం నమోదైంది, కానీ {name}కి లింక్ చేయలేకపోయాం. వారి మొత్తాలు మారలేదు.',
+    customerOfflineNotLinked: 'కస్టమర్ లేకుండా సేవ్ అయింది: ఆఫ్‌లైన్ అమ్మకాలు లాయల్టీని నవీకరించలేవు.',
     milestoneTitle: 'ఈరోజు {n} అమ్మకాలు',
     milestoneBody: 'ఈరోజు వసూళ్లు {n} లావాదేవీల్లో {total}.',
   },
@@ -3953,6 +3978,7 @@ const te: AppCopy = {
       logo_url: 'లోగో',
       active_orders: 'క్రియాశీల ఆర్డర్లు',
       sold_by: 'అమ్మినవారు',
+      customer_id: 'కస్టమర్',
       total: 'మొత్తం',
       payment_method: 'చెల్లింపు విధానం',
       client_id: 'క్లయింట్ ID',
@@ -4622,6 +4648,14 @@ const hi: AppCopy = {
     saleLogged: 'बिक्री दर्ज हुई',
     saleLoggedOne: '{n} लाइन आइटम · {total}',
     saleLoggedMany: '{n} लाइन आइटम · {total}',
+    customerLabel: 'ग्राहक (वैकल्पिक)',
+    customerNone: 'सीधे आए ग्राहक — कोई ग्राहक नहीं',
+    customerHint: 'बिक्री पूरी होने पर उनका कुल खर्च, विज़िट और लॉयल्टी स्तर अपडेट होते हैं।',
+    customerLinked: '{name} से जोड़ा गया',
+    customerLinkedBody: '{tier} · {visits} विज़िट में {total} खर्च',
+    customerAlready: 'यह बिक्री पहले से एक ग्राहक से जुड़ी थी — कुछ भी दो बार नहीं गिना गया।',
+    customerLinkFailed: 'बिक्री दर्ज हुई, पर {name} से जोड़ी नहीं जा सकी। उनके कुल आँकड़े नहीं बदले।',
+    customerOfflineNotLinked: 'बिना ग्राहक के सहेजा गया: ऑफ़लाइन बिक्री लॉयल्टी अपडेट नहीं कर सकती।',
     milestoneTitle: 'आज {n} बिक्री',
     milestoneBody: 'आज की कमाई {n} लेन-देन में {total} रही।',
   },
@@ -5313,6 +5347,7 @@ const hi: AppCopy = {
       logo_url: 'लोगो',
       active_orders: 'सक्रिय ऑर्डर',
       sold_by: 'बेचने वाला',
+      customer_id: 'ग्राहक',
       total: 'कुल',
       payment_method: 'भुगतान का तरीक़ा',
       client_id: 'क्लाइंट ID',
