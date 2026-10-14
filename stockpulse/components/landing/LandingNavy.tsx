@@ -614,6 +614,10 @@ function HeroPhoto({
           // image they never show. fetchPriority keeps lazy loading choosing
           // the visible one while still fetching it first (Next 16 image docs).
           fetchPriority="high"
+          // The phone variant is the LCP on phones, and lazy loading made it
+          // wait for layout before the request even started. Eager there costs
+          // a desktop one hidden image; lazy on desktop costs a phone nothing.
+          loading={desktop ? 'lazy' : 'eager'}
           sizes={desktop ? '52vw' : '100vw'}
           className="object-cover object-center"
         />
