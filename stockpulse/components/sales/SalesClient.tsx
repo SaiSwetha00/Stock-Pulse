@@ -454,7 +454,7 @@ export default function SalesClient({
         {canSeeRevenue && (
           <div className="sp-rise sp-e1 rounded-2xl border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center gap-2">
-              <Star className="h-4 w-4 fill-warning text-warning" />
+              <Star aria-hidden="true" className="h-4 w-4 fill-accent text-accent" />
               <h2 className="sp-heading">{tp.topSelling}</h2>
             </div>
             <div className="mt-4 space-y-4">

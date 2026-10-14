@@ -131,8 +131,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 role="status"
                 className="shrink-0 border-t border-border bg-surface px-4 py-2 lg:px-6"
               >
-                <span className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full border border-warning/40 bg-warning-bg px-3 py-1 text-xs font-semibold text-warning">
-                  <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-warning" />
+                {/* Brand accent, not warning: sample data is not a problem, and amber
+                    here was the last gold left in the navy shell. */}
+                <span className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full border border-accent/30 bg-accent-soft px-3 py-1 text-xs font-semibold text-accent-ink">
+                  <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
                   {t.shell.demoBadge}
                 </span>
               </div>

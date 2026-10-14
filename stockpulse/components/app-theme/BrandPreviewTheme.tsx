@@ -6,10 +6,11 @@ import { appBrandSans } from './fonts'
 import './brand-theme.css'
 
 /**
- * Keeps the Palette B preview theme applied across navigations — PREVIEW ONLY.
+ * Keeps Palette B applied across navigations. It is the app's theme and is ON
+ * by default; the switch below is only an escape hatch for comparison.
  *
- *   ?brand=1   turn it on. It then STAYS on while you navigate the app.
- *   ?brand=0   turn it off again.
+ *   ?brand=0   turn it off for this tab (remembered while you navigate).
+ *   ?brand=1   turn it back on.
  *
  * TWO HALVES, AND WHY. ./BrandPreviewBoot applies the theme before the first
  * paint, from a synchronous inline script, which is the only way to avoid a
@@ -45,18 +46,19 @@ import './brand-theme.css'
 const THEME_CLASS = 'sp-brand'
 const STORAGE_KEY = 'sp-brand-preview'
 
+/** On unless this tab opted out - must agree with BrandPreviewBoot's script. */
 function remembered(): boolean {
   try {
-    return window.sessionStorage.getItem(STORAGE_KEY) === '1'
+    return window.sessionStorage.getItem(STORAGE_KEY) !== '0'
   } catch {
-    return false
+    return true
   }
 }
 
 function remember(on: boolean) {
   try {
-    if (on) window.sessionStorage.setItem(STORAGE_KEY, '1')
-    else window.sessionStorage.removeItem(STORAGE_KEY)
+    if (on) window.sessionStorage.removeItem(STORAGE_KEY)
+    else window.sessionStorage.setItem(STORAGE_KEY, '0')
   } catch {
     /* Private window or blocked storage: the flag simply does not persist. */
   }

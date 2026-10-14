@@ -1,9 +1,10 @@
 /* ===================================================================
    THE AUTHENTICATED APP IN PALETTE B — NAVY + SKY BLUE + WHITE.
 
-   PREVIEW ONLY. Nothing loads this unless the preview flag is on (see
-   ./BrandPreviewTheme.tsx — `?brand=1` once, then it sticks for the
-   tab; `?brand=0` turns it off). The live app is untouched.
+   THIS IS THE LIVE THEME of the signed-in app: the `sp-brand` class is
+   on by default (see ./BrandPreviewBoot.tsx and ./BrandPreviewTheme.tsx).
+   `?brand=0` opts a single tab out, for comparing against the old
+   beige-and-gold design; `?brand=1` turns it back on.
 
    WHY A TOKEN SHEET AND NOT 18 REDESIGNED SCREENS. app/globals.css
    already states the whole visual contract as variables — colour,

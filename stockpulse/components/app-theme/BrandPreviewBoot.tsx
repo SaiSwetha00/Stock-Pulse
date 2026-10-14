@@ -1,7 +1,11 @@
 import { appBrandSans } from './fonts'
 
 /**
- * Applies the preview theme BEFORE the first paint — PREVIEW ONLY.
+ * Applies Palette B (navy + sky + white) BEFORE the first paint.
+ *
+ * Palette B is now the app's theme: it is ON unless this tab opted out with
+ * `?brand=0` (remembered per tab as '0', so a reviewer can still compare
+ * against the old beige-and-gold design). `?brand=1` clears the opt-out.
  *
  * THE PROBLEM THIS SOLVES. BrandPreviewTheme sets the theme class from a
  * `useEffect`, which cannot run until React has hydrated. Until then the page
@@ -37,9 +41,9 @@ const STORAGE_KEY = 'sp-brand-preview'
 const BOOT = `(function(){try{
 var p=new URLSearchParams(location.search).get('brand');
 var on;
-if(p==='1'){on=true;try{sessionStorage.setItem('${STORAGE_KEY}','1')}catch(e){}}
-else if(p==='0'){on=false;try{sessionStorage.removeItem('${STORAGE_KEY}')}catch(e){}}
-else{try{on=sessionStorage.getItem('${STORAGE_KEY}')==='1'}catch(e){on=false}}
+if(p==='1'){on=true;try{sessionStorage.removeItem('${STORAGE_KEY}')}catch(e){}}
+else if(p==='0'){on=false;try{sessionStorage.setItem('${STORAGE_KEY}','0')}catch(e){}}
+else{try{on=sessionStorage.getItem('${STORAGE_KEY}')!=='0'}catch(e){on=true}}
 var r=document.documentElement;
 if(on){r.classList.add('${THEME_CLASS}','${appBrandSans.variable}');}
 else{r.classList.remove('${THEME_CLASS}','${appBrandSans.variable}');}

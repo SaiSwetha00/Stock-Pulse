@@ -317,7 +317,7 @@ export default function LandingNavy({ locale = DEFAULT_LOCALE }: { locale?: Loca
           <div className={`${WRAP} grid items-center gap-12 py-16 sm:py-20 lg:grid-cols-[1.6fr_1fr] lg:gap-14`}>
             <figure className="min-w-0">
               <DashboardShot palette={PALETTE} shot={shot} />
-              <figcaption className="mt-4 text-[12.5px] text-[#6B7489]">
+              <figcaption className="mt-4 text-[12.5px] text-[#8089A0]">
                 {t.product.caption}, {shot.snapshotLabel}
               </figcaption>
             </figure>
@@ -370,7 +370,7 @@ export default function LandingNavy({ locale = DEFAULT_LOCALE }: { locale?: Loca
                   </div>
                   <figure className={`lg:col-span-7 ${flip ? 'lg:order-1' : ''}`}>
                     <ChapterVisual kind={c.visual} shot={shot} />
-                    <figcaption className="mt-4 text-[12.5px] text-[#6B7489]">
+                    <figcaption className="mt-4 text-[12.5px] text-[#8089A0]">
                       {c.visual === 'sales' ? t.captions.sales : t.captions.standard}{' '}
                       {t.captions.demoStore}, {shot.snapshotLabel}.
                     </figcaption>
@@ -483,7 +483,7 @@ export default function LandingNavy({ locale = DEFAULT_LOCALE }: { locale?: Loca
       {/* ─── Footer ─── */}
       <footer className="border-t">
         <div className={`${WRAP} flex flex-col gap-8 py-12 md:flex-row md:items-center md:justify-between`}>
-          <div className="flex items-center gap-4 text-[14px] text-[#6B7489]">
+          <div className="flex items-center gap-4 text-[14px] text-[#8089A0]">
             <span className="inline-flex items-center gap-3 text-[#EEF0F6]">
               <StockPulseMark uid="landing-footer" className="h-7 w-7" />
               <span className="text-[15px] font-medium">StockPulse</span>
@@ -609,7 +609,11 @@ function HeroPhoto({
           src={STORE_PHOTO}
           alt={shot.photoAlt}
           fill
-          priority={desktop}
+          // Not `preload`/`priority`: which variant is the LCP depends on the
+          // viewport, and preloading the desktop photo made phones download an
+          // image they never show. fetchPriority keeps lazy loading choosing
+          // the visible one while still fetching it first (Next 16 image docs).
+          fetchPriority="high"
           sizes={desktop ? '52vw' : '100vw'}
           className="object-cover object-center"
         />
@@ -670,7 +674,7 @@ function PhotoPlaceholder() {
   return (
     <div className="absolute inset-0 bg-[#10162B]">
       <div className="absolute inset-6 rounded-[18px] border border-dashed" style={{ borderColor: 'rgba(255,255,255,0.14)' }} />
-      <p className="absolute inset-x-10 top-[32%] text-center text-[13px] leading-[1.6] text-[#6B7489]">
+      <p className="absolute inset-x-10 top-[32%] text-center text-[13px] leading-[1.6] text-[#8089A0]">
         Photo: a grocery store owner checking stock on a tablet in her store.
         <span className="mt-1 block text-[#4A5270]">Image to be added — public{STORE_PHOTO}</span>
       </p>
