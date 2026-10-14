@@ -25,8 +25,23 @@ from **any** device, which is what people expect from a password reset.
 
 Dashboard → **Authentication → URL Configuration**
 
-- **Site URL**: `http://localhost:3000` (set this to the real origin in production)
-- **Redirect URLs**: add `http://localhost:3000/auth/callback`
+- **Site URL**: `https://stock-pulse-mu.vercel.app` (production)
+- **Redirect URLs**: `https://stock-pulse-mu.vercel.app/**` and
+  `http://localhost:3000/**` (covers `/auth/callback` and `/reset-password`)
+
+A `redirect_to` that is not allow-listed is not an error: Supabase silently
+sends the user to the Site URL instead, which looks like "the link opens the
+home page".
+
+## SMTP sender (why reset emails fail with "Error sending recovery email")
+
+Resend's shared sender `onboarding@resend.dev` only delivers to the email
+address that owns the Resend account; every other recipient is refused, and
+Supabase reports that refusal as `500 Error sending recovery email`. Custom
+SMTP through Resend needs a **verified domain** in Resend and a sender on that
+domain (e.g. `no-reply@yourdomain.com`). A `*.vercel.app` host cannot be
+verified - you need a domain you control. Without one, use an SMTP provider
+that verifies a single sender address instead of a domain.
 
 `{{ .SiteURL }}` in the templates below resolves to the Site URL above, so the
 templates need no edits between environments.

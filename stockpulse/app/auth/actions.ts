@@ -8,6 +8,11 @@ import { notify } from '@/app/(dashboard)/notifications/actions'
 import { redirect } from 'next/navigation'
 import { appCopy } from '@/lib/i18n/app'
 import { getLocale } from '@/lib/i18n/server'
+// The one place the public origin is decided: it strips a trailing slash (a
+// `https://host/` value would otherwise produce `//reset-password`, which the
+// Redirect URLs allow-list does not match, so Supabase silently falls back to
+// the Site URL) and falls back to the Vercel production host, not localhost.
+import { siteUrl } from '@/lib/site'
 
 /** The actor's messages, from their language cookie — see ServerCopy. */
 async function serverCopy() {
@@ -124,7 +129,7 @@ export async function logout() {
 }
 
 export async function requestPasswordReset(email: string) {
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  const origin = siteUrl()
 
   // Deliberately not the SSR client: it forces PKCE, which binds the link to
   // the requesting browser. See lib/supabase/recovery.ts. Implicit flow puts
@@ -231,7 +236,7 @@ export async function resendInvite(profileId: string) {
   if ('error' in found) return { error: found.error }
 
   const admin = createAdminClient()
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  const origin = siteUrl()
 
   // Same call as the original invitation. Supabase reissues the link for an
   // existing unconfirmed user rather than erroring, so there is no separate
@@ -318,7 +323,7 @@ export async function inviteStaff(formData: {
   }
 
   const admin = createAdminClient()
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  const origin = siteUrl()
 
   // createAdminClient uses plain @supabase/supabase-js, which defaults to the
   // implicit flow — so invite links already arrive with tokens in the #fragment
