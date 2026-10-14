@@ -457,7 +457,7 @@ export default function LogSaleModal({
     if (result.status === 'recorded') {
       toast.success(
         tp.customerLinked.replace('{name}', c.full_name),
-        tp.customerLinkedBody
+        (result.visits === 1 ? tp.customerLinkedBodyOne : tp.customerLinkedBody)
           .replace('{tier}', t.customers.tierLabels[result.loyalty_tier ?? c.loyalty_tier])
           .replace('{total}', formatCurrency(Number(result.total_spent ?? 0)))
           .replace('{visits}', String(result.visits ?? 0)),

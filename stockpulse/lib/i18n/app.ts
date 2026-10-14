@@ -361,6 +361,7 @@ export type PosCopy = {
   customerHint: string
   customerLinked: string
   customerLinkedBody: string
+  customerLinkedBodyOne: string
   customerAlready: string
   customerLinkFailed: string
   customerOfflineNotLinked: string
@@ -1957,6 +1958,7 @@ const en: AppCopy = {
     customerHint: 'Their total spend, visits and loyalty tier update when the sale completes.',
     customerLinked: 'Linked to {name}',
     customerLinkedBody: '{tier} · {total} spent across {visits} visits',
+    customerLinkedBodyOne: '{tier} · {total} spent on their first visit',
     customerAlready: 'This sale was already linked to a customer — nothing was counted twice.',
     customerLinkFailed: 'Sale logged, but it could not be linked to {name}. Their totals were not changed.',
     customerOfflineNotLinked: 'Saved without a customer: offline sales cannot update loyalty.',
@@ -3283,6 +3285,7 @@ const te: AppCopy = {
     customerHint: 'అమ్మకం పూర్తయినప్పుడు వారి మొత్తం ఖర్చు, సందర్శనలు, లాయల్టీ స్థాయి నవీకరించబడతాయి.',
     customerLinked: '{name}కి లింక్ చేయబడింది',
     customerLinkedBody: '{tier} · {visits} సందర్శనల్లో {total} ఖర్చు',
+    customerLinkedBodyOne: '{tier} · మొదటి సందర్శనలో {total} ఖర్చు',
     customerAlready: 'ఈ అమ్మకం ఇప్పటికే ఒక కస్టమర్‌కి లింక్ అయింది — ఏదీ రెండుసార్లు లెక్కించబడలేదు.',
     customerLinkFailed: 'అమ్మకం నమోదైంది, కానీ {name}కి లింక్ చేయలేకపోయాం. వారి మొత్తాలు మారలేదు.',
     customerOfflineNotLinked: 'కస్టమర్ లేకుండా సేవ్ అయింది: ఆఫ్‌లైన్ అమ్మకాలు లాయల్టీని నవీకరించలేవు.',
@@ -4653,6 +4656,7 @@ const hi: AppCopy = {
     customerHint: 'बिक्री पूरी होने पर उनका कुल खर्च, विज़िट और लॉयल्टी स्तर अपडेट होते हैं।',
     customerLinked: '{name} से जोड़ा गया',
     customerLinkedBody: '{tier} · {visits} विज़िट में {total} खर्च',
+    customerLinkedBodyOne: '{tier} · पहली विज़िट में {total} खर्च',
     customerAlready: 'यह बिक्री पहले से एक ग्राहक से जुड़ी थी — कुछ भी दो बार नहीं गिना गया।',
     customerLinkFailed: 'बिक्री दर्ज हुई, पर {name} से जोड़ी नहीं जा सकी। उनके कुल आँकड़े नहीं बदले।',
     customerOfflineNotLinked: 'बिना ग्राहक के सहेजा गया: ऑफ़लाइन बिक्री लॉयल्टी अपडेट नहीं कर सकती।',
